@@ -31,7 +31,7 @@ import { useCategoryTree } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
-import { toMajor } from '@/lib/money'
+import { formatMajorInput } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
 import { optionSource } from '@/lib/option-source'
 
@@ -87,7 +87,7 @@ function BudgetForm({
   // tree was refused rather than empty, the field says so instead.
   const categorySource = optionSource(categoriesQuery, 'categories')
   const [categoryId, setCategoryId] = useState(row?.category_id ?? '')
-  const [limit, setLimit] = useState(row ? String(toMajor(row.limit_minor, currency)) : '')
+  const [limit, setLimit] = useState(row ? formatMajorInput(row.limit_minor, currency) : '')
   // What a field got wrong. Filled on a save attempt rather than while typing,
   // since a half-typed amount is not a mistake.
   const [fieldErrors, setFieldErrors] = useState<{ category?: string; limit?: string }>({})
