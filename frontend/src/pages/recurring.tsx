@@ -11,6 +11,7 @@ import {
   recurringRulesUpdateRecurringRule,
   TransactionKind,
   type RecurringRulePublic,
+  type UpcomingOccurrence,
 } from '@/api'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/data-state'
@@ -35,6 +36,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -46,13 +54,27 @@ import { useAccounts } from '@/hooks/use-accounts'
 import { useCurrency } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
 import { describeSchedule } from '@/lib/labels'
-import { formatDate } from '@/lib/month'
+import { currentMonth, formatDate, formatMonth, monthEnd, shiftMonth } from '@/lib/month'
+
+/**
+ * How far ahead to project.
+ *
+ * Each one ends on a month boundary rather than a day counted from today, so
+ * the window a person picks is the one they see on a calendar.
+ */
+const HORIZONS = [
+  { value: '1', label: 'This month', description: 'The rest of this month' },
+  { value: '3', label: 'Next 3 months', description: 'The next three months' },
+  { value: '6', label: 'Next 6 months', description: 'The next six months' },
+  { value: '12', label: 'Next 12 months', description: 'The next twelve months' },
+]
 
 export function Component() {
   const currency = useCurrency()
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<RecurringRulePublic | null>(null)
   const [creating, setCreating] = useState(false)
+  const [horizon, setHorizon] = useState('1')
   const [deleting, setDeleting] = useState<RecurringRulePublic | null>(null)
 
   const rules = useQuery({
@@ -64,14 +86,34 @@ export function Component() {
     },
   })
 
+  const until = monthEnd(shiftMonth(currentMonth(), Number(horizon) - 1))
   const upcoming = useQuery({
-    queryKey: ['recurring', 'upcoming'],
+    queryKey: ['recurring', 'upcoming', until],
     queryFn: async () => {
-      const { data, error } = await recurringRulesListUpcomingOccurrences({})
+      const { data, error } = await recurringRulesListUpcomingOccurrences({ query: { until } })
       if (error) throw error
       return data
     },
   })
+
+  // A year ahead is over a hundred rows, and a bare "Sep 5" could be either
+  // year. A month heading carries the year, so each row only needs its day.
+  const months = useMemo(() => {
+    const buckets = new Map<string, { net_minor: number; items: UpcomingOccurrence[] }>()
+    for (const occurrence of upcoming.data?.data ?? []) {
+      const key = occurrence.occurs_on.slice(0, 7)
+      const bucket = buckets.get(key) ?? { net_minor: 0, items: [] }
+      bucket.items.push(occurrence)
+      if (occurrence.kind !== TransactionKind.TRANSFER) {
+        bucket.net_minor +=
+          occurrence.kind === TransactionKind.INCOME
+            ? occurrence.amount_minor
+            : -occurrence.amount_minor
+      }
+      buckets.set(key, bucket)
+    }
+    return [...buckets.entries()].map(([month, bucket]) => ({ month, ...bucket }))
+  }, [upcoming.data])
 
   const { data: accounts } = useAccounts({ includeArchived: true })
   const accountNames = useMemo(
@@ -243,45 +285,84 @@ export function Component() {
         </Card>
       )}
 
-      {upcoming.data && upcoming.data.count > 0 ? (
+      {/* Shown whenever a rule exists, not only when the window has something
+          in it: hiding the card would take the filter with it. */}
+      {rules.data && rules.data.count > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>Still to come</CardTitle>
             <CardDescription>
-              The next two months, projected. Nothing here is recorded yet.
+              {HORIZONS.find((option) => option.value === horizon)?.description}, projected. Nothing
+              here is recorded yet.
             </CardDescription>
             <CardAction>
-              <Money
-                minor={upcoming.data.total_minor ?? 0}
-                currency={currency}
-                className="text-xl whitespace-nowrap"
-              />
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <Select value={horizon} onValueChange={setHorizon}>
+                  <SelectTrigger className="w-40" aria-label="How far ahead to look">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HORIZONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Money
+                  minor={upcoming.data?.total_minor ?? 0}
+                  currency={currency}
+                  className="text-xl whitespace-nowrap"
+                />
+              </div>
             </CardAction>
           </CardHeader>
           <CardContent>
-            <ul className="divide-y text-sm">
-              {upcoming.data.data.map((occurrence, index) => (
-                <li
-                  key={`${occurrence.rule_id}-${occurrence.occurs_on}-${index}`}
-                  className="flex items-center justify-between gap-3 py-2"
-                >
-                  <span className="text-muted-foreground w-28 tabular-nums">
-                    {formatDate(occurrence.occurs_on, { day: 'numeric', month: 'short' })}
-                  </span>
-                  <span className="flex-1 font-medium">{occurrence.name}</span>
-                  <Money
-                    minor={
-                      occurrence.kind === TransactionKind.INCOME
-                        ? occurrence.amount_minor
-                        : -occurrence.amount_minor
-                    }
-                    currency={currency}
-                    signed={occurrence.kind !== TransactionKind.TRANSFER}
-                    colored={occurrence.kind !== TransactionKind.TRANSFER}
-                  />
-                </li>
-              ))}
-            </ul>
+            {upcoming.isPending ? (
+              <LoadingRows rows={3} />
+            ) : upcoming.isError ? (
+              <ErrorState error={upcoming.error} />
+            ) : upcoming.data.count === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                Nothing falls due in this window. Try looking further ahead.
+              </p>
+            ) : (
+              <div className="space-y-5">
+                {months.map((group) => (
+                  <div key={group.month}>
+                    <div className="text-muted-foreground flex items-baseline justify-between gap-3 border-b pb-1 text-xs font-medium">
+                      <span className="tracking-wide uppercase">{formatMonth(group.month)}</span>
+                      <Money minor={group.net_minor} currency={currency} signed />
+                    </div>
+                    <ul className="divide-y text-sm">
+                      {group.items.map((occurrence, index) => (
+                        <li
+                          key={`${occurrence.rule_id}-${occurrence.occurs_on}-${index}`}
+                          className="flex items-center justify-between gap-3 py-2"
+                        >
+                          {/* The heading above says which month, so the row
+                              only needs the day. */}
+                          <span className="text-muted-foreground w-6 text-right tabular-nums">
+                            {formatDate(occurrence.occurs_on, { day: 'numeric' })}
+                          </span>
+                          <span className="flex-1 font-medium">{occurrence.name}</span>
+                          <Money
+                            minor={
+                              occurrence.kind === TransactionKind.INCOME
+                                ? occurrence.amount_minor
+                                : -occurrence.amount_minor
+                            }
+                            currency={currency}
+                            signed={occurrence.kind !== TransactionKind.TRANSFER}
+                            colored={occurrence.kind !== TransactionKind.TRANSFER}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : null}
