@@ -1,6 +1,7 @@
 from uuid import UUID
 
-from sqlmodel import Session, select
+from sqlalchemy import func
+from sqlmodel import Session, col, select
 
 from app.models import EmailVerification, EmailVerificationStatus
 from app.repositories.base import BaseRepository
@@ -42,6 +43,27 @@ class EmailVerificationRepository(BaseRepository[EmailVerification]):
             EmailVerification.user_id == user_id, EmailVerification.status == EmailVerificationStatus.PENDING
         )
         return self.session.exec(statement).first()
+
+    def has_verified(self, user_id: UUID, email: str) -> bool:
+        """Report whether an account has proved that it holds an address.
+
+        Compared case-insensitively: the row records the address as the account
+        held it, while an invited address is normalised, so an equality
+        comparison would miss the very proof being looked for.
+
+        Args:
+            user_id: The account.
+            email: The address it is said to hold.
+
+        Returns:
+            True if that account has verified that address.
+        """
+        statement = select(EmailVerification).where(
+            EmailVerification.user_id == user_id,
+            func.lower(col(EmailVerification.email)) == email.lower(),
+            EmailVerification.status == EmailVerificationStatus.VERIFIED,
+        )
+        return self.session.exec(statement).first() is not None
 
     def update_status(
         self, email_verification: EmailVerification, status: EmailVerificationStatus

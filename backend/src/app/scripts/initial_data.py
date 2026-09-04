@@ -5,6 +5,7 @@ from app.logging import get_logger
 from app.repositories import (
     BudgetRepository,
     CategoryRepository,
+    EmailVerificationRepository,
     HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
@@ -27,6 +28,8 @@ def init() -> None:
             household_repository=HouseholdRepository(session=session),
             household_member_repository=HouseholdMemberRepository(session=session),
             household_invite_repository=HouseholdInviteRepository(session=session),
+            user_repository=user_repository,
+            email_verification_repository=EmailVerificationRepository(session=session),
         )
         category_service = CategoryService(
             session=session,
