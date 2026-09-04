@@ -58,6 +58,8 @@ class TransactionPublic(TransactionBase):
     account_id: uuid.UUID
     category_id: uuid.UUID | None = None
     counter_account_id: uuid.UUID | None = None
+    recurring_rule_id: uuid.UUID | None = None
+    is_generated: bool = False
     created_at: datetime.datetime
     updated_at: datetime.datetime | None = None
 
@@ -147,6 +149,16 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
             "occurred_on",
             postgresql_where=text("counter_account_id IS NOT NULL"),
         ),
+        # Belt and braces for recurring rules. The cursor on the rule only ever
+        # moves forward, so an occurrence is created once; this makes a second
+        # attempt impossible even if two requests race.
+        Index(
+            "uq_transaction_rule_occurrence",
+            "recurring_rule_id",
+            "occurred_on",
+            unique=True,
+            postgresql_where=text("recurring_rule_id IS NOT NULL"),
+        ),
     )
 
     household_id: uuid.UUID = Field(foreign_key="household.id", ondelete="CASCADE", index=True)
@@ -158,6 +170,10 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
     counter_account_id: uuid.UUID | None = Field(default=None)
     category_id: uuid.UUID | None = Field(default=None)
     created_by_user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", ondelete="SET NULL")
+    # Set when a recurring rule created this row. SET NULL on delete, so
+    # removing a rule keeps the transactions it already made: they happened.
+    recurring_rule_id: uuid.UUID | None = Field(default=None, foreign_key="recurringrule.id", ondelete="SET NULL")
+    is_generated: bool = Field(default=False)
     # Unused in this version. Two nullable columns now mean adding CSV or bank
     # import later is purely additive: one partial unique index for dedupe and
     # an import batch table, with no rewrite of the ledger.

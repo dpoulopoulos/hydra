@@ -1,0 +1,150 @@
+import datetime
+import uuid
+from enum import StrEnum
+
+from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, Index
+from sqlmodel import Field, SQLModel
+
+from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
+from .transaction import TransactionKind
+
+
+class RecurrenceFrequency(StrEnum):
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+
+
+class RecurringRuleBase(SQLModel):
+    name: str = Field(max_length=255)
+    frequency: RecurrenceFrequency = RecurrenceFrequency.MONTHLY
+    # Every `interval` periods. Two with a weekly frequency is a fortnight.
+    interval: int = Field(default=1, ge=1)
+    start_date: datetime.date
+    end_date: datetime.date | None = Field(default=None)
+    # For a monthly or yearly rule, the day it falls on. A day beyond the end
+    # of a short month is pulled back to the last day of it.
+    day_of_month: int | None = Field(default=None, ge=1, le=31)
+    # --- the transaction this rule creates ---
+    kind: TransactionKind = TransactionKind.EXPENSE
+    amount_minor: int = Field(gt=0)
+    merchant: str | None = Field(default=None, max_length=255)
+    note: str | None = Field(default=None, max_length=1024)
+    is_active: bool = True
+
+
+class RecurringRuleCreate(RecurringRuleBase):
+    account_id: uuid.UUID
+    category_id: uuid.UUID | None = None
+    counter_account_id: uuid.UUID | None = None
+
+
+class RecurringRuleUpdate(SQLModel):
+    name: str | None = Field(default=None, max_length=255)
+    frequency: RecurrenceFrequency | None = Field(default=None)
+    interval: int | None = Field(default=None, ge=1)
+    end_date: datetime.date | None = Field(default=None)
+    day_of_month: int | None = Field(default=None, ge=1, le=31)
+    amount_minor: int | None = Field(default=None, gt=0)
+    merchant: str | None = Field(default=None, max_length=255)
+    note: str | None = Field(default=None, max_length=1024)
+    category_id: uuid.UUID | None = Field(default=None)
+    is_active: bool | None = Field(default=None)
+
+
+class RecurringRulePublic(RecurringRuleBase):
+    id: uuid.UUID
+    household_id: uuid.UUID
+    account_id: uuid.UUID
+    category_id: uuid.UUID | None = None
+    counter_account_id: uuid.UUID | None = None
+    next_occurrence_on: datetime.date | None = None
+    last_generated_on: datetime.date | None = None
+    created_at: datetime.datetime
+    updated_at: datetime.datetime | None = None
+
+
+class RecurringRulesPublic(SQLModel):
+    data: list[RecurringRulePublic]
+    count: int
+
+
+class UpcomingOccurrence(SQLModel):
+    """A date a rule will fall due on, not yet recorded."""
+
+    rule_id: uuid.UUID
+    name: str
+    kind: TransactionKind
+    amount_minor: int
+    occurs_on: datetime.date
+    account_id: uuid.UUID
+    category_id: uuid.UUID | None = None
+
+
+class UpcomingOccurrencesPublic(SQLModel):
+    data: list[UpcomingOccurrence]
+    count: int
+    total_minor: int = 0
+
+
+class RecurringRunResult(SQLModel):
+    """What one materialization pass did."""
+
+    created_count: int
+    skipped_count: int
+    rules_advanced: int
+
+
+class RecurringRule(RecurringRuleBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=True):
+    __table_args__ = (
+        CheckConstraint("amount_minor > 0", name="ck_recurringrule_amount_positive"),
+        CheckConstraint("interval >= 1", name="ck_recurringrule_interval_positive"),
+        CheckConstraint("end_date IS NULL OR end_date >= start_date", name="ck_recurringrule_date_order"),
+        CheckConstraint(
+            "day_of_month IS NULL OR (day_of_month >= 1 AND day_of_month <= 31)",
+            name="ck_recurringrule_day_of_month_range",
+        ),
+        # The same shape rule the ledger enforces, so a rule cannot generate a
+        # transaction the transaction table would refuse.
+        CheckConstraint(
+            "(kind = 'TRANSFER' AND counter_account_id IS NOT NULL AND category_id IS NULL)"
+            " OR (kind <> 'TRANSFER' AND counter_account_id IS NULL)",
+            name="ck_recurringrule_transfer_shape",
+        ),
+        CheckConstraint(
+            "counter_account_id IS NULL OR counter_account_id <> account_id",
+            name="ck_recurringrule_distinct_accounts",
+        ),
+        ForeignKeyConstraint(
+            ["account_id", "household_id"],
+            ["account.id", "account.household_id"],
+            name="fk_recurringrule_account_household",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["counter_account_id", "household_id"],
+            ["account.id", "account.household_id"],
+            name="fk_recurringrule_counter_account_household",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["category_id", "household_id"],
+            ["category.id", "category.household_id"],
+            name="fk_recurringrule_category_household",
+            ondelete="RESTRICT",
+        ),
+        # Drives the materialization query: which rules are due?
+        Index("ix_recurringrule_due", "household_id", "next_occurrence_on"),
+    )
+
+    household_id: uuid.UUID = Field(foreign_key="household.id", ondelete="CASCADE", index=True)
+    amount_minor: int = Field(sa_type=BigInteger)
+    start_date: datetime.date = Field(sa_type=Date)
+    end_date: datetime.date | None = Field(default=None, sa_type=Date)
+    account_id: uuid.UUID = Field(nullable=False)
+    counter_account_id: uuid.UUID | None = Field(default=None)
+    category_id: uuid.UUID | None = Field(default=None)
+    # The materialization cursor: the next date not yet created. NULL means the
+    # rule is exhausted, which is what moving it forward only ever does.
+    next_occurrence_on: datetime.date | None = Field(default=None, sa_type=Date)
+    last_generated_on: datetime.date | None = Field(default=None, sa_type=Date)
