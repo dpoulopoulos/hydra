@@ -58,10 +58,38 @@ status() {
   curl --silent --output /dev/null --write-out '%{http_code}' "$base$1"
 }
 
+# The last value of a response header, named case insensitively, or the empty
+# string when the response carries no such header.
+header() {
+  curl --silent --head "$base$2" \
+    | tr -d '\r' \
+    | grep --ignore-case "^$1:" \
+    | sed "s/^[^:]*: *//" \
+    | tail -1
+}
+
 check "the entry page is served" 200 "$(status /)"
 check "a bundle under /static is served" 200 "$(status /static/app.js)"
 # Client side routing: an unknown path is a page of the app, not a 404.
 check "an app route falls back to the entry page" 200 "$(status /budgets)"
+
+csp="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+
+# The session token lives in localStorage, so the browser's script execution
+# controls are what stands between an injected script and the token.
+check "the entry page carries a content security policy" "$csp" "$(header content-security-policy /)"
+check "the entry page forbids MIME sniffing" "nosniff" "$(header x-content-type-options /)"
+# Reset, verification and invite links carry a single use token in the query
+# string, which must not leak to another origin in a Referer header.
+check "the entry page sends no referrer" "no-referrer" "$(header referrer-policy /)"
+check "the entry page refuses to be framed" "DENY" "$(header x-frame-options /)"
+check "the entry page asserts HSTS" "max-age=31536000; includeSubDomains" "$(header strict-transport-security /)"
+check "the server does not name itself" "" "$(header server /)"
+
+# The headers belong to every response, not only to the entry page: a bundle
+# and an app route are served by different handlers.
+check "a bundle carries the policy too" "$csp" "$(header content-security-policy /static/app.js)"
+check "an app route carries the policy too" "$csp" "$(header content-security-policy /budgets)"
 
 if [ "$failures" -ne 0 ]; then
   echo "$failures check(s) failed"
