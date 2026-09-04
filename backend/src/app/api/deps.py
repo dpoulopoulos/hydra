@@ -14,6 +14,7 @@ from app.exceptions import HouseholdRoleRequiredError, UserNotAuthorizedError
 from app.exceptions.password_exceptions import InvalidCredentialsError
 from app.models import HouseholdContext, HouseholdRole, TokenPayload, User
 from app.repositories import (
+    AccountRepository,
     CategoryRepository,
     EmailVerificationRepository,
     HouseholdMemberRepository,
@@ -22,6 +23,7 @@ from app.repositories import (
     UserRepository,
 )
 from app.services import (
+    AccountService,
     CategoryService,
     EmailVerificationService,
     HouseholdService,
@@ -90,6 +92,21 @@ def get_email_verification_repository(session: SessionDep) -> EmailVerificationR
 EmailVerificationRepositoryDep = Annotated[EmailVerificationRepository, Depends(get_email_verification_repository)]
 
 
+def get_account_repository(session: SessionDep) -> AccountRepository:
+    """Get an account repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        An account repository instance.
+    """
+    return AccountRepository(session=session)
+
+
+AccountRepositoryDep = Annotated[AccountRepository, Depends(get_account_repository)]
+
+
 def get_category_repository(session: SessionDep) -> CategoryRepository:
     """Get a category repository instance.
 
@@ -149,6 +166,31 @@ def get_household_member_repository(session: SessionDep) -> HouseholdMemberRepos
 
 
 HouseholdMemberRepositoryDep = Annotated[HouseholdMemberRepository, Depends(get_household_member_repository)]
+
+
+def get_account_service(
+    session: SessionDep,
+    account_repository: AccountRepositoryDep,
+    household_repository: HouseholdRepositoryDep,
+) -> AccountService:
+    """Get an account service instance.
+
+    Args:
+        session: The database session.
+        account_repository: The account repository instance.
+        household_repository: The household repository instance.
+
+    Returns:
+        An account service instance.
+    """
+    return AccountService(
+        session=session,
+        account_repository=account_repository,
+        household_repository=household_repository,
+    )
+
+
+AccountServiceDep = Annotated[AccountService, Depends(get_account_service)]
 
 
 def get_household_service(
