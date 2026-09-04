@@ -35,16 +35,20 @@ class CategoryInUseError(ServiceError):
     the message is written out rather than composed from that template.
     """
 
-    def __init__(self, name: str, exc: Exception | None = None):
+    def __init__(self, name: str, reason: str | None = None, exc: Exception | None = None):
         """Initialize a CategoryInUseError.
 
         Args:
             name: The name of the category in use.
+            reason: What is still referencing the category, phrased to follow the name. Omit for the
+                generic wording.
             exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
         """
-        msg = f"Category '{name}' is still in use. Archive it instead, so past reports keep their history."
+        blocker = f"still {reason}" if reason else "still in use"
+        msg = f"Category '{name}' {blocker}. Archive it instead, so past reports keep their history."
         super().__init__(msg, exc)
         self.name = name
+        self.reason = reason
 
 
 class CategoryDepthExceededError(ValidationError):
