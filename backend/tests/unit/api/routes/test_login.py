@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_db
-from app.exceptions import UserNotActiveError, UserNotFoundError
-from app.exceptions.password_exceptions import InvalidCredentialsError
+from app.exceptions import UserNotActiveError
+from app.exceptions.password_exceptions import InvalidEmailOrPasswordError
 from app.main import app
 from app.models import Token, User
 from app.services import UserService
@@ -51,20 +51,20 @@ class TestLoginAccessToken:
             # Cleanup
             app.dependency_overrides.clear()
 
-    def test_login_user_not_found(
+    def test_login_unknown_email(
         self,
         client: TestClient,
         mock_db_session: MagicMock,
     ) -> None:
         """Test login with non-existent user email."""
-        # Arrange: Set up database dependency override and mock UserNotFoundError
+        # Arrange: Set up database dependency override and mock InvalidEmailOrPasswordError
         def override_get_db() -> Generator[MagicMock, None, None]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
 
         try:
-            with patch.object(UserService, "authenticate", side_effect=UserNotFoundError):
+            with patch.object(UserService, "authenticate", side_effect=InvalidEmailOrPasswordError):
                 # Act: Post login with non-existent user email
                 response = client.post(
                     "/api/v1/login/access-token",
@@ -74,11 +74,50 @@ class TestLoginAccessToken:
                     },
                 )
 
-                # Assert: Verify 404 error response
+                # Assert: Verify the address is not reported as unregistered
                 data = response.json()
 
-                assert response.status_code == 404
-                assert data["detail"] == "User not found."
+                assert response.status_code == 401
+                assert data["detail"] == "Incorrect email or password."
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+    def test_login_does_not_disclose_registered_addresses(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test that an unknown address and a wrong password answer identically.
+
+        The status code and the body are both compared: either one differing would let anyone read off
+        which addresses have an account here, one request per address.
+        """
+        # Arrange: Set up database dependency override
+        def override_get_db() -> Generator[MagicMock, None, None]:
+            yield mock_db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        try:
+            # Act: Post the same junk password against an unregistered and a registered address
+            with patch.object(UserService, "get_user_by_email", return_value=None):
+                unknown = client.post(
+                    "/api/v1/login/access-token",
+                    data={"username": "nonexistent@example.com", "password": "junkpassword123"},
+                )
+
+            with patch.object(UserService, "get_user_by_email", return_value=test_user):
+                registered = client.post(
+                    "/api/v1/login/access-token",
+                    data={"username": test_user.email, "password": "junkpassword123"},
+                )
+
+            # Assert: Both answers are the same 401, byte for byte
+            assert unknown.status_code == 401
+            assert unknown.status_code == registered.status_code
+            assert unknown.content == registered.content
         finally:
             # Cleanup
             app.dependency_overrides.clear()
@@ -90,14 +129,14 @@ class TestLoginAccessToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test login with incorrect password."""
-        # Arrange: Set up database dependency override and mock InvalidCredentialsError
+        # Arrange: Set up database dependency override and mock InvalidEmailOrPasswordError
         def override_get_db() -> Generator[MagicMock, None, None]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
 
         try:
-            with patch.object(UserService, "authenticate", side_effect=InvalidCredentialsError):
+            with patch.object(UserService, "authenticate", side_effect=InvalidEmailOrPasswordError):
                 # Act: Post login with incorrect password
                 response = client.post(
                     "/api/v1/login/access-token",
@@ -111,7 +150,7 @@ class TestLoginAccessToken:
                 data = response.json()
 
                 assert response.status_code == 401
-                assert data["detail"] == "Could not validate credentials."
+                assert data["detail"] == "Incorrect email or password."
         finally:
             # Cleanup
             app.dependency_overrides.clear()
@@ -217,7 +256,9 @@ class TestLoginAccessToken:
         app.dependency_overrides[get_db] = override_get_db
 
         try:
-            with patch.object(UserService, "authenticate", side_effect=UserNotFoundError) as mock_authenticate:
+            with patch.object(
+                UserService, "authenticate", side_effect=InvalidEmailOrPasswordError
+            ) as mock_authenticate:
                 # Act: Post login with empty credentials
                 response = client.post(
                     "/api/v1/login/access-token",

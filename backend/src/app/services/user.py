@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.exceptions import (
     DeleteSuperUserError,
+    InvalidEmailOrPasswordError,
     PasswordIsWrongError,
     PasswordUnmodifiedError,
     UserExistsError,
@@ -63,17 +64,18 @@ class UserService:
             A token for the authenticated user.
 
         Raises:
-            UserNotFoundError: If a user with the given email does not exist.
-            PasswordIsWrongError: If the given password does not match the stored password.
+            InvalidEmailOrPasswordError: If no user has the given email, or the given password does not
+                match the stored one. Both cases raise the same error on purpose, so that a caller cannot
+                use the endpoint to find out which addresses have an account.
             UserNotActiveError: If the user is inactive.
         """
         user = self.get_user_by_email(email=email)
 
         if not user:
-            raise UserNotFoundError
+            raise InvalidEmailOrPasswordError from None
 
         if not verify_password(password, user.hashed_password):
-            raise PasswordIsWrongError from None
+            raise InvalidEmailOrPasswordError from None
 
         if not user.is_active:
             # Check if user has a pending email verification

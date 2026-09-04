@@ -7,9 +7,8 @@ from app.api.deps import EmailVerificationServiceDep, UserServiceDep
 from app.exceptions import (
     ServiceError,
     UserNotActiveError,
-    UserNotFoundError,
 )
-from app.exceptions.password_exceptions import PasswordIsWrongError
+from app.exceptions.password_exceptions import InvalidEmailOrPasswordError
 from app.models import Token
 
 router = APIRouter(tags=["login"])
@@ -22,8 +21,7 @@ def login_exception_mappings() -> dict[type[ServiceError], int]:
         A dictionary mapping exception types to HTTP status codes.
     """
     return {
-        UserNotFoundError: status.HTTP_404_NOT_FOUND,
-        PasswordIsWrongError: status.HTTP_401_UNAUTHORIZED,
+        InvalidEmailOrPasswordError: status.HTTP_401_UNAUTHORIZED,
         UserNotActiveError: status.HTTP_403_FORBIDDEN,
     }
 
@@ -47,8 +45,10 @@ def login_access_token(
         A token containing the access token.
 
     Raises:
-        HTTPException: If the user is not found (404), the password is incorrect (401), or the user
-            is inactive (403). For 403, the error message will indicate if email verification is pending.
+        HTTPException: If the credentials do not check out (401), or the user is inactive (403). The 401
+            is deliberately the same whether or not the address is registered, so that the endpoint cannot
+            be used to enumerate accounts. For 403, the error message will indicate if email verification
+            is pending.
     """
     return user_service.authenticate(
         email=form_data.username, password=form_data.password, email_verification_service=email_verification_service

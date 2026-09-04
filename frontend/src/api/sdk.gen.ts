@@ -1497,8 +1497,10 @@ export const reportsMonthSummary = <ThrowOnError extends boolean = false>(option
  * A token containing the access token.
  *
  * Raises:
- * HTTPException: If the user is not found (404), the password is incorrect (401), or the user
- * is inactive (403). For 403, the error message will indicate if email verification is pending.
+ * HTTPException: If the credentials do not check out (401), or the user is inactive (403). The 401
+ * is deliberately the same whether or not the address is registered, so that the endpoint cannot
+ * be used to enumerate accounts. For 403, the error message will indicate if email verification
+ * is pending.
  */
 export const loginLoginAccessToken = <ThrowOnError extends boolean = false>(options: Options<LoginLoginAccessTokenData, ThrowOnError>): RequestResult<LoginLoginAccessTokenResponses, LoginLoginAccessTokenErrors, ThrowOnError> => (options.client ?? client).post<LoginLoginAccessTokenResponses, LoginLoginAccessTokenErrors, ThrowOnError>({
     ...urlSearchParamsBodySerializer,
