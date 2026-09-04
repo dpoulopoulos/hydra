@@ -126,6 +126,7 @@ class Settings(BaseSettings):
 
     EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 24  # 1 day
     EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 48  # 2 days
+    HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS: int = 168  # 7 days
 
 
 settings = Settings()  # type: ignore

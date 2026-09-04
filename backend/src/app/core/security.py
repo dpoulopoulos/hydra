@@ -22,6 +22,7 @@ class TokenType(StrEnum):
     SESSION = "session"
     PASSWORD_RESET = "password_reset"
     EMAIL_VERIFICATION = "email_verification"
+    HOUSEHOLD_INVITE = "household_invite"
 
 
 class JWT:

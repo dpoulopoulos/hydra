@@ -15,6 +15,13 @@ class HouseholdRole(StrEnum):
     MEMBER = "member"
 
 
+class HouseholdInviteStatus(StrEnum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REVOKED = "revoked"
+    EXPIRED = "expired"
+
+
 class HouseholdBase(SQLModel):
     name: str = Field(max_length=255)
     # ISO 4217. Single currency per household in this version; the column exists
@@ -70,6 +77,54 @@ class HouseholdMember(HouseholdMemberBase, PrimaryKeyMixin, CreatedAtMixin, Upda
     # alone, with no household selector. Dropping this constraint is the
     # migration that would allow a user to join several households.
     user_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE", unique=True, index=True)
+
+
+class HouseholdInviteBase(SQLModel):
+    email: EmailStr = Field(index=True, max_length=255)
+    role: HouseholdRole = HouseholdRole.MEMBER
+    expires_at: datetime.datetime
+    status: HouseholdInviteStatus = HouseholdInviteStatus.PENDING
+
+
+class HouseholdInviteCreate(SQLModel):
+    email: EmailStr = Field(max_length=255)
+    role: HouseholdRole = HouseholdRole.MEMBER
+
+
+class HouseholdInviteAccept(SQLModel):
+    token: str
+
+
+class HouseholdInvitePublic(HouseholdInviteBase):
+    id: uuid.UUID
+    household_id: uuid.UUID
+    created_at: datetime.datetime
+
+
+class HouseholdInvitesPublic(SQLModel):
+    data: list[HouseholdInvitePublic]
+    count: int
+
+
+class HouseholdInvitePreview(SQLModel):
+    """What the join page may show before the recipient has signed in.
+
+    Deliberately thin: anyone holding the link can read this, so it carries
+    only what is needed to decide whether to accept, and nothing about the
+    household's money.
+    """
+
+    household_name: str
+    invited_by: EmailStr
+    email: EmailStr
+    role: HouseholdRole
+    expires_at: datetime.datetime
+
+
+class HouseholdInvite(HouseholdInviteBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=True):
+    token: str = Field(unique=True, index=True)
+    household_id: uuid.UUID = Field(foreign_key="household.id", ondelete="CASCADE", index=True)
+    invited_by_user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", ondelete="SET NULL")
 
 
 @dataclass(frozen=True, slots=True)
