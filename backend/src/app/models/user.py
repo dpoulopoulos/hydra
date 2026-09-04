@@ -23,6 +23,9 @@ class UserRegister(SQLModel):
     email: EmailStr = Field(max_length=255)
     password: Password = Field(min_length=MIN_PASSWORD_LENGTH, max_length=BCRYPT_MAX_PASSWORD_BYTES)
     full_name: str | None = Field(default=None, max_length=255)
+    # Set when the account is being created from a household invitation link,
+    # so the new user joins that household rather than getting one of their own.
+    invite_token: str | None = Field(default=None)
 
 
 class UserPublic(UserBase):

@@ -1,18 +1,33 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from sqlmodel import Session
 
+from app.core.config import settings
+from app.core.security import TokenType, create_typed_token
 from app.exceptions import (
+    HouseholdInviteEmailMismatchError,
+    HouseholdInviteExistsError,
+    HouseholdInviteExpiredError,
+    HouseholdInviteNotFoundError,
+    HouseholdInviteUsedError,
     HouseholdMemberExistsError,
     HouseholdMemberNotFoundError,
     HouseholdMembershipNotFoundError,
+    HouseholdNotEmptyError,
     HouseholdNotFoundError,
     LastHouseholdOwnerError,
 )
 from app.models import (
     Household,
     HouseholdContext,
+    HouseholdInvite,
+    HouseholdInviteCreate,
+    HouseholdInvitePreview,
+    HouseholdInvitePublic,
+    HouseholdInvitesPublic,
+    HouseholdInviteStatus,
     HouseholdMember,
     HouseholdMemberPublic,
     HouseholdMembersPublic,
@@ -23,7 +38,12 @@ from app.models import (
     Message,
     User,
 )
-from app.repositories.household import HouseholdMemberRepository, HouseholdRepository
+from app.repositories.household import (
+    HouseholdInviteRepository,
+    HouseholdMemberRepository,
+    HouseholdRepository,
+)
+from app.utils import generate_household_invite_email, send_email
 
 
 class CategorySeeder(Protocol):
@@ -62,6 +82,7 @@ class HouseholdService:
         session: Session,
         household_repository: HouseholdRepository,
         household_member_repository: HouseholdMemberRepository,
+        household_invite_repository: HouseholdInviteRepository,
     ) -> None:
         """Initialize the household service.
 
@@ -69,10 +90,12 @@ class HouseholdService:
             session: The database session.
             household_repository: The household repository instance.
             household_member_repository: The household member repository instance.
+            household_invite_repository: The household invite repository instance.
         """
         self.session = session
         self.household_repository = household_repository
         self.household_member_repository = household_member_repository
+        self.household_invite_repository = household_invite_repository
 
     def get_context(self, user: User) -> HouseholdContext:
         """Resolve the household scope of a user.
@@ -293,22 +316,42 @@ class HouseholdService:
         return len(users)
 
     def create_for_user(
-        self, user: User, name: str | None = None, category_service: CategorySeeder | None = None
+        self,
+        user: User,
+        name: str | None = None,
+        category_service: CategorySeeder | None = None,
+        invite_token: str | None = None,
     ) -> Household:
-        """Create a household owned by a user, without committing.
+        """Give a user a household, without committing.
 
         The caller owns the transaction, so signing up can create the user, the
         household and its categories together. A user is therefore never
         observable without a household.
 
+        With an invite token the user joins the household that invited them,
+        rather than getting one of their own. That is the common case of
+        somebody following a link a partner sent, and it saves creating a
+        household only to discard it a moment later.
+
         Args:
-            user: The owner of the new household.
+            user: The user to give a household to.
             name: An optional household name. Defaults to a name based on the user.
             category_service: The category service, used to seed the default categories.
+            invite_token: An optional invite to join instead of creating a household.
 
         Returns:
-            The created household.
+            The household the user now belongs to.
+
+        Raises:
+            HouseholdInviteNotFoundError: If the token is not recognised.
+            HouseholdInviteUsedError: If the invite was already used or withdrawn.
+            HouseholdInviteExpiredError: If the invite has expired.
+            HouseholdInviteEmailMismatchError: If the invite was sent to a different address.
+            HouseholdNotFoundError: If the invited household no longer exists.
         """
+        if invite_token:
+            return self._join_by_invite(user=user, token=invite_token)
+
         household = Household(name=name or default_household_name(user))
         self.household_repository.save(household)
 
@@ -409,3 +452,283 @@ class HouseholdService:
         return HouseholdMemberPublic.model_validate(
             membership, update={"email": user.email, "full_name": user.full_name}
         )
+
+    def create_invite(self, household: HouseholdContext, invite_create: HouseholdInviteCreate) -> HouseholdInvitePublic:
+        """Invite someone to share the household, and email them a link.
+
+        Args:
+            household: The household context.
+            invite_create: The address to invite and the role to give them.
+
+        Returns:
+            The created invite.
+
+        Raises:
+            HouseholdNotFoundError: If the household no longer exists.
+            HouseholdInviteExistsError: If that address already has an outstanding invite.
+            HouseholdMemberExistsError: If that address is already a member.
+        """
+        entity = self._require_household(household)
+        email = invite_create.email.lower()
+
+        if self.household_invite_repository.get_pending_for_email(household_id=household.household_id, email=email):
+            raise HouseholdInviteExistsError(email=email) from None
+
+        if any(
+            user.email.lower() == email
+            for _, user in self.household_member_repository.list_with_users(household.household_id)
+        ):
+            raise HouseholdMemberExistsError(email=email) from None
+
+        expire_hours = settings.HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS
+        invite = HouseholdInvite(
+            household_id=household.household_id,
+            email=email,
+            role=invite_create.role,
+            expires_at=datetime.now(UTC) + timedelta(hours=expire_hours),
+            token=create_typed_token(
+                subject=household.household_id,
+                token_type=TokenType.HOUSEHOLD_INVITE,
+                expires_hours=expire_hours,
+            ),
+        )
+        invite.invited_by_user_id = household.user_id
+        self.household_invite_repository.save(invite)
+        self.session.commit()
+
+        if settings.emails_enabled:
+            email_data = generate_household_invite_email(
+                email=email,
+                token=invite.token,
+                household_name=entity.name,
+                inviter_name=household.user.full_name or household.user.email,
+            )
+            send_email(email_to=email, subject=email_data.subject, html_content=email_data.html_content)
+
+        return HouseholdInvitePublic.model_validate(invite)
+
+    def list_invites(
+        self, household: HouseholdContext, status: HouseholdInviteStatus | None = None
+    ) -> HouseholdInvitesPublic:
+        """List the invites of the household.
+
+        Args:
+            household: The household context.
+            status: An optional status to filter on.
+
+        Returns:
+            The invites, newest first.
+        """
+        invites = self.household_invite_repository.list_for_household(
+            household_id=household.household_id, status=status
+        )
+        data = [HouseholdInvitePublic.model_validate(invite) for invite in invites]
+
+        return HouseholdInvitesPublic(data=data, count=len(data))
+
+    def revoke_invite(self, household: HouseholdContext, invite_id: uuid.UUID) -> Message:
+        """Withdraw an invite that has not been accepted.
+
+        The row is kept, marked revoked, rather than deleted. The token stays
+        recognised, so someone following an old link is told it was withdrawn
+        instead of that it never existed.
+
+        Args:
+            household: The household context.
+            invite_id: The ID of the invite to withdraw.
+
+        Returns:
+            A confirmation message.
+
+        Raises:
+            HouseholdInviteNotFoundError: If the invite does not exist in the household.
+            HouseholdInviteUsedError: If the invite was already accepted or withdrawn.
+        """
+        invite = self.household_invite_repository.get_for_household(
+            entity_id=invite_id, household_id=household.household_id
+        )
+
+        if not invite:
+            raise HouseholdInviteNotFoundError from None
+
+        if invite.status is not HouseholdInviteStatus.PENDING:
+            raise HouseholdInviteUsedError from None
+
+        invite.status = HouseholdInviteStatus.REVOKED
+        self.household_invite_repository.save(invite)
+        self.session.commit()
+
+        return Message(message="Invitation withdrawn.")
+
+    def preview_invite(self, token: str) -> HouseholdInvitePreview:
+        """Describe an invite for the join page.
+
+        Public, so it deliberately carries only what somebody needs to decide
+        whether to accept, and nothing about the household's money.
+
+        Args:
+            token: The invite token.
+
+        Returns:
+            The household name, who invited them, and when it expires.
+
+        Raises:
+            HouseholdInviteNotFoundError: If no invite has that token.
+            HouseholdInviteUsedError: If the invite was already accepted or withdrawn.
+            HouseholdInviteExpiredError: If the invite is past its expiry.
+        """
+        invite = self._require_pending_invite(token)
+        entity = self.household_repository.get_by_id(invite.household_id)
+
+        if not entity:
+            raise HouseholdNotFoundError from None
+
+        inviter = (
+            self.household_member_repository.get_user(invite.invited_by_user_id) if invite.invited_by_user_id else None
+        )
+
+        return HouseholdInvitePreview(
+            household_name=entity.name,
+            invited_by=inviter.email if inviter else invite.email,
+            email=invite.email,
+            role=invite.role,
+            expires_at=invite.expires_at,
+        )
+
+    def accept_invite(self, user: User, token: str, category_service: CategorySeeder | None = None) -> HouseholdPublic:
+        """Join a household using an invite.
+
+        The caller already has a household, created when they signed up. If it
+        is still empty it is discarded, since nothing would be lost. If they
+        have started using it, joining is refused rather than silently
+        abandoning their data.
+
+        Args:
+            user: The user accepting the invite.
+            token: The invite token.
+            category_service: The category service, unused here but accepted
+                for symmetry with the other membership methods.
+
+        Returns:
+            The household they joined.
+
+        Raises:
+            HouseholdInviteNotFoundError: If no invite has that token.
+            HouseholdInviteUsedError: If the invite was already accepted or withdrawn.
+            HouseholdInviteExpiredError: If the invite is past its expiry.
+            HouseholdInviteEmailMismatchError: If the invite was sent to someone else.
+            HouseholdNotEmptyError: If the caller's current household holds data.
+        """
+        del category_service  # The joined household already has its categories.
+
+        invite = self._require_pending_invite(token)
+
+        # Without this, a leaked link would hand a stranger full access to the
+        # household's finances.
+        if invite.email.lower() != user.email.lower():
+            raise HouseholdInviteEmailMismatchError from None
+
+        entity = self.household_repository.get_by_id(invite.household_id)
+
+        if not entity:
+            raise HouseholdNotFoundError from None
+
+        membership = self.household_member_repository.get_by_user_id(user.id)
+
+        if membership:
+            if membership.household_id == invite.household_id:
+                raise HouseholdMemberExistsError(email=user.email) from None
+
+            if self.household_repository.has_financial_data(membership.household_id):
+                raise HouseholdNotEmptyError from None
+
+            previous = self.household_repository.get_by_id(membership.household_id)
+            self.household_member_repository.delete(membership)
+            self.household_member_repository.flush()
+
+            # The household it leaves behind held nothing but seeded
+            # categories, and nobody else is in it, so it goes with them.
+            if previous and self.household_repository.count_members(previous.id) == 0:
+                self.household_repository.delete(previous)
+                self.household_repository.flush()
+
+        self.household_member_repository.save(
+            HouseholdMember(household_id=entity.id, user_id=user.id, role=invite.role)
+        )
+        invite.status = HouseholdInviteStatus.ACCEPTED
+        self.household_invite_repository.save(invite)
+        self.session.commit()
+
+        return self._to_public(household=entity, member_count=self.household_repository.count_members(entity.id))
+
+    def _join_by_invite(self, user: User, token: str) -> Household:
+        """Add a brand new user to the household that invited them, without committing.
+
+        The user has not verified their address yet, but they cannot log in
+        until they do, so the access this grants is unusable until the mailbox
+        is proven to be theirs.
+
+        Args:
+            user: The user joining.
+            token: The invite token.
+
+        Returns:
+            The household they joined.
+
+        Raises:
+            HouseholdInviteNotFoundError: If the token is not recognised.
+            HouseholdInviteUsedError: If the invite was already used or withdrawn.
+            HouseholdInviteExpiredError: If the invite has expired.
+            HouseholdInviteEmailMismatchError: If the invite was sent to a different address.
+            HouseholdNotFoundError: If the invited household no longer exists.
+        """
+        invite = self._require_pending_invite(token)
+
+        if invite.email.lower() != user.email.lower():
+            raise HouseholdInviteEmailMismatchError from None
+
+        household = self.household_repository.get_by_id(invite.household_id)
+
+        if not household:
+            raise HouseholdNotFoundError from None
+
+        self.household_member_repository.save(
+            HouseholdMember(household_id=household.id, user_id=user.id, role=invite.role)
+        )
+        invite.status = HouseholdInviteStatus.ACCEPTED
+        self.household_invite_repository.save(invite)
+
+        return household
+
+    def _require_pending_invite(self, token: str) -> HouseholdInvite:
+        """Load an invite that can still be acted on.
+
+        Args:
+            token: The invite token.
+
+        Returns:
+            The invite.
+
+        Raises:
+            HouseholdInviteNotFoundError: If no invite has that token.
+            HouseholdInviteUsedError: If the invite was already accepted or withdrawn.
+            HouseholdInviteExpiredError: If the invite is past its expiry.
+        """
+        invite = self.household_invite_repository.get_by_token(token)
+
+        if not invite:
+            raise HouseholdInviteNotFoundError from None
+
+        if invite.status is not HouseholdInviteStatus.PENDING:
+            raise HouseholdInviteUsedError from None
+
+        # The stored column is naive, matching the timestamps the rest of the
+        # schema uses, so compare against a naive now.
+        if invite.expires_at < datetime.now(UTC).replace(tzinfo=None):
+            invite.status = HouseholdInviteStatus.EXPIRED
+            # Flushed, not committed: this runs inside the caller's
+            # transaction, which may be signing a user up.
+            self.household_invite_repository.save(invite)
+            raise HouseholdInviteExpiredError from None
+
+        return invite

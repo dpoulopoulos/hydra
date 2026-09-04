@@ -101,6 +101,10 @@ class UserService:
             category_service: Optional category service, used to seed the
                 default categories of the new household.
 
+        Note:
+            When the registration carries an invite token, the user joins the
+            household that invited them instead of getting one of their own.
+
         Returns:
             The created user.
 
@@ -122,7 +126,10 @@ class UserService:
         user = self.user_repository.save(user)
 
         if household_service:
-            household_service.create_for_user(user=user, category_service=category_service)
+            # Only a public registration can carry an invitation. A superuser
+            # creating an account has no link to follow.
+            invite_token = user_create.invite_token if isinstance(user_create, UserRegister) else None
+            household_service.create_for_user(user=user, category_service=category_service, invite_token=invite_token)
 
         self.session.commit()
 

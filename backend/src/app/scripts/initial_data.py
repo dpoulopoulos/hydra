@@ -4,6 +4,7 @@ from app.core.db import engine, init_db
 from app.logging import get_logger
 from app.repositories import (
     CategoryRepository,
+    HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
     UserRepository,
@@ -22,6 +23,7 @@ def init() -> None:
             session=session,
             household_repository=HouseholdRepository(session=session),
             household_member_repository=HouseholdMemberRepository(session=session),
+            household_invite_repository=HouseholdInviteRepository(session=session),
         )
         category_service = CategoryService(session=session, category_repository=CategoryRepository(session=session))
         init_db(

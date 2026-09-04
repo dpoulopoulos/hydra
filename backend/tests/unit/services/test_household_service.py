@@ -1,18 +1,28 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
 
 from app.exceptions import (
+    HouseholdInviteEmailMismatchError,
+    HouseholdInviteExistsError,
+    HouseholdInviteExpiredError,
+    HouseholdInviteNotFoundError,
+    HouseholdInviteUsedError,
     HouseholdMemberExistsError,
     HouseholdMemberNotFoundError,
     HouseholdMembershipNotFoundError,
+    HouseholdNotEmptyError,
     HouseholdNotFoundError,
     LastHouseholdOwnerError,
 )
 from app.models import (
     Household,
     HouseholdContext,
+    HouseholdInvite,
+    HouseholdInviteCreate,
+    HouseholdInviteStatus,
     HouseholdMember,
     HouseholdMemberUpdate,
     HouseholdPublic,
@@ -361,3 +371,365 @@ class TestEnsureEveryUserHasAHousehold:
 
         assert mock_household_service.ensure_every_user_has_a_household() == 0
         mock_household_service.session.commit.assert_not_called()
+
+
+def make_invite(
+    household_id: uuid.UUID,
+    email: str = "partner@example.com",
+    role: HouseholdRole = HouseholdRole.MEMBER,
+    status: HouseholdInviteStatus = HouseholdInviteStatus.PENDING,
+    expires_in_hours: int = 24,
+) -> HouseholdInvite:
+    """Build an invite row for the tests."""
+    return HouseholdInvite(
+        household_id=household_id,
+        email=email,
+        role=role,
+        status=status,
+        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=expires_in_hours),
+        token="a-token",
+    )
+
+
+class TestCreateInvite:
+    """Tests for create_invite."""
+
+    def test_creates_a_pending_invite(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = None
+        mock_household_service.session.exec.return_value.all.return_value = []
+
+        result = mock_household_service.create_invite(
+            household=context,
+            invite_create=HouseholdInviteCreate(email="Partner@Example.com"),
+        )
+
+        assert result.status is HouseholdInviteStatus.PENDING
+        # Stored lower case, so a differently cased reply still matches.
+        assert result.email == "partner@example.com"
+        mock_household_service.session.commit.assert_called_once()
+
+    def test_rejects_a_second_invite_to_the_same_address(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = make_invite(
+            household_id=household.id
+        )
+
+        with pytest.raises(HouseholdInviteExistsError):
+            mock_household_service.create_invite(
+                household=context, invite_create=HouseholdInviteCreate(email="partner@example.com")
+            )
+
+    def test_rejects_inviting_an_existing_member(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+        membership: HouseholdMember,
+        test_user: User,
+    ) -> None:
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = None
+        mock_household_service.session.exec.return_value.all.return_value = [(membership, test_user)]
+
+        with pytest.raises(HouseholdMemberExistsError):
+            mock_household_service.create_invite(
+                household=context, invite_create=HouseholdInviteCreate(email=test_user.email)
+            )
+
+
+class TestRevokeInvite:
+    """Tests for revoke_invite."""
+
+    def test_marks_the_invite_revoked(
+        self, mock_household_service: HouseholdService, context: HouseholdContext
+    ) -> None:
+        """The row is kept, so an old link says it was withdrawn rather than never existed."""
+        invite = make_invite(household_id=context.household_id)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = invite
+
+        result = mock_household_service.revoke_invite(household=context, invite_id=invite.id)
+
+        assert isinstance(result, Message)
+        assert invite.status is HouseholdInviteStatus.REVOKED
+        mock_household_service.session.delete.assert_not_called()
+
+    def test_refuses_to_revoke_an_accepted_invite(
+        self, mock_household_service: HouseholdService, context: HouseholdContext
+    ) -> None:
+        invite = make_invite(
+            household_id=context.household_id, status=HouseholdInviteStatus.ACCEPTED
+        )
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = invite
+
+        with pytest.raises(HouseholdInviteUsedError):
+            mock_household_service.revoke_invite(household=context, invite_id=invite.id)
+
+    def test_an_invite_from_another_household_is_not_found(
+        self, mock_household_service: HouseholdService, context: HouseholdContext
+    ) -> None:
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = None
+
+        with pytest.raises(HouseholdInviteNotFoundError):
+            mock_household_service.revoke_invite(household=context, invite_id=uuid.uuid4())
+
+
+class TestPreviewInvite:
+    """Tests for preview_invite."""
+
+    def test_describes_the_invite(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        test_user: User,
+    ) -> None:
+        invite = make_invite(household_id=household.id)
+        invite.invited_by_user_id = test_user.id
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = invite
+        mock_household_service.session.get = MagicMock(side_effect=[household, test_user])
+
+        result = mock_household_service.preview_invite(token="a-token")
+
+        assert result.household_name == "Test household"
+        assert result.invited_by == test_user.email
+        assert result.email == "partner@example.com"
+
+    def test_an_unknown_token_is_not_found(
+        self, mock_household_service: HouseholdService
+    ) -> None:
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = None
+
+        with pytest.raises(HouseholdInviteNotFoundError):
+            mock_household_service.preview_invite(token="nonsense")
+
+    def test_an_expired_invite_is_reported_and_marked(
+        self, mock_household_service: HouseholdService, household: Household
+    ) -> None:
+        invite = make_invite(household_id=household.id, expires_in_hours=-1)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = invite
+
+        with pytest.raises(HouseholdInviteExpiredError):
+            mock_household_service.preview_invite(token="a-token")
+
+        assert invite.status is HouseholdInviteStatus.EXPIRED
+
+
+class TestAcceptInvite:
+    """Tests for accept_invite."""
+
+    def test_joins_the_household(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        mock_household_service.session.exec = MagicMock()
+        # The invite, then no existing membership for the user.
+        mock_household_service.session.exec.return_value.first.side_effect = [invite, None]
+        mock_household_service.session.exec.return_value.one.return_value = 2
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        result = mock_household_service.accept_invite(user=another_test_user, token="a-token")
+
+        assert result.id == household.id
+        assert invite.status is HouseholdInviteStatus.ACCEPTED
+        added = [call.args[0] for call in mock_household_service.session.add.call_args_list]
+        assert any(
+            isinstance(entity, HouseholdMember) and entity.household_id == household.id
+            for entity in added
+        )
+
+    def test_gives_the_role_the_invite_named(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        invite = make_invite(
+            household_id=household.id, email=another_test_user.email, role=HouseholdRole.OWNER
+        )
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [invite, None]
+        mock_household_service.session.exec.return_value.one.return_value = 2
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        mock_household_service.accept_invite(user=another_test_user, token="a-token")
+
+        members = [
+            call.args[0]
+            for call in mock_household_service.session.add.call_args_list
+            if isinstance(call.args[0], HouseholdMember)
+        ]
+        assert members[0].role is HouseholdRole.OWNER
+
+    def test_refuses_an_invite_sent_to_someone_else(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """Otherwise a leaked link would hand a stranger the household's finances."""
+        invite = make_invite(household_id=household.id, email="someone.else@example.com")
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = invite
+
+        with pytest.raises(HouseholdInviteEmailMismatchError):
+            mock_household_service.accept_invite(user=another_test_user, token="a-token")
+
+    def test_matches_the_address_regardless_of_case(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        invite = make_invite(household_id=household.id, email=another_test_user.email.upper())
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [invite, None]
+        mock_household_service.session.exec.return_value.one.return_value = 2
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        result = mock_household_service.accept_invite(user=another_test_user, token="a-token")
+
+        assert result.id == household.id
+
+    def test_discards_an_empty_household_the_user_is_leaving(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """It held nothing but seeded categories, so nothing is lost."""
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        old_household = Household(name="Their own household")
+        old_membership = HouseholdMember(
+            household_id=old_household.id, user_id=another_test_user.id, role=HouseholdRole.OWNER
+        )
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [
+            invite,
+            old_membership,
+        ]
+        # No accounts, transactions, budgets or rules, then no members left.
+        mock_household_service.session.exec.return_value.one.side_effect = [0, 0, 0, 0, 0, 2]
+        mock_household_service.session.get = MagicMock(side_effect=[household, old_household])
+
+        mock_household_service.accept_invite(user=another_test_user, token="a-token")
+
+        deleted = [call.args[0] for call in mock_household_service.session.delete.call_args_list]
+        assert old_membership in deleted
+        assert old_household in deleted
+
+    def test_refuses_when_the_users_household_holds_data(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """Joining would leave their accounts and transactions behind."""
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        old_membership = HouseholdMember(
+            household_id=uuid.uuid4(), user_id=another_test_user.id, role=HouseholdRole.OWNER
+        )
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [
+            invite,
+            old_membership,
+        ]
+        mock_household_service.session.exec.return_value.one.return_value = 3
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        with pytest.raises(HouseholdNotEmptyError):
+            mock_household_service.accept_invite(user=another_test_user, token="a-token")
+
+    def test_refuses_when_the_user_is_already_in_that_household(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        existing = HouseholdMember(
+            household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER
+        )
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [invite, existing]
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        with pytest.raises(HouseholdMemberExistsError):
+            mock_household_service.accept_invite(user=another_test_user, token="a-token")
+
+
+class TestCreateForUserWithInvite:
+    """Tests for create_for_user when a registration carries an invite token."""
+
+    def test_joins_the_inviting_household_instead_of_making_one(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """Saves creating a household only to discard it a moment later."""
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = invite
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        result = mock_household_service.create_for_user(
+            user=another_test_user, invite_token="a-token"
+        )
+
+        assert result.id == household.id
+        added = [call.args[0] for call in mock_household_service.session.add.call_args_list]
+        assert not [entity for entity in added if isinstance(entity, Household)]
+        assert invite.status is HouseholdInviteStatus.ACCEPTED
+
+    def test_does_not_commit(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """It runs inside the transaction that is creating the user."""
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = invite
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        mock_household_service.create_for_user(user=another_test_user, invite_token="a-token")
+
+        mock_household_service.session.commit.assert_not_called()
+
+    def test_refuses_a_token_sent_to_a_different_address(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        invite = make_invite(household_id=household.id, email="someone.else@example.com")
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = invite
+
+        with pytest.raises(HouseholdInviteEmailMismatchError):
+            mock_household_service.create_for_user(
+                user=another_test_user, invite_token="a-token"
+            )

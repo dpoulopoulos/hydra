@@ -17,6 +17,7 @@ from app.repositories import (
     BudgetRepository,
     CategoryRepository,
     EmailVerificationRepository,
+    HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
     PasswordResetRepository,
@@ -373,10 +374,24 @@ def mock_household_member_repository(mock_db_session: MagicMock) -> HouseholdMem
 
 
 @pytest.fixture
+def mock_household_invite_repository(mock_db_session: MagicMock) -> HouseholdInviteRepository:
+    """Create a HouseholdInviteRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        A HouseholdInviteRepository instance with a mocked session.
+    """
+    return HouseholdInviteRepository(session=mock_db_session)
+
+
+@pytest.fixture
 def mock_household_service(
     mock_db_session: MagicMock,
     mock_household_repository: HouseholdRepository,
     mock_household_member_repository: HouseholdMemberRepository,
+    mock_household_invite_repository: HouseholdInviteRepository,
 ) -> HouseholdService:
     """Create a HouseholdService instance with a mocked session.
 
@@ -384,6 +399,7 @@ def mock_household_service(
         mock_db_session: The mock database session.
         mock_household_repository: The household repository instance.
         mock_household_member_repository: The household member repository instance.
+        mock_household_invite_repository: The household invite repository instance.
 
     Returns:
         A HouseholdService instance with a mocked session.
@@ -392,6 +408,7 @@ def mock_household_service(
         session=mock_db_session,
         household_repository=mock_household_repository,
         household_member_repository=mock_household_member_repository,
+        household_invite_repository=mock_household_invite_repository,
     )
 
 
