@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Query
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
@@ -12,7 +12,7 @@ from app.core.db import engine
 from app.core.security import TokenType, decode_token
 from app.exceptions import HouseholdRoleRequiredError, UserNotAuthorizedError
 from app.exceptions.password_exceptions import InvalidCredentialsError
-from app.models import HouseholdContext, HouseholdRole, TokenPayload, User
+from app.models import HouseholdContext, HouseholdRole, TokenPayload, TransactionFilters, User
 from app.repositories import (
     AccountRepository,
     CategoryRepository,
@@ -20,6 +20,7 @@ from app.repositories import (
     HouseholdMemberRepository,
     HouseholdRepository,
     PasswordResetRepository,
+    TransactionRepository,
     UserRepository,
 )
 from app.services import (
@@ -28,6 +29,7 @@ from app.services import (
     EmailVerificationService,
     HouseholdService,
     PasswordResetService,
+    TransactionService,
     UserService,
 )
 
@@ -136,6 +138,49 @@ def get_category_service(session: SessionDep, category_repository: CategoryRepos
 
 
 CategoryServiceDep = Annotated[CategoryService, Depends(get_category_service)]
+
+
+def get_transaction_repository(session: SessionDep) -> TransactionRepository:
+    """Get a transaction repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A transaction repository instance.
+    """
+    return TransactionRepository(session=session)
+
+
+TransactionRepositoryDep = Annotated[TransactionRepository, Depends(get_transaction_repository)]
+
+
+def get_transaction_service(
+    session: SessionDep,
+    transaction_repository: TransactionRepositoryDep,
+    account_repository: AccountRepositoryDep,
+    category_repository: CategoryRepositoryDep,
+) -> TransactionService:
+    """Get a transaction service instance.
+
+    Args:
+        session: The database session.
+        transaction_repository: The transaction repository instance.
+        account_repository: The account repository instance.
+        category_repository: The category repository instance.
+
+    Returns:
+        A transaction service instance.
+    """
+    return TransactionService(
+        session=session,
+        transaction_repository=transaction_repository,
+        account_repository=account_repository,
+        category_repository=category_repository,
+    )
+
+
+TransactionServiceDep = Annotated[TransactionService, Depends(get_transaction_service)]
 
 
 def get_household_repository(session: SessionDep) -> HouseholdRepository:
@@ -359,3 +404,6 @@ def get_household_owner(household: CurrentHousehold) -> HouseholdContext:
 
 
 OwnerHousehold = Annotated[HouseholdContext, Depends(get_household_owner)]
+
+
+TransactionFiltersDep = Annotated[TransactionFilters, Query()]

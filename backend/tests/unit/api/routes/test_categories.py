@@ -254,3 +254,6 @@ class TestDeleteCategory:
         response = client.delete(f"/api/v1/categories/{CATEGORY_ID}", headers=auth_headers)
 
         assert response.status_code == 409
+        detail = response.json()["detail"]
+        assert "still in use" in detail
+        assert "already exists" not in detail

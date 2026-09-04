@@ -236,4 +236,9 @@ class TestDeleteAccount:
         response = client.delete(f"/api/v1/accounts/{ACCOUNT_ID}", headers=auth_headers)
 
         assert response.status_code == 409
-        assert "Archive it instead" in response.json()["detail"]
+        detail = response.json()["detail"]
+        assert "still has transactions" in detail
+        assert "Archive it instead" in detail
+        # The message must not claim the account "already exists", which is what the
+        # generic conflict wording would have said.
+        assert "already exists" not in detail

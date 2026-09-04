@@ -7,6 +7,7 @@ from app.api.routes import (
     households,
     login,
     password_reset,
+    transactions,
     users,
 )
 
@@ -15,6 +16,7 @@ api_router.include_router(users.router)
 api_router.include_router(households.router)
 api_router.include_router(categories.router)
 api_router.include_router(accounts.router)
+api_router.include_router(transactions.router)
 api_router.include_router(login.router)
 api_router.include_router(password_reset.router)
 api_router.include_router(email_verification.router)
