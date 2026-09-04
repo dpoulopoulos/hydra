@@ -53,4 +53,19 @@ COPY --from=build /app/dist /srv
 # backend somewhere else overrides it.
 ENV BACKEND_ORIGIN=http://backend:8000
 
+# Caddy needs no privileges here: it serves static files out of /srv and the
+# platform hands it an unprivileged port in $PORT, so nothing is left that root
+# is required for. /data and /config are the only paths it writes to, and the
+# Caddyfile leaves them empty: no admin API, no config on disk, and TLS is
+# terminated in front. Caddy still creates them on start, so they change hands
+# too.
+#
+# Alpine's adduser is busybox's: -S makes a system account, -D leaves it with
+# no password and -H gives it no home directory it would never use.
+RUN addgroup -g 10001 app \
+    && adduser -S -D -H -u 10001 -G app app \
+    && chown -R app:app /data /config
+
+USER app
+
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
