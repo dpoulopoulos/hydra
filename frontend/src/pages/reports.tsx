@@ -256,7 +256,7 @@ export function Component() {
                   />
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-sm">Kept</p>
+                  <p className="text-muted-foreground text-sm">Saved</p>
                   <Money
                     minor={flows.data.total_net_minor}
                     currency={currency}
@@ -273,7 +273,7 @@ export function Component() {
                       <TableHead>Month</TableHead>
                       <TableHead className="text-right">In</TableHead>
                       <TableHead className="text-right">Out</TableHead>
-                      <TableHead className="text-right">Kept</TableHead>
+                      <TableHead className="text-right">Saved</TableHead>
                       <TableHead className="text-right">Running total</TableHead>
                       <TableHead className="text-right">Rate</TableHead>
                     </TableRow>

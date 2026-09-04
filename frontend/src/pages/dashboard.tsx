@@ -106,7 +106,7 @@ export function Component() {
               tone="negative"
             />
             <StatTile
-              label="Kept"
+              label="Saved"
               minor={summary.data.net_minor}
               currency={currency}
               signed

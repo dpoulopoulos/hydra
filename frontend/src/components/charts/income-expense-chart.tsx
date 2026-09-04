@@ -96,7 +96,7 @@ export function SavingsTrendChart({
   }))
 
   const config: ChartConfig = {
-    cumulative: { label: 'Kept, running total', color: 'var(--chart-1)' },
+    cumulative: { label: 'Saved, running total', color: 'var(--chart-1)' },
   }
 
   return (
