@@ -1354,7 +1354,8 @@ export const budgetsBulkUpsertBudgetsMutation = (options?: Partial<Options<Budge
  * Copy the budgets of one month onto another.
  *
  * Budgets do not roll over, so this is what makes "same as last month" a
- * single action rather than retyping every limit.
+ * single action rather than retyping every limit. Overwriting replaces the
+ * target month with the source: a limit the source does not set is removed.
  *
  * Args:
  * budget_service: The budget service dependency.
