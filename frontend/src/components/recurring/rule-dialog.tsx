@@ -41,10 +41,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAccounts } from '@/hooks/use-accounts'
 import { useCategoryTree } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
-import { amountSchema } from '@/lib/amount'
+import { amountSchema, parseMajor } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { describeSchedule, FREQUENCY_LABELS } from '@/lib/labels'
-import { formatMoney, toMajor, toMinor } from '@/lib/money'
+import { formatMajorInput, formatMoney, toMinor } from '@/lib/money'
 import { formatDate, today } from '@/lib/month'
 import { optionSource } from '@/lib/option-source'
 import { cn } from '@/lib/utils'
@@ -135,8 +135,10 @@ function describeRule({
   to: string | undefined
   category: string | undefined
 }): string | null {
-  const major = Number(amount.replace(/\s/g, '').replace(',', '.'))
-  if (!amount || !Number.isFinite(major) || major <= 0 || !startDate) return null
+  // The parser the field itself validates with, so the sentence quotes the
+  // figure that would be saved rather than one of its own reading.
+  const major = parseMajor(amount)
+  if (major === null || major <= 0 || !startDate) return null
 
   const money = formatMoney(toMinor(major, currency), currency)
   const schedule = describeSchedule(frequency, interval, dayOfMonth).toLowerCase()
@@ -222,7 +224,7 @@ export function RuleDialog({
     form.reset({
       name: rule?.name ?? '',
       kind: rule?.kind ?? TransactionKind.EXPENSE,
-      amount: rule ? String(toMajor(rule.amount_minor, currency)) : '',
+      amount: rule ? formatMajorInput(rule.amount_minor, currency) : '',
       frequency: rule?.frequency ?? RecurrenceFrequency.MONTHLY,
       interval: rule?.interval ?? 1,
       day_of_month: rule?.day_of_month ? String(rule.day_of_month) : '',
