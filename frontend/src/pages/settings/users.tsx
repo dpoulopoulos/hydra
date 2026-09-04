@@ -23,7 +23,14 @@ import { SettingsNav } from '@/components/layout/settings-nav'
 import { SubmitButton } from '@/components/submit-button'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -150,101 +157,104 @@ export function Component() {
       <PageHeader title="Settings" description="Your household, your account." />
       <SettingsNav />
 
-      <Card className="gap-0 pb-0">
-        <CardHeader>
+      <Card className="gap-0 py-0">
+        <CardHeader className="border-b py-4">
           <CardTitle>All users</CardTitle>
           <CardDescription>
             Every account that can sign in to this deployment. Each has its own household, so no
             figures are shown here.
           </CardDescription>
+          <CardAction>
+            <Button onClick={() => setCreating(true)}>
+              <UserPlus className="size-4" />
+              Create an account
+            </Button>
+          </CardAction>
         </CardHeader>
 
-        <div className="px-6 pb-4">
-          <Button onClick={() => setCreating(true)}>
-            <UserPlus className="size-4" />
-            Create an account
-          </Button>
-        </div>
-
         {users.isPending ? (
-          <div className="px-6 pb-6">
+          <CardContent className="py-6">
             <LoadingRows rows={3} />
-          </div>
+          </CardContent>
         ) : users.isError ? (
-          <div className="px-6 pb-6">
+          <CardContent className="py-6">
             <ErrorState error={users.error} />
-          </div>
+          </CardContent>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Person</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(users.data?.data ?? []).map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2 font-medium">
-                      {row.full_name ?? row.email}
-                      {row.is_superuser ? (
-                        <Badge variant="secondary" className="gap-1">
-                          <ShieldCheck className="size-3" />
-                          Superuser
-                        </Badge>
-                      ) : null}
-                      {row.id === user?.id ? <Badge variant="outline">You</Badge> : null}
-                    </div>
-                    {row.full_name ? (
-                      <p className="text-muted-foreground text-xs">{row.email}</p>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
-                    {row.is_active ? (
-                      <span className="text-muted-foreground text-sm">Active</span>
-                    ) : (
-                      <Badge variant="outline">Not verified</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(row.created_at)}
-                  </TableCell>
-                  <TableCell>
-                    {row.id === user?.id ? null : (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" aria-label={`Manage ${row.email}`}>
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setActive.mutate({ target: row, active: !row.is_active })
-                            }
-                          >
-                            {row.is_active ? 'Deactivate' : 'Activate'}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            disabled={row.is_superuser}
-                            onClick={() => setDeleting(row)}
-                          >
-                            <Trash2 className="size-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
+          // Nudged in, so the column headings line up with the card's title
+          // rather than sitting eight pixels to its left.
+          <div className="px-2 pb-2">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Person</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {(users.data?.data ?? []).map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2 font-medium">
+                        {row.full_name ?? row.email}
+                        {row.is_superuser ? (
+                          <Badge variant="secondary" className="gap-1">
+                            <ShieldCheck className="size-3" />
+                            Superuser
+                          </Badge>
+                        ) : null}
+                        {row.id === user?.id ? <Badge variant="outline">You</Badge> : null}
+                      </div>
+                      {row.full_name ? (
+                        <p className="text-muted-foreground text-xs">{row.email}</p>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>
+                      {row.is_active ? (
+                        <span className="text-muted-foreground text-sm">Active</span>
+                      ) : (
+                        <Badge variant="outline">Not verified</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(row.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      {row.id === user?.id ? null : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label={`Manage ${row.email}`}>
+                              <MoreHorizontal className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setActive.mutate({ target: row, active: !row.is_active })
+                              }
+                            >
+                              {row.is_active ? 'Deactivate' : 'Activate'}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              disabled={row.is_superuser}
+                              onClick={() => setDeleting(row)}
+                            >
+                              <Trash2 className="size-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </Card>
 
