@@ -16,6 +16,7 @@ help:
 	@echo "  make web-format    - Format frontend files"
 	@echo "  make web-lint      - Scan frontend files for linting errors"
 	@echo "  make web-test      - Check the production server config against a real Caddy"
+	@echo "  make web-test-unit - Run the frontend unit tests"
 	@echo "  make web-api       - Regenerate the API client from the backend schema"
 	@echo "  make web-api-check - Check the committed API client is up to date"
 
@@ -98,6 +99,11 @@ web-lint:
 .PHONY: web-test
 web-test:
 	bash ./frontend/scripts/test-caddyfile.sh
+
+# Runs the frontend unit tests in jsdom. No Docker and no backend needed.
+.PHONY: web-test-unit
+web-test-unit: web-install
+	cd frontend && pnpm test
 
 # Re-dumps the OpenAPI schema from the backend and regenerates src/api.
 .PHONY: web-api

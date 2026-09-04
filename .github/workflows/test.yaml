@@ -46,3 +46,37 @@ jobs:
       # The unit tests mock the database session, so no server is needed.
       - name: Run tests
         run: bash scripts/test.sh
+
+  test-frontend:
+    name: vitest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      # No version here on purpose: the action reads it from the
+      # packageManager field in frontend/package.json, so CI and a developer's
+      # machine agree. The path is explicit because the action looks in the
+      # repository root, which defaults.run.working-directory does not change.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+
+      # Node 24 is what frontend/Dockerfile builds the app with.
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The same command `make web-test-unit` runs. The tests render in jsdom
+      # and stand in for the API, so neither a backend nor Docker is needed.
+      - name: Run tests
+        run: pnpm test
