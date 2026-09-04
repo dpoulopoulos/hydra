@@ -93,6 +93,7 @@ class TestRequestPasswordReset:
         # Act: Request password reset
         with patch("app.services.password_reset.settings") as mock_settings:
             mock_settings.emails_enabled = False
+            mock_settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 24
             result = mock_password_reset_service.request_password_reset(
                 user_service=mock_user_service, email=test_user.email
             )
@@ -135,6 +136,7 @@ class TestRequestPasswordReset:
         # Act: Request password reset
         with patch("app.services.password_reset.settings") as mock_settings:
             mock_settings.emails_enabled = False
+            mock_settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 24
             result = mock_password_reset_service.request_password_reset(
                 user_service=mock_user_service, email=test_user.email
             )
@@ -183,6 +185,7 @@ class TestRequestPasswordReset:
         # Act: Request password reset with emails enabled
         with patch("app.services.password_reset.settings") as mock_settings:
             mock_settings.emails_enabled = True
+            mock_settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 24
             with patch("app.services.password_reset.generate_password_reset_email") as mock_generate:
                 with patch("app.services.password_reset.send_email") as mock_send:
                     mock_email_data = MagicMock()
@@ -218,6 +221,7 @@ class TestRequestPasswordReset:
         # Act: Request password reset with email sending failure
         with patch("app.services.password_reset.settings") as mock_settings:
             mock_settings.emails_enabled = True
+            mock_settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 24
             with patch("app.services.password_reset.send_email") as mock_send:
                 mock_send.side_effect = Exception("Email sending failed")
 
@@ -229,6 +233,42 @@ class TestRequestPasswordReset:
                 assert isinstance(result, Message)
                 assert "If an account exists" in result.message
 
+
+    def test_request_password_reset_expiry_is_relative_to_request_time(
+        self,
+        mock_password_reset_service: PasswordResetService,
+        mock_user_service: MagicMock,
+        test_user: User,
+    ) -> None:
+        """Test that the stored expiry is measured from the request, not from process start."""
+        # Arrange: Pretend the process has been up far longer than the configured window
+        mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
+
+        mock_password_reset_service.session.exec = MagicMock()
+        mock_password_reset_service.session.exec.return_value.first.return_value = None
+
+        mock_password_reset_service.session.add = MagicMock()
+        mock_password_reset_service.session.commit = MagicMock()
+        mock_password_reset_service.session.refresh = MagicMock()
+
+        expire_hours = 24
+        request_time = datetime.now(UTC) + timedelta(days=30)
+
+        # Act: Request a password reset at that later point in time
+        with patch("app.services.password_reset.settings") as mock_settings:
+            mock_settings.emails_enabled = False
+            mock_settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS = expire_hours
+
+            with patch("app.services.password_reset.datetime") as mock_datetime:
+                mock_datetime.now.return_value = request_time
+
+                mock_password_reset_service.request_password_reset(
+                    user_service=mock_user_service, email=test_user.email
+                )
+
+        # Assert: The row expires a full window after the request, not after the import
+        password_reset = mock_password_reset_service.session.add.call_args[0][0]
+        assert password_reset.expires_at == request_time + timedelta(hours=expire_hours)
 
 class TestVerifyTokenMethod:
     """Tests for the verify_token method."""

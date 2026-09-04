@@ -23,8 +23,6 @@ from app.repositories.password_reset import PasswordResetRepository
 from app.services.user import UserService
 from app.utils import generate_password_reset_email, send_email
 
-EXPIRATION_TIME = datetime.now(UTC) + timedelta(hours=settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS)
-
 
 class PasswordResetService:
     """Provide services for password reset management."""
@@ -84,7 +82,7 @@ class PasswordResetService:
                 email=email,
                 user_id=user.id,
                 status=PasswordResetStatus.PENDING,
-                expires_at=EXPIRATION_TIME,
+                expires_at=datetime.now(UTC) + timedelta(hours=settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS),
                 token=token,
             )
 
