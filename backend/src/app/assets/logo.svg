@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#9260da" /> <stop offset="100%" stop-color="#2b62ef" /> </linearGradient>
+  </defs>
+
+  <g transform="translate(48, 34)">
+    
+    <path d="M0,40 C0,26 10,16 24,16 L136,16 C150,16 160,26 160,40 L160,60 L0,60 Z" fill="url(#brandGradient)"/>
+    <circle cx="24" cy="38" r="6" fill="#ffffff" fill-opacity="0.9"/>
+    <circle cx="44" cy="38" r="6" fill="#ffffff" fill-opacity="0.6"/>
+    <circle cx="64" cy="38" r="6" fill="#ffffff" fill-opacity="0.4"/>
+
+    <rect x="0" y="66" width="160" height="50" rx="8" fill="url(#brandGradient)"/>
+    <path d="M56,80 L40,91 L56,102" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M104,80 L120,91 L104,102" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="72" y1="102" x2="88" y2="80" stroke="white" stroke-width="4" stroke-linecap="round"/>
+
+    <rect x="0" y="122" width="160" height="50" rx="8" fill="url(#brandGradient)"/>
+    <text x="75" y="155" fill="white" font-family="monospace" font-size="32" font-weight="bold" text-anchor="middle">.py</text>
+
+  </g>
+</svg>

@@ -1,0 +1,82 @@
+name: Migrations
+
+on:
+  pull_request:
+
+# A new push to a pull request makes the run in progress obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# .env is not committed, so the job builds one from .env.example. These
+# override the "changethis" placeholders in it, which the settings otherwise
+# warn about on every import. They are throwaway CI values, not secrets.
+env:
+  SECRET_KEY: ci-secret-key-not-used-outside-ci
+  POSTGRES_PASSWORD: ci-postgres-password
+  FIRST_SUPERUSER_PASSWORD: ci-superuser-password
+
+jobs:
+  migrations:
+    name: Apply and revert
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: app
+          # Must match the POSTGRES_PASSWORD set at the workflow level.
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned exactly: setup-uv publishes no floating tag above v7.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Create .env
+        run: cp .env.example .env
+        working-directory: .
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      # Fails if the models have drifted from the migrations, which is what
+      # happens when a model is changed and no revision is generated for it.
+      - name: Check for missing migrations
+        run: uv run alembic check
+
+      - name: Revert migrations
+        run: uv run alembic downgrade base
+
+      # Dropping a table does not drop the enum type behind it, so a revert can
+      # leave objects behind that make the next upgrade fail.
+      - name: Check the revert left nothing behind
+        run: uv run python ../.github/scripts/check_schema_empty.py
+
+      # Proves the migrations are actually reversible, rather than only
+      # applying once against an empty database.
+      - name: Re-apply migrations
+        run: uv run alembic upgrade head

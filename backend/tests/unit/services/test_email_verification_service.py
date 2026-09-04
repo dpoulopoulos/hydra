@@ -1,0 +1,528 @@
+import uuid
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock, patch
+
+import jwt
+import pytest
+
+from app.core.config import settings
+from app.core.security import ALGORITHM, JWT, create_email_verification_token
+from app.exceptions import (
+    EmailVerificationExpiredError,
+    EmailVerificationNotFoundError,
+    EmailVerificationTokenNotValidError,
+    EmailVerificationUsedError,
+    UserNotFoundError,
+)
+from app.models import EmailVerification, EmailVerificationStatus, Message, User
+from app.services import EmailVerificationService, UserService
+
+
+@pytest.fixture
+def test_email_verification(test_user: User) -> EmailVerification:
+    """Create a test email verification.
+
+    Args:
+        test_user: The test user.
+
+    Returns:
+        A test email verification instance.
+    """
+    verification = EmailVerification(
+        email=test_user.email,
+        user_id=test_user.id,
+        status=EmailVerificationStatus.PENDING,
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
+        token="test_verification_token",
+    )
+    verification.id = uuid.UUID("44444444-4444-4444-4444-444444444444")
+    return verification
+
+
+@pytest.fixture
+def expired_email_verification(test_user: User) -> EmailVerification:
+    """Create an expired email verification.
+
+    Args:
+        test_user: The test user.
+
+    Returns:
+        An expired email verification instance.
+    """
+    verification = EmailVerification(
+        email=test_user.email,
+        user_id=test_user.id,
+        status=EmailVerificationStatus.EXPIRED,
+        expires_at=datetime.now(UTC) - timedelta(hours=1),
+        token="expired_verification_token",
+    )
+    verification.id = uuid.UUID("55555555-5555-5555-5555-555555555555")
+    return verification
+
+
+@pytest.fixture
+def verified_email_verification(test_user: User) -> EmailVerification:
+    """Create a verified email verification.
+
+    Args:
+        test_user: The test user.
+
+    Returns:
+        A verified email verification instance.
+    """
+    verification = EmailVerification(
+        email=test_user.email,
+        user_id=test_user.id,
+        status=EmailVerificationStatus.VERIFIED,
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
+        token="verified_verification_token",
+    )
+    verification.id = uuid.UUID("66666666-6666-6666-6666-666666666666")
+    return verification
+
+
+class TestMarkEmailVerification:
+    """Tests for the _mark_email_verification private method."""
+
+    def test_mark_email_verification_success(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test successfully marking an email verification with a status."""
+        # Arrange
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act
+        mock_email_verification_service._mark_email_verification(
+            test_email_verification.id, EmailVerificationStatus.VERIFIED
+        )
+
+        # Assert
+        assert test_email_verification.status == EmailVerificationStatus.VERIFIED
+        mock_email_verification_service.session.add.assert_called_once_with(test_email_verification)
+        mock_email_verification_service.session.commit.assert_called_once()
+        mock_email_verification_service.session.refresh.assert_called_once_with(test_email_verification)
+
+    def test_mark_email_verification_not_found(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+    ) -> None:
+        """Test marking an email verification that doesn't exist."""
+        # Arrange
+        mock_email_verification_service.session.get.return_value = None
+        verification_id = uuid.UUID("99999999-9999-9999-9999-999999999999")
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationNotFoundError):
+            mock_email_verification_service._mark_email_verification(
+                verification_id, EmailVerificationStatus.VERIFIED
+            )
+
+
+class TestGetPendingVerificationByUserId:
+    """Tests for the get_pending_verification_by_user_id method."""
+
+    def test_get_pending_verification_success(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_email_verification: EmailVerification,
+        test_user: User,
+    ) -> None:
+        """Test getting a pending verification for a user."""
+        # Arrange
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+
+        # Act
+        result = mock_email_verification_service.get_pending_verification_by_user_id(test_user.id)
+
+        # Assert
+        assert result == test_email_verification
+        assert result.status == EmailVerificationStatus.PENDING
+
+    def test_get_pending_verification_not_found(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+    ) -> None:
+        """Test getting a pending verification when none exists."""
+        # Arrange
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        # Act
+        result = mock_email_verification_service.get_pending_verification_by_user_id(test_user.id)
+
+        # Assert
+        assert result is None
+
+
+class TestSendVerificationEmail:
+    """Tests for the send_verification_email method."""
+
+    def test_send_verification_email_success_with_emails_enabled(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+    ) -> None:
+        """Test sending verification email with emails enabled."""
+        # Arrange
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            with patch("app.services.email_verification.send_email") as mock_send_email:
+                with patch("app.services.email_verification.generate_email_verification_email") as mock_generate:
+                    mock_generate.return_value = MagicMock(subject="Verify Email", html_content="<html>Test</html>")
+                    result = mock_email_verification_service.send_verification_email(
+                        user_service=mock_user_service, user_email=test_user.email
+                    )
+
+        # Assert
+        assert isinstance(result, Message)
+        assert result.message == "Verification email sent successfully."
+        mock_send_email.assert_called_once()
+
+    def test_send_verification_email_success_with_emails_disabled(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        monkeypatch
+    ) -> None:
+        """Test sending verification email with emails disabled."""
+        # Arrange
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        monkeypatch.setattr(settings, "SMTP_HOST", None)
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            with patch("app.services.email_verification.send_email") as mock_send_email:
+                result = mock_email_verification_service.send_verification_email(
+                    user_service=mock_user_service, user_email=test_user.email
+                )
+
+        # Assert
+        assert isinstance(result, Message)
+        assert result.message == "Verification email sent successfully."
+        mock_send_email.assert_not_called()
+
+    def test_send_verification_email_with_existing_pending_verification(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test sending verification email when a pending verification already exists."""
+        # Arrange
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            result = mock_email_verification_service.send_verification_email(
+                user_service=mock_user_service, user_email=test_user.email
+            )
+
+        # Assert
+        assert isinstance(result, Message)
+        assert test_email_verification.status == EmailVerificationStatus.EXPIRED
+
+    def test_send_verification_email_user_not_found(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+    ) -> None:
+        """Test sending verification email when user doesn't exist."""
+        # Act & Assert
+        with patch.object(mock_user_service, "get_user_by_email", return_value=None):
+            with pytest.raises(UserNotFoundError):
+                mock_email_verification_service.send_verification_email(
+                    user_service=mock_user_service, user_email="nonexistent@example.com"
+                )
+
+
+class TestResendVerificationEmail:
+    """Tests for the resend_verification_email method."""
+
+    def test_resend_verification_email_success(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_inactive_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test resending verification email for an inactive user with pending verification."""
+        # Arrange
+        mock_email_verification_service.session.exec = MagicMock()
+
+        # First call returns pending verification for check, second returns None for send
+        mock_email_verification_service.session.exec.return_value.first.side_effect = [
+            test_email_verification,
+            None,
+        ]
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user):
+            result = mock_email_verification_service.resend_verification_email(
+                user_service=mock_user_service, email=test_inactive_user.email
+            )
+
+        # Assert
+        assert isinstance(result, Message)
+        assert "If an account exists" in result.message
+
+    def test_resend_verification_email_user_not_found(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+    ) -> None:
+        """Test resending verification email when user doesn't exist."""
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=None):
+            result = mock_email_verification_service.resend_verification_email(
+                user_service=mock_user_service, email="nonexistent@example.com"
+            )
+
+        # Assert
+        assert isinstance(result, Message)
+        assert "If an account exists" in result.message
+
+    def test_resend_verification_email_user_is_active(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+    ) -> None:
+        """Test resending verification email for an active user."""
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            result = mock_email_verification_service.resend_verification_email(
+                user_service=mock_user_service, email=test_user.email
+            )
+
+        # Assert
+        assert isinstance(result, Message)
+        assert "If an account exists" in result.message
+
+    def test_resend_verification_email_no_pending_verification(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_inactive_user: User,
+    ) -> None:
+        """Test resending verification email for inactive user without pending verification."""
+        # Arrange
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user):
+            result = mock_email_verification_service.resend_verification_email(
+                user_service=mock_user_service, email=test_inactive_user.email
+            )
+
+        # Assert
+        assert isinstance(result, Message)
+        assert "If an account exists" in result.message
+
+    def test_resend_verification_email_exception_handling(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_inactive_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test that exceptions during resend are silently caught."""
+        # Arrange
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+
+        # Mock send_verification_email to raise an exception
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user):
+            with patch.object(
+                mock_email_verification_service,
+                "send_verification_email",
+                side_effect=Exception("Email service down"),
+            ):
+                # Act
+                result = mock_email_verification_service.resend_verification_email(
+                    user_service=mock_user_service, email=test_inactive_user.email
+                )
+
+        # Assert - Should return success message even though exception occurred
+        assert isinstance(result, Message)
+        assert "If an account exists" in result.message
+
+
+class TestVerifyEmail:
+    """Tests for the verify_email method."""
+
+    def test_verify_email_success(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test successfully verifying an email."""
+        # Arrange
+        token = create_email_verification_token(subject=test_user.email)
+        test_email_verification.token = token
+
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            result = mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
+
+        # Assert
+        assert isinstance(result, Message)
+        assert "Email verified successfully" in result.message
+        assert test_user.is_active is True
+
+    def test_verify_email_invalid_token(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+    ) -> None:
+        """Test verifying email with an invalid token."""
+        # Arrange
+        invalid_token = "invalid.token.here"
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationTokenNotValidError):
+            mock_email_verification_service.verify_email(user_service=mock_user_service, token=invalid_token)
+
+    def test_verify_email_verification_not_found(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+    ) -> None:
+        """Test verifying email when verification record doesn't exist."""
+        # Arrange
+        token = create_email_verification_token(subject=test_user.email)
+
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationNotFoundError):
+            mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
+
+    def test_verify_email_already_verified(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        verified_email_verification: EmailVerification,
+    ) -> None:
+        """Test verifying email that has already been verified."""
+        # Arrange
+        token = create_email_verification_token(subject=test_user.email)
+        verified_email_verification.token = token
+
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = verified_email_verification
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationUsedError):
+            mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
+
+    def test_verify_email_expired_status(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        expired_email_verification: EmailVerification,
+    ) -> None:
+        """Test verifying email with expired status."""
+        # Arrange
+        token = create_email_verification_token(subject=test_user.email)
+        expired_email_verification.token = token
+
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = expired_email_verification
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationExpiredError):
+            mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
+
+    def test_verify_email_expired_time(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test verifying email when the expiration time has passed."""
+        # Arrange
+        token = create_email_verification_token(subject=test_user.email)
+        test_email_verification.token = token
+        test_email_verification.expires_at = datetime.now(UTC) - timedelta(hours=1)
+        test_email_verification.status = EmailVerificationStatus.PENDING
+
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationExpiredError):
+            mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
+
+    def test_verify_email_expired_time_naive_datetime(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test verifying email when expiration time is naive datetime."""
+        # Arrange
+        token = create_email_verification_token(subject=test_user.email)
+        test_email_verification.token = token
+        # Create a naive datetime (no timezone) that's expired
+        # Remove timezone info and subtract hours to ensure it's expired
+        naive_now = datetime.now(UTC).replace(tzinfo=None)
+        test_email_verification.expires_at = naive_now - timedelta(hours=1)
+        test_email_verification.status = EmailVerificationStatus.PENDING
+
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act & Assert
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            with pytest.raises(EmailVerificationExpiredError):
+                mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
+
+    def test_verify_email_user_not_found(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test verifying email when user doesn't exist."""
+        # Arrange
+        token = create_email_verification_token(subject=test_user.email)
+        test_email_verification.token = token
+
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act & Assert
+        with patch.object(mock_user_service, "get_user_by_email", return_value=None):
+            with pytest.raises(UserNotFoundError):
+                mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)

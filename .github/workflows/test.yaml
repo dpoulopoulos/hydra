@@ -1,0 +1,48 @@
+name: Unit tests
+
+on:
+  pull_request:
+
+# A new push to a pull request makes the run in progress obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# .env is not committed, so the job builds one from .env.example. These
+# override the "changethis" placeholders in it, which the settings otherwise
+# warn about on every import. They are throwaway CI values, not secrets.
+env:
+  SECRET_KEY: ci-secret-key-not-used-outside-ci
+  POSTGRES_PASSWORD: ci-postgres-password
+  FIRST_SUPERUSER_PASSWORD: ci-superuser-password
+
+jobs:
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned exactly: setup-uv publishes no floating tag above v7.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Create .env
+        run: cp .env.example .env
+        working-directory: .
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # The unit tests mock the database session, so no server is needed.
+      - name: Run tests
+        run: bash scripts/test.sh

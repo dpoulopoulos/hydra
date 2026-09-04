@@ -1,0 +1,65 @@
+services:
+
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    healthcheck:
+      # $$ escapes the interpolation so the variable is expanded inside the
+      # container, from the environment env_file provides.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - app-db-data:/var/lib/postgresql/data/pgdata
+    env_file:
+      - ./.env
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+
+  backend:
+    image: reeligion-backend:latest
+    build:
+      context: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    env_file:
+      - ./.env
+    environment:
+      # Reach the database and the mail catcher over the compose network,
+      # overriding the localhost values used when running outside containers.
+      POSTGRES_SERVER: db
+      SMTP_HOST: mailcatcher
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "8000:8000"
+      # For attaching a debugger, see "Using debugpy" in backend/README.md.
+      - "5678:5678"
+    develop:
+      watch:
+        # Application code is synced into the running container, which the
+        # server's reloader picks up. No rebuild, no restart.
+        - action: sync
+          path: ./backend/src/app
+          target: /app/src/app
+        # Dependency changes cannot be synced into an existing environment,
+        # so these rebuild the image instead.
+        - action: rebuild
+          path: ./backend/pyproject.toml
+        - action: rebuild
+          path: ./backend/uv.lock
+
+  mailcatcher:
+    image: schickling/mailcatcher
+    restart: unless-stopped
+    ports:
+      - "1080:1080"
+      - "1025:1025"
+
+volumes:
+  app-db-data:

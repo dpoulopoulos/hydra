@@ -1,0 +1,182 @@
+import uuid
+from datetime import UTC, datetime, timedelta
+
+from sqlmodel import Session
+
+from app.core.config import settings
+from app.core.security import (
+    TokenType,
+    create_password_reset_token,
+    decode_token,
+    get_password_hash,
+    verify_typed_token,
+)
+from app.exceptions import (
+    PasswordResetExpiredError,
+    PasswordResetNotFoundError,
+    PasswordResetTokenNotValidError,
+    PasswordResetUsedError,
+    UserNotFoundError,
+)
+from app.models import Message, PasswordReset, PasswordResetStatus
+from app.repositories.password_reset import PasswordResetRepository
+from app.services.user import UserService
+from app.utils import generate_password_reset_email, send_email
+
+EXPIRATION_TIME = datetime.now(UTC) + timedelta(hours=settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS)
+
+
+class PasswordResetService:
+    """Provide services for password reset management."""
+
+    def __init__(self, session: Session, password_reset_repository: PasswordResetRepository) -> None:
+        """Initialize the password reset service.
+
+        Args:
+            session: The database session.
+            password_reset_repository: The password reset repository instance.
+        """
+        self.session = session
+        self.password_reset_repository = password_reset_repository
+
+    def _mark_password_reset(self, password_reset_id: uuid.UUID, status: PasswordResetStatus) -> None:
+        """Mark password reset with a specific status.
+
+        Args:
+            password_reset_id: The password reset ID.
+            status: The password reset status.
+
+        Raises:
+            PasswordResetNotFoundError: If the password reset is not found.
+        """
+        password_reset = self.password_reset_repository.get_by_id(password_reset_id)
+        if not password_reset:
+            raise PasswordResetNotFoundError from None
+
+        self.password_reset_repository.update_status(password_reset, status)
+        self.session.commit()
+
+    def request_password_reset(self, user_service: UserService, email: str) -> Message:
+        """Request a password reset.
+
+        For security reasons, this always returns success even if the email doesn't exist.
+        This prevents user enumeration attacks.
+
+        Args:
+            user_service: A user service instance.
+            email: The email address to send the password reset to.
+
+        Returns:
+            Success message.
+        """
+        user = user_service.get_user_by_email(email=email)
+
+        if user:
+            existing_reset = self.password_reset_repository.get_pending_by_user_id(user.id)
+
+            # Mark existing pending resets as expired and create a new one
+            if existing_reset:
+                self._mark_password_reset(password_reset_id=existing_reset.id, status=PasswordResetStatus.EXPIRED)
+
+            token = create_password_reset_token(subject=email)
+
+            password_reset = PasswordReset(
+                email=email,
+                user_id=user.id,
+                status=PasswordResetStatus.PENDING,
+                expires_at=EXPIRATION_TIME,
+                token=token,
+            )
+
+            password_reset = self.password_reset_repository.save(password_reset)
+            self.session.commit()
+
+            # Send email (silently fail if emails are not enabled)
+            if settings.emails_enabled:
+                try:
+                    email_data = generate_password_reset_email(email=email, token=token)
+                    send_email(
+                        email_to=email,
+                        subject=email_data.subject,
+                        html_content=email_data.html_content,
+                    )
+                except Exception:
+                    # Silently fail to not reveal if email exists
+                    pass
+
+        return Message(message="If an account exists with this email, you will receive password reset instructions.")
+
+    def verify_token(self, token: str) -> Message:
+        """Verify a password reset token is valid.
+
+        Args:
+            token: The password reset token.
+
+        Returns:
+            Success message.
+
+        Raises:
+            PasswordResetTokenNotValidError: If the token is invalid.
+            PasswordResetNotFoundError: If the password reset is not found.
+            PasswordResetExpiredError: If the password reset has expired.
+            PasswordResetUsedError: If the password reset has already been used.
+        """
+        verify_typed_token(token, TokenType.PASSWORD_RESET, PasswordResetTokenNotValidError)
+
+        password_reset = self.password_reset_repository.get_by_token(token)
+
+        if not password_reset:
+            raise PasswordResetNotFoundError from None
+
+        if password_reset.status == PasswordResetStatus.USED:
+            raise PasswordResetUsedError from None
+
+        if password_reset.status == PasswordResetStatus.EXPIRED:
+            raise PasswordResetExpiredError from None
+
+        # Check if token has expired
+        expires_at = password_reset.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+
+        if expires_at < datetime.now(UTC):
+            self._mark_password_reset(password_reset_id=password_reset.id, status=PasswordResetStatus.EXPIRED)
+            raise PasswordResetExpiredError from None
+
+        return Message(message="Token is valid.")
+
+    def reset_password(self, user_service: UserService, token: str, new_password: str) -> Message:
+        """Reset a user's password.
+
+        Args:
+            user_service: A user service instance.
+            token: The password reset token.
+            new_password: The new password.
+
+        Returns:
+            Success message.
+
+        Raises:
+            PasswordResetTokenNotValidError: If the token is invalid.
+            PasswordResetNotFoundError: If the password reset is not found.
+            PasswordResetExpiredError: If the password reset has expired.
+            PasswordResetUsedError: If the password reset has already been used.
+            UserNotFoundError: If the user is not found.
+        """
+        self.verify_token(token)
+
+        decoded_token = decode_token(token, expected_type=TokenType.PASSWORD_RESET)
+        email = decoded_token["sub"]
+
+        password_reset = self.password_reset_repository.get_by_token(token)
+
+        user = user_service.get_user_by_email(email=email)
+        if not user:
+            raise UserNotFoundError from None
+
+        user.hashed_password = get_password_hash(new_password)
+        user_service.user_repository.save(user)
+
+        self._mark_password_reset(password_reset_id=password_reset.id, status=PasswordResetStatus.USED)  # type: ignore[union-attr]
+
+        return Message(message="Password reset successfully.")
