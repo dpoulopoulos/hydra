@@ -58,6 +58,9 @@ services:
     image: hydra-frontend:latest
     build:
       context: ./frontend
+      # The last stage of that Dockerfile is the production one, which serves
+      # compiled files and reloads nothing. Development wants the dev server.
+      target: dev
     depends_on:
       - backend
     environment:

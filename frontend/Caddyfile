@@ -1,0 +1,49 @@
+# Serves the built web app in production, and forwards the API calls to the
+# backend over the private network.
+#
+# The browser therefore sees a single origin for both the pages and the API,
+# which is what the generated client expects: it sends relative URLs, and no
+# cross-site request is ever made, so CORS never comes into it.
+
+{
+	# No admin API and no config on disk: neither is any use in a container
+	# that is replaced on every deploy.
+	admin off
+	persist_config off
+	# The platform terminates TLS in front of this server, so Caddy must not
+	# try to obtain a certificate of its own.
+	auto_https off
+	log {
+		format json
+	}
+	servers {
+		# Trust the platform's proxy, so the client IP in the logs is the
+		# visitor's and not the proxy's.
+		trusted_proxies static private_ranges 100.0.0.0/8
+	}
+}
+
+# The platform assigns the port and passes it in.
+:{$PORT:8080} {
+	log {
+		format json
+	}
+
+	# The API, and the images the emails point at, both live on the backend.
+	handle /api/* {
+		reverse_proxy {$BACKEND_ORIGIN}
+	}
+
+	handle /assets/* {
+		reverse_proxy {$BACKEND_ORIGIN}
+	}
+
+	handle {
+		root * /srv
+		encode gzip
+		# Client side routing: a path that is not a file on disk is still a
+		# page of the app, so the app itself has to answer for it.
+		try_files {path} /index.html
+		file_server
+	}
+}

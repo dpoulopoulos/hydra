@@ -17,6 +17,12 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, './src'),
     },
   },
+  build: {
+    // Vite calls this folder "assets" by default, but the API already serves
+    // /assets: the logo the emails point at. In production both sit behind one
+    // origin, so the built bundles are given a name of their own instead.
+    assetsDir: 'static',
+  },
   server: {
     port: 5173,
     // 0.0.0.0 in a container, so the published port reaches the server.

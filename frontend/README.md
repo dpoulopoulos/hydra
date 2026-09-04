@@ -130,9 +130,19 @@ Sixteen routes cover the whole API.
 
 ## Running in the container
 
-`Dockerfile` builds a development image: it installs dependencies and runs
-Vite's dev server. Production packaging is not covered, because how the built
-files are served depends on where this is deployed.
+`Dockerfile` builds two images from one file.
+
+The `dev` stage runs Vite's dev server, and the compose file asks for it by
+name. The last stage is the production one, and it is what anything building
+this folder gets by default: `pnpm build` compiles the app, and Caddy serves the
+result, forwarding `/api` and `/assets` to the address in `BACKEND_ORIGIN`.
+See `Caddyfile`.
+
+The browser therefore sees one origin in production too, exactly as it does
+behind the dev server's proxy, which is why the generated client sends relative
+URLs and no CORS is involved. Vite's own bundles are written to `static/` rather
+than the usual `assets/`, because `/assets` already belongs to the API: it is
+where the logo in the emails is served from.
 
 Two things differ inside a container, both switched on by `VITE_IN_CONTAINER`
 in the compose file:
