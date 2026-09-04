@@ -36,7 +36,7 @@ import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { compactIban, formatIban, isValidIban } from '@/lib/iban'
 import { ACCOUNT_TYPE_LABELS } from '@/lib/labels'
-import { toMajor } from '@/lib/money'
+import { formatMajorInput } from '@/lib/money'
 import { today } from '@/lib/month'
 
 /**
@@ -111,7 +111,7 @@ export function AccountDialog({
             type: account.type,
             institution: account.institution ?? '',
             iban: account.iban ? formatIban(account.iban) : '',
-            opening_balance: String(toMajor(account.opening_balance_minor, account.currency_code)),
+            opening_balance: formatMajorInput(account.opening_balance_minor, account.currency_code),
             opening_balance_date: account.opening_balance_date,
           }
         : {

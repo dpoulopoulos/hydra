@@ -24,7 +24,7 @@ import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { removedLimits } from '@/lib/budgets'
-import { toMajor } from '@/lib/money'
+import { formatMajorInput } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
 import { cn } from '@/lib/utils'
 
@@ -112,7 +112,7 @@ export function BudgetEditor({
       Object.fromEntries(
         (existing.data?.data ?? []).map((budget) => [
           budget.category_id,
-          String(toMajor(budget.limit_minor, currency)),
+          formatMajorInput(budget.limit_minor, currency),
         ]),
       ),
     [existing.data, currency],

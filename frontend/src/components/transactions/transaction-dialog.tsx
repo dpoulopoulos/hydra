@@ -39,7 +39,7 @@ import { useCategoryTree } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
-import { toMajor } from '@/lib/money'
+import { formatMajorInput } from '@/lib/money'
 import { today } from '@/lib/month'
 import { optionSource } from '@/lib/option-source'
 
@@ -151,7 +151,7 @@ export function TransactionDialog({
     if (!open) return
     form.reset({
       kind: transaction?.kind ?? TransactionKind.EXPENSE,
-      amount: transaction ? String(toMajor(transaction.amount_minor, currency)) : '',
+      amount: transaction ? formatMajorInput(transaction.amount_minor, currency) : '',
       occurred_on: transaction?.occurred_on ?? today(),
       account_id: transaction?.account_id ?? '',
       counter_account_id: transaction?.counter_account_id ?? '',
