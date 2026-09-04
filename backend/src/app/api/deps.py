@@ -15,6 +15,7 @@ from app.exceptions.password_exceptions import InvalidCredentialsError
 from app.models import HouseholdContext, HouseholdRole, TokenPayload, TransactionFilters, User
 from app.repositories import (
     AccountRepository,
+    BudgetRepository,
     CategoryRepository,
     EmailVerificationRepository,
     HouseholdMemberRepository,
@@ -25,6 +26,7 @@ from app.repositories import (
 )
 from app.services import (
     AccountService,
+    BudgetService,
     CategoryService,
     EmailVerificationService,
     HouseholdService,
@@ -138,6 +140,46 @@ def get_category_service(session: SessionDep, category_repository: CategoryRepos
 
 
 CategoryServiceDep = Annotated[CategoryService, Depends(get_category_service)]
+
+
+def get_budget_repository(session: SessionDep) -> BudgetRepository:
+    """Get a budget repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A budget repository instance.
+    """
+    return BudgetRepository(session=session)
+
+
+BudgetRepositoryDep = Annotated[BudgetRepository, Depends(get_budget_repository)]
+
+
+def get_budget_service(
+    session: SessionDep,
+    budget_repository: BudgetRepositoryDep,
+    category_repository: CategoryRepositoryDep,
+) -> BudgetService:
+    """Get a budget service instance.
+
+    Args:
+        session: The database session.
+        budget_repository: The budget repository instance.
+        category_repository: The category repository instance.
+
+    Returns:
+        A budget service instance.
+    """
+    return BudgetService(
+        session=session,
+        budget_repository=budget_repository,
+        category_repository=category_repository,
+    )
+
+
+BudgetServiceDep = Annotated[BudgetService, Depends(get_budget_service)]
 
 
 def get_transaction_repository(session: SessionDep) -> TransactionRepository:
