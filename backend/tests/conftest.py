@@ -12,8 +12,14 @@ from app.core.config import settings
 from app.main import app
 from app.core.security import ALGORITHM, create_access_token, get_password_hash
 from app.models import User
-from app.repositories import EmailVerificationRepository, PasswordResetRepository, UserRepository
-from app.services import EmailVerificationService, PasswordResetService, UserService
+from app.repositories import (
+    EmailVerificationRepository,
+    HouseholdMemberRepository,
+    HouseholdRepository,
+    PasswordResetRepository,
+    UserRepository,
+)
+from app.services import EmailVerificationService, HouseholdService, PasswordResetService, UserService
 
 
 @pytest.fixture
@@ -321,3 +327,52 @@ def base_settings_env(monkeypatch):
     monkeypatch.setenv("FIRST_SUPERUSER_PASSWORD", "secure_password")
     monkeypatch.setenv("ENVIRONMENT", "local")
     monkeypatch.setenv("SECRET_KEY", "secure_secret_key")
+
+
+@pytest.fixture
+def mock_household_repository(mock_db_session: MagicMock) -> HouseholdRepository:
+    """Create a HouseholdRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        A HouseholdRepository instance with a mocked session.
+    """
+    return HouseholdRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_household_member_repository(mock_db_session: MagicMock) -> HouseholdMemberRepository:
+    """Create a HouseholdMemberRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        A HouseholdMemberRepository instance with a mocked session.
+    """
+    return HouseholdMemberRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_household_service(
+    mock_db_session: MagicMock,
+    mock_household_repository: HouseholdRepository,
+    mock_household_member_repository: HouseholdMemberRepository,
+) -> HouseholdService:
+    """Create a HouseholdService instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+        mock_household_repository: The household repository instance.
+        mock_household_member_repository: The household member repository instance.
+
+    Returns:
+        A HouseholdService instance with a mocked session.
+    """
+    return HouseholdService(
+        session=mock_db_session,
+        household_repository=mock_household_repository,
+        household_member_repository=mock_household_member_repository,
+    )
