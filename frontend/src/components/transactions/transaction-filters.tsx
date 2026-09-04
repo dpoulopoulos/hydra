@@ -16,12 +16,20 @@ import { useCategoryTree } from '@/hooks/use-categories'
 import { ANY, emptyFilters, hasActiveFilters, type Filters } from '@/lib/transaction-filters'
 import { TRANSACTION_KIND_LABELS } from '@/lib/labels'
 
+/** Row counts to choose from. Thirty fills a screen without a long scroll. */
+const PAGE_SIZES = [10, 30, 50, 100]
+
 export function TransactionFilters({
   filters,
   onChange,
+  pageSize,
+  onPageSizeChange,
 }: {
   filters: Filters
   onChange: (filters: Filters) => void
+  /** Not a filter, but it belongs with the controls that shape the list. */
+  pageSize: number
+  onPageSizeChange: (pageSize: number) => void
 }) {
   const { data: accounts } = useAccounts({ includeArchived: true })
   const { data: categories } = useCategoryTree({ includeArchived: true })
@@ -131,6 +139,22 @@ export function TransactionFilters({
             <SelectItem value={TransactionSort.DATE}>Oldest first</SelectItem>
             <SelectItem value={TransactionSort['-AMOUNT']}>Largest first</SelectItem>
             <SelectItem value={TransactionSort.AMOUNT}>Smallest first</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="page-size">Rows per page</Label>
+        <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
+          <SelectTrigger id="page-size" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAGE_SIZES.map((size) => (
+              <SelectItem key={size} value={String(size)}>
+                {size}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

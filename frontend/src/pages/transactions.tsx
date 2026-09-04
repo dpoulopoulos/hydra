@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/data-state'
 import { PageHeader } from '@/components/layout/page-header'
 import { Money } from '@/components/money'
+import { Pagination } from '@/components/pagination'
 import { TransactionFilters } from '@/components/transactions/transaction-filters'
 import { TransactionDialog } from '@/components/transactions/transaction-dialog'
 import { Badge } from '@/components/ui/badge'
@@ -40,13 +41,12 @@ import { errorMessage } from '@/lib/api'
 import { formatDate } from '@/lib/month'
 import { emptyFilters, hasActiveFilters, toQuery, type Filters } from '@/lib/transaction-filters'
 
-const PAGE_SIZE = 50
-
 export function Component() {
   const currency = useCurrency()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(30)
   const [editing, setEditing] = useState<TransactionPublic | null>(null)
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState<TransactionPublic | null>(null)
@@ -54,10 +54,10 @@ export function Component() {
   const query = toQuery(filters)
 
   const transactions = useQuery({
-    queryKey: ['transactions', query, page],
+    queryKey: ['transactions', query, page, pageSize],
     queryFn: async () => {
       const { data, error } = await transactionsListTransactions({
-        query: { ...query, skip: page * PAGE_SIZE, limit: PAGE_SIZE },
+        query: { ...query, skip: page * pageSize, limit: pageSize },
       })
       if (error) throw error
       return data
@@ -95,7 +95,6 @@ export function Component() {
   })
 
   const total = transactions.data?.count ?? 0
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <>
@@ -113,6 +112,12 @@ export function Component() {
             onChange={(next) => {
               setFilters(next)
               // A narrower list starts from its first page.
+              setPage(0)
+            }}
+            pageSize={pageSize}
+            onPageSizeChange={(next) => {
+              setPageSize(next)
+              // Page four of fifty is not page four of ten.
               setPage(0)
             }}
           />
@@ -240,32 +245,13 @@ export function Component() {
             </Table>
           </Card>
 
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-muted-foreground text-sm">
-              {total} {total === 1 ? 'transaction' : 'transactions'}
-              {pageCount > 1 ? ` · page ${page + 1} of ${pageCount}` : null}
-            </p>
-            {pageCount > 1 ? (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((current) => current - 1)}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page + 1 >= pageCount}
-                  onClick={() => setPage((current) => current + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            ) : null}
-          </div>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            noun="transaction"
+          />
         </>
       )}
 
