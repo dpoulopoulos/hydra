@@ -270,7 +270,7 @@ Key settings:
 |---------|-------------|---------|
 | `PROJECT_NAME` | Human readable project name | Required |
 | `PROJECT_ID` | Identifier used as the JWT issuer and audience | Required |
-| `SECRET_KEY` | JWT signing key | Generated per process if unset |
+| `SECRET_KEY` | JWT signing key | Generated per process in `local`, required elsewhere |
 | `SESSION_TOKEN_EXPIRE_HOURS` | Session token lifetime | 192 (8 days) |
 | `POSTGRES_SERVER` | Database host | Required |
 | `POSTGRES_PORT` | Database port | `5432` |
@@ -288,7 +288,9 @@ Key settings:
 | `RUN_PRESTART` | Whether the entrypoint migrates and seeds before serving | `true` |
 
 The `Settings` class validates that "changethis" values are not used outside the `local` environment, where it warns
-instead.
+instead. `SECRET_KEY` is held to the same standard when it is absent altogether: outside `local` the app refuses to
+start without one, because the generated fallback differs per process, which signs sessions with a key the next replica
+or the next restart cannot verify.
 
 `EMAIL_PROVIDER` exists because some hosts block outgoing SMTP. `smtp` talks to a mail server, which is what the local
 mail catcher offers. `resend` posts to an HTTPS API instead, and needs `RESEND_API_KEY`.
