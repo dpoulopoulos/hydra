@@ -44,6 +44,7 @@ from .password_exceptions import (
     PasswordResetUsedError,
     PasswordUnmodifiedError,
 )
+from .recurring_exceptions import InvalidRecurrenceError, RecurringRuleNotFoundError
 from .report_exceptions import InvalidDateRangeError, ReportRangeTooLargeError
 from .transaction_exceptions import (
     SameAccountTransferError,
@@ -100,6 +101,8 @@ __all__ = [
     "TransferShapeError",
     "InvalidCredentialsError",
     "InvalidDateRangeError",
+    "InvalidRecurrenceError",
+    "RecurringRuleNotFoundError",
     "ReportRangeTooLargeError",
     "UserExistsError",
     "UserNotActiveError",

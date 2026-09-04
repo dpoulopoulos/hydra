@@ -5,6 +5,7 @@ from app.repositories.category import CategoryRepository
 from app.repositories.email_verification import EmailVerificationRepository
 from app.repositories.household import HouseholdMemberRepository, HouseholdRepository
 from app.repositories.password_reset import PasswordResetRepository
+from app.repositories.recurring_rule import RecurringRuleRepository
 from app.repositories.report import ReportRepository
 from app.repositories.transaction import TransactionRepository
 from app.repositories.user import UserRepository
@@ -19,6 +20,7 @@ __all__ = [
     "HouseholdRepository",
     "HouseholdScopedRepository",
     "PasswordResetRepository",
+    "RecurringRuleRepository",
     "ReportRepository",
     "TransactionRepository",
     "UserRepository",
