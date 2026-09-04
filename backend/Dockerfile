@@ -19,14 +19,16 @@ ENV UV_COMPILE_BYTECODE=1
 # uv Cache
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#caching
 #
-# The cache mounts below are given an explicit id because Railway's builder
-# rejects one without it. Any id satisfies buildkit, so this stays portable.
+# There is deliberately no --mount=type=cache below. Railway's builder only
+# accepts a cache mount whose id carries its own prefix, s/<service id>-<path>,
+# and it forbids reading that from a variable, so honouring it would mean
+# writing one environment's service id into this file. The mount only earns its
+# keep when the lock file changes; the layer cache covers every other build.
 ENV UV_LINK_MODE=copy
 
 # Install dependencies
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
+RUN --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-install-project
 
@@ -40,8 +42,7 @@ COPY ./src/app /app/src/app
 
 # Sync the project
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
-RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-    uv sync
+RUN uv sync
 
 RUN chmod +x /app/scripts/entrypoint.sh
 RUN chmod +x /app/scripts/prestart.sh
