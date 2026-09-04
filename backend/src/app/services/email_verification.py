@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Protocol
 
 from sqlmodel import Session
 
@@ -17,6 +18,22 @@ from app.models import EmailVerification, EmailVerificationStatus, Message, User
 from app.repositories.email_verification import EmailVerificationRepository
 from app.services.user import UserService
 from app.utils import generate_email_verification_email, try_send_email
+
+
+class InviteClaimer(Protocol):
+    """The part of the household service that verifying an address depends on.
+
+    Typed as a protocol so this service does not import the household service,
+    which would make the two mutually dependent.
+    """
+
+    def claim_invites_for_verified_email(self, user: User) -> None:
+        """Point the invites sent to a user's address at their account, without committing.
+
+        Args:
+            user: The user who has just proved they hold the address.
+        """
+        ...
 
 
 class EmailVerificationService:
@@ -196,7 +213,9 @@ class EmailVerificationService:
             )
         )
 
-    def verify_email(self, user_service: UserService, token: str) -> Message:
+    def verify_email(
+        self, user_service: UserService, token: str, invite_claimer: InviteClaimer | None = None
+    ) -> Message:
         """Verify a user's email address.
 
         A verification issued for a change of address moves the account to that
@@ -205,6 +224,8 @@ class EmailVerificationService:
         Args:
             user_service: A user service instance.
             token: The email verification token.
+            invite_claimer: The household service, which hands the invitations
+                sent to the address over to the account that just proved it.
 
         Returns:
             Success message.
@@ -271,6 +292,13 @@ class EmailVerificationService:
         # Activate user account
         user.is_active = True
         user_service.user_repository.save(user)
+
+        # The mailbox is proved as of now, so an invitation sent to it is one
+        # this account may redeem. Nothing else establishes that: an address on
+        # a profile is a claim, not a proof.
+        if invite_claimer:
+            invite_claimer.claim_invites_for_verified_email(user=user)
+
         self.session.commit()
 
         return Message(message="Email verified successfully. Your account is now active.")

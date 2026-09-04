@@ -697,6 +697,24 @@ class HouseholdService:
             expires_at=invite.expires_at,
         )
 
+    def claim_invites_for_verified_email(self, user: User) -> None:
+        """Point the invites sent to a user's address at their account, without committing.
+
+        Called once the address has been proved to be theirs. Until then the
+        invitation names no account, and the accept path refuses it: an address
+        alone is a claim anybody can make, and honouring it would let whoever
+        holds a leaked link rename themselves into the invitation.
+
+        The caller owns the transaction, so verifying an address and handing
+        over its invitations happen together.
+
+        Args:
+            user: The user who has just proved they hold the address.
+        """
+        for invite in self.household_invite_repository.list_pending_for_email(user.email):
+            invite.invited_user_id = user.id
+            self.household_invite_repository.save(invite)
+
     def accept_invite(self, user: User, token: str) -> HouseholdPublic:
         """Join a household using an invite.
 

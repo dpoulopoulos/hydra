@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status
 
-from app.api.deps import EmailVerificationServiceDep, UserServiceDep
+from app.api.deps import CurrentUser, EmailVerificationServiceDep, HouseholdServiceDep, UserServiceDep
 from app.exceptions import (
     EmailVerificationExpiredError,
     EmailVerificationNotFoundError,
@@ -54,11 +54,48 @@ def resend_verification_email(
     )
 
 
+@router.post("/me/send", response_model=Message)
+def send_verification_email_me(
+    *,
+    email_verification_service: EmailVerificationServiceDep,
+    user_service: UserServiceDep,
+    current_user: CurrentUser,
+) -> Message:
+    """Send a confirmation email for the address the current account holds.
+
+    The public resend endpoint serves only accounts that are waiting to be
+    activated, so an active account has no way to prove the address it holds
+    now. Two kinds of account need one: those an administrator created, which
+    are active without ever having been sent a confirmation, and those that
+    changed their address, whose earlier confirmation proves an address they no
+    longer hold. Until they have a proof, anything that asks for one is out of
+    reach, including redeeming a household invitation.
+
+    Requesting it needs no payload: the address is the one on the caller's own
+    account, so this can neither be aimed at somebody else's mailbox nor used
+    to find out whose addresses exist.
+
+    Args:
+        email_verification_service: The email verification service dependency.
+        user_service: The user service dependency.
+        current_user: The current authenticated user.
+
+    Returns:
+        A message indicating that the confirmation email was sent.
+
+    Raises:
+        HTTPException: If the user's token is invalid (401), the user is not found (404),
+            or the user is inactive (403).
+    """
+    return email_verification_service.send_verification_email(user_service=user_service, user_email=current_user.email)
+
+
 @router.post("/verify", response_model=Message)
 def verify_email(
     *,
     email_verification_service: EmailVerificationServiceDep,
     user_service: UserServiceDep,
+    household_service: HouseholdServiceDep,
     email_verification_confirm: EmailVerificationConfirm,
 ) -> Message:
     """Verify a user's email address.
@@ -68,6 +105,8 @@ def verify_email(
     Args:
         email_verification_service: The email verification service dependency.
         user_service: The user service dependency.
+        household_service: The household service dependency, which claims the
+            invitations sent to the address now that it has been proved.
         email_verification_confirm: The email verification confirmation payload.
 
     Returns:
@@ -77,4 +116,8 @@ def verify_email(
         HTTPException: If the token is invalid (400), expired (400), already used (400), not found (404),
             or another account holds the address the change would move to (409).
     """
-    return email_verification_service.verify_email(user_service=user_service, token=email_verification_confirm.token)
+    return email_verification_service.verify_email(
+        user_service=user_service,
+        token=email_verification_confirm.token,
+        invite_claimer=household_service,
+    )

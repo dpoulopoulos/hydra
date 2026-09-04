@@ -4,7 +4,12 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
-import { usersDeleteUserMe, usersUpdatePasswordMe, usersUpdateUserMe } from '@/api'
+import {
+  emailVerificationSendVerificationEmailMe,
+  usersDeleteUserMe,
+  usersUpdatePasswordMe,
+  usersUpdateUserMe,
+} from '@/api'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Field, FormError } from '@/components/form-field'
 import { PageHeader } from '@/components/layout/page-header'
@@ -67,6 +72,21 @@ export function Component() {
 
       toast.success('Profile saved')
     },
+  })
+
+  // Confirming the address is what proves the account holds it, and some
+  // things ask for that proof: a household invitation is only redeemable by
+  // the account that has confirmed the address it was sent to. An account an
+  // administrator created was never sent a confirmation, and one that changed
+  // its address here has only a confirmation of the address it used to hold,
+  // so both need a way to ask for one.
+  const confirmEmail = useMutation({
+    mutationFn: async () => {
+      const { error } = await emailVerificationSendVerificationEmailMe()
+      if (error) throw error
+    },
+    onSuccess: () => toast.success('Confirmation email sent. Check your inbox.'),
+    onError: (error) => toast.error(errorMessage(error)),
   })
 
   const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
@@ -136,6 +156,25 @@ export function Component() {
 
             <SubmitButton pending={saveDetails.isPending}>Save details</SubmitButton>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Confirm your email</CardTitle>
+          <CardDescription>
+            Confirming {user?.email ?? 'your address'} proves it is yours. You need to have done it
+            before you can accept a household invitation sent to it, and again after you change it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SubmitButton
+            pending={confirmEmail.isPending}
+            onClick={() => confirmEmail.mutate()}
+            type="button"
+          >
+            Send confirmation email
+          </SubmitButton>
         </CardContent>
       </Card>
 
