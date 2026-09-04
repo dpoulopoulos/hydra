@@ -2,7 +2,7 @@ import datetime
 import uuid
 from collections.abc import Sequence
 
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, func, select
 
 from app.models import Budget, Category
 from app.repositories.base import HouseholdScopedRepository
@@ -99,3 +99,20 @@ class BudgetRepository(HouseholdScopedRepository[Budget]):
             col(Budget.category_id).in_(category_ids),
         )
         return self.session.exec(statement).all()
+
+    def count_for_category(self, category_id: uuid.UUID, household_id: uuid.UUID) -> int:
+        """Count the budgets set for a category.
+
+        Args:
+            category_id: The ID of the category.
+            household_id: The ID of the household.
+
+        Returns:
+            The number of budgets referencing the category.
+        """
+        statement = (
+            select(func.count())
+            .select_from(Budget)
+            .where(Budget.household_id == household_id, Budget.category_id == category_id)
+        )
+        return self.session.exec(statement).one()
