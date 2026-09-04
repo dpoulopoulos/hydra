@@ -122,7 +122,10 @@ class HouseholdInvitePreview(SQLModel):
 
     household_name: str
     invited_by: EmailStr
-    email: EmailStr
+    # Masked, never the address itself. Returning it in full would tell
+    # whoever holds a leaked link which address the invitation is for, which
+    # only helps somebody trying to pass themselves off as its recipient.
+    masked_email: str
     role: HouseholdRole
     expires_at: datetime.datetime
 

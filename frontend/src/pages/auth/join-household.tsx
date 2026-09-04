@@ -90,19 +90,24 @@ export function Component() {
       <FormError message={accept.isError ? errorMessage(accept.error) : null} />
 
       {isAuthenticated ? (
-        <SubmitButton
-          pending={accept.isPending}
-          className="mt-2 w-full"
-          onClick={() => accept.mutate()}
-          type="button"
-        >
-          Join household
-        </SubmitButton>
+        <div className="mt-2 space-y-3">
+          <p className="text-muted-foreground text-sm">
+            The invitation is for {invite.masked_email}. Only that account can accept it.
+          </p>
+          <SubmitButton
+            pending={accept.isPending}
+            className="w-full"
+            onClick={() => accept.mutate()}
+            type="button"
+          >
+            Join household
+          </SubmitButton>
+        </div>
       ) : (
         <div className="mt-2 space-y-3">
           <p className="text-muted-foreground text-sm">
-            The invitation is for {invite.email}. Sign in with that address, or create an account,
-            to accept it.
+            The invitation is for {invite.masked_email}. Sign in with that address, or create an
+            account with it, to accept it.
           </p>
           <Button asChild className="w-full">
             <Link to={`/signup?token=${encodeURIComponent(token)}`}>Create an account</Link>

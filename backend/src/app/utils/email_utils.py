@@ -31,6 +31,31 @@ def _render_email_template(*, template_name: str, context: dict[str, Any]) -> st
     return template.render(context)
 
 
+# Fixed width, so the mask says nothing about how long the local part is.
+MASK = "*" * 5
+
+
+def mask_email(email: str) -> str:
+    """Hide most of an email address, leaving it recognisable to its owner.
+
+    Used where an address has to be shown to somebody who may not own it, so
+    the reader can tell whether it is theirs without learning what to type
+    somewhere else.
+
+    Args:
+        email: The address to mask.
+
+    Returns:
+        The first character of the local part, a fixed mask, and the domain.
+    """
+    local, _, domain = email.partition("@")
+
+    if not domain:
+        return MASK
+
+    return f"{local[:1] if len(local) > 1 else ''}{MASK}@{domain}"
+
+
 def generate_new_account_email(username: str) -> EmailData:
     """Generate a 'new account' email.
 

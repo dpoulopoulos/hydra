@@ -621,7 +621,7 @@ class TestPreviewHouseholdInvite:
         wire.preview_invite.return_value = HouseholdInvitePreview(
             household_name="Test household",
             invited_by="owner@example.com",
-            email="partner@example.com",
+            masked_email="p*****@example.com",
             role=HouseholdRole.MEMBER,
             expires_at=datetime.now(UTC) + timedelta(hours=24),
         )
@@ -630,6 +630,7 @@ class TestPreviewHouseholdInvite:
 
         assert response.status_code == 200
         assert response.json()["household_name"] == "Test household"
+        assert response.json()["masked_email"] == "p*****@example.com"
 
     def test_an_unknown_token_is_not_found(self, client: TestClient, wire: MagicMock) -> None:
         wire.preview_invite.side_effect = HouseholdInviteNotFoundError

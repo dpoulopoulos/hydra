@@ -709,14 +709,17 @@ export const householdsPreviewHouseholdInviteQueryKey = (options: Options<Househ
  *
  * Public, because the recipient may not have an account yet. It carries only
  * what somebody needs in order to decide, and nothing about the household's
- * money.
+ * money. The invited address is masked: anybody holding the link can read
+ * this, and the address in full would only help somebody trying to pass
+ * themselves off as its recipient.
  *
  * Args:
  * household_service: The household service dependency.
  * token: The invitation token.
  *
  * Returns:
- * The household name, who invited them, and when it expires.
+ * The household name, who invited them, the invited address masked, and
+ * when it expires.
  *
  * Raises:
  * HTTPException: If the token is not recognised (404), or the invitation
