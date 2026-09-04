@@ -11,6 +11,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.types import ExceptionHandler
 
 from app.api.main import api_router
+from app.api.routes.categories import category_exception_mappings
 from app.api.routes.email_verification import email_verification_exception_mappings
 from app.api.routes.households import household_exception_mappings
 from app.api.routes.login import login_exception_mappings
@@ -91,6 +92,7 @@ exception_mappings = [
     password_reset_exception_mappings(),
     email_verification_exception_mappings(),
     household_exception_mappings(),
+    category_exception_mappings(),
 ]
 
 for mapping in exception_mappings:

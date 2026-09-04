@@ -14,13 +14,20 @@ from app.exceptions import HouseholdRoleRequiredError, UserNotAuthorizedError
 from app.exceptions.password_exceptions import InvalidCredentialsError
 from app.models import HouseholdContext, HouseholdRole, TokenPayload, User
 from app.repositories import (
+    CategoryRepository,
     EmailVerificationRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
     PasswordResetRepository,
     UserRepository,
 )
-from app.services import EmailVerificationService, HouseholdService, PasswordResetService, UserService
+from app.services import (
+    CategoryService,
+    EmailVerificationService,
+    HouseholdService,
+    PasswordResetService,
+    UserService,
+)
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login/access-token")
 
@@ -81,6 +88,37 @@ def get_email_verification_repository(session: SessionDep) -> EmailVerificationR
 
 
 EmailVerificationRepositoryDep = Annotated[EmailVerificationRepository, Depends(get_email_verification_repository)]
+
+
+def get_category_repository(session: SessionDep) -> CategoryRepository:
+    """Get a category repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A category repository instance.
+    """
+    return CategoryRepository(session=session)
+
+
+CategoryRepositoryDep = Annotated[CategoryRepository, Depends(get_category_repository)]
+
+
+def get_category_service(session: SessionDep, category_repository: CategoryRepositoryDep) -> CategoryService:
+    """Get a category service instance.
+
+    Args:
+        session: The database session.
+        category_repository: The category repository instance.
+
+    Returns:
+        A category service instance.
+    """
+    return CategoryService(session=session, category_repository=category_repository)
+
+
+CategoryServiceDep = Annotated[CategoryService, Depends(get_category_service)]
 
 
 def get_household_repository(session: SessionDep) -> HouseholdRepository:

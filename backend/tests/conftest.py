@@ -11,15 +11,22 @@ from sqlmodel import Session
 from app.core.config import settings
 from app.main import app
 from app.core.security import ALGORITHM, create_access_token, get_password_hash
-from app.models import User
+from app.models import HouseholdContext, HouseholdRole, User
 from app.repositories import (
+    CategoryRepository,
     EmailVerificationRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
     PasswordResetRepository,
     UserRepository,
 )
-from app.services import EmailVerificationService, HouseholdService, PasswordResetService, UserService
+from app.services import (
+    CategoryService,
+    EmailVerificationService,
+    HouseholdService,
+    PasswordResetService,
+    UserService,
+)
 
 
 @pytest.fixture
@@ -375,4 +382,51 @@ def mock_household_service(
         session=mock_db_session,
         household_repository=mock_household_repository,
         household_member_repository=mock_household_member_repository,
+    )
+
+
+@pytest.fixture
+def mock_category_repository(mock_db_session: MagicMock) -> CategoryRepository:
+    """Create a CategoryRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        A CategoryRepository instance with a mocked session.
+    """
+    return CategoryRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_category_service(
+    mock_db_session: MagicMock, mock_category_repository: CategoryRepository
+) -> CategoryService:
+    """Create a CategoryService instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+        mock_category_repository: The category repository instance.
+
+    Returns:
+        A CategoryService instance with a mocked session.
+    """
+    return CategoryService(session=mock_db_session, category_repository=mock_category_repository)
+
+
+@pytest.fixture
+def household_context(test_user: User) -> HouseholdContext:
+    """Build an owner household context for the test user.
+
+    Args:
+        test_user: The test user.
+
+    Returns:
+        A household context in which the user owns the household.
+    """
+    return HouseholdContext(
+        user=test_user,
+        household_id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
+        membership_id=uuid.UUID("22222222-2222-2222-2222-222222222222"),
+        role=HouseholdRole.OWNER,
     )
