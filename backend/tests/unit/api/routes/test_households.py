@@ -6,7 +6,13 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_current_user, get_db, get_household_context, get_household_service
+from app.api.deps import (
+    get_category_service,
+    get_current_user,
+    get_db,
+    get_household_context,
+    get_household_service,
+)
 from app.exceptions import (
     HouseholdInviteEmailMismatchError,
     HouseholdInviteExistsError,
@@ -86,6 +92,22 @@ def wire(mock_db_session: MagicMock, test_user: User) -> Generator[MagicMock]:
     yield service
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def category_wire(wire: MagicMock) -> MagicMock:
+    """Override the category service the detaching routes have to pass on.
+
+    Args:
+        wire: The household service override, whose teardown clears this one.
+
+    Returns:
+        A mock category service the test can assert on.
+    """
+    service = MagicMock()
+    app.dependency_overrides[get_category_service] = lambda: service
+
+    return service
 
 
 def use_context(context: HouseholdContext) -> None:
@@ -230,6 +252,22 @@ class TestLeaveHousehold:
         assert response.status_code == 200
         wire.leave_household.assert_called_once()
 
+    def test_hands_the_category_service_over(
+        self,
+        client: TestClient,
+        wire: MagicMock,
+        category_wire: MagicMock,
+        auth_headers: dict[str, str],
+        member_context: HouseholdContext,
+    ) -> None:
+        """Without it the replacement household is created with no categories."""
+        use_context(member_context)
+        wire.leave_household.return_value = Message(message="You have left the household.")
+
+        client.delete("/api/v1/households/me/members/me", headers=auth_headers)
+
+        assert wire.leave_household.call_args.kwargs["category_service"] is category_wire
+
     def test_the_route_is_not_parsed_as_a_user_id(
         self,
         client: TestClient,
@@ -348,6 +386,23 @@ class TestRemoveHouseholdMember:
         )
 
         assert response.status_code == 200
+
+    def test_hands_the_category_service_over(
+        self,
+        client: TestClient,
+        wire: MagicMock,
+        category_wire: MagicMock,
+        auth_headers: dict[str, str],
+        owner_context: HouseholdContext,
+        another_test_user: User,
+    ) -> None:
+        """Without it the removed member is left with no categories."""
+        use_context(owner_context)
+        wire.remove_member.return_value = Message(message="Member removed from the household.")
+
+        client.delete(f"/api/v1/households/me/members/{another_test_user.id}", headers=auth_headers)
+
+        assert wire.remove_member.call_args.kwargs["category_service"] is category_wire
 
     def test_a_member_may_not_remove_a_member(
         self,

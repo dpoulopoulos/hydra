@@ -124,13 +124,20 @@ def list_household_members(
 # Declared before the "/me/members/{user_id}" routes: FastAPI matches in
 # declaration order, so otherwise "me" would be parsed as a user ID and fail.
 @router.delete("/me/members/me", response_model=Message)
-def leave_household(*, household_service: HouseholdServiceDep, household: CurrentHousehold) -> Message:
+def leave_household(
+    *,
+    household_service: HouseholdServiceDep,
+    category_service: CategoryServiceDep,
+    household: CurrentHousehold,
+) -> Message:
     """Leave the household.
 
     The caller keeps their account and is given a fresh, empty household.
 
     Args:
         household_service: The household service dependency.
+        category_service: The category service dependency, used to seed the
+            categories of the replacement household.
         household: The current household context.
 
     Returns:
@@ -140,7 +147,7 @@ def leave_household(*, household_service: HouseholdServiceDep, household: Curren
         HTTPException: If the caller is the household's only owner (400), or the
             membership no longer exists (404).
     """
-    return household_service.leave_household(household=household)
+    return household_service.leave_household(household=household, category_service=category_service)
 
 
 @router.patch("/me/members/{user_id}", response_model=HouseholdMemberPublic)
@@ -172,7 +179,11 @@ def update_household_member(
 
 @router.delete("/me/members/{user_id}", response_model=Message)
 def remove_household_member(
-    *, household_service: HouseholdServiceDep, household: OwnerHousehold, user_id: uuid.UUID
+    *,
+    household_service: HouseholdServiceDep,
+    category_service: CategoryServiceDep,
+    household: OwnerHousehold,
+    user_id: uuid.UUID,
 ) -> Message:
     """Remove a member from the household.
 
@@ -180,6 +191,8 @@ def remove_household_member(
 
     Args:
         household_service: The household service dependency.
+        category_service: The category service dependency, used to seed the
+            categories of the replacement household.
         household: The current household context, which must be owned by the user.
         user_id: The ID of the user to remove.
 
@@ -191,7 +204,7 @@ def remove_household_member(
             member is not in the household (404), or the removal would leave the
             household with no owner (400).
     """
-    return household_service.remove_member(household=household, user_id=user_id)
+    return household_service.remove_member(household=household, user_id=user_id, category_service=category_service)
 
 
 @router.get("/me/invites", response_model=HouseholdInvitesPublic)
