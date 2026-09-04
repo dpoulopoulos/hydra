@@ -38,11 +38,11 @@ import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
 import { useDecrypted, useVault } from '@/hooks/use-vault'
-import { amountSchema } from '@/lib/amount'
+import { amountSchema, parseMajor } from '@/lib/amount'
 import { WeekdayPicker } from '@/components/income/weekday-picker'
 import { AD_HOC, CADENCE_PRESETS, describeCadence, isWeekly, presetOf } from '@/lib/cadence'
 import { errorMessage } from '@/lib/api'
-import { formatMoney, toMajor, toMinor } from '@/lib/money'
+import { formatMajorInput, formatMoney, toMinor } from '@/lib/money'
 import { formatDate, today } from '@/lib/month'
 
 function buildSchema(currency: string) {
@@ -109,7 +109,7 @@ export function ClientDialog({
   const defaults: Values = useMemo(
     () => ({
       name: existingName ?? '',
-      rate: client ? String(toMajor(client.default_rate_minor, currency)) : '',
+      rate: client ? formatMajorInput(client.default_rate_minor, currency) : '',
       default_account_id: client?.default_account_id ?? '',
       default_category_id: client?.default_category_id ?? '',
       cadence: presetOf(client?.cadence_frequency, client?.cadence_interval ?? 1),
@@ -179,9 +179,11 @@ export function ClientDialog({
   const anchor = form.watch('cadence_anchor_on')
   // The field holds whatever has been typed so far, so the fee is only shown
   // back once it reads as a number. A half-typed "4" is not worth echoing.
-  const typedRate = Number(String(form.watch('rate') ?? '').replace(',', '.'))
+  // Read with the parser the field itself validates with, so the sentence
+  // quotes the figure that would be saved rather than one of its own reading.
+  const typedRate = parseMajor(String(form.watch('rate') ?? ''))
   const rateLabel =
-    Number.isFinite(typedRate) && typedRate > 0
+    typedRate !== null && typedRate > 0
       ? `, ${formatMoney(toMinor(typedRate, currency), currency)} a session`
       : ''
 

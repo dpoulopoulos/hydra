@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { MAX_AMOUNT_MINOR, amountSchema } from '@/lib/amount'
 
 /** The minor units a typed string reaches the API as, or the message shown. */
-function parse(value: string, currency = 'EUR', options?: { allowZero?: boolean }) {
+function parse(
+  value: string,
+  currency = 'EUR',
+  options?: { allowZero?: boolean; locale?: string },
+) {
   const result = amountSchema(currency, options).safeParse(value)
   return result.success ? result.data : result.error.issues[0].message
 }
@@ -31,13 +35,13 @@ describe('amountSchema', () => {
     expect(parse('42.505')).toBe(4251)
   })
 
-  // A thousands separator is read as a decimal point, so "1,000" is a euro
-  // rather than a thousand. Pinned as it behaves today, wrong; #18 is the fix,
-  // and these two rows are what it has to change.
+  // A thousands separator is read as one, so "1,000" is a thousand to an en-US
+  // reader rather than a euro. A dot there is that reader's decimal point, so
+  // "1.000" is the euro. #18.
   it.each([
-    ['1,000', 100],
+    ['1,000', 100000],
     ['1.000', 100],
-  ])('reads the thousands separator in %j as a decimal point', (value, actual) => {
+  ])('reads the thousands separator in %j as one', (value, actual) => {
     expect(parse(value)).toBe(actual)
   })
 
@@ -86,7 +90,8 @@ describe('amountSchema', () => {
   })
 
   describe('at the upper bound', () => {
-    it.each(['99999999999999999', '1' + '0'.repeat(300)])(
+    // The bound holds after the group marks are read, too.
+    it.each(['99999999999999999', '99,999,999,999,999,999,999', '1' + '0'.repeat(300)])(
       'rejects %j, which no longer holds what was typed',
       (value) => {
         expect(parse(value)).toBe('Enter a smaller amount.')
@@ -98,4 +103,87 @@ describe('amountSchema', () => {
       expect(9007199254740900).toBeLessThanOrEqual(MAX_AMOUNT_MINOR)
     })
   })
+})
+
+describe('separators', () => {
+  it.each([
+    // A group mark, the way the app itself formats the figure back.
+    ['1,200', 120000],
+    ['1,200.50', 120050],
+    ['12,345,678', 1234567800],
+    ['1.200,50', 120050],
+    ['1.200.500', 120050000],
+    // Only one separator, and not in a group's place: a decimal point.
+    ['1,20', 120],
+    ['1,2', 120],
+    ['1234,567', 123457],
+    // Unusual, but a group mark cannot lead.
+    [',500', 50],
+    // Nor can it follow a padded leading group: this is half a unit.
+    ['0,500', 50],
+  ])('reads %j as %i minor units in en-US', (typed, minor) => {
+    expect(parse(typed, 'EUR', { locale: 'en-US' })).toBe(minor)
+  })
+
+  it.each([
+    ['1.200', 120000],
+    ['1.200,50', 120050],
+    ['1,200', 120],
+    ['1,20', 120],
+    ['1,2', 120],
+    ['1.234.567', 123456700],
+    ['1234.567', 123457],
+    ['0.500', 50],
+  ])('reads %j as %i minor units in de-DE', (typed, minor) => {
+    expect(parse(typed, 'EUR', { locale: 'de-DE' })).toBe(minor)
+  })
+
+  it.each([
+    // en-IN groups the lakh, and this is how Intl writes 1234567 back.
+    ['12,34,567', 123456700],
+    ['12,34,567.50', 123456750],
+    ['1,200', 120000],
+    ['12,345', 1234500],
+    // Three-digit groups carry the same digits, so they read here too.
+    ['1,234,567', 123456700],
+    ['1,20', 120],
+  ])('reads %j as %i minor units in en-IN', (typed, minor) => {
+    expect(parse(typed, 'EUR', { locale: 'en-IN' })).toBe(minor)
+  })
+
+  it.each([
+    ["1'200", 120000],
+    ["1'200.50", 120050],
+  ])('reads %j as %i minor units in de-CH', (typed, minor) => {
+    expect(parse(typed, 'EUR', { locale: 'de-CH' })).toBe(minor)
+  })
+
+  it('takes the narrow space fr-FR groups with', () => {
+    expect(parse('1\u202f200,50', 'EUR', { locale: 'fr-FR' })).toBe(120050)
+  })
+
+  it.each([
+    // Its own decimal point, which the field is filled with.
+    ['1\u066b5', 150],
+    ['1200\u066b50', 120050],
+    // Its own group mark, which says nothing about the decimal point.
+    ['1\u066c200', 120000],
+    // Nothing groups with a dot here, so a typed one is a decimal point. A
+    // three-decimal amount read out of a field arrives written like this.
+    ['1.200', 120],
+    ['1.5', 150],
+  ])('reads %j as %i minor units in ar-EG', (typed, minor) => {
+    expect(parse(typed, 'EUR', { locale: 'ar-EG' })).toBe(minor)
+  })
+
+  it('reads a three-decimal amount written with a dot in ar-EG', () => {
+    expect(parse('1.005', 'BHD', { locale: 'ar-EG' })).toBe(1005)
+  })
+
+  it.each([['1,2,3'], ['1.2.3'], ['1,2.3,4'], ['1,23,456'], ['1,200,50'], [',']])(
+    'reports %j as not a number',
+    (typed) => {
+      expect(parse(typed, 'EUR', { locale: 'en-US' })).toBe('Enter a number.')
+    },
+  )
 })

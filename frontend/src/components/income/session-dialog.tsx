@@ -39,7 +39,7 @@ import { useIncomeClients } from '@/hooks/use-income-clients'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { PAYMENT_STATUS_LABELS, SESSION_STATUS_LABELS } from '@/lib/labels'
-import { toMajor } from '@/lib/money'
+import { formatMajorInput } from '@/lib/money'
 import { today } from '@/lib/month'
 
 function buildSchema(currency: string) {
@@ -102,7 +102,7 @@ export function SessionDialog({
     () => ({
       client_id: session?.client_id ?? clientId ?? '',
       occurs_on: session?.occurs_on ?? today(),
-      fee: session ? String(toMajor(session.fee_minor, currency)) : '',
+      fee: session ? formatMajorInput(session.fee_minor, currency) : '',
       status: session?.status ?? IncomeSessionStatus.ATTENDED,
       payment_status: session?.payment_status ?? PaymentStatus.PAID,
       paid_on: session?.paid_on ?? '',
@@ -131,7 +131,7 @@ export function SessionDialog({
   // varying from session to session is the reason this whole page exists.
   useEffect(() => {
     if (!selectedClient || form.formState.dirtyFields.fee || session) return
-    form.setValue('fee', String(toMajor(selectedClient.default_rate_minor, currency)))
+    form.setValue('fee', formatMajorInput(selectedClient.default_rate_minor, currency))
   }, [selectedClient, currency, form, session])
 
   const save = useMutation({

@@ -127,8 +127,14 @@ src/
 throughout, and how many minor units make a major one is a property of the
 currency, not a constant. `lib/money.ts` asks `Intl` for it, so a household in
 a zero-decimal currency would format correctly with no special case.
-`lib/amount.ts` converts the other way for form fields, accepting both `.` and
-`,` as the decimal separator.
+`lib/amount.ts` converts the other way for form fields, deciding what each
+separator in a typed amount _is_ — so "1,200" is twelve hundred to an en-US
+reader and "1.200" is the same figure to a de-DE one — rather than assuming.
+
+Because the parser reads the reader's separators, a field holding a saved
+amount must be filled with `formatMajorInput`, never `String(toMajor(...))`.
+A bare `String` always writes a dot, and in a locale that groups with one a
+three-decimal amount would read back a thousand times too big.
 
 **Colour carries meaning in exactly two places.** `--positive` for money in and
 `--negative` for money out. Everything else is the violet accent or neutral ink.

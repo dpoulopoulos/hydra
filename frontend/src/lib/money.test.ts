@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
+import { parseMajor } from '@/lib/amount'
 import {
   formatAmount,
   formatCompactAmount,
   formatMoney,
   formatPercent,
+  formatMajorInput,
   formatSignedMoney,
   numberGrouping,
   numberSeparators,
@@ -198,5 +200,41 @@ describe('numberGrouping', () => {
   it('falls back to the runtime locale', () => {
     const runtime = new Intl.NumberFormat().resolvedOptions().locale
     expect(numberGrouping()).toEqual(numberGrouping(runtime))
+  })
+})
+
+describe('formatMajorInput', () => {
+  it.each([
+    [120050, 'EUR', 'en-US', '1200.5'],
+    [120050, 'EUR', 'de-DE', '1200,5'],
+    [1005, 'BHD', 'en-US', '1.005'],
+    [1005, 'BHD', 'de-DE', '1,005'],
+    [1200, 'JPY', 'de-DE', '1200'],
+    // No group marks, so nothing in the field is ambiguous to read back.
+    [123456700, 'EUR', 'en-IN', '1234567'],
+    // A decimal point that is neither "." nor ",".
+    [120050, 'EUR', 'ar-EG', '1200\u066b5'],
+    [1005, 'BHD', 'fa-IR', '1\u066b005'],
+  ])('writes %i %s as %j in %s', (minor, currency, locale, text) => {
+    expect(formatMajorInput(minor, currency, locale)).toBe(text)
+  })
+
+  it.each([
+    [120000, 'EUR', 'en-US'],
+    [120000, 'EUR', 'de-DE'],
+    [50, 'EUR', 'de-DE'],
+    // A dot written in a locale that groups with one used to read as a group
+    // mark, so re-saving a three-decimal amount multiplied it by a thousand.
+    [1005, 'BHD', 'de-DE'],
+    [1005, 'BHD', 'en-US'],
+    [123456700, 'EUR', 'en-IN'],
+    // The same trip for a locale whose decimal point is "\u066b": a dot written
+    // into the field was read as a group mark there too.
+    [1005, 'BHD', 'ar-EG'],
+    [1005, 'BHD', 'fa-IR'],
+    [120050, 'EUR', 'ar-EG'],
+  ])('round-trips %i %s through the parser in %s', (minor, currency, locale) => {
+    const text = formatMajorInput(minor, currency, locale)
+    expect(toMinor(parseMajor(text, locale) as number, currency)).toBe(minor)
   })
 })
