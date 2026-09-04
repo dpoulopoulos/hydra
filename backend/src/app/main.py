@@ -18,6 +18,7 @@ from app.api.routes.email_verification import email_verification_exception_mappi
 from app.api.routes.households import household_exception_mappings
 from app.api.routes.login import login_exception_mappings
 from app.api.routes.password_reset import password_reset_exception_mappings
+from app.api.routes.recurring_rules import recurring_rule_exception_mappings
 from app.api.routes.reports import report_exception_mappings
 from app.api.routes.transactions import transaction_exception_mappings
 from app.api.routes.users import user_exception_mappings
@@ -101,6 +102,7 @@ exception_mappings = [
     transaction_exception_mappings(),
     budget_exception_mappings(),
     report_exception_mappings(),
+    recurring_rule_exception_mappings(),
 ]
 
 for mapping in exception_mappings:

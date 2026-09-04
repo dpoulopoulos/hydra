@@ -21,6 +21,7 @@ from app.repositories import (
     HouseholdMemberRepository,
     HouseholdRepository,
     PasswordResetRepository,
+    RecurringRuleRepository,
     ReportRepository,
     TransactionRepository,
     UserRepository,
@@ -32,6 +33,7 @@ from app.services import (
     EmailVerificationService,
     HouseholdService,
     PasswordResetService,
+    RecurringRuleService,
     ReportService,
     TransactionService,
     UserService,
@@ -405,6 +407,52 @@ def get_current_active_superuser(current_user: CurrentUser) -> User:
         raise UserNotAuthorizedError(current_user)
 
     return current_user
+
+
+def get_recurring_rule_repository(session: SessionDep) -> RecurringRuleRepository:
+    """Get a recurring rule repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A recurring rule repository instance.
+    """
+    return RecurringRuleRepository(session=session)
+
+
+RecurringRuleRepositoryDep = Annotated[RecurringRuleRepository, Depends(get_recurring_rule_repository)]
+
+
+def get_recurring_rule_service(
+    session: SessionDep,
+    recurring_rule_repository: RecurringRuleRepositoryDep,
+    transaction_repository: TransactionRepositoryDep,
+    account_repository: AccountRepositoryDep,
+    category_repository: CategoryRepositoryDep,
+) -> RecurringRuleService:
+    """Get a recurring rule service instance.
+
+    Args:
+        session: The database session.
+        recurring_rule_repository: The recurring rule repository instance.
+        transaction_repository: The transaction repository instance.
+        account_repository: The account repository instance.
+        category_repository: The category repository instance.
+
+    Returns:
+        A recurring rule service instance.
+    """
+    return RecurringRuleService(
+        session=session,
+        recurring_rule_repository=recurring_rule_repository,
+        transaction_repository=transaction_repository,
+        account_repository=account_repository,
+        category_repository=category_repository,
+    )
+
+
+RecurringRuleServiceDep = Annotated[RecurringRuleService, Depends(get_recurring_rule_service)]
 
 
 def get_report_repository(session: SessionDep) -> ReportRepository:

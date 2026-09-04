@@ -1,6 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from sqlmodel import Session
 
@@ -28,6 +29,9 @@ from app.repositories.category import CategoryRepository
 from app.repositories.household import HouseholdRepository
 from app.repositories.report import ReportRepository
 from app.repositories.rows import MonthlyFlowRow, TimeBucketRow
+
+if TYPE_CHECKING:
+    from app.services.recurring_rule import RecurringRuleService
 
 # Guards on how much a single request can ask for. Daily buckets over decades
 # would be a very large response for a chart nobody can read.
@@ -470,7 +474,12 @@ class ReportService:
             unbudgeted_spend_minor=total_spent - attributed,
         )
 
-    def month_summary(self, household: HouseholdContext, month: str) -> MonthSummaryReport:
+    def month_summary(
+        self,
+        household: HouseholdContext,
+        month: str,
+        recurring_rule_service: "RecurringRuleService | None" = None,
+    ) -> MonthSummaryReport:
         """Gather the dashboard figures for one month.
 
         One request rather than several, so opening the app is a single round
@@ -479,10 +488,16 @@ class ReportService:
         Args:
             household: The household context.
             month: The month, in "YYYY-MM" form.
+            recurring_rule_service: Optional recurring rule service. When given,
+                any recurring transactions that have fallen due are recorded
+                first, so the dashboard is not out of date the moment it loads.
 
         Returns:
             The month's totals, the current net worth, and the biggest categories.
         """
+        if recurring_rule_service:
+            recurring_rule_service.materialize_due(household=household)
+
         date_from = month_start(month)
         date_to = next_month_start(month) - datetime.timedelta(days=1)
 
