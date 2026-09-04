@@ -336,6 +336,7 @@ def base_settings_env(monkeypatch):
         monkeypatch: pytest monkeypatch fixture.
     """
     monkeypatch.setenv("PROJECT_NAME", "Test Project")
+    monkeypatch.setenv("PROJECT_ID", "test-project")
     monkeypatch.setenv("POSTGRES_SERVER", "localhost")
     monkeypatch.setenv("POSTGRES_PORT", "5432")
     monkeypatch.setenv("POSTGRES_USER", "test_user")
