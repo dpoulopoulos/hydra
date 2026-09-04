@@ -1,4 +1,13 @@
 from .base_exceptions import ServiceError
+from .category_exceptions import (
+    CategoryDepthExceededError,
+    CategoryExistsError,
+    CategoryInUseError,
+    CategoryKindMismatchError,
+    CategoryNotFoundError,
+    CategorySelfParentError,
+    SystemCategoryError,
+)
 from .email_verification_exceptions import (
     EmailVerificationExpiredError,
     EmailVerificationNotFoundError,
@@ -32,6 +41,13 @@ from .user_exceptions import (
 
 __all__ = [
     "ServiceError",
+    "CategoryDepthExceededError",
+    "CategoryExistsError",
+    "CategoryInUseError",
+    "CategoryKindMismatchError",
+    "CategoryNotFoundError",
+    "CategorySelfParentError",
+    "SystemCategoryError",
     "EmailVerificationExpiredError",
     "EmailVerificationNotFoundError",
     "EmailVerificationTokenNotValidError",
