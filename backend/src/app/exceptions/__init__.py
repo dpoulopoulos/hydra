@@ -5,6 +5,13 @@ from .account_exceptions import (
     AccountNotFoundError,
 )
 from .base_exceptions import ServiceError
+from .budget_exceptions import (
+    BudgetCategoryKindError,
+    BudgetExistsError,
+    BudgetNotFoundError,
+    BudgetOverlapError,
+    DuplicateBudgetCategoryError,
+)
 from .category_exceptions import (
     CategoryDepthExceededError,
     CategoryExistsError,
@@ -57,7 +64,12 @@ __all__ = [
     "AccountInUseError",
     "AccountNotFoundError",
     "ServiceError",
+    "BudgetCategoryKindError",
+    "BudgetExistsError",
+    "BudgetNotFoundError",
+    "BudgetOverlapError",
     "CategoryDepthExceededError",
+    "DuplicateBudgetCategoryError",
     "CategoryExistsError",
     "CategoryInUseError",
     "CategoryKindMismatchError",
