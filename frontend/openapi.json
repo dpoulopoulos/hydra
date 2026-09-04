@@ -835,7 +835,7 @@
           "households"
         ],
         "summary": "Accept Household Invite",
-        "description": "Accept an invitation and join the household.\n\nThe household created when you signed up is discarded if it is still\nempty. If you have already recorded anything in it, joining is refused\nrather than silently leaving that behind.\n\nArgs:\n    household_service: The household service dependency.\n    category_service: The category service dependency.\n    current_user: The current authenticated user.\n    accept_in: The invitation token.\n\nReturns:\n    The household you joined.\n\nRaises:\n    HTTPException: If the token is not recognised (404), the invitation was\n        sent to a different address (403), it has expired or was already\n        used (400), or your current household holds data (409).",
+        "description": "Accept an invitation and join the household.\n\nThe household created when you signed up is discarded if it is still\nempty. If you have already recorded anything in it, joining is refused\nrather than silently leaving that behind.\n\nArgs:\n    household_service: The household service dependency.\n    current_user: The current authenticated user.\n    accept_in: The invitation token.\n\nReturns:\n    The household you joined.\n\nRaises:\n    HTTPException: If the token is not recognised (404), the invitation was\n        sent to a different address (403), it has expired or was already\n        used (400), or your current household holds data (409).",
         "operationId": "households-accept_household_invite",
         "requestBody": {
           "content": {

@@ -599,7 +599,7 @@ class HouseholdService:
             expires_at=invite.expires_at,
         )
 
-    def accept_invite(self, user: User, token: str, category_service: CategorySeeder | None = None) -> HouseholdPublic:
+    def accept_invite(self, user: User, token: str) -> HouseholdPublic:
         """Join a household using an invite.
 
         The caller already has a household, created when they signed up. If it
@@ -610,8 +610,6 @@ class HouseholdService:
         Args:
             user: The user accepting the invite.
             token: The invite token.
-            category_service: The category service, unused here but accepted
-                for symmetry with the other membership methods.
 
         Returns:
             The household they joined.
@@ -623,8 +621,6 @@ class HouseholdService:
             HouseholdInviteEmailMismatchError: If the invite was sent to someone else.
             HouseholdNotEmptyError: If the caller's current household holds data.
         """
-        del category_service  # The joined household already has its categories.
-
         invite = self._require_pending_invite(token)
 
         # Without this, a leaked link would hand a stranger full access to the

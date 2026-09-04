@@ -282,7 +282,6 @@ def revoke_household_invite(
 def accept_household_invite(
     *,
     household_service: HouseholdServiceDep,
-    category_service: CategoryServiceDep,
     current_user: CurrentUser,
     accept_in: HouseholdInviteAccept,
 ) -> HouseholdPublic:
@@ -294,7 +293,6 @@ def accept_household_invite(
 
     Args:
         household_service: The household service dependency.
-        category_service: The category service dependency.
         current_user: The current authenticated user.
         accept_in: The invitation token.
 
@@ -306,7 +304,7 @@ def accept_household_invite(
             sent to a different address (403), it has expired or was already
             used (400), or your current household holds data (409).
     """
-    return household_service.accept_invite(user=current_user, token=accept_in.token, category_service=category_service)
+    return household_service.accept_invite(user=current_user, token=accept_in.token)
 
 
 @router.get("/invites/{token}", response_model=HouseholdInvitePreview)
