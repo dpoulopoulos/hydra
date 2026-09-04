@@ -2,7 +2,13 @@ import uuid
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.deps import CurrentUser, EmailVerificationServiceDep, UserServiceDep, get_current_active_superuser
+from app.api.deps import (
+    CurrentUser,
+    EmailVerificationServiceDep,
+    HouseholdServiceDep,
+    UserServiceDep,
+    get_current_active_superuser,
+)
 from app.exceptions import (
     DeleteSuperUserError,
     PasswordUnmodifiedError,
@@ -44,11 +50,15 @@ def user_exception_mappings() -> dict[type[ServiceError], int]:
 
 
 @router.post("/", dependencies=[Depends(get_current_active_superuser)], response_model=UserPublic)
-def create_user(*, user_service: UserServiceDep, user_in: UserCreate) -> UserPublic:
+def create_user(
+    *, user_service: UserServiceDep, household_service: HouseholdServiceDep, user_in: UserCreate
+) -> UserPublic:
     """Create a new user.
 
     Args:
         user_service: The user service dependency.
+        household_service: The household service dependency, used to provision
+            the user's household in the same transaction.
         user_in: The user creation payload.
 
     Returns:
@@ -60,7 +70,7 @@ def create_user(*, user_service: UserServiceDep, user_in: UserCreate) -> UserPub
             the user's token is invalid (401), or the authenticated
             user is not found in the database (404).
     """
-    return user_service.create_user(user_create=user_in)
+    return user_service.create_user(user_create=user_in, household_service=household_service)
 
 
 @router.post("/signup", response_model=UserPublic)
@@ -68,6 +78,7 @@ def register_user(
     *,
     user_service: UserServiceDep,
     email_verification_service: EmailVerificationServiceDep,
+    household_service: HouseholdServiceDep,
     user_in: UserRegister,
 ) -> UserPublic:
     """Register a new user.
@@ -79,6 +90,8 @@ def register_user(
     Args:
         user_service: The user service dependency.
         email_verification_service: The email verification service dependency.
+        household_service: The household service dependency, used to provision
+            the user's household in the same transaction.
         user_in: The user registration data.
 
     Returns:
@@ -87,7 +100,7 @@ def register_user(
     Raises:
         HTTPException: If a user with the same email already exists (409).
     """
-    user = user_service.create_user(user_create=user_in)
+    user = user_service.create_user(user_create=user_in, household_service=household_service)
     email_verification_service.send_verification_email(user_service=user_service, user_email=user.email)
     return user
 

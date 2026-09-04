@@ -32,6 +32,7 @@ from app.utils import generate_new_account_email, send_email
 
 if TYPE_CHECKING:
     from app.services.email_verification import EmailVerificationService
+    from app.services.household import CategorySeeder, HouseholdService
 
 
 class UserService:
@@ -84,11 +85,21 @@ class UserService:
 
         return Token(access_token=create_access_token(user.id))
 
-    def create_user(self, user_create: UserCreate | UserRegister) -> UserPublic:
+    def create_user(
+        self,
+        user_create: UserCreate | UserRegister,
+        household_service: "HouseholdService | None" = None,
+        category_service: "CategorySeeder | None" = None,
+    ) -> UserPublic:
         """Create a new user.
 
         Args:
             user_create: The user creation data.
+            household_service: Optional household service. When given, a
+                household is provisioned for the user in the same transaction,
+                so a user is never observable without one.
+            category_service: Optional category service, used to seed the
+                default categories of the new household.
 
         Returns:
             The created user.
@@ -109,6 +120,10 @@ class UserService:
         user = User.model_validate(user_create, update=extra_data)
 
         user = self.user_repository.save(user)
+
+        if household_service:
+            household_service.create_for_user(user=user, category_service=category_service)
+
         self.session.commit()
 
         # Only send welcome email for admin-created users who are immediately active
