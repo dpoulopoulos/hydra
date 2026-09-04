@@ -18,16 +18,18 @@ export function BudgetBar({ row, currency }: { row: BudgetProgressRow; currency:
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-baseline justify-between gap-3 text-sm">
-        <span className="flex items-center gap-2 font-medium">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
+        <span className="font-medium">
           {row.category_name}
+          {/* Dropped on a narrow screen: the row has no width to spare, and
+              the rollup is already visible in the figure. */}
           {row.covers_subcategories ? (
-            <span className="text-muted-foreground text-xs font-normal">
+            <span className="text-muted-foreground ml-2 hidden text-xs font-normal sm:inline">
               and everything under it
             </span>
           ) : null}
         </span>
-        <span className="text-muted-foreground tabular-nums">
+        <span className="text-muted-foreground whitespace-nowrap tabular-nums">
           <Money minor={row.spent_minor} currency={currency} /> of{' '}
           <Money minor={row.limit_minor} currency={currency} />
         </span>

@@ -32,6 +32,10 @@ const appRoutes: RouteObject[] = [
   { path: '/recurring', lazy: () => import('@/pages/recurring') },
   { path: '/categories', lazy: () => import('@/pages/categories') },
   { path: '/reports', lazy: () => import('@/pages/reports') },
+  { path: '/settings', lazy: () => import('@/pages/settings/household') },
+  { path: '/settings/household', lazy: () => import('@/pages/settings/household') },
+  { path: '/settings/profile', lazy: () => import('@/pages/settings/profile') },
+  { path: '/settings/users', lazy: () => import('@/pages/settings/users') },
 ]
 
 export const router = createBrowserRouter([
