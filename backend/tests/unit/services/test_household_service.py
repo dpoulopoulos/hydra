@@ -1,8 +1,12 @@
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
+
+from app.core.config import settings
 
 from app.exceptions import (
     HouseholdInviteEmailMismatchError,
@@ -414,6 +418,41 @@ class TestCreateInvite:
         # Stored lower case, so a differently cased reply still matches.
         assert result.email == "partner@example.com"
         mock_household_service.session.commit.assert_called_once()
+
+    def test_creates_the_invite_even_when_the_mail_does_not_go_out(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+        monkeypatch,
+        caplog,
+    ) -> None:
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = None
+        mock_household_service.session.exec.return_value.all.return_value = []
+
+        # Turn mail on, then have the provider refuse the message.
+        monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        request = httpx.Request("POST", "https://api.resend.com/emails")
+        rate_limited = httpx.HTTPStatusError("429", request=request, response=httpx.Response(429))
+
+        with patch("app.utils.email_utils.send_email", side_effect=rate_limited):
+            with caplog.at_level(logging.ERROR, logger="app.utils.email_utils"):
+                result = mock_household_service.create_invite(
+                    household=context,
+                    invite_create=HouseholdInviteCreate(email="partner@example.com"),
+                )
+
+        # The invite is real and reported as such, so the owner is not told to
+        # retry an invitation that the pending guard would then reject.
+        assert result.status is HouseholdInviteStatus.PENDING
+        mock_household_service.session.commit.assert_called_once()
+        assert "partner@example.com" in caplog.text
+        assert "HTTPStatusError" in caplog.text
 
     def test_rejects_a_second_invite_to_the_same_address(
         self,
