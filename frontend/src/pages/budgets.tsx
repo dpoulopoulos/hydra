@@ -11,7 +11,14 @@ import { PageHeader } from '@/components/layout/page-header'
 import { Money } from '@/components/money'
 import { MonthPicker } from '@/components/month-picker'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { useCurrency } from '@/hooks/use-household'
 import { currentMonth } from '@/lib/month'
 
@@ -113,18 +120,18 @@ export function Component() {
 
           {progress.data.unbudgeted_spend_minor > 0 ? (
             <Card>
-              <CardHeader className="flex-row items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="text-base">Spending with no limit</CardTitle>
-                  <CardDescription>
-                    Money that went out in categories you have not budgeted this month.
-                  </CardDescription>
-                </div>
-                <Money
-                  minor={progress.data.unbudgeted_spend_minor}
-                  currency={currency}
-                  className="text-xl"
-                />
+              <CardHeader>
+                <CardTitle className="text-base">Spending with no limit</CardTitle>
+                <CardDescription>
+                  Money that went out in categories you have not budgeted this month.
+                </CardDescription>
+                <CardAction>
+                  <Money
+                    minor={progress.data.unbudgeted_spend_minor}
+                    currency={currency}
+                    className="text-xl"
+                  />
+                </CardAction>
               </CardHeader>
             </Card>
           ) : null}

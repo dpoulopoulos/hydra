@@ -25,7 +25,7 @@ import { EmptyState, ErrorState, LoadingRows } from '@/components/data-state'
 import { PageHeader } from '@/components/layout/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -190,9 +190,9 @@ export function Component() {
 
             return (
               <Card key={parent.id} className="gap-0 py-0">
-                <CardHeader className="flex-row items-center justify-between gap-2 border-b py-3">
+                <CardHeader className="border-b py-3">
                   <CardTitle className="text-base">{nameCell(parent)}</CardTitle>
-                  {rowActions(parent, true)}
+                  <CardAction>{rowActions(parent, true)}</CardAction>
                 </CardHeader>
                 <CardContent className="p-0">
                   {children.length === 0 ? (

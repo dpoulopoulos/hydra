@@ -17,7 +17,14 @@ import { EmptyState, ErrorState, LoadingRows } from '@/components/data-state'
 import { PageHeader } from '@/components/layout/page-header'
 import { Money } from '@/components/money'
 import { MonthPicker } from '@/components/month-picker'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -105,20 +112,20 @@ export function Component() {
       </div>
 
       <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div>
-            <CardTitle>Spending by category</CardTitle>
-            <CardDescription>{formatMonth(month)}, largest first.</CardDescription>
-          </div>
-          <Select value={depth} onValueChange={(value) => setDepth(value as CategoryDepth)}>
-            <SelectTrigger className="w-44" aria-label="Level of detail">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={CategoryDepth.PARENT}>Grouped</SelectItem>
-              <SelectItem value={CategoryDepth.LEAF}>Every subcategory</SelectItem>
-            </SelectContent>
-          </Select>
+        <CardHeader>
+          <CardTitle>Spending by category</CardTitle>
+          <CardDescription>{formatMonth(month)}, largest first.</CardDescription>
+          <CardAction>
+            <Select value={depth} onValueChange={(value) => setDepth(value as CategoryDepth)}>
+              <SelectTrigger className="w-44" aria-label="Level of detail">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={CategoryDepth.PARENT}>Grouped</SelectItem>
+                <SelectItem value={CategoryDepth.LEAF}>Every subcategory</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardAction>
         </CardHeader>
         <CardContent>
           {byCategory.isPending ? (
@@ -165,27 +172,27 @@ export function Component() {
       </Card>
 
       <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div>
-            <CardTitle>Spending over time</CardTitle>
-            <CardDescription>
-              {granularity === TimeGranularity.DAY
-                ? `Every day of ${formatMonth(month)}.`
-                : 'The last twelve months.'}
-            </CardDescription>
-          </div>
-          <Select
-            value={granularity}
-            onValueChange={(value) => setGranularity(value as TimeGranularity)}
-          >
-            <SelectTrigger className="w-36" aria-label="Bucket size">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TimeGranularity.DAY}>By day</SelectItem>
-              <SelectItem value={TimeGranularity.MONTH}>By month</SelectItem>
-            </SelectContent>
-          </Select>
+        <CardHeader>
+          <CardTitle>Spending over time</CardTitle>
+          <CardDescription>
+            {granularity === TimeGranularity.DAY
+              ? `Every day of ${formatMonth(month)}.`
+              : 'The last twelve months.'}
+          </CardDescription>
+          <CardAction>
+            <Select
+              value={granularity}
+              onValueChange={(value) => setGranularity(value as TimeGranularity)}
+            >
+              <SelectTrigger className="w-36" aria-label="Bucket size">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TimeGranularity.DAY}>By day</SelectItem>
+                <SelectItem value={TimeGranularity.MONTH}>By month</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardAction>
         </CardHeader>
         <CardContent>
           {overTime.isPending ? (
@@ -206,25 +213,23 @@ export function Component() {
       </Card>
 
       <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div>
-            <CardTitle>Money in against money out</CardTitle>
-            <CardDescription>
-              Transfers between your own accounts appear in neither.
-            </CardDescription>
-          </div>
-          <Select value={String(months)} onValueChange={(value) => setMonths(Number(value))}>
-            <SelectTrigger className="w-36" aria-label="How many months">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[3, 6, 12, 24].map((count) => (
-                <SelectItem key={count} value={String(count)}>
-                  {count} months
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <CardHeader>
+          <CardTitle>Money in against money out</CardTitle>
+          <CardDescription>Transfers between your own accounts appear in neither.</CardDescription>
+          <CardAction>
+            <Select value={String(months)} onValueChange={(value) => setMonths(Number(value))}>
+              <SelectTrigger className="w-36" aria-label="How many months">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[3, 6, 12, 24].map((count) => (
+                  <SelectItem key={count} value={String(count)}>
+                    {count} months
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardAction>
         </CardHeader>
         <CardContent className="space-y-6">
           {flows.isPending ? (

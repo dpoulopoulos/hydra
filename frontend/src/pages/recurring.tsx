@@ -19,7 +19,14 @@ import { Money } from '@/components/money'
 import { RuleDialog } from '@/components/recurring/rule-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -236,18 +243,18 @@ export function Component() {
 
       {upcoming.data && upcoming.data.count > 0 ? (
         <Card>
-          <CardHeader className="flex-row items-start justify-between gap-3">
-            <div>
-              <CardTitle>Still to come</CardTitle>
-              <CardDescription>
-                The next two months, projected. Nothing here is recorded yet.
-              </CardDescription>
-            </div>
-            <Money
-              minor={upcoming.data.total_minor ?? 0}
-              currency={currency}
-              className="text-xl whitespace-nowrap"
-            />
+          <CardHeader>
+            <CardTitle>Still to come</CardTitle>
+            <CardDescription>
+              The next two months, projected. Nothing here is recorded yet.
+            </CardDescription>
+            <CardAction>
+              <Money
+                minor={upcoming.data.total_minor ?? 0}
+                currency={currency}
+                className="text-xl whitespace-nowrap"
+              />
+            </CardAction>
           </CardHeader>
           <CardContent>
             <ul className="divide-y text-sm">

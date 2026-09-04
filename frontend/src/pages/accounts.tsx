@@ -16,7 +16,7 @@ import { Money } from '@/components/money'
 import { AccountDialog } from '@/components/accounts/account-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -107,18 +107,18 @@ export function Component() {
 
       {accounts.data && accounts.data.count > 0 ? (
         <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <div>
-              <CardTitle>Net worth</CardTitle>
-              <CardDescription>
-                Across {accounts.data.count} {accounts.data.count === 1 ? 'account' : 'accounts'}
-              </CardDescription>
-            </div>
-            <Money
-              minor={accounts.data.total_balance_minor ?? 0}
-              currency={currency}
-              className="text-2xl"
-            />
+          <CardHeader>
+            <CardTitle>Net worth</CardTitle>
+            <CardDescription>
+              Across {accounts.data.count} {accounts.data.count === 1 ? 'account' : 'accounts'}
+            </CardDescription>
+            <CardAction>
+              <Money
+                minor={accounts.data.total_balance_minor ?? 0}
+                currency={currency}
+                className="text-2xl"
+              />
+            </CardAction>
           </CardHeader>
         </Card>
       ) : null}
