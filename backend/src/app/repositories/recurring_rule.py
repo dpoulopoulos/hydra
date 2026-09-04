@@ -96,3 +96,20 @@ class RecurringRuleRepository(HouseholdScopedRepository[RecurringRule]):
             .with_for_update(skip_locked=True)
         )
         return self.session.exec(statement).all()
+
+    def count_for_category(self, category_id: uuid.UUID, household_id: uuid.UUID) -> int:
+        """Count the recurring rules filed under a category.
+
+        Args:
+            category_id: The ID of the category.
+            household_id: The ID of the household.
+
+        Returns:
+            The number of rules referencing the category.
+        """
+        statement = (
+            select(func.count())
+            .select_from(RecurringRule)
+            .where(RecurringRule.household_id == household_id, RecurringRule.category_id == category_id)
+        )
+        return self.session.exec(statement).one()
