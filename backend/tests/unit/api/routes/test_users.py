@@ -2,6 +2,7 @@ import uuid
 from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_current_active_superuser, get_current_user, get_db
@@ -489,6 +490,37 @@ class TestGetUsers:
                 assert response.status_code == 200
                 assert users["count"] == 10
                 assert len(users["data"]) == 1
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.parametrize("query", ["?limit=-1", "?limit=0", "?limit=100000000", "?skip=-1"])
+    def test_get_users_rejects_pagination_outside_the_range(
+        self,
+        client: TestClient,
+        test_superuser: User,
+        mock_db_session: MagicMock,
+        query: str,
+    ) -> None:
+        """A negative limit reaches Postgres as a negative LIMIT: a 500 where a 422 belongs."""
+        # Arrange: Set up dependency overrides for a superuser
+        def override_get_db() -> Generator[MagicMock, None, None]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_superuser
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        app.dependency_overrides[get_current_active_superuser] = override_get_current_user
+
+        try:
+            with patch.object(UserService, "get_users") as get_users:
+                # Act: Ask for a page outside the range the route allows
+                response = client.get(f"/api/v1/users/{query}")
+
+                # Assert: Verify the request was rejected before reaching the service
+                assert response.status_code == 422
+                get_users.assert_not_called()
         finally:
             app.dependency_overrides.clear()
 
