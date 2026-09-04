@@ -1,3 +1,4 @@
+import smtplib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -7,6 +8,15 @@ from emails.message import Message
 from jinja2 import Template
 
 from app.core.config import settings
+from app.logging import get_logger
+
+logger = get_logger(__name__)
+
+# What a provider that is down, rate limiting us or misaddressed looks like:
+# an HTTP error from Resend, an SMTP refusal, or a socket that never connected.
+# Anything else is a bug in our own code and has no business being logged as a
+# delivery problem.
+DELIVERY_ERRORS = (httpx.HTTPError, smtplib.SMTPException, OSError)
 
 
 @dataclass
@@ -174,6 +184,36 @@ def send_email(
         smtp_options["password"] = settings.SMTP_PASSWORD
 
     message.send(to=email_to, smtp=smtp_options)
+
+
+def try_send_email(
+    *,
+    email_to: str,
+    subject: str,
+    html_content: str,
+) -> bool:
+    """Send an email, logging a delivery failure rather than raising it.
+
+    Every caller sends mail as a side effect of a database write that has
+    already been committed, so a provider outage must not turn a successful
+    write into a failed request. It has to leave a trace, though: mail that
+    silently never arrives is indistinguishable from mail the user ignored.
+
+    Args:
+        email_to: The recipient's email address.
+        subject: The subject of the email.
+        html_content: The HTML content of the email.
+
+    Returns:
+        True if the message was handed to the provider, False if delivery failed.
+    """
+    try:
+        send_email(email_to=email_to, subject=subject, html_content=html_content)
+    except DELIVERY_ERRORS:
+        logger.exception("Could not deliver email %r to %s", subject, email_to)
+        return False
+
+    return True
 
 
 def generate_household_invite_email(email: str, token: str, household_name: str, inviter_name: str) -> EmailData:
