@@ -442,6 +442,7 @@ class TestResetPassword:
 
         mock_password_reset = MagicMock(spec=PasswordReset)
         mock_password_reset.id = password_reset_id
+        mock_password_reset.user_id = test_user.id
         mock_password_reset.status = PasswordResetStatus.PENDING
         mock_password_reset.expires_at = datetime.now(UTC) + timedelta(hours=1)
         mock_password_reset.token = token
@@ -456,7 +457,7 @@ class TestResetPassword:
             mock_password_reset
         )
 
-        mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
+        mock_user_service.user_repository.get_by_id = MagicMock(return_value=test_user)
 
         mock_password_reset_service.session.add = MagicMock()
         mock_password_reset_service._mark_password_reset = MagicMock()
@@ -478,6 +479,86 @@ class TestResetPassword:
             password_reset_id=password_reset_id, status=PasswordResetStatus.USED
         )
 
+    def test_reset_password_resolves_the_target_from_the_reset_row(
+        self,
+        mock_password_reset_service: PasswordResetService,
+        mock_user_service: MagicMock,
+        test_user: User,
+        another_test_user: User,
+    ) -> None:
+        """Test the reset writes to the account it was issued for, not to whoever holds the address."""
+        # Arrange: The reset was issued for test_user, who has since released
+        # the address; another_test_user holds it now.
+        token = create_password_reset_token(subject=test_user.email)
+        another_test_user.email = test_user.email
+        test_user.email = "moved-on@example.com"
+
+        mock_password_reset = MagicMock(spec=PasswordReset)
+        mock_password_reset.id = uuid.UUID("44444444-4444-4444-4444-444444444444")
+        mock_password_reset.user_id = test_user.id
+        mock_password_reset.status = PasswordResetStatus.PENDING
+        mock_password_reset.expires_at = datetime.now(UTC) + timedelta(hours=1)
+        mock_password_reset.token = token
+
+        mock_password_reset_service.verify_token = MagicMock(
+            return_value=Message(message="Token is valid.")
+        )
+        mock_password_reset_service.session.exec = MagicMock()
+        mock_password_reset_service.session.exec.return_value.first.return_value = (
+            mock_password_reset
+        )
+        mock_password_reset_service._mark_password_reset = MagicMock()
+
+        get_by_id = MagicMock(return_value=test_user)
+        mock_user_service.user_repository.get_by_id = get_by_id
+        mock_user_service.get_user_by_email = MagicMock(return_value=another_test_user)
+        original_password = another_test_user.hashed_password
+
+        # Act & Assert: The token no longer matches the address the account
+        # holds, so it is refused rather than applied to the wrong account.
+        with pytest.raises(PasswordResetTokenNotValidError):
+            mock_password_reset_service.reset_password(
+                user_service=mock_user_service,
+                token=token,
+                new_password="newpassword123",
+            )
+
+        get_by_id.assert_called_once_with(test_user.id)
+        assert another_test_user.hashed_password == original_password
+        mock_password_reset_service._mark_password_reset.assert_not_called()
+
+    def test_reset_password_reset_without_a_user(
+        self,
+        mock_password_reset_service: PasswordResetService,
+        mock_user_service: MagicMock,
+        test_user: User,
+    ) -> None:
+        """Test resetting a password from a row that names no account."""
+        # Arrange: A row whose user was never recorded names no account, so
+        # there is nothing the token authorises.
+        token = create_password_reset_token(subject=test_user.email)
+
+        mock_password_reset = MagicMock(spec=PasswordReset)
+        mock_password_reset.token = token
+        mock_password_reset.user_id = None
+
+        mock_password_reset_service.verify_token = MagicMock(
+            return_value=Message(message="Token is valid.")
+        )
+        mock_password_reset_service.session.exec = MagicMock()
+        mock_password_reset_service.session.exec.return_value.first.return_value = (
+            mock_password_reset
+        )
+        mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
+
+        # Act & Assert
+        with pytest.raises(UserNotFoundError):
+            mock_password_reset_service.reset_password(
+                user_service=mock_user_service,
+                token=token,
+                new_password="newpassword123",
+            )
+
     def test_reset_password_user_not_found(
         self,
         mock_password_reset_service: PasswordResetService,
@@ -490,6 +571,7 @@ class TestResetPassword:
 
         mock_password_reset = MagicMock(spec=PasswordReset)
         mock_password_reset.token = token
+        mock_password_reset.user_id = uuid.UUID("99999999-9999-9999-9999-999999999999")
 
         mock_password_reset_service.verify_token = MagicMock(
             return_value=Message(message="Token is valid.")
@@ -500,7 +582,7 @@ class TestResetPassword:
             mock_password_reset
         )
 
-        mock_user_service.get_user_by_email = MagicMock(return_value=None)
+        mock_user_service.user_repository.get_by_id = MagicMock(return_value=None)
 
         # Act & Assert: Verify UserNotFoundError is raised
         with pytest.raises(UserNotFoundError):
