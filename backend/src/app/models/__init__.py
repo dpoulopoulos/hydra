@@ -1,5 +1,16 @@
 from sqlmodel import SQLModel
 
+from .category import (
+    CategoriesPublic,
+    Category,
+    CategoryBase,
+    CategoryCreate,
+    CategoryKind,
+    CategoryPublic,
+    CategoryTreeNode,
+    CategoryTreePublic,
+    CategoryUpdate,
+)
 from .email_verification import (
     EmailVerification,
     EmailVerificationConfirm,
@@ -49,6 +60,15 @@ class Message(SQLModel):
 
 __all__ = [
     "Message",
+    "CategoriesPublic",
+    "Category",
+    "CategoryBase",
+    "CategoryCreate",
+    "CategoryKind",
+    "CategoryPublic",
+    "CategoryTreeNode",
+    "CategoryTreePublic",
+    "CategoryUpdate",
     "EmailVerification",
     "EmailVerificationConfirm",
     "EmailVerificationPublic",
