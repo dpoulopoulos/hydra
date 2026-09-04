@@ -1,3 +1,9 @@
+from .account_exceptions import (
+    AccountArchivedError,
+    AccountExistsError,
+    AccountInUseError,
+    AccountNotFoundError,
+)
 from .base_exceptions import ServiceError
 from .category_exceptions import (
     CategoryDepthExceededError,
@@ -40,6 +46,10 @@ from .user_exceptions import (
 )
 
 __all__ = [
+    "AccountArchivedError",
+    "AccountExistsError",
+    "AccountInUseError",
+    "AccountNotFoundError",
     "ServiceError",
     "CategoryDepthExceededError",
     "CategoryExistsError",
