@@ -5,6 +5,14 @@ from .email_verification_exceptions import (
     EmailVerificationTokenNotValidError,
     EmailVerificationUsedError,
 )
+from .household_exceptions import (
+    HouseholdMemberExistsError,
+    HouseholdMemberNotFoundError,
+    HouseholdMembershipNotFoundError,
+    HouseholdNotFoundError,
+    HouseholdRoleRequiredError,
+    LastHouseholdOwnerError,
+)
 from .password_exceptions import (
     InvalidCredentialsError,
     PasswordIsWrongError,
@@ -28,6 +36,12 @@ __all__ = [
     "EmailVerificationNotFoundError",
     "EmailVerificationTokenNotValidError",
     "EmailVerificationUsedError",
+    "HouseholdMemberExistsError",
+    "HouseholdMemberNotFoundError",
+    "HouseholdMembershipNotFoundError",
+    "HouseholdNotFoundError",
+    "HouseholdRoleRequiredError",
+    "LastHouseholdOwnerError",
     "PasswordUnmodifiedError",
     "PasswordIsWrongError",
     "PasswordResetExpiredError",
