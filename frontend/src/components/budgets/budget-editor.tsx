@@ -20,10 +20,45 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useCategoryTree } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
+import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
-import { toMajor, toMinor } from '@/lib/money'
+import { toMajor } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
 import { cn } from '@/lib/utils'
+
+type BudgetEntry = { category_id: string; limit_minor: number }
+
+/**
+ * Read the fields into the set the month will be replaced with.
+ *
+ * Every amount goes through the shared schema, which takes "1 000" and
+ * "42,50" as people type them, so the only values reported back are ones
+ * nobody could read as a number. An empty field is not one of them: emptying a
+ * field is how a category stops being budgeted.
+ */
+function readLimits(
+  limits: Record<string, string>,
+  currency: string,
+): { entries: BudgetEntry[]; errors: Record<string, string> } {
+  const entries: BudgetEntry[] = []
+  const errors: Record<string, string> = {}
+
+  for (const [category_id, value] of Object.entries(limits)) {
+    if (value.trim() === '') continue
+
+    const amount = amountSchema({ currency, allowZero: true }).safeParse(value)
+
+    if (!amount.success) {
+      errors[category_id] = amount.error.issues[0].message
+      continue
+    }
+
+    // A zero limit is the same request as an empty field: stop budgeting this.
+    if (amount.data > 0) entries.push({ category_id, limit_minor: amount.data })
+  }
+
+  return { entries, errors }
+}
 
 /**
  * Set a whole month of limits at once.
@@ -49,6 +84,9 @@ export function BudgetEditor({
   // be derived rather than copied into state by an effect, which would set
   // state during render and cascade.
   const [edits, setEdits] = useState<Record<string, string>>({})
+  // What a field got wrong, by category. Filled on a save attempt rather than
+  // while typing, since half-typed amounts are not mistakes.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const existing = useQuery({
     queryKey: ['budgets', month],
@@ -71,9 +109,13 @@ export function BudgetEditor({
     [existing.data, currency],
   )
 
-  /** Record what was typed in a field. */
-  const setLimit = (categoryId: string, value: string) =>
+  /** Record what was typed in a field, and drop any complaint about it. */
+  const setLimit = (categoryId: string, value: string) => {
     setEdits((current) => ({ ...current, [categoryId]: value }))
+    setFieldErrors((current) =>
+      Object.fromEntries(Object.entries(current).filter(([key]) => key !== categoryId)),
+    )
+  }
 
   /** What a field shows: the edit if there is one, otherwise the saved limit. */
   const valueFor = (categoryId: string) => edits[categoryId] ?? saved[categoryId] ?? ''
@@ -89,20 +131,12 @@ export function BudgetEditor({
    */
   const close = () => {
     setEdits({})
+    setFieldErrors({})
     onOpenChange(false)
   }
 
   const save = useMutation({
-    mutationFn: async () => {
-      const entries = Object.entries(limits)
-        .map(([category_id, value]) => ({
-          category_id,
-          limit_minor: toMinor(Number(value.replace(',', '.')), currency),
-        }))
-        // A blank or zero field means "not budgeted", so it is left out of the
-        // set rather than sent as a limit of nothing.
-        .filter((entry) => Number.isFinite(entry.limit_minor) && entry.limit_minor > 0)
-
+    mutationFn: async (entries: BudgetEntry[]) => {
       const { error } = await budgetsBulkUpsertBudgets({ body: { month, entries } })
       if (error) throw error
     },
@@ -113,6 +147,20 @@ export function BudgetEditor({
       close()
     },
   })
+
+  /**
+   * Send the month, unless a field cannot be read.
+   *
+   * An amount that does not parse is reported rather than skipped: skipping it
+   * would drop the category from the set, and a category left out of the set
+   * has its limit deleted.
+   */
+  const attemptSave = () => {
+    const { entries, errors } = readLimits(limits, currency)
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) return
+    save.mutate(entries)
+  }
 
   const parents = tree?.data ?? []
 
@@ -133,7 +181,15 @@ export function BudgetEditor({
           </DialogDescription>
         </DialogHeader>
 
-        <FormError message={save.isError ? errorMessage(save.error) : null} />
+        <FormError
+          message={
+            Object.keys(fieldErrors).length > 0
+              ? 'Some amounts could not be read. Check the fields marked below.'
+              : save.isError
+                ? errorMessage(save.error)
+                : null
+          }
+        />
 
         {existing.isPending ? (
           <LoadingRows rows={5} />
@@ -149,6 +205,7 @@ export function BudgetEditor({
                     name={parent.name}
                     currency={currency}
                     value={valueFor(parent.id)}
+                    error={fieldErrors[parent.id]}
                     onChange={(value) => setLimit(parent.id, value)}
                   />
                   {(parent.children ?? []).map((child) => (
@@ -158,6 +215,7 @@ export function BudgetEditor({
                       name={child.name}
                       currency={currency}
                       value={valueFor(child.id)}
+                      error={fieldErrors[child.id]}
                       onChange={(value) => setLimit(child.id, value)}
                       nested
                     />
@@ -176,7 +234,7 @@ export function BudgetEditor({
               nothing safe to send until the saved limits are here: a set built
               from an empty or failed load would delete every one of them. */}
           {existing.isSuccess ? (
-            <SubmitButton pending={save.isPending} onClick={() => save.mutate()} type="button">
+            <SubmitButton pending={save.isPending} onClick={attemptSave} type="button">
               Save budgets
             </SubmitButton>
           ) : null}
@@ -197,6 +255,7 @@ function LimitRow({
   name,
   currency,
   value,
+  error,
   nested = false,
   onChange,
 }: {
@@ -204,27 +263,39 @@ function LimitRow({
   name: string
   currency: string
   value: string
+  /** What this field got wrong, shown under it. */
+  error?: string
   /** Whether this is a subcategory, shown under its parent. */
   nested?: boolean
   onChange: (value: string) => void
 }) {
   const id = `limit-${categoryId}`
+  const errorId = `${id}-error`
 
   return (
-    <div className={cn('flex items-center gap-3', nested && 'pl-4')}>
-      <Label
-        htmlFor={id}
-        className={cn('flex-1', nested ? 'text-muted-foreground font-normal' : 'font-medium')}
-      >
-        {name}
-      </Label>
-      <MoneyInput
-        id={id}
-        currency={currency}
-        className="w-40"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
+    <div className={cn('space-y-1', nested && 'pl-4')}>
+      <div className="flex items-center gap-3">
+        <Label
+          htmlFor={id}
+          className={cn('flex-1', nested ? 'text-muted-foreground font-normal' : 'font-medium')}
+        >
+          {name}
+        </Label>
+        <MoneyInput
+          id={id}
+          currency={currency}
+          className="w-40"
+          value={value}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </div>
+      {error ? (
+        <p id={errorId} className="text-destructive text-right text-sm">
+          {error}
+        </p>
+      ) : null}
     </div>
   )
 }
