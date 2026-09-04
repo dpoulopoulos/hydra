@@ -276,6 +276,53 @@ class TestRequestPasswordReset:
         password_reset = mock_password_reset_service.session.add.call_args[0][0]
         assert password_reset.expires_at == request_time + timedelta(hours=expire_hours)
 
+class TestInvalidatePendingForUser:
+    """Tests for the invalidate_pending_for_user method."""
+
+    def test_invalidate_pending_for_user_expires_the_pending_reset(
+        self, mock_password_reset_service: PasswordResetService
+    ) -> None:
+        """Test a pending reset is expired."""
+        # Arrange: The user has a pending reset
+        password_reset_id = uuid.UUID("44444444-4444-4444-4444-444444444444")
+        mock_password_reset = MagicMock(spec=PasswordReset)
+        mock_password_reset.id = password_reset_id
+        mock_password_reset.status = PasswordResetStatus.PENDING
+
+        mock_password_reset_service.session.exec = MagicMock()
+        mock_password_reset_service.session.exec.return_value.first.return_value = (
+            mock_password_reset
+        )
+        mock_password_reset_service._mark_password_reset = MagicMock()
+
+        # Act
+        mock_password_reset_service.invalidate_pending_for_user(
+            user_id=uuid.UUID("12345678-1234-5678-1234-567812345678")
+        )
+
+        # Assert
+        mock_password_reset_service._mark_password_reset.assert_called_once_with(
+            password_reset_id=password_reset_id, status=PasswordResetStatus.EXPIRED
+        )
+
+    def test_invalidate_pending_for_user_without_a_pending_reset(
+        self, mock_password_reset_service: PasswordResetService
+    ) -> None:
+        """Test a user with nothing pending is left alone."""
+        # Arrange: The user has no pending reset
+        mock_password_reset_service.session.exec = MagicMock()
+        mock_password_reset_service.session.exec.return_value.first.return_value = None
+        mock_password_reset_service._mark_password_reset = MagicMock()
+
+        # Act
+        mock_password_reset_service.invalidate_pending_for_user(
+            user_id=uuid.UUID("12345678-1234-5678-1234-567812345678")
+        )
+
+        # Assert
+        mock_password_reset_service._mark_password_reset.assert_not_called()
+
+
 class TestVerifyTokenMethod:
     """Tests for the verify_token method."""
 
