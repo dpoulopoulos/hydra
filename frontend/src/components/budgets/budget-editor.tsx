@@ -74,6 +74,18 @@ export function BudgetEditor({
 
   const limits = { ...saved, ...edits }
 
+  /**
+   * Close the dialog and forget what was typed.
+   *
+   * Every way out goes through here, Cancel and a finished save included: an
+   * edit the user backed out of, or one already written to the month, would
+   * otherwise still be in the set the next save replaces the month with.
+   */
+  const close = () => {
+    setEdits({})
+    onOpenChange(false)
+  }
+
   const save = useMutation({
     mutationFn: async () => {
       const entries = Object.entries(limits)
@@ -92,7 +104,7 @@ export function BudgetEditor({
       void queryClient.invalidateQueries({ queryKey: ['budgets'] })
       void queryClient.invalidateQueries({ queryKey: ['reports'] })
       toast.success(`Budgets set for ${formatMonth(month)}`)
-      onOpenChange(false)
+      close()
     },
   })
 
@@ -102,8 +114,8 @@ export function BudgetEditor({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) setEdits({})
-        onOpenChange(next)
+        if (next) onOpenChange(true)
+        else close()
       }}
     >
       <DialogContent className="sm:max-w-lg">
@@ -160,7 +172,7 @@ export function BudgetEditor({
         </ScrollArea>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={close}>
             Cancel
           </Button>
           <SubmitButton pending={save.isPending} onClick={() => save.mutate()} type="button">
