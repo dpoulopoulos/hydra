@@ -109,8 +109,10 @@ class UserService:
                 so a user is never observable without one.
 
         Note:
-            When the registration carries an invite token, the user joins the
-            household that invited them instead of getting one of their own.
+            When the registration carries an invite token, the token is checked
+            but not redeemed: the user still gets a household of their own. A
+            registration is a claim on an address, not a proof of it, so the
+            invitation is attributed only once the address is verified.
 
         Returns:
             The created user.

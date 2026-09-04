@@ -11,6 +11,7 @@ from app.exceptions import (
     HouseholdInviteExistsError,
     HouseholdInviteExpiredError,
     HouseholdInviteNotFoundError,
+    HouseholdInviteUnclaimedError,
     HouseholdInviteUsedError,
     HouseholdMemberExistsError,
     HouseholdMemberNotFoundError,
@@ -364,10 +365,12 @@ class HouseholdService:
         household and its categories together. A user is therefore never
         observable without a household.
 
-        With an invite token the user joins the household that invited them,
-        rather than getting one of their own. That is the common case of
-        somebody following a link a partner sent, and it saves creating a
-        household only to discard it a moment later.
+        An invite token does not put the user in the household that invited
+        them. Signing up proves nothing about the address it was signed up
+        with, so the token is only checked here, to refuse a registration the
+        invitation could never be redeemed by. The invitation stays pending and
+        is attributed when the address is verified, which is the moment the
+        mailbox stops being a claim.
 
         Args:
             user: The user to give a household to.
@@ -375,7 +378,7 @@ class HouseholdService:
                 categories. Required, so a household cannot be created without
                 them by forgetting an argument.
             name: An optional household name. Defaults to a name based on the user.
-            invite_token: An optional invite to join instead of creating a household.
+            invite_token: An optional invite the registration came through.
 
         Returns:
             The household the user now belongs to.
@@ -385,10 +388,9 @@ class HouseholdService:
             HouseholdInviteUsedError: If the invite was already used or withdrawn.
             HouseholdInviteExpiredError: If the invite has expired.
             HouseholdInviteEmailMismatchError: If the invite was sent to a different address.
-            HouseholdNotFoundError: If the invited household no longer exists.
         """
         if invite_token:
-            return self._join_by_invite(user=user, token=invite_token)
+            self._check_invite_is_addressed_to(user=user, token=invite_token)
 
         household = Household(name=name or default_household_name(user))
         self.household_repository.save(household)
@@ -735,14 +737,21 @@ class HouseholdService:
             HouseholdInviteNotFoundError: If no invite has that token.
             HouseholdInviteUsedError: If the invite was already accepted or withdrawn.
             HouseholdInviteExpiredError: If the invite is past its expiry.
-            HouseholdInviteEmailMismatchError: If the invite was sent to someone else.
+            HouseholdInviteEmailMismatchError: If the invite was issued to another account.
+            HouseholdInviteUnclaimedError: If the invited address has not been proved to belong to anyone.
             HouseholdNotEmptyError: If the caller's current household holds data.
         """
         invite = self._require_pending_invite(token)
 
-        # Without this, a leaked link would hand a stranger full access to the
-        # household's finances.
-        if invite.email.lower() != user.email.lower():
+        # Compared by identity, not by address. An address is a profile field
+        # its owner can change to anything unclaimed, and the invited address
+        # is readable from the public preview, so comparing the two would let
+        # whoever holds a leaked link rename themselves into the invitation and
+        # walk into the household's finances.
+        if invite.invited_user_id is None:
+            raise HouseholdInviteUnclaimedError from None
+
+        if invite.invited_user_id != user.id:
             raise HouseholdInviteEmailMismatchError from None
 
         entity = self.household_repository.get_by_id(invite.household_id)
@@ -774,44 +783,37 @@ class HouseholdService:
 
         return self._to_public(household=entity, member_count=self.household_repository.count_members(entity.id))
 
-    def _join_by_invite(self, user: User, token: str) -> Household:
-        """Add a brand new user to the household that invited them, without committing.
+    def _check_invite_is_addressed_to(self, user: User, token: str) -> None:
+        """Refuse a registration the invitation it came through could never be redeemed by.
 
-        The user has not verified their address yet, but they cannot log in
-        until they do, so the access this grants is unusable until the mailbox
-        is proven to be theirs.
+        Nothing is joined and nothing is consumed here. A registration is a
+        claim on an address, not a proof of it: anybody who reads a leaked link
+        can sign up with the address it names. Taking the membership then would
+        put a stranger in the household and burn the invitation, so the real
+        recipient could never join and the owner would be left with a member
+        who never arrives.
+
+        The address is still compared, because the sign-up form asks the
+        recipient to type the invited address and telling them now that they
+        mistyped it is kinder than letting them find out after verifying. It is
+        a courtesy, not the guard: the guard is that the invitation is
+        attributed only when the address is verified, and redeemed only by the
+        account it was attributed to.
 
         Args:
-            user: The user joining.
-            token: The invite token.
-
-        Returns:
-            The household they joined.
+            user: The user registering.
+            token: The invite token their registration came through.
 
         Raises:
             HouseholdInviteNotFoundError: If the token is not recognised.
             HouseholdInviteUsedError: If the invite was already used or withdrawn.
             HouseholdInviteExpiredError: If the invite has expired.
             HouseholdInviteEmailMismatchError: If the invite was sent to a different address.
-            HouseholdNotFoundError: If the invited household no longer exists.
         """
         invite = self._require_pending_invite(token)
 
         if invite.email.lower() != user.email.lower():
             raise HouseholdInviteEmailMismatchError from None
-
-        household = self.household_repository.get_by_id(invite.household_id)
-
-        if not household:
-            raise HouseholdNotFoundError from None
-
-        self.household_member_repository.save(
-            HouseholdMember(household_id=household.id, user_id=user.id, role=invite.role)
-        )
-        invite.status = HouseholdInviteStatus.ACCEPTED
-        self.household_invite_repository.save(invite)
-
-        return household
 
     def _require_pending_invite(self, token: str) -> HouseholdInvite:
         """Load an invite that can still be acted on.

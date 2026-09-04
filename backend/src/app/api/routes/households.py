@@ -14,6 +14,7 @@ from app.exceptions import (
     HouseholdInviteExistsError,
     HouseholdInviteExpiredError,
     HouseholdInviteNotFoundError,
+    HouseholdInviteUnclaimedError,
     HouseholdInviteUsedError,
     HouseholdMemberExistsError,
     HouseholdMemberNotFoundError,
@@ -61,6 +62,7 @@ def household_exception_mappings() -> dict[type[ServiceError], int]:
         LastHouseholdOwnerError: status.HTTP_400_BAD_REQUEST,
         HouseholdRoleRequiredError: status.HTTP_403_FORBIDDEN,
         HouseholdInviteEmailMismatchError: status.HTTP_403_FORBIDDEN,
+        HouseholdInviteUnclaimedError: status.HTTP_403_FORBIDDEN,
     }
 
 
@@ -301,8 +303,9 @@ def accept_household_invite(
 
     Raises:
         HTTPException: If the token is not recognised (404), the invitation was
-            sent to a different address (403), it has expired or was already
-            used (400), or your current household holds data (409).
+            issued to another account or to an address nobody has proved (403),
+            it has expired or was already used (400), or your current household
+            holds data (409).
     """
     return household_service.accept_invite(user=current_user, token=accept_in.token)
 

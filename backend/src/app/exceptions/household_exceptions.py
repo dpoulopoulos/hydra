@@ -137,7 +137,7 @@ class HouseholdInviteUsedError(ValidationError):
 
 
 class HouseholdInviteEmailMismatchError(ServiceError):
-    """Signal that an invite was accepted by someone it was not addressed to.
+    """Signal that an invite was accepted by an account it was not issued to.
 
     Without this check a leaked link would hand a stranger full access to the
     household's finances.
@@ -150,6 +150,29 @@ class HouseholdInviteEmailMismatchError(ServiceError):
             exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
         """
         msg = "This invitation was sent to a different email address."
+        super().__init__(msg, exc)
+
+
+class HouseholdInviteUnclaimedError(ServiceError):
+    """Signal that an invite names no account yet, so nobody may redeem it here.
+
+    The invited address has never been proved to belong to anyone, and an
+    address on a profile is a claim rather than a proof: honouring it would let
+    whoever holds a leaked link put the address in their own profile and walk
+    in.
+    """
+
+    def __init__(self, exc: Exception | None = None):
+        """Initialize a HouseholdInviteUnclaimedError.
+
+        Args:
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        msg = (
+            "This invitation is still waiting for its address to be confirmed. Sign in to the account "
+            "that holds the address, confirm it from your profile settings, and then accept the "
+            "invitation."
+        )
         super().__init__(msg, exc)
 
 

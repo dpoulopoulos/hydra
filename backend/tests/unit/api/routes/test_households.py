@@ -18,6 +18,7 @@ from app.exceptions import (
     HouseholdInviteExistsError,
     HouseholdInviteExpiredError,
     HouseholdInviteNotFoundError,
+    HouseholdInviteUnclaimedError,
     HouseholdInviteUsedError,
     HouseholdMemberNotFoundError,
     HouseholdMembershipNotFoundError,
@@ -693,6 +694,18 @@ class TestAcceptHouseholdInvite:
         )
 
         assert response.status_code == 403
+
+    def test_an_unconfirmed_invite_is_forbidden(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        wire.accept_invite.side_effect = HouseholdInviteUnclaimedError
+
+        response = client.post(
+            "/api/v1/households/invites/accept", headers=auth_headers, json={"token": "a-token"}
+        )
+
+        assert response.status_code == 403
+        assert "waiting for its address to be confirmed" in response.json()["detail"]
 
     def test_a_household_with_data_is_a_conflict(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]

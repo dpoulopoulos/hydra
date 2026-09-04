@@ -682,8 +682,9 @@ export const householdsRevokeHouseholdInviteMutation = (options?: Partial<Option
  *
  * Raises:
  * HTTPException: If the token is not recognised (404), the invitation was
- * sent to a different address (403), it has expired or was already
- * used (400), or your current household holds data (409).
+ * issued to another account or to an address nobody has proved (403),
+ * it has expired or was already used (400), or your current household
+ * holds data (409).
  */
 export const householdsAcceptHouseholdInviteMutation = (options?: Partial<Options<HouseholdsAcceptHouseholdInviteData>>): UseMutationOptions<HouseholdsAcceptHouseholdInviteResponse, HouseholdsAcceptHouseholdInviteError, Options<HouseholdsAcceptHouseholdInviteData>> => {
     const mutationOptions: UseMutationOptions<HouseholdsAcceptHouseholdInviteResponse, HouseholdsAcceptHouseholdInviteError, Options<HouseholdsAcceptHouseholdInviteData>> = {

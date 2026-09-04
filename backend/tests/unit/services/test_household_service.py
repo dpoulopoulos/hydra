@@ -13,6 +13,7 @@ from app.exceptions import (
     HouseholdInviteExistsError,
     HouseholdInviteExpiredError,
     HouseholdInviteNotFoundError,
+    HouseholdInviteUnclaimedError,
     HouseholdInviteUsedError,
     HouseholdMemberExistsError,
     HouseholdMemberNotFoundError,
@@ -562,9 +563,10 @@ def make_invite(
     role: HouseholdRole = HouseholdRole.MEMBER,
     status: HouseholdInviteStatus = HouseholdInviteStatus.PENDING,
     expires_in_hours: int = 24,
+    invited_user_id: uuid.UUID | None = None,
 ) -> HouseholdInvite:
     """Build an invite row for the tests."""
-    return HouseholdInvite(
+    invite = HouseholdInvite(
         household_id=household_id,
         email=email,
         role=role,
@@ -572,6 +574,8 @@ def make_invite(
         expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=expires_in_hours),
         token="a-token",
     )
+    invite.invited_user_id = invited_user_id
+    return invite
 
 
 def make_verification(user_id: uuid.UUID, email: str) -> EmailVerification:
@@ -885,7 +889,9 @@ class TestAcceptInvite:
         household: Household,
         another_test_user: User,
     ) -> None:
-        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        invite = make_invite(
+            household_id=household.id, email=another_test_user.email, invited_user_id=another_test_user.id
+        )
         mock_household_service.session.exec = MagicMock()
         # The invite, then no existing membership for the user.
         mock_household_service.session.exec.return_value.first.side_effect = [invite, None]
@@ -909,7 +915,10 @@ class TestAcceptInvite:
         another_test_user: User,
     ) -> None:
         invite = make_invite(
-            household_id=household.id, email=another_test_user.email, role=HouseholdRole.OWNER
+            household_id=household.id,
+            email=another_test_user.email,
+            role=HouseholdRole.OWNER,
+            invited_user_id=another_test_user.id,
         )
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.side_effect = [invite, None]
@@ -925,27 +934,49 @@ class TestAcceptInvite:
         ]
         assert members[0].role is HouseholdRole.OWNER
 
-    def test_refuses_an_invite_sent_to_someone_else(
+    def test_refuses_an_invite_issued_to_another_account(
         self,
         mock_household_service: HouseholdService,
         household: Household,
+        test_user: User,
         another_test_user: User,
     ) -> None:
         """Otherwise a leaked link would hand a stranger the household's finances."""
-        invite = make_invite(household_id=household.id, email="someone.else@example.com")
+        invite = make_invite(
+            household_id=household.id, email=test_user.email, invited_user_id=test_user.id
+        )
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.return_value = invite
 
         with pytest.raises(HouseholdInviteEmailMismatchError):
             mock_household_service.accept_invite(user=another_test_user, token="a-token")
 
-    def test_matches_the_address_regardless_of_case(
+    def test_refuses_an_account_that_merely_holds_the_invited_address(
         self,
         mock_household_service: HouseholdService,
         household: Household,
         another_test_user: User,
     ) -> None:
-        invite = make_invite(household_id=household.id, email=another_test_user.email.upper())
+        """The exploit: an address can be changed to anything unclaimed, so it proves nothing."""
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = invite
+
+        with pytest.raises(HouseholdInviteUnclaimedError):
+            mock_household_service.accept_invite(user=another_test_user, token="a-token")
+
+    def test_accepts_after_the_invited_account_changed_its_address(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """The invitation follows the account it was issued to, not the text it was sent to."""
+        invite = make_invite(
+            household_id=household.id,
+            email="the-old-address@example.com",
+            invited_user_id=another_test_user.id,
+        )
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.side_effect = [invite, None]
         mock_household_service.session.exec.return_value.one.return_value = 2
@@ -962,7 +993,9 @@ class TestAcceptInvite:
         another_test_user: User,
     ) -> None:
         """It held nothing but seeded categories, so nothing is lost."""
-        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        invite = make_invite(
+            household_id=household.id, email=another_test_user.email, invited_user_id=another_test_user.id
+        )
         old_household = Household(name="Their own household")
         old_membership = HouseholdMember(
             household_id=old_household.id, user_id=another_test_user.id, role=HouseholdRole.OWNER
@@ -990,7 +1023,9 @@ class TestAcceptInvite:
         another_test_user: User,
     ) -> None:
         """Moving out as its last owner would otherwise strand the household."""
-        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        invite = make_invite(
+            household_id=household.id, email=another_test_user.email, invited_user_id=another_test_user.id
+        )
         old_household = Household(name="Their own household")
         old_membership = HouseholdMember(
             household_id=old_household.id, user_id=another_test_user.id, role=HouseholdRole.OWNER
@@ -1022,7 +1057,9 @@ class TestAcceptInvite:
         another_test_user: User,
     ) -> None:
         """Its members are counted, so a member going at the same time has to queue up."""
-        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        invite = make_invite(
+            household_id=household.id, email=another_test_user.email, invited_user_id=another_test_user.id
+        )
         old_household = Household(name="Their own household")
         old_membership = HouseholdMember(
             household_id=old_household.id, user_id=another_test_user.id, role=HouseholdRole.OWNER
@@ -1046,7 +1083,9 @@ class TestAcceptInvite:
         another_test_user: User,
     ) -> None:
         """Joining would leave their accounts and transactions behind."""
-        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        invite = make_invite(
+            household_id=household.id, email=another_test_user.email, invited_user_id=another_test_user.id
+        )
         old_membership = HouseholdMember(
             household_id=uuid.uuid4(), user_id=another_test_user.id, role=HouseholdRole.OWNER
         )
@@ -1067,7 +1106,9 @@ class TestAcceptInvite:
         household: Household,
         another_test_user: User,
     ) -> None:
-        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        invite = make_invite(
+            household_id=household.id, email=another_test_user.email, invited_user_id=another_test_user.id
+        )
         existing = HouseholdMember(
             household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER
         )
@@ -1082,13 +1123,18 @@ class TestAcceptInvite:
 class TestCreateForUserWithInvite:
     """Tests for create_for_user when a registration carries an invite token."""
 
-    def test_joins_the_inviting_household_instead_of_making_one(
+    def test_does_not_join_the_inviting_household(
         self,
         mock_household_service: HouseholdService,
         household: Household,
         another_test_user: User,
     ) -> None:
-        """Saves creating a household only to discard it a moment later."""
+        """Registering with an address proves nothing about holding it.
+
+        Anybody who reads a leaked link can sign up with the address it names,
+        so taking the membership here would put a stranger in the household and
+        burn the invitation the real recipient needs.
+        """
         invite = make_invite(household_id=household.id, email=another_test_user.email)
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.return_value = invite
@@ -1098,10 +1144,13 @@ class TestCreateForUserWithInvite:
             user=another_test_user, invite_token="a-token", category_service=MagicMock()
         )
 
-        assert result.id == household.id
+        assert result.id != household.id
         added = [call.args[0] for call in mock_household_service.session.add.call_args_list]
-        assert not [entity for entity in added if isinstance(entity, Household)]
-        assert invite.status is HouseholdInviteStatus.ACCEPTED
+        memberships = [entity for entity in added if isinstance(entity, HouseholdMember)]
+        assert [membership.household_id for membership in memberships] == [result.id]
+        # The invitation is still there for the recipient to redeem once they
+        # have verified the address.
+        assert invite.status is HouseholdInviteStatus.PENDING
 
     def test_does_not_commit(
         self,
