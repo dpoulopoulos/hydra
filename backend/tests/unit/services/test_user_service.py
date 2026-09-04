@@ -235,7 +235,7 @@ class TestCreateUser:
         # Act: Create new user with password hashing
         with patch("app.services.user.get_password_hash") as mock_hash:
             mock_hash.return_value = "hashed_password"
-            result = mock_user_service.create_user(user_create=user_create)
+            result = mock_user_service.create_user(user_create=user_create, category_service=MagicMock())
 
         # Assert: Verify user was created and database operations were called
         assert isinstance(result, UserPublic)
@@ -267,7 +267,7 @@ class TestCreateUser:
         # Act: Create the user while the provider is unreachable
         with patch("app.utils.email_utils.send_email", side_effect=httpx.ConnectTimeout("timed out")):
             with caplog.at_level(logging.ERROR, logger="app.utils.email_utils"):
-                result = mock_user_service.create_user(user_create=user_create)
+                result = mock_user_service.create_user(user_create=user_create, category_service=MagicMock())
 
         # Assert: Verify the account is returned and the failure is on record
         assert isinstance(result, UserPublic)
@@ -295,7 +295,7 @@ class TestCreateUser:
         # Act: Create user using UserRegister model
         with patch("app.services.user.get_password_hash") as mock_hash:
             mock_hash.return_value = "hashed_password"
-            result = mock_user_service.create_user(user_create=user_register)
+            result = mock_user_service.create_user(user_create=user_register, category_service=MagicMock())
 
         # Assert: Verify user was created and database operations were called
         assert isinstance(result, UserPublic)
@@ -319,7 +319,7 @@ class TestCreateUser:
 
         # Act & Assert: Verify UserExistsError is raised
         with pytest.raises(UserExistsError):
-            mock_user_service.create_user(user_create=user_create)
+            mock_user_service.create_user(user_create=user_create, category_service=MagicMock())
 
 
 class TestGetAuthenticatedUser:
