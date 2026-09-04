@@ -16,15 +16,23 @@ import { defineRailway, github, postgres, preserve, project, service } from 'rai
 
 const REPO = 'dpoulopoulos/hydra'
 
-// The web service is the only one with a public address, so it is the address
-// of the whole app. Written as a reference rather than read from the `web`
-// object below, because the two services point at each other and one of the
-// two has to be named before it exists.
-const PUBLIC_HOST = 'https://${{web.RAILWAY_PUBLIC_DOMAIN}}'
+// The app's public address. The backend reads it for the links and the logo in
+// its emails, so it has to be the address people actually visit.
+//
+// This was ${{web.RAILWAY_PUBLIC_DOMAIN}}, which reads the domain rather than
+// repeating it. That reference is resolved when the backend deploys, and it
+// went stale and stayed stale when the domain changed, leaving every link in
+// every email pointing at an address that no longer answered. A literal cannot
+// drift out of step with what the emails say.
+const PUBLIC_DOMAIN = 'hydra.dimpo.dev'
+const PUBLIC_HOST = `https://${PUBLIC_DOMAIN}`
 
-// The backend is told which port to listen on instead of being assigned one,
-// so that the web service can name it in the address it forwards to.
+// Each service is told which port to listen on rather than being assigned one.
+// The backend's is named by the web service in the address it forwards to. The
+// web service's is the port Caddy binds, and a generated domain does not
+// always pick one up on its own: check it with `railway domain list`.
 const BACKEND_PORT = '8000'
+const WEB_PORT = '8080'
 
 export default defineRailway((ctx) => {
   const db = postgres('postgres')
@@ -74,11 +82,19 @@ export default defineRailway((ctx) => {
   const web = service('web', {
     source: github(REPO, { rootDirectory: 'frontend' }),
     healthcheck: '/',
+    // The generated *.up.railway.app domain stays too, and is not written here:
+    // Railway does not put its own generated domains in this file.
+    domains: [{ domain: PUBLIC_DOMAIN, port: Number(WEB_PORT) }],
     env: {
+      PORT: WEB_PORT,
       // Private networking: this name resolves inside the project only, so the
       // API is never reachable from outside except through this service.
-      // Written as a reference for the same reason PUBLIC_HOST is: a reference
-      // is a value Railway resolves, so it cannot be pasted into a string here.
+      //
+      // Left as a reference, unlike PUBLIC_HOST, because a private domain is
+      // derived from the service name and so cannot go stale under you. It is
+      // written out rather than read from `backend.env`, because the two
+      // services point at each other and one has to be named before it
+      // exists.
       BACKEND_ORIGIN: `http://\${{backend.RAILWAY_PRIVATE_DOMAIN}}:${BACKEND_PORT}`,
     },
   })
