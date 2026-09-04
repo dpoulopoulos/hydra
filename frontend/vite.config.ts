@@ -16,9 +16,10 @@ export default defineConfig({
     port: 5173,
     proxy: {
       // Talk to the backend on its own port in development, so the browser
-      // sees one origin and CORS never enters the picture.
+      // sees one origin and CORS never enters the picture. Override the target
+      // with VITE_API_TARGET when the backend is not on its usual port.
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_API_TARGET ?? 'http://localhost:8000',
         changeOrigin: true,
       },
     },
