@@ -14,6 +14,7 @@ from app.core.security import ALGORITHM, create_access_token, get_password_hash
 from app.models import HouseholdContext, HouseholdRole, User
 from app.repositories import (
     AccountRepository,
+    BudgetRepository,
     CategoryRepository,
     EmailVerificationRepository,
     HouseholdMemberRepository,
@@ -24,6 +25,7 @@ from app.repositories import (
 )
 from app.services import (
     AccountService,
+    BudgetService,
     CategoryService,
     EmailVerificationService,
     HouseholdService,
@@ -507,5 +509,41 @@ def mock_transaction_service(
         session=mock_db_session,
         transaction_repository=mock_transaction_repository,
         account_repository=mock_account_repository,
+        category_repository=mock_category_repository,
+    )
+
+
+@pytest.fixture
+def mock_budget_repository(mock_db_session: MagicMock) -> BudgetRepository:
+    """Create a BudgetRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        A BudgetRepository instance with a mocked session.
+    """
+    return BudgetRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_budget_service(
+    mock_db_session: MagicMock,
+    mock_budget_repository: BudgetRepository,
+    mock_category_repository: CategoryRepository,
+) -> BudgetService:
+    """Create a BudgetService instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+        mock_budget_repository: The budget repository instance.
+        mock_category_repository: The category repository instance.
+
+    Returns:
+        A BudgetService instance with a mocked session.
+    """
+    return BudgetService(
+        session=mock_db_session,
+        budget_repository=mock_budget_repository,
         category_repository=mock_category_repository,
     )
