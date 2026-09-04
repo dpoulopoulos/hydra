@@ -4,7 +4,7 @@ import uuid
 from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, Index, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from .fields import MonthKey
+from .fields import MAX_AMOUNT_MINOR, MonthKey
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
 
@@ -14,18 +14,18 @@ class BudgetCreate(SQLModel):
     # so accepting a full date would let a caller pass a day that is then
     # silently dropped.
     month: MonthKey
-    limit_minor: int = Field(ge=0)
+    limit_minor: int = Field(ge=0, le=MAX_AMOUNT_MINOR)
 
 
 class BudgetUpdate(SQLModel):
-    limit_minor: int | None = Field(default=None, ge=0)
+    limit_minor: int | None = Field(default=None, ge=0, le=MAX_AMOUNT_MINOR)
 
 
 class BudgetEntry(SQLModel):
     """One category limit within a bulk update."""
 
     category_id: uuid.UUID
-    limit_minor: int = Field(ge=0)
+    limit_minor: int = Field(ge=0, le=MAX_AMOUNT_MINOR)
 
 
 class BudgetBulkUpsert(SQLModel):

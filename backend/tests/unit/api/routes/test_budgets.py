@@ -16,6 +16,7 @@ from app.exceptions import (
 )
 from app.main import app
 from app.models import BudgetPublic, BudgetsPublic, HouseholdContext, Message, User
+from app.models.fields import MAX_AMOUNT_MINOR
 
 BUDGET_ID = uuid.UUID("66666666-6666-6666-6666-666666666666")
 CATEGORY_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
@@ -93,6 +94,22 @@ class TestCreateBudget:
             "/api/v1/budgets/",
             headers=auth_headers,
             json={"category_id": str(CATEGORY_ID), "month": "2026-03-04", "limit_minor": 1},
+        )
+
+        assert response.status_code == 422
+
+    def test_rejects_a_limit_beyond_the_cap(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        """Beyond the cap the value is one the column cannot hold: a 422, not a 500."""
+        response = client.post(
+            "/api/v1/budgets/",
+            headers=auth_headers,
+            json={
+                "category_id": str(CATEGORY_ID),
+                "month": "2026-03",
+                "limit_minor": MAX_AMOUNT_MINOR + 1,
+            },
         )
 
         assert response.status_code == 422
@@ -310,6 +327,18 @@ class TestUpdateBudget:
     ) -> None:
         response = client.patch(
             f"/api/v1/budgets/{BUDGET_ID}", headers=auth_headers, json={"limit_minor": -1}
+        )
+
+        assert response.status_code == 422
+
+
+    def test_rejects_a_limit_beyond_the_cap(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        response = client.patch(
+            f"/api/v1/budgets/{BUDGET_ID}",
+            headers=auth_headers,
+            json={"limit_minor": MAX_AMOUNT_MINOR + 1},
         )
 
         assert response.status_code == 422

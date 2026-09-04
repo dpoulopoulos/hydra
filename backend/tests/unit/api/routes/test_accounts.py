@@ -17,6 +17,7 @@ from app.models import (
     Message,
     User,
 )
+from app.models.fields import MAX_AMOUNT_MINOR
 
 ACCOUNT_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
 
@@ -103,6 +104,30 @@ class TestCreateAccount:
             "/api/v1/accounts/",
             headers=auth_headers,
             json={"name": "Cash", "type": "checking", "opening_balance_date": "2026-01-01"},
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        "opening_balance_minor", [MAX_AMOUNT_MINOR + 1, -MAX_AMOUNT_MINOR - 1]
+    )
+    def test_rejects_an_opening_balance_beyond_the_cap(
+        self,
+        client: TestClient,
+        wire: MagicMock,
+        auth_headers: dict[str, str],
+        opening_balance_minor: int,
+    ) -> None:
+        """A credit card starts overdrawn, so the balance is bounded both ways."""
+        response = client.post(
+            "/api/v1/accounts/",
+            headers=auth_headers,
+            json={
+                "name": "Current",
+                "type": "current",
+                "opening_balance_minor": opening_balance_minor,
+                "opening_balance_date": "2026-01-01",
+            },
         )
 
         assert response.status_code == 422

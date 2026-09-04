@@ -33,6 +33,14 @@ def _within_bcrypt_limit(value: str) -> str:
 Password = Annotated[str, AfterValidator(_within_bcrypt_limit)]
 
 
+# Money is stored in minor units in a BigInteger column, which tops out at
+# 2**63 - 1. Python's int is unbounded and Pydantic is happy to carry any of it,
+# so without a cap an absurd amount is only refused by the driver: a 500 where
+# a 422 belongs. The cap sits an order of magnitude below the column, so a total
+# of capped amounts still fits, and no real amount comes close to it.
+MAX_AMOUNT_MINOR = 2**62
+
+
 # A calendar month, as used by budgets and by the report endpoints. Budgets are
 # stored as a `date` pinned to the first of the month; "YYYY-MM" is the wire
 # format, so a caller cannot pass a day that the storage would silently drop.

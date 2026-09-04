@@ -5,6 +5,7 @@ from enum import StrEnum
 from sqlalchemy import BigInteger, CheckConstraint, Date, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
+from .fields import MAX_AMOUNT_MINOR
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
 
@@ -27,7 +28,7 @@ class AccountCreate(AccountBase):
     # The balance the account already held when the user started tracking it.
     # Fixed at creation: changing it would silently rewrite every historical
     # balance, so a correction belongs in an adjustment transaction instead.
-    opening_balance_minor: int = Field(default=0)
+    opening_balance_minor: int = Field(default=0, ge=-MAX_AMOUNT_MINOR, le=MAX_AMOUNT_MINOR)
     opening_balance_date: datetime.date
 
 
