@@ -9,6 +9,13 @@ from .fields import MAX_AMOUNT_MINOR
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 from .transaction import TransactionKind
 
+# A hundred years of monthly occurrences. The date arithmetic behind a rule
+# builds real dates, and datetime.date stops at year 9999, so an unbounded
+# interval pushes the next occurrence past the last date there is: an error
+# raised on every read that materialises a rule. No real schedule repeats less
+# often than this.
+MAX_RECURRENCE_INTERVAL = 1200
+
 
 class RecurrenceFrequency(StrEnum):
     WEEKLY = "weekly"
@@ -35,10 +42,11 @@ class RecurringRuleBase(SQLModel):
 
 
 class RecurringRuleCreate(RecurringRuleBase):
-    # The cap lives here rather than on the base, which the table and the
-    # response models share. A rule stored before the cap existed still has to
-    # be readable: refusing it on the way out is the 500 this bound is meant to
-    # prevent, moved to the read path.
+    # The caps live here rather than on the base, which the table and the
+    # response models share. A rule stored before either cap existed still has
+    # to be readable: refusing it on the way out is the 500 this bound is meant
+    # to prevent, moved to the read path.
+    interval: int = Field(default=1, ge=1, le=MAX_RECURRENCE_INTERVAL)
     amount_minor: int = Field(gt=0, le=MAX_AMOUNT_MINOR)
     account_id: uuid.UUID
     category_id: uuid.UUID | None = None
@@ -48,7 +56,7 @@ class RecurringRuleCreate(RecurringRuleBase):
 class RecurringRuleUpdate(SQLModel):
     name: str | None = Field(default=None, max_length=255)
     frequency: RecurrenceFrequency | None = Field(default=None)
-    interval: int | None = Field(default=None, ge=1)
+    interval: int | None = Field(default=None, ge=1, le=MAX_RECURRENCE_INTERVAL)
     end_date: datetime.date | None = Field(default=None)
     day_of_month: int | None = Field(default=None, ge=1, le=31)
     amount_minor: int | None = Field(default=None, gt=0, le=MAX_AMOUNT_MINOR)
