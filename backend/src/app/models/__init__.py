@@ -51,6 +51,17 @@ from .password import (
     PasswordUpdate,
 )
 from .token import Token, TokenPayload
+from .transaction import (
+    Transaction,
+    TransactionBase,
+    TransactionCreate,
+    TransactionFilters,
+    TransactionKind,
+    TransactionPublic,
+    TransactionSort,
+    TransactionsPublic,
+    TransactionUpdate,
+)
 from .user import (
     User,
     UserBase,
@@ -111,6 +122,15 @@ __all__ = [
     "PasswordResetVerify",
     "Token",
     "TokenPayload",
+    "Transaction",
+    "TransactionBase",
+    "TransactionCreate",
+    "TransactionFilters",
+    "TransactionKind",
+    "TransactionPublic",
+    "TransactionSort",
+    "TransactionUpdate",
+    "TransactionsPublic",
     "User",
     "UserBase",
     "UserCreate",
