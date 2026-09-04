@@ -441,13 +441,44 @@ class TestVerifyEmail:
         mock_email_verification_service.session.get.return_value = test_email_verification
 
         # Act
-        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=test_user):
             result = mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
 
         # Assert
         assert isinstance(result, Message)
         assert "Email verified successfully" in result.message
         assert test_user.is_active is True
+
+    def test_verify_email_resolves_the_target_from_the_verification_row(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        another_test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test the verification activates the account it was issued for, not the address holder."""
+        # Arrange: The verification was issued for test_user, who has since
+        # released the address; another_test_user holds it now.
+        token = create_email_verification_token(subject=test_user.email)
+        test_email_verification.token = token
+        another_test_user.email = test_user.email
+        another_test_user.is_active = False
+        test_user.email = "moved-on@example.com"
+
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act & Assert: The token no longer matches the address the account
+        # holds, so it activates neither account.
+        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=test_user) as get_by_id:
+            with pytest.raises(EmailVerificationTokenNotValidError):
+                mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
+
+        get_by_id.assert_called_once_with(test_email_verification.user_id)
+        assert another_test_user.is_active is False
+        assert test_email_verification.status == EmailVerificationStatus.PENDING
 
     def test_verify_email_invalid_token(
         self,
@@ -561,7 +592,7 @@ class TestVerifyEmail:
         mock_email_verification_service.session.get.return_value = test_email_verification
 
         # Act & Assert
-        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=test_user):
             with pytest.raises(EmailVerificationExpiredError):
                 mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
 
@@ -582,6 +613,6 @@ class TestVerifyEmail:
         mock_email_verification_service.session.get.return_value = test_email_verification
 
         # Act & Assert
-        with patch.object(mock_user_service, "get_user_by_email", return_value=None):
+        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=None):
             with pytest.raises(UserNotFoundError):
                 mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
