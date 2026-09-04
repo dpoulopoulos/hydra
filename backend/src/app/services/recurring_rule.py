@@ -110,6 +110,11 @@ class RecurringRuleService:
             day_of_month=rule_create.day_of_month,
         )
 
+        if cursor is None:
+            raise InvalidRecurrenceError(
+                "This rule would never come due: its first occurrence falls past the end of the calendar."
+            ) from None
+
         if rule_create.end_date and cursor > rule_create.end_date:
             raise InvalidRecurrenceError(
                 "This rule would never come due: it ends before its first occurrence."
@@ -370,7 +375,8 @@ class RecurringRuleService:
             last: The most recent date created.
 
         Returns:
-            The next date the rule falls due, or None if it is finished.
+            The next date the rule falls due, or None if it is finished, which
+            includes a schedule that has run past the end of the calendar.
         """
         following = advance(
             current=last,
@@ -378,6 +384,9 @@ class RecurringRuleService:
             interval=rule.interval,
             anchor_day=rule.day_of_month,
         )
+
+        if following is None:
+            return None
 
         return None if rule.end_date and following > rule.end_date else following
 

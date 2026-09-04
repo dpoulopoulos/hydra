@@ -18,6 +18,28 @@ DAYS_IN_WEEK = 7
 MAX_OCCURRENCES_PER_RUN = 500
 
 
+def _check_interval(interval: int) -> None:
+    """Reject an interval that would not move a schedule on.
+
+    The models bound what a new rule may carry, but this is what would fail if
+    an interval below one ever reached the arithmetic: the date would not move,
+    so the loop below would never end.
+
+    There is deliberately no ceiling here. A rule stored before the models
+    capped the interval still has to be readable, and running off the end of
+    the calendar is handled by `advance` returning None rather than by raising
+    from whichever read materialised the rule.
+
+    Args:
+        interval: How many periods to move.
+
+    Raises:
+        ValueError: If the interval would not move the date on.
+    """
+    if interval < 1:
+        raise ValueError("A recurrence interval must be at least 1.")
+
+
 def days_in_month(year: int, month: int) -> int:
     """Get the number of days in a month.
 
@@ -45,7 +67,7 @@ def _on_day(year: int, month: int, day: int) -> date:
     return date(year, month, min(day, days_in_month(year, month)))
 
 
-def first_occurrence(start_date: date, frequency: RecurrenceFrequency, day_of_month: int | None = None) -> date:
+def first_occurrence(start_date: date, frequency: RecurrenceFrequency, day_of_month: int | None = None) -> date | None:
     """Work out when a rule first falls due.
 
     Args:
@@ -55,7 +77,8 @@ def first_occurrence(start_date: date, frequency: RecurrenceFrequency, day_of_mo
             Ignored for a weekly rule, which keeps the weekday of the start date.
 
     Returns:
-        The first date the rule falls due, never before the start date.
+        The first date the rule falls due, never before the start date, or
+        None if that date would fall past the end of the calendar.
     """
     if day_of_month is None or frequency is RecurrenceFrequency.WEEKLY:
         return start_date
@@ -74,7 +97,7 @@ def advance(
     frequency: RecurrenceFrequency,
     interval: int,
     anchor_day: int | None = None,
-) -> date:
+) -> date | None:
     """Move a date on by one period of a rule.
 
     Args:
@@ -87,26 +110,32 @@ def advance(
             than staying on the 28th.
 
     Returns:
-        The next date the rule falls due.
+        The next date the rule falls due, or None if that date would fall past
+        the end of the calendar, which means the schedule is over. datetime.date
+        stops at year 9999, so there is no date to return; a schedule that has
+        run out of calendar is finished, not an error.
 
     Raises:
-        ValueError: If the interval would not move the date forward.
+        ValueError: If the interval would not move the date on.
     """
-    if interval < 1:
-        raise ValueError("A recurrence interval must be at least 1.")
+    _check_interval(interval)
 
     day = anchor_day or current.day
 
     if frequency is RecurrenceFrequency.WEEKLY:
-        return current + timedelta(days=DAYS_IN_WEEK * interval)
+        days = DAYS_IN_WEEK * interval
+
+        return None if (date.max - current).days < days else current + timedelta(days=days)
 
     if frequency is RecurrenceFrequency.YEARLY:
-        return _on_day(current.year + interval, current.month, day)
+        year = current.year + interval
+
+        return None if year > date.max.year else _on_day(year, current.month, day)
 
     # Monthly. Count months from zero so the year rolls over by division.
-    months = current.year * 12 + (current.month - 1) + interval
+    year, month = divmod(current.year * 12 + (current.month - 1) + interval, 12)
 
-    return _on_day(months // 12, months % 12 + 1, day)
+    return None if year > date.max.year else _on_day(year, month + 1, day)
 
 
 def occurrences_until(
@@ -130,19 +159,19 @@ def occurrences_until(
         limit: The most occurrences to return in one pass.
 
     Returns:
-        The due dates, oldest first, at most `limit` of them.
+        The due dates, oldest first, at most `limit` of them. The list stops
+        early if the schedule runs off the end of the calendar.
 
     Raises:
-        ValueError: If the interval would not move the date forward.
+        ValueError: If the interval would not move the date on.
     """
-    if interval < 1:
-        raise ValueError("A recurrence interval must be at least 1.")
+    _check_interval(interval)
 
     last = min(until, end_date) if end_date else until
     dates: list[date] = []
-    current = cursor
+    current: date | None = cursor
 
-    while current <= last and len(dates) < limit:
+    while current is not None and current <= last and len(dates) < limit:
         dates.append(current)
         current = advance(current=current, frequency=frequency, interval=interval, anchor_day=anchor_day)
 
