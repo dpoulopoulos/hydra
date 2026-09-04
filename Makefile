@@ -15,6 +15,7 @@ help:
 	@echo "  make web-build     - Type check and build the frontend"
 	@echo "  make web-format    - Format frontend files"
 	@echo "  make web-lint      - Scan frontend files for linting errors"
+	@echo "  make web-test      - Check the production server config against a real Caddy"
 	@echo "  make web-api       - Regenerate the API client from the backend schema"
 	@echo "  make web-api-check - Check the committed API client is up to date"
 
@@ -91,6 +92,12 @@ web-format:
 .PHONY: web-lint
 web-lint:
 	cd frontend && pnpm lint && pnpm typecheck
+
+# Runs the production Caddyfile in a container and checks what it answers with.
+# Needs Docker; it does not need the app to be built.
+.PHONY: web-test
+web-test:
+	bash ./frontend/scripts/test-caddyfile.sh
 
 # Re-dumps the OpenAPI schema from the backend and regenerates src/api.
 .PHONY: web-api
