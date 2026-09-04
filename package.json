@@ -1,0 +1,8 @@
+{
+  "name": "hydra-infra",
+  "private": true,
+  "description": "Holds the Railway SDK that .railway/railway.ts imports. The app itself lives in backend/ and frontend/.",
+  "devDependencies": {
+    "railway": "^3.11.0"
+  }
+}

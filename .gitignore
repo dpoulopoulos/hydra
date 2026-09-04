@@ -21,3 +21,6 @@ htmlcov
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Railway SDK, installed at the root for .railway/railway.ts
+node_modules/
