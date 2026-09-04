@@ -213,10 +213,10 @@ class ReportService:
 
         self._check_range(date_from=date_from, date_to=date_to)
 
-        buckets = self._month_buckets(date_from=date_from, date_to=date_to)
-
-        if len(buckets) > MAX_FLOW_RANGE_MONTHS:
+        if self._month_count(date_from=date_from, date_to=date_to) > MAX_FLOW_RANGE_MONTHS:
             raise ReportRangeTooLargeError(limit="ten years of monthly figures") from None
+
+        buckets = self._month_buckets(date_from=date_from, date_to=date_to)
 
         rows = self.report_repository.monthly_flows(
             household_id=household.household_id, date_from=date_from, date_to=date_to
@@ -325,6 +325,21 @@ class ReportService:
             The days, oldest first.
         """
         return [date_from + datetime.timedelta(days=offset) for offset in range((date_to - date_from).days + 1)]
+
+    def _month_count(self, date_from: datetime.date, date_to: datetime.date) -> int:
+        """Count the months a range touches, without listing them.
+
+        The guards on how much a request can ask for are checked before any
+        bucket is built, so counting must not pay the cost it is meant to save.
+
+        Args:
+            date_from: First day, inclusive.
+            date_to: Last day, inclusive.
+
+        Returns:
+            How many months the range spans, counting both ends.
+        """
+        return (date_to.year - date_from.year) * 12 + (date_to.month - date_from.month) + 1
 
     def _month_buckets(self, date_from: datetime.date, date_to: datetime.date) -> list[datetime.date]:
         """List the first day of every month a range touches.
