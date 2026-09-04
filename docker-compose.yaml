@@ -54,6 +54,50 @@ services:
         - action: rebuild
           path: ./backend/uv.lock
 
+  frontend:
+    image: hydra-frontend:latest
+    build:
+      context: ./frontend
+    depends_on:
+      - backend
+    environment:
+      # The browser talks to Vite, which forwards /api to the backend over the
+      # compose network. One origin, so CORS never comes into it.
+      VITE_API_TARGET: http://backend:8000
+      # Listen on every interface, and poll for changes: writes arriving from
+      # outside the container are not reliably reported by inotify.
+      VITE_IN_CONTAINER: "true"
+    ports:
+      - "5173:5173"
+    develop:
+      watch:
+        # Source and the entry HTML are synced into the running container, and
+        # Vite's hot reload picks them up. No rebuild, no restart.
+        - action: sync
+          path: ./frontend/src
+          target: /app/src
+        - action: sync
+          path: ./frontend/index.html
+          target: /app/index.html
+        - action: sync
+          path: ./frontend/public
+          target: /app/public
+        # Vite restarts itself when its own config changes, so these only need
+        # to arrive in the container.
+        - action: sync
+          path: ./frontend/vite.config.ts
+          target: /app/vite.config.ts
+        - action: sync
+          path: ./frontend/components.json
+          target: /app/components.json
+        # Dependencies cannot be swapped inside a running install, so these
+        # rebuild the image instead. node_modules is deliberately never synced:
+        # the image builds it for the container's platform.
+        - action: rebuild
+          path: ./frontend/package.json
+        - action: rebuild
+          path: ./frontend/pnpm-lock.yaml
+
   mailcatcher:
     image: schickling/mailcatcher
     restart: unless-stopped

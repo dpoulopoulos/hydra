@@ -1,0 +1,14 @@
+# Built for the host's platform, so the image installs its own.
+node_modules
+
+# Build output and local files.
+dist
+.env
+.env.local
+*.log
+
+# Editor and tooling scratch.
+.playwright-mcp
+.vscode
+.idea
+.DS_Store

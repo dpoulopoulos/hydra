@@ -16,20 +16,31 @@ monthly budgets, and seeing where the money went.
 
 ## Getting started
 
-The backend has to be running: the dev server proxies `/api` to it.
+The usual way is the whole stack, from the repository root:
+
+```bash
+make dev            # API, web app, Postgres, mail catcher
+```
+
+That runs this app in a container on http://localhost:5173, watching `src` and
+reloading in place. Editing `package.json` or `pnpm-lock.yaml` rebuilds the
+image instead, since dependencies cannot be swapped inside a running install.
+
+For frontend-only work it is quicker on the host, which needs a backend running
+somewhere:
 
 ```bash
 pnpm install
 pnpm dev            # http://localhost:5173
 ```
 
-If the backend is not on port 8000, point the proxy at it:
+If that backend is not on port 8000, point the proxy at it:
 
 ```bash
 VITE_API_TARGET=http://localhost:8001 pnpm dev
 ```
 
-From the repository root, `make web` does the same thing.
+`make web` from the root does the same.
 
 ## Scripts
 
@@ -116,6 +127,23 @@ Sixteen routes cover the whole API.
 | `/settings/household`                 | Household, members, invitations                          |
 | `/settings/profile`                   | Your details, password, account deletion                 |
 | `/settings/users`                     | Every account, for a superuser                           |
+
+## Running in the container
+
+`Dockerfile` builds a development image: it installs dependencies and runs
+Vite's dev server. Production packaging is not covered, because how the built
+files are served depends on where this is deployed.
+
+Two things differ inside a container, both switched on by `VITE_IN_CONTAINER`
+in the compose file:
+
+- the dev server binds `0.0.0.0`, without which the published port would reach
+  nothing;
+- the file watcher polls, because writes arriving from outside the container are
+  not reliably reported by inotify.
+
+`node_modules` is never synced from the host. It is built for the container's
+platform, and `.dockerignore` keeps the host's copy out of the image.
 
 ## Notes on the vendored parts
 

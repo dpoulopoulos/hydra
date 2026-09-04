@@ -4,6 +4,11 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import path from 'node:path'
 import { defineConfig } from 'vite'
 
+// Set by the compose stack. Inside a container the dev server has to listen on
+// every interface, and file changes arrive as writes from outside the process,
+// which inotify does not always report through a bind mount or a synced path.
+const inContainer = process.env.VITE_IN_CONTAINER === 'true'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
@@ -14,10 +19,14 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // 0.0.0.0 in a container, so the published port reaches the server.
+    host: inContainer ? true : undefined,
+    watch: inContainer ? { usePolling: true, interval: 300 } : undefined,
     proxy: {
       // Talk to the backend on its own port in development, so the browser
-      // sees one origin and CORS never enters the picture. Override the target
-      // with VITE_API_TARGET when the backend is not on its usual port.
+      // sees one origin and CORS never enters the picture. The compose stack
+      // points this at the backend service; override it with VITE_API_TARGET
+      // when running outside containers on a non-standard port.
       '/api': {
         target: process.env.VITE_API_TARGET ?? 'http://localhost:8000',
         changeOrigin: true,

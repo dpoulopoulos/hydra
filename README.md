@@ -39,21 +39,16 @@ transactions: leaving them out is what keeps the app small.
    cp .env.example .env
    ```
 
-2. Start the backend, Postgres and the mail catcher:
+2. Start everything, the web app, the API, Postgres and a mail catcher:
 
    ```bash
    make dev
    ```
 
-   It watches the source tree, so most edits apply without a rebuild.
+   It watches both source trees. Editing `backend/src/app` or `frontend/src`
+   reloads in place; editing a manifest or lock file rebuilds that image.
 
-3. In a second terminal, start the web app:
-
-   ```bash
-   make web
-   ```
-
-4. Open it:
+3. Open it:
 
    - App: http://localhost:5173
    - API docs: http://localhost:8000/docs
@@ -67,14 +62,15 @@ Run these from the repository root.
 
 | Command | What it does |
 |---------|--------------|
-| `make dev` | Build and start the backend stack |
+| `make dev` | Build and start everything, reloading on changes |
 | `make stop` | Stop the stack |
 | `make clean` | Stop the stack and remove containers, networks, volumes, and images |
 | `make logs` | Follow the backend logs |
+| `make logs-web` | Follow the frontend logs |
 | `make format` | Format the Python code |
 | `make lint` | Check types and lint the Python code |
 | `make test-unit` | Run the unit tests and show coverage |
-| `make web` | Start the web app's dev server |
+| `make web` | Run the web app on the host instead of in Docker |
 | `make web-build` | Type check and build the web app |
 | `make web-format` | Format the frontend code |
 | `make web-lint` | Type check and lint the frontend code |
@@ -87,8 +83,9 @@ every request and response is typed from the source of truth. After changing the
 API, run `make web-api` and the client catches up.
 
 In development the web app proxies `/api` to the backend, so the browser sees a
-single origin and CORS never comes into it. If the backend is not on port 8000,
-set `VITE_API_TARGET`.
+single origin and CORS never comes into it. Inside the compose stack that target
+is the `backend` service; running the web app on the host it defaults to
+`localhost:8000`, overridable with `VITE_API_TARGET`.
 
 ## Three decisions worth knowing before changing things
 
