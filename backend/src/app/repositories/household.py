@@ -50,6 +50,22 @@ class HouseholdRepository(BaseRepository[Household]):
 
         return False
 
+    def get_by_id_for_update(self, household_id: uuid.UUID) -> Household | None:
+        """Get a household, holding a row lock on it until the transaction ends.
+
+        Membership changes decide what happens to the household by counting
+        the members that are left, so two of them going at once have to queue
+        up: without the lock each transaction still sees the other member in
+        place and neither notices that the household ended up empty.
+
+        Args:
+            household_id: The ID of the household.
+
+        Returns:
+            The household if it still exists, None otherwise.
+        """
+        return self.session.get(Household, household_id, with_for_update=True)
+
     def count_members(self, household_id: uuid.UUID) -> int:
         """Count the members of a household.
 
@@ -143,6 +159,26 @@ class HouseholdMemberRepository(BaseRepository[HouseholdMember]):
             .order_by(col(HouseholdMember.created_at))
         )
         return self.session.exec(statement).all()
+
+    def get_longest_standing(self, household_id: uuid.UUID) -> HouseholdMember | None:
+        """Get the member who has been in a household the longest.
+
+        Used to pick a new owner when the last one leaves: seniority is the
+        one ordering the household itself gives us, and it matches who is most
+        likely to have set the household up with them.
+
+        Args:
+            household_id: The ID of the household.
+
+        Returns:
+            The oldest membership if the household has any members, None otherwise.
+        """
+        statement = (
+            select(HouseholdMember)
+            .where(HouseholdMember.household_id == household_id)
+            .order_by(col(HouseholdMember.created_at))
+        )
+        return self.session.exec(statement).first()
 
     def count_by_role(self, household_id: uuid.UUID, role: HouseholdRole) -> int:
         """Count the members of a household holding a role.

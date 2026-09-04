@@ -303,6 +303,7 @@ class TestRemoveMember:
         )
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.side_effect = [(target, another_test_user), None]
+        mock_household_service.session.exec.return_value.one.return_value = 1
 
         result = mock_household_service.remove_member(
             household=context, user_id=another_test_user.id, category_service=MagicMock()
@@ -327,6 +328,7 @@ class TestRemoveMember:
         )
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.side_effect = [(target, another_test_user), None]
+        mock_household_service.session.exec.return_value.one.return_value = 1
         category_service = MagicMock()
 
         mock_household_service.remove_member(
@@ -369,6 +371,7 @@ class TestLeaveHousehold:
         target = HouseholdMember(household_id=household.id, user_id=test_user.id, role=HouseholdRole.MEMBER)
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.side_effect = [(target, test_user), None]
+        mock_household_service.session.exec.return_value.one.return_value = 1
 
         result = mock_household_service.leave_household(household=member_context, category_service=MagicMock())
 
@@ -388,6 +391,7 @@ class TestLeaveHousehold:
         target = HouseholdMember(household_id=household.id, user_id=test_user.id, role=HouseholdRole.MEMBER)
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.side_effect = [(target, test_user), None]
+        mock_household_service.session.exec.return_value.one.return_value = 1
         category_service = MagicMock()
 
         mock_household_service.leave_household(household=member_context, category_service=category_service)
@@ -404,6 +408,130 @@ class TestLeaveHousehold:
 
         with pytest.raises(LastHouseholdOwnerError):
             mock_household_service.leave_household(household=context, category_service=MagicMock())
+
+
+class TestReleaseForUser:
+    """Tests for release_for_user."""
+
+    def test_deletes_the_household_the_last_member_leaves_behind(
+        self,
+        mock_household_service: HouseholdService,
+        test_user: User,
+        household: Household,
+        membership: HouseholdMember,
+    ) -> None:
+        """Nobody could reach it again, so it goes with them."""
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = membership
+        mock_household_service.session.exec.return_value.one.return_value = 0
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        mock_household_service.release_for_user(user=test_user)
+
+        deleted = [call.args[0] for call in mock_household_service.session.delete.call_args_list]
+        assert membership in deleted
+        assert household in deleted
+
+    def test_keeps_a_household_that_still_has_members(
+        self,
+        mock_household_service: HouseholdService,
+        test_user: User,
+        household: Household,
+        membership: HouseholdMember,
+    ) -> None:
+        """The other members' accounts and transactions are still theirs."""
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = membership
+        mock_household_service.session.exec.return_value.one.return_value = 1
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        mock_household_service.release_for_user(user=test_user)
+
+        deleted = [call.args[0] for call in mock_household_service.session.delete.call_args_list]
+        assert membership in deleted
+        assert household not in deleted
+
+    def test_does_nothing_when_the_user_has_no_household(
+        self, mock_household_service: HouseholdService, test_user: User
+    ) -> None:
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = None
+
+        mock_household_service.release_for_user(user=test_user)
+
+        mock_household_service.session.delete.assert_not_called()
+
+    def test_promotes_a_member_when_the_last_owner_goes(
+        self,
+        mock_household_service: HouseholdService,
+        test_user: User,
+        another_test_user: User,
+        household: Household,
+        membership: HouseholdMember,
+    ) -> None:
+        """A household with no owner has no working settings and can be stranded again."""
+        successor = HouseholdMember(household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [membership, successor]
+        mock_household_service.session.exec.return_value.one.side_effect = [1, 0]
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        mock_household_service.release_for_user(user=test_user)
+
+        assert successor.role is HouseholdRole.OWNER
+        assert household not in [call.args[0] for call in mock_household_service.session.delete.call_args_list]
+
+    def test_leaves_the_roles_alone_when_an_owner_remains(
+        self,
+        mock_household_service: HouseholdService,
+        test_user: User,
+        another_test_user: User,
+        household: Household,
+        membership: HouseholdMember,
+    ) -> None:
+        successor = HouseholdMember(household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [membership, successor]
+        mock_household_service.session.exec.return_value.one.side_effect = [2, 1]
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        mock_household_service.release_for_user(user=test_user)
+
+        assert successor.role is HouseholdRole.MEMBER
+
+    def test_locks_the_household_before_counting_its_members(
+        self,
+        mock_household_service: HouseholdService,
+        test_user: User,
+        household: Household,
+        membership: HouseholdMember,
+    ) -> None:
+        """Two members leaving at once would otherwise both see the other in place."""
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = membership
+        mock_household_service.session.exec.return_value.one.return_value = 0
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        mock_household_service.release_for_user(user=test_user)
+
+        assert mock_household_service.session.get.call_args.kwargs["with_for_update"] is True
+
+    def test_does_not_commit(
+        self,
+        mock_household_service: HouseholdService,
+        test_user: User,
+        household: Household,
+        membership: HouseholdMember,
+    ) -> None:
+        """The caller deletes the user in the same transaction."""
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = membership
+        mock_household_service.session.exec.return_value.one.return_value = 0
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        mock_household_service.release_for_user(user=test_user)
+
+        mock_household_service.session.commit.assert_not_called()
 
 
 class TestEnsureEveryUserHasAHousehold:
@@ -726,6 +854,63 @@ class TestAcceptInvite:
         deleted = [call.args[0] for call in mock_household_service.session.delete.call_args_list]
         assert old_membership in deleted
         assert old_household in deleted
+
+    def test_promotes_an_owner_in_the_household_the_user_is_leaving(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        test_user: User,
+        another_test_user: User,
+    ) -> None:
+        """Moving out as its last owner would otherwise strand the household."""
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        old_household = Household(name="Their own household")
+        old_membership = HouseholdMember(
+            household_id=old_household.id, user_id=another_test_user.id, role=HouseholdRole.OWNER
+        )
+        successor = HouseholdMember(
+            household_id=old_household.id, user_id=test_user.id, role=HouseholdRole.MEMBER
+        )
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [
+            invite,
+            old_membership,
+            successor,
+        ]
+        # No financial data, then a member left behind, then no owner among them.
+        mock_household_service.session.exec.return_value.one.side_effect = [0, 0, 0, 0, 1, 0, 2]
+        mock_household_service.session.get = MagicMock(side_effect=[household, old_household])
+
+        mock_household_service.accept_invite(user=another_test_user, token="a-token")
+
+        assert successor.role is HouseholdRole.OWNER
+        assert old_household not in [
+            call.args[0] for call in mock_household_service.session.delete.call_args_list
+        ]
+
+    def test_locks_the_household_the_user_is_leaving(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """Its members are counted, so a member going at the same time has to queue up."""
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        old_household = Household(name="Their own household")
+        old_membership = HouseholdMember(
+            household_id=old_household.id, user_id=another_test_user.id, role=HouseholdRole.OWNER
+        )
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [
+            invite,
+            old_membership,
+        ]
+        mock_household_service.session.exec.return_value.one.side_effect = [0, 0, 0, 0, 0, 2]
+        mock_household_service.session.get = MagicMock(side_effect=[household, old_household])
+
+        mock_household_service.accept_invite(user=another_test_user, token="a-token")
+
+        assert mock_household_service.session.get.call_args.kwargs["with_for_update"] is True
 
     def test_refuses_when_the_users_household_holds_data(
         self,
