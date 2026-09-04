@@ -13,6 +13,7 @@ from app.main import app
 from app.core.security import ALGORITHM, create_access_token, get_password_hash
 from app.models import HouseholdContext, HouseholdRole, User
 from app.repositories import (
+    AccountRepository,
     CategoryRepository,
     EmailVerificationRepository,
     HouseholdMemberRepository,
@@ -21,6 +22,7 @@ from app.repositories import (
     UserRepository,
 )
 from app.services import (
+    AccountService,
     CategoryService,
     EmailVerificationService,
     HouseholdService,
@@ -429,4 +431,40 @@ def household_context(test_user: User) -> HouseholdContext:
         household_id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
         membership_id=uuid.UUID("22222222-2222-2222-2222-222222222222"),
         role=HouseholdRole.OWNER,
+    )
+
+
+@pytest.fixture
+def mock_account_repository(mock_db_session: MagicMock) -> AccountRepository:
+    """Create an AccountRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        An AccountRepository instance with a mocked session.
+    """
+    return AccountRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_account_service(
+    mock_db_session: MagicMock,
+    mock_account_repository: AccountRepository,
+    mock_household_repository: HouseholdRepository,
+) -> AccountService:
+    """Create an AccountService instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+        mock_account_repository: The account repository instance.
+        mock_household_repository: The household repository instance.
+
+    Returns:
+        An AccountService instance with a mocked session.
+    """
+    return AccountService(
+        session=mock_db_session,
+        account_repository=mock_account_repository,
+        household_repository=mock_household_repository,
     )
