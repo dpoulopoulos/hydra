@@ -431,8 +431,9 @@ class TestCopyMonth:
         self, mock_budget_service: BudgetService, household_context: HouseholdContext
     ) -> None:
         source = [make_budget(limit_minor=40_000), make_budget(limit_minor=15_000)]
+        categories = [make_category(name="Food & Drink"), make_category(name="Transport")]
         mock_budget_service.session.exec = MagicMock()
-        mock_budget_service.session.exec.return_value.all.side_effect = [source, [], []]
+        mock_budget_service.session.exec.return_value.all.side_effect = [source, [], categories, []]
 
         mock_budget_service.copy_month(
             household=household_context,
@@ -466,7 +467,12 @@ class TestCopyMonth:
         source = make_budget(category_id=category_id, limit_minor=45_000)
         target = make_budget(category_id=category_id, limit_minor=40_000, period_month=date(2026, 4, 1))
         mock_budget_service.session.exec = MagicMock()
-        mock_budget_service.session.exec.return_value.all.side_effect = [[source], [target], [target]]
+        mock_budget_service.session.exec.return_value.all.side_effect = [
+            [source],
+            [target],
+            [make_category()],
+            [target],
+        ]
 
         mock_budget_service.copy_month(
             household=household_context,
@@ -482,7 +488,7 @@ class TestCopyMonth:
         source = make_budget(limit_minor=45_000)
         stale = make_budget(limit_minor=40_000, period_month=date(2026, 4, 1))
         mock_budget_service.session.exec = MagicMock()
-        mock_budget_service.session.exec.return_value.all.side_effect = [[source], [stale], []]
+        mock_budget_service.session.exec.return_value.all.side_effect = [[source], [stale], [make_category()], []]
 
         mock_budget_service.copy_month(
             household=household_context,
@@ -521,7 +527,7 @@ class TestCopyMonth:
         source = make_budget(category_id=parent.id, limit_minor=50_000)
         target = make_budget(category_id=child.id, limit_minor=30_000, period_month=date(2026, 4, 1))
         mock_budget_service.session.exec = MagicMock()
-        mock_budget_service.session.exec.return_value.all.side_effect = [[source], [target], []]
+        mock_budget_service.session.exec.return_value.all.side_effect = [[source], [target], [parent], []]
 
         mock_budget_service.copy_month(
             household=household_context,
@@ -532,3 +538,25 @@ class TestCopyMonth:
         deleted = [call.args[0] for call in mock_budget_service.session.delete.call_args_list]
         assert [budget.category_id for budget in added] == [parent.id]
         assert deleted == [target]
+
+    def test_refuses_to_copy_a_source_that_budgets_a_parent_and_its_child(
+        self, mock_budget_service: BudgetService, household_context: HouseholdContext
+    ) -> None:
+        """A source month written before the check existed must not be propagated."""
+        parent = make_category(name="Food & Drink")
+        child = make_category(name="Groceries", parent_id=parent.id)
+        source = [
+            make_budget(category_id=parent.id, limit_minor=50_000),
+            make_budget(category_id=child.id, limit_minor=30_000),
+        ]
+        mock_budget_service.session.exec = MagicMock()
+        mock_budget_service.session.exec.return_value.all.side_effect = [source, [], [parent, child]]
+
+        with pytest.raises(BudgetOverlapError):
+            mock_budget_service.copy_month(
+                household=household_context,
+                copy_request=BudgetCopyRequest(from_month="2026-03", to_month="2026-04"),
+            )
+
+        mock_budget_service.session.add.assert_not_called()
+        mock_budget_service.session.commit.assert_not_called()

@@ -245,6 +245,8 @@ class BudgetService:
         Raises:
             BudgetExistsError: If the target month already has budgets and
                 overwrite was not requested.
+            BudgetOverlapError: If the source month budgets both a parent and
+                its subcategory.
         """
         source_month = month_start(copy_request.from_month)
         target_month = month_start(copy_request.to_month)
@@ -259,6 +261,14 @@ class BudgetService:
 
         if existing and not copy_request.overwrite:
             raise BudgetExistsError(identifier=copy_request.to_month) from None
+
+        # The source is what the target month ends up holding, so it carries
+        # the invariant over: a month predating the check must not spread it.
+        self._check_set_has_no_overlap(
+            categories=self.category_repository.get_many_for_household(
+                category_ids=[budget.category_id for budget in source], household_id=household.household_id
+            )
+        )
 
         for budget in source:
             target = existing.pop(budget.category_id, None)

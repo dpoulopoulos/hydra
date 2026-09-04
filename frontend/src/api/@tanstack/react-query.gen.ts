@@ -1368,7 +1368,8 @@ export const budgetsBulkUpsertBudgetsMutation = (options?: Partial<Options<Budge
  *
  * Raises:
  * HTTPException: If the target month already has budgets and overwrite was
- * not requested (409).
+ * not requested, or the source month budgets both a parent and its
+ * subcategory (409).
  */
 export const budgetsCopyBudgetsMutation = (options?: Partial<Options<BudgetsCopyBudgetsData>>): UseMutationOptions<BudgetsCopyBudgetsResponse, BudgetsCopyBudgetsError, Options<BudgetsCopyBudgetsData>> => {
     const mutationOptions: UseMutationOptions<BudgetsCopyBudgetsResponse, BudgetsCopyBudgetsError, Options<BudgetsCopyBudgetsData>> = {

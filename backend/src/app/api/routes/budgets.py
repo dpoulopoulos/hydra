@@ -137,7 +137,8 @@ def copy_budgets(
 
     Raises:
         HTTPException: If the target month already has budgets and overwrite was
-            not requested (409).
+            not requested, or the source month budgets both a parent and its
+            subcategory (409).
     """
     return budget_service.copy_month(household=household, copy_request=copy_in)
 
