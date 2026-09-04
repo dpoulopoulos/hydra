@@ -17,7 +17,9 @@ manage the same accounts, categories, budgets and transactions.
 - `.railway/railway.ts` — the deployed project: which services exist, how they
   are wired, and where each builds from.
 - `DEPLOY.md` — deploying to Railway, step by step.
-- `.github/workflows/` — CI checks on every pull request: format, lint, tests, migrations.
+- `.github/workflows/` — CI checks on every pull request, over both halves:
+  format, lint, tests, migrations, the frontend build, and whether the generated
+  API client is still in sync.
 
 ## What it does
 
@@ -78,6 +80,7 @@ Run these from the repository root.
 | `make web-format` | Format the frontend code |
 | `make web-lint` | Type check and lint the frontend code |
 | `make web-api` | Regenerate the API client from the backend's schema |
+| `make web-api-check` | Fail if the committed API client is out of date |
 
 ## Deploying to Railway
 
@@ -109,6 +112,11 @@ and mail lands in the mail catcher, unchanged.
 The frontend's API client is **generated** from the backend's OpenAPI schema, so
 every request and response is typed from the source of truth. After changing the
 API, run `make web-api` and the client catches up.
+
+CI regenerates the client on every pull request and fails if the result differs
+from what is committed, so a forgotten `make web-api` cannot merge. It also type
+checks the frontend against the client, which is what makes "the two cannot
+drift" a check rather than a convention.
 
 In development the web app proxies `/api` to the backend, so the browser sees a
 single origin and CORS never comes into it. Inside the compose stack that target
