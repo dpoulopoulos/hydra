@@ -95,18 +95,19 @@ class UserService:
     def create_user(
         self,
         user_create: UserCreate | UserRegister,
+        category_service: "CategorySeeder",
         household_service: "HouseholdService | None" = None,
-        category_service: "CategorySeeder | None" = None,
     ) -> UserPublic:
         """Create a new user.
 
         Args:
             user_create: The user creation data.
+            category_service: The category service, used to seed the default
+                categories of the new household. Required, so the household is
+                never left without them.
             household_service: Optional household service. When given, a
                 household is provisioned for the user in the same transaction,
                 so a user is never observable without one.
-            category_service: Optional category service, used to seed the
-                default categories of the new household.
 
         Note:
             When the registration carries an invite token, the user joins the

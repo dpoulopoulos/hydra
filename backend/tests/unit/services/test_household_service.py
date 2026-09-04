@@ -110,7 +110,7 @@ class TestProvisionForUser:
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.return_value = None
 
-        result = mock_household_service.provision_for_user(user=test_user)
+        result = mock_household_service.provision_for_user(user=test_user, category_service=MagicMock())
 
         assert isinstance(result, HouseholdPublic)
         assert result.name == "Test User's household"
@@ -130,7 +130,9 @@ class TestProvisionForUser:
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.return_value = None
 
-        result = mock_household_service.provision_for_user(user=test_user, name="The Flat")
+        result = mock_household_service.provision_for_user(
+            user=test_user, name="The Flat", category_service=MagicMock()
+        )
 
         assert result.name == "The Flat"
 
@@ -141,11 +143,11 @@ class TestProvisionForUser:
         mock_household_service.session.exec.return_value.first.return_value = membership
 
         with pytest.raises(HouseholdMemberExistsError):
-            mock_household_service.provision_for_user(user=test_user)
+            mock_household_service.provision_for_user(user=test_user, category_service=MagicMock())
 
         mock_household_service.session.commit.assert_not_called()
 
-    def test_seeds_categories_when_a_category_service_is_given(
+    def test_seeds_the_categories_of_the_household(
         self, mock_household_service: HouseholdService, test_user: User
     ) -> None:
         mock_household_service.session.exec = MagicMock()
@@ -302,7 +304,9 @@ class TestRemoveMember:
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.side_effect = [(target, another_test_user), None]
 
-        result = mock_household_service.remove_member(household=context, user_id=another_test_user.id)
+        result = mock_household_service.remove_member(
+            household=context, user_id=another_test_user.id, category_service=MagicMock()
+        )
 
         assert isinstance(result, Message)
         mock_household_service.session.delete.assert_called_once_with(target)
@@ -345,7 +349,9 @@ class TestRemoveMember:
         mock_household_service.session.exec.return_value.one.return_value = 1
 
         with pytest.raises(LastHouseholdOwnerError):
-            mock_household_service.remove_member(household=context, user_id=membership.user_id)
+            mock_household_service.remove_member(
+                household=context, user_id=membership.user_id, category_service=MagicMock()
+            )
 
 
 class TestLeaveHousehold:
@@ -364,7 +370,7 @@ class TestLeaveHousehold:
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.side_effect = [(target, test_user), None]
 
-        result = mock_household_service.leave_household(household=member_context)
+        result = mock_household_service.leave_household(household=member_context, category_service=MagicMock())
 
         assert isinstance(result, Message)
         mock_household_service.session.delete.assert_called_once_with(target)
@@ -397,7 +403,7 @@ class TestLeaveHousehold:
         mock_household_service.session.exec.return_value.one.return_value = 1
 
         with pytest.raises(LastHouseholdOwnerError):
-            mock_household_service.leave_household(household=context)
+            mock_household_service.leave_household(household=context, category_service=MagicMock())
 
 
 class TestEnsureEveryUserHasAHousehold:
@@ -410,13 +416,13 @@ class TestEnsureEveryUserHasAHousehold:
         mock_household_service.session.exec.return_value.all.return_value = [test_user, another_test_user]
         mock_household_service.session.exec.return_value.first.return_value = None
 
-        assert mock_household_service.ensure_every_user_has_a_household() == 2
+        assert mock_household_service.ensure_every_user_has_a_household(category_service=MagicMock()) == 2
 
     def test_does_nothing_when_every_user_has_one(self, mock_household_service: HouseholdService) -> None:
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.all.return_value = []
 
-        assert mock_household_service.ensure_every_user_has_a_household() == 0
+        assert mock_household_service.ensure_every_user_has_a_household(category_service=MagicMock()) == 0
         mock_household_service.session.commit.assert_not_called()
 
 
@@ -777,7 +783,7 @@ class TestCreateForUserWithInvite:
         mock_household_service.session.get = MagicMock(return_value=household)
 
         result = mock_household_service.create_for_user(
-            user=another_test_user, invite_token="a-token"
+            user=another_test_user, invite_token="a-token", category_service=MagicMock()
         )
 
         assert result.id == household.id
@@ -797,7 +803,9 @@ class TestCreateForUserWithInvite:
         mock_household_service.session.exec.return_value.first.return_value = invite
         mock_household_service.session.get = MagicMock(return_value=household)
 
-        mock_household_service.create_for_user(user=another_test_user, invite_token="a-token")
+        mock_household_service.create_for_user(
+            user=another_test_user, invite_token="a-token", category_service=MagicMock()
+        )
 
         mock_household_service.session.commit.assert_not_called()
 
@@ -813,5 +821,5 @@ class TestCreateForUserWithInvite:
 
         with pytest.raises(HouseholdInviteEmailMismatchError):
             mock_household_service.create_for_user(
-                user=another_test_user, invite_token="a-token"
+                user=another_test_user, invite_token="a-token", category_service=MagicMock()
             )

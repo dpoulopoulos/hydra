@@ -124,8 +124,8 @@ class HouseholdService:
     def provision_for_user(
         self,
         user: User,
+        category_service: CategorySeeder,
         name: str | None = None,
-        category_service: CategorySeeder | None = None,
     ) -> HouseholdPublic:
         """Create a household for a user and make them its owner.
 
@@ -135,10 +135,10 @@ class HouseholdService:
 
         Args:
             user: The user to provision a household for.
-            name: An optional household name. Defaults to a name based on the user.
             category_service: The category service, used to seed the default
                 categories in the same transaction. A household is never
-                observable without its categories.
+                observable without its categories, so this is required.
+            name: An optional household name. Defaults to a name based on the user.
 
         Returns:
             The created household.
@@ -237,7 +237,7 @@ class HouseholdService:
         return self._member_to_public(membership=membership, user=user)
 
     def remove_member(
-        self, household: HouseholdContext, user_id: uuid.UUID, category_service: CategorySeeder | None = None
+        self, household: HouseholdContext, user_id: uuid.UUID, category_service: CategorySeeder
     ) -> Message:
         """Remove a member from the household.
 
@@ -266,7 +266,7 @@ class HouseholdService:
 
         return Message(message="Member removed from the household.")
 
-    def leave_household(self, household: HouseholdContext, category_service: CategorySeeder | None = None) -> Message:
+    def leave_household(self, household: HouseholdContext, category_service: CategorySeeder) -> Message:
         """Leave the household.
 
         Args:
@@ -289,7 +289,7 @@ class HouseholdService:
 
         return Message(message="You have left the household.")
 
-    def ensure_every_user_has_a_household(self, category_service: CategorySeeder | None = None) -> int:
+    def ensure_every_user_has_a_household(self, category_service: CategorySeeder) -> int:
         """Provision a household for every user that does not have one.
 
         Run at startup. Accounts that existed before households did, and any
@@ -318,8 +318,8 @@ class HouseholdService:
     def create_for_user(
         self,
         user: User,
+        category_service: CategorySeeder,
         name: str | None = None,
-        category_service: CategorySeeder | None = None,
         invite_token: str | None = None,
     ) -> Household:
         """Give a user a household, without committing.
@@ -335,8 +335,10 @@ class HouseholdService:
 
         Args:
             user: The user to give a household to.
+            category_service: The category service, used to seed the default
+                categories. Required, so a household cannot be created without
+                them by forgetting an argument.
             name: An optional household name. Defaults to a name based on the user.
-            category_service: The category service, used to seed the default categories.
             invite_token: An optional invite to join instead of creating a household.
 
         Returns:
@@ -358,12 +360,11 @@ class HouseholdService:
         membership = HouseholdMember(household_id=household.id, user_id=user.id, role=HouseholdRole.OWNER)
         self.household_member_repository.save(membership)
 
-        if category_service:
-            category_service.seed_defaults(household_id=household.id)
+        category_service.seed_defaults(household_id=household.id)
 
         return household
 
-    def _detach(self, membership: HouseholdMember, user: User, category_service: CategorySeeder | None) -> None:
+    def _detach(self, membership: HouseholdMember, user: User, category_service: CategorySeeder) -> None:
         """Remove a membership and provision a replacement household, in one transaction.
 
         Args:
