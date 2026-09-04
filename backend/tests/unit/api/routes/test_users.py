@@ -15,7 +15,7 @@ from app.exceptions import (
 from app.exceptions.password_exceptions import PasswordIsWrongError
 from app.main import app
 from app.models import Message, User, UserPublic, UsersPublic
-from app.services import UserService
+from app.services import HouseholdService, UserService
 
 
 class TestCreateUser:
@@ -850,6 +850,35 @@ class TestDeleteUserMe:
         finally:
             app.dependency_overrides.clear()
 
+    def test_delete_user_me_hands_over_the_household_service(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Without it the user's household would be left behind."""
+        # Arrange: Set up dependency overrides and mock delete_user_me
+        def override_get_db() -> Generator[MagicMock, None, None]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        try:
+            success_message = Message(message="User deleted successfully.")
+            with patch.object(UserService, "delete_user_me", return_value=success_message) as delete_user_me:
+                # Act: Delete current user
+                response = client.delete("/api/v1/users/me")
+
+                # Assert: Verify the household service reached the service call
+                assert response.status_code == 200
+                assert isinstance(delete_user_me.call_args.kwargs["household_service"], HouseholdService)
+        finally:
+            app.dependency_overrides.clear()
+
     def test_delete_user_me_superuser(
         self,
         client: TestClient,
@@ -911,6 +940,37 @@ class TestDeleteUser:
 
                 assert response.status_code == 200
                 assert data["message"] == "User deleted successfully"
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_delete_user_hands_over_the_household_service(
+        self,
+        client: TestClient,
+        test_superuser: User,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """A superuser deleting somebody must not leave their household either."""
+        # Arrange: Set up dependency overrides and mock delete_user
+        def override_get_db() -> Generator[MagicMock, None, None]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_superuser
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        app.dependency_overrides[get_current_active_superuser] = override_get_current_user
+
+        try:
+            success_message = Message(message="User deleted successfully")
+            with patch.object(UserService, "delete_user", return_value=success_message) as delete_user:
+                # Act: Delete the user as a superuser
+                response = client.delete(f"/api/v1/users/{test_user.id}")
+
+                # Assert: Verify the household service reached the service call
+                assert response.status_code == 200
+                assert isinstance(delete_user.call_args.kwargs["household_service"], HouseholdService)
         finally:
             app.dependency_overrides.clear()
 

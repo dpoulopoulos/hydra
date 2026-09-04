@@ -338,11 +338,14 @@ class UserService:
 
         return Message(message="Password updated successfully.")
 
-    def delete_user_me(self, user: User) -> Message:
+    def delete_user_me(self, user: User, household_service: "HouseholdService | None" = None) -> Message:
         """Delete the current user.
 
         Args:
             user: The current authenticated user.
+            household_service: Optional household service. When given, the
+                household the user leaves behind is released in the same
+                transaction, so no household is left without a member.
 
         Returns:
             A message indicating that the user was deleted successfully.
@@ -353,17 +356,23 @@ class UserService:
         if user.is_superuser:
             raise DeleteSuperUserError from None
 
+        if household_service:
+            household_service.release_for_user(user=user)
+
         self.user_repository.delete(user)
         self.user_repository.flush()
         self.session.commit()
 
         return Message(message="User deleted successfully.")
 
-    def delete_user(self, user_id: uuid.UUID) -> Message:
+    def delete_user(self, user_id: uuid.UUID, household_service: "HouseholdService | None" = None) -> Message:
         """Delete a user.
 
         Args:
             user_id: The ID of the user to delete.
+            household_service: Optional household service. When given, the
+                household the user leaves behind is released in the same
+                transaction, so no household is left without a member.
 
         Returns:
             A message indicating that the user was deleted successfully.
@@ -378,6 +387,9 @@ class UserService:
             raise UserNotFoundError from None
         if user.is_superuser:
             raise DeleteSuperUserError from None
+
+        if household_service:
+            household_service.release_for_user(user=user)
 
         self.user_repository.delete(user)
         self.user_repository.flush()

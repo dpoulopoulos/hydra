@@ -182,7 +182,7 @@
           "users"
         ],
         "summary": "Delete User Me",
-        "description": "Delete the current user.\n\nArgs:\n    user_service: The user service dependency.\n    current_user: The current authenticated user.\n\nReturns:\n    A message indicating that the user was deleted successfully.\n\nRaises:\n    HTTPException: If a superuser tries to delete their own account (400), the token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
+        "description": "Delete the current user.\n\nArgs:\n    user_service: The user service dependency.\n    household_service: The household service dependency, used to release\n        the household the user leaves behind.\n    current_user: The current authenticated user.\n\nReturns:\n    A message indicating that the user was deleted successfully.\n\nRaises:\n    HTTPException: If a superuser tries to delete their own account (400), the token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
         "operationId": "users-delete_user_me",
         "responses": {
           "200": {
@@ -358,7 +358,7 @@
           "users"
         ],
         "summary": "Delete User",
-        "description": "Delete a user.\n\nThis endpoint is only accessible to superusers.\n\nArgs:\n    user_service: The user service dependency.\n    user_id: The ID of the user to delete.\n\nReturns:\n    A message indicating that the user was deleted successfully.\n\nRaises:\n    HTTPException: If the user to delete is not found (404), trying to delete any superuser account (400),\n        the current user is not authorized (403), or the token is invalid (401).",
+        "description": "Delete a user.\n\nThis endpoint is only accessible to superusers.\n\nArgs:\n    user_service: The user service dependency.\n    household_service: The household service dependency, used to release\n        the household the user leaves behind.\n    user_id: The ID of the user to delete.\n\nReturns:\n    A message indicating that the user was deleted successfully.\n\nRaises:\n    HTTPException: If the user to delete is not found (404), trying to delete any superuser account (400),\n        the current user is not authorized (403), or the token is invalid (401).",
         "operationId": "users-delete_user",
         "security": [
           {

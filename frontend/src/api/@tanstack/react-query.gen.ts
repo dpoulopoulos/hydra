@@ -151,6 +151,8 @@ export const usersRegisterUserMutation = (options?: Partial<Options<UsersRegiste
  *
  * Args:
  * user_service: The user service dependency.
+ * household_service: The household service dependency, used to release
+ * the household the user leaves behind.
  * current_user: The current authenticated user.
  *
  * Returns:
@@ -245,6 +247,8 @@ export const usersUpdateUserMeMutation = (options?: Partial<Options<UsersUpdateU
  *
  * Args:
  * user_service: The user service dependency.
+ * household_service: The household service dependency, used to release
+ * the household the user leaves behind.
  * user_id: The ID of the user to delete.
  *
  * Returns:
