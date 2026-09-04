@@ -1,7 +1,9 @@
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import httpx
 import jwt
 import pytest
 
@@ -174,7 +176,7 @@ class TestSendVerificationEmail:
 
         # Act
         with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
-            with patch("app.services.email_verification.send_email") as mock_send_email:
+            with patch("app.services.email_verification.try_send_email") as mock_send_email:
                 with patch("app.services.email_verification.generate_email_verification_email") as mock_generate:
                     mock_generate.return_value = MagicMock(subject="Verify Email", html_content="<html>Test</html>")
                     result = mock_email_verification_service.send_verification_email(
@@ -185,6 +187,34 @@ class TestSendVerificationEmail:
         assert isinstance(result, Message)
         assert result.message == "Verification email sent successfully."
         mock_send_email.assert_called_once()
+
+    def test_send_verification_email_survives_a_delivery_failure(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        caplog,
+    ) -> None:
+        """Test that a delivery failure is logged instead of failing the request."""
+        # Arrange: The verification row is written, then the provider rate limits us
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        request = httpx.Request("POST", "https://api.resend.com/emails")
+        rate_limited = httpx.HTTPStatusError("429", request=request, response=httpx.Response(429))
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            with patch("app.utils.email_utils.send_email", side_effect=rate_limited):
+                with caplog.at_level(logging.ERROR, logger="app.utils.email_utils"):
+                    result = mock_email_verification_service.send_verification_email(
+                        user_service=mock_user_service, user_email=test_user.email
+                    )
+
+        # Assert: Verify the caller is not handed a failure and the log has the reason
+        assert isinstance(result, Message)
+        assert test_user.email in caplog.text
+        assert "HTTPStatusError" in caplog.text
 
     def test_send_verification_email_success_with_emails_disabled(
         self,
@@ -202,7 +232,7 @@ class TestSendVerificationEmail:
 
         # Act
         with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
-            with patch("app.services.email_verification.send_email") as mock_send_email:
+            with patch("app.services.email_verification.try_send_email") as mock_send_email:
                 result = mock_email_verification_service.send_verification_email(
                     user_service=mock_user_service, user_email=test_user.email
                 )
@@ -264,7 +294,7 @@ class TestSendVerificationEmail:
 
         # Act: Send a verification email at that later point in time
         with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
-            with patch("app.services.email_verification.send_email"):
+            with patch("app.services.email_verification.try_send_email"):
                 with patch("app.services.email_verification.generate_email_verification_email"):
                     with patch("app.services.email_verification.datetime") as mock_datetime:
                         mock_datetime.now.return_value = request_time
