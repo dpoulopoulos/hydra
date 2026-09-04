@@ -7,6 +7,13 @@ from sqlmodel import Field, SQLModel
 from .fields import MAX_AMOUNT_MINOR, MonthKey
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
+# How many category limits one bulk update may carry. Every entry becomes a
+# bind parameter in the category lookup and a row in the same transaction, and
+# the driver caps a statement at 65535 parameters, so an unbounded list is a
+# driver error rather than a validation one. A real month holds one entry per
+# expense category, on the order of dozens.
+MAX_BULK_ENTRIES = 500
+
 
 class BudgetCreate(SQLModel):
     category_id: uuid.UUID
@@ -32,7 +39,7 @@ class BudgetBulkUpsert(SQLModel):
     """The complete set of limits for one month."""
 
     month: MonthKey
-    entries: list[BudgetEntry]
+    entries: list[BudgetEntry] = Field(max_length=MAX_BULK_ENTRIES)
 
 
 class BudgetCopyRequest(SQLModel):

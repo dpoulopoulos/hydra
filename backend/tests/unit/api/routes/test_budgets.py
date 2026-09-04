@@ -16,6 +16,7 @@ from app.exceptions import (
 )
 from app.main import app
 from app.models import BudgetPublic, BudgetsPublic, HouseholdContext, Message, User
+from app.models.budget import MAX_BULK_ENTRIES
 from app.models.fields import MAX_AMOUNT_MINOR
 
 BUDGET_ID = uuid.UUID("66666666-6666-6666-6666-666666666666")
@@ -236,6 +237,25 @@ class TestBulkUpsertBudgets:
 
         assert response.status_code == 200
         assert response.json()["count"] == 0
+
+
+    def test_rejects_more_entries_than_a_month_could_hold(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        """Every entry is a bind parameter and an insert, and the driver has a ceiling."""
+        response = client.put(
+            "/api/v1/budgets/bulk",
+            headers=auth_headers,
+            json={
+                "month": "2026-03",
+                "entries": [
+                    {"category_id": str(uuid.uuid4()), "limit_minor": 1}
+                    for _ in range(MAX_BULK_ENTRIES + 1)
+                ],
+            },
+        )
+
+        assert response.status_code == 422
 
 
 class TestCopyBudgets:
