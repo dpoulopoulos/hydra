@@ -25,6 +25,7 @@ from app.models import (
     Message,
     User,
 )
+from app.models.category import MAX_SORT_ORDER
 
 CATEGORY_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
 
@@ -99,6 +100,20 @@ class TestCreateCategory:
         )
 
         assert response.status_code == 400
+
+
+    @pytest.mark.parametrize("sort_order", [MAX_SORT_ORDER + 1, -1])
+    def test_rejects_an_order_outside_the_range(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str], sort_order: int
+    ) -> None:
+        """The column is a plain integer, so an out-of-range order is a 422, not a 500."""
+        response = client.post(
+            "/api/v1/categories/",
+            headers=auth_headers,
+            json={"name": "Boats", "sort_order": sort_order},
+        )
+
+        assert response.status_code == 422
 
 
 class TestListCategories:
@@ -232,6 +247,18 @@ class TestUpdateCategory:
         )
 
         assert response.status_code == 400
+
+
+    def test_rejects_an_order_beyond_the_range(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        response = client.patch(
+            f"/api/v1/categories/{CATEGORY_ID}",
+            headers=auth_headers,
+            json={"sort_order": MAX_SORT_ORDER + 1},
+        )
+
+        assert response.status_code == 422
 
 
 class TestDeleteCategory:

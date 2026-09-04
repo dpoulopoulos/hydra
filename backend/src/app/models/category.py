@@ -7,6 +7,11 @@ from sqlmodel import Field, SQLModel
 
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
+# The ordering column is a plain integer, which Postgres tops out at 2**31 - 1,
+# and it is only a display hint on a list a household edits by hand. A small
+# ceiling keeps an absurd value a validation error rather than a driver one.
+MAX_SORT_ORDER = 10_000
+
 
 class CategoryKind(StrEnum):
     EXPENSE = "expense"
@@ -20,10 +25,15 @@ class CategoryBase(SQLModel):
     # shipped screens that assume categories have no colour.
     icon: str | None = Field(default=None, max_length=64)
     color: str | None = Field(default=None, max_length=16)
+    # Bounded on the input models rather than here. This base is also the base
+    # of the table and of the response models, and a row stored before the
+    # bound existed still has to be readable: validating a response against a
+    # rule the stored row never had to meet turns a read into a 500.
     sort_order: int = Field(default=0)
 
 
 class CategoryCreate(CategoryBase):
+    sort_order: int = Field(default=0, ge=0, le=MAX_SORT_ORDER)
     parent_id: uuid.UUID | None = None
 
 
@@ -32,7 +42,7 @@ class CategoryUpdate(SQLModel):
     parent_id: uuid.UUID | None = Field(default=None)
     icon: str | None = Field(default=None, max_length=64)
     color: str | None = Field(default=None, max_length=16)
-    sort_order: int | None = Field(default=None)
+    sort_order: int | None = Field(default=None, ge=0, le=MAX_SORT_ORDER)
     is_archived: bool | None = Field(default=None)
 
 

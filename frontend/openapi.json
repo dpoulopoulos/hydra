@@ -3931,6 +3931,8 @@
           },
           "sort_order": {
             "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
             "title": "Sort Order",
             "default": 0
           },
@@ -4339,7 +4341,9 @@
           "sort_order": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"

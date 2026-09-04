@@ -11,14 +11,43 @@ import uuid
 from datetime import UTC, date, datetime
 
 from app.models import (
+    CategoryPublic,
     RecurrenceFrequency,
     RecurringRulePublic,
     TransactionKind,
     TransactionPublic,
 )
+from app.models.category import MAX_SORT_ORDER
 from app.models.fields import MAX_AMOUNT_MINOR
 
 HOUSEHOLD_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+
+class TestCategoryPublic:
+    """A category ordering stored before the ordering was bounded."""
+
+    def test_reads_back_an_order_outside_the_bounds(self) -> None:
+        stored = {
+            "id": uuid.uuid4(),
+            "household_id": HOUSEHOLD_ID,
+            "name": "Boats",
+            "sort_order": MAX_SORT_ORDER + 1,
+            "created_at": datetime.now(UTC),
+        }
+
+        assert CategoryPublic.model_validate(stored).sort_order == MAX_SORT_ORDER + 1
+
+    def test_reads_back_a_negative_order(self) -> None:
+        """A negative order was accepted before this bound and nothing clamps it."""
+        stored = {
+            "id": uuid.uuid4(),
+            "household_id": HOUSEHOLD_ID,
+            "name": "Boats",
+            "sort_order": -1,
+            "created_at": datetime.now(UTC),
+        }
+
+        assert CategoryPublic.model_validate(stored).sort_order == -1
 
 
 class TestTransactionPublic:
