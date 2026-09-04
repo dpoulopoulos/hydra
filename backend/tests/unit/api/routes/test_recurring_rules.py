@@ -27,6 +27,7 @@ from app.models import (
     User,
 )
 from app.models.fields import MAX_AMOUNT_MINOR
+from app.models.recurring_rule import MAX_RECURRENCE_INTERVAL
 
 RULE_ID = uuid.UUID("77777777-7777-7777-7777-777777777777")
 ACCOUNT_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
@@ -159,6 +160,24 @@ class TestCreateRecurringRule:
             json={
                 "name": "Rent",
                 "interval": 0,
+                "start_date": "2026-01-01",
+                "amount_minor": 1,
+                "account_id": str(ACCOUNT_ID),
+            },
+        )
+
+        assert response.status_code == 422
+
+    def test_rejects_an_interval_beyond_the_cap(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        """A fat-fingered interval would push the schedule past the last date there is."""
+        response = client.post(
+            "/api/v1/recurring-rules/",
+            headers=auth_headers,
+            json={
+                "name": "Rent",
+                "interval": MAX_RECURRENCE_INTERVAL + 1,
                 "start_date": "2026-01-01",
                 "amount_minor": 1,
                 "account_id": str(ACCOUNT_ID),
@@ -323,6 +342,18 @@ class TestUpdateRecurringRule:
         )
 
         assert wire.update_rule.call_args.kwargs["rule_update"].is_active is False
+
+
+    def test_rejects_an_interval_beyond_the_cap(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        response = client.patch(
+            f"/api/v1/recurring-rules/{RULE_ID}",
+            headers=auth_headers,
+            json={"interval": MAX_RECURRENCE_INTERVAL + 1},
+        )
+
+        assert response.status_code == 422
 
 
 class TestDeleteRecurringRule:

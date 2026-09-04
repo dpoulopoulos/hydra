@@ -4965,6 +4965,7 @@
           },
           "interval": {
             "type": "integer",
+            "maximum": 1200.0,
             "minimum": 1.0,
             "title": "Interval",
             "default": 1
@@ -5283,6 +5284,7 @@
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 1200.0,
                 "minimum": 1.0
               },
               {

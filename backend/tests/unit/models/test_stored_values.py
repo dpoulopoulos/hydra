@@ -19,6 +19,7 @@ from app.models import (
 )
 from app.models.category import MAX_SORT_ORDER
 from app.models.fields import MAX_AMOUNT_MINOR
+from app.models.recurring_rule import MAX_RECURRENCE_INTERVAL
 
 HOUSEHOLD_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
@@ -68,14 +69,16 @@ class TestTransactionPublic:
 
 
 class TestRecurringRulePublic:
-    """A rule amount stored before the money fields were capped."""
+    """A rule stored before either of its bounds existed."""
 
     def test_reads_back_an_amount_above_the_cap(self) -> None:
         assert _rule(amount_minor=MAX_AMOUNT_MINOR + 1).amount_minor == MAX_AMOUNT_MINOR + 1
 
+    def test_reads_back_an_interval_above_the_cap(self) -> None:
+        assert _rule(interval=MAX_RECURRENCE_INTERVAL + 1).interval == MAX_RECURRENCE_INTERVAL + 1
 
 
-def _rule(amount_minor: int = 120_000) -> RecurringRulePublic:
+def _rule(amount_minor: int = 120_000, interval: int = 1) -> RecurringRulePublic:
     """Validate a stored recurring rule as it is read back."""
     return RecurringRulePublic.model_validate(
         {
@@ -84,7 +87,7 @@ def _rule(amount_minor: int = 120_000) -> RecurringRulePublic:
             "account_id": uuid.uuid4(),
             "name": "Rent",
             "frequency": RecurrenceFrequency.MONTHLY,
-            "interval": 1,
+            "interval": interval,
             "start_date": date(2026, 1, 1),
             "kind": TransactionKind.EXPENSE,
             "amount_minor": amount_minor,
