@@ -91,6 +91,28 @@ beforeEach(() => {
   budgetsAre([budget(GROCERIES, 30000), budget(TRANSPORT, 10000)])
 })
 
+describe('loading the month', () => {
+  it('offers nothing to save while the saved limits are still on the way', async () => {
+    vi.mocked(api.budgetsListBudgets).mockReturnValue(new Promise(() => {}) as never)
+    renderEditor()
+
+    expect(await screen.findByText('Budgets for March 2026')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Groceries')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save budgets' })).not.toBeInTheDocument()
+  })
+
+  it('offers nothing to save when the saved limits failed to load', async () => {
+    vi.mocked(api.budgetsListBudgets).mockResolvedValue({
+      error: { detail: 'Budgets are unavailable.' },
+    } as never)
+    renderEditor()
+
+    expect(await screen.findByText('Budgets are unavailable.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Groceries')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save budgets' })).not.toBeInTheDocument()
+  })
+})
+
 describe('cancelling', () => {
   it('drops the edits, so a reopened dialog shows the saved limits', async () => {
     const user = userEvent.setup()

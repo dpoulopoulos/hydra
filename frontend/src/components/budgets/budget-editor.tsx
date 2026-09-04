@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import { budgetsBulkUpsertBudgets, budgetsListBudgets, CategoryKind } from '@/api'
+import { ErrorState, LoadingRows } from '@/components/data-state'
 import { FormError } from '@/components/form-field'
 import { MoneyInput } from '@/components/money-input'
 import { SubmitButton } from '@/components/submit-button'
@@ -129,55 +130,66 @@ export function BudgetEditor({
 
         <FormError message={save.isError ? errorMessage(save.error) : null} />
 
-        <ScrollArea className="-mx-2 max-h-[50vh] px-2">
-          <div className="space-y-4">
-            {parents.map((parent) => (
-              <div key={parent.id} className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <Label htmlFor={`limit-${parent.id}`} className="flex-1 font-medium">
-                    {parent.name}
-                  </Label>
-                  <MoneyInput
-                    id={`limit-${parent.id}`}
-                    currency={currency}
-                    className="w-40"
-                    value={valueFor(parent.id)}
-                    onChange={(event) =>
-                      setEdits((current) => ({ ...current, [parent.id]: event.target.value }))
-                    }
-                  />
-                </div>
-                {(parent.children ?? []).map((child) => (
-                  <div key={child.id} className="flex items-center gap-3 pl-4">
-                    <Label
-                      htmlFor={`limit-${child.id}`}
-                      className="text-muted-foreground flex-1 font-normal"
-                    >
-                      {child.name}
+        {existing.isPending ? (
+          <LoadingRows rows={5} />
+        ) : existing.isError ? (
+          <ErrorState error={existing.error} title="These budgets did not load" />
+        ) : (
+          <ScrollArea className="-mx-2 max-h-[50vh] px-2">
+            <div className="space-y-4">
+              {parents.map((parent) => (
+                <div key={parent.id} className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor={`limit-${parent.id}`} className="flex-1 font-medium">
+                      {parent.name}
                     </Label>
                     <MoneyInput
-                      id={`limit-${child.id}`}
+                      id={`limit-${parent.id}`}
                       currency={currency}
                       className="w-40"
-                      value={valueFor(child.id)}
+                      value={valueFor(parent.id)}
                       onChange={(event) =>
-                        setEdits((current) => ({ ...current, [child.id]: event.target.value }))
+                        setEdits((current) => ({ ...current, [parent.id]: event.target.value }))
                       }
                     />
                   </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
+                  {(parent.children ?? []).map((child) => (
+                    <div key={child.id} className="flex items-center gap-3 pl-4">
+                      <Label
+                        htmlFor={`limit-${child.id}`}
+                        className="text-muted-foreground flex-1 font-normal"
+                      >
+                        {child.name}
+                      </Label>
+                      <MoneyInput
+                        id={`limit-${child.id}`}
+                        currency={currency}
+                        className="w-40"
+                        value={valueFor(child.id)}
+                        onChange={(event) =>
+                          setEdits((current) => ({ ...current, [child.id]: event.target.value }))
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={close}>
             Cancel
           </Button>
-          <SubmitButton pending={save.isPending} onClick={() => save.mutate()} type="button">
-            Save budgets
-          </SubmitButton>
+          {/* Saving replaces the month with what is on screen, so there is
+              nothing safe to send until the saved limits are here: a set built
+              from an empty or failed load would delete every one of them. */}
+          {existing.isSuccess ? (
+            <SubmitButton pending={save.isPending} onClick={() => save.mutate()} type="button">
+              Save budgets
+            </SubmitButton>
+          ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>
