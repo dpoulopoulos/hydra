@@ -1,18 +1,36 @@
 import uuid
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
-from app.api.deps import CurrentHousehold, HouseholdServiceDep, OwnerHousehold
+from app.api.deps import (
+    CategoryServiceDep,
+    CurrentHousehold,
+    CurrentUser,
+    HouseholdServiceDep,
+    OwnerHousehold,
+)
 from app.exceptions import (
+    HouseholdInviteEmailMismatchError,
+    HouseholdInviteExistsError,
+    HouseholdInviteExpiredError,
+    HouseholdInviteNotFoundError,
+    HouseholdInviteUsedError,
     HouseholdMemberExistsError,
     HouseholdMemberNotFoundError,
     HouseholdMembershipNotFoundError,
+    HouseholdNotEmptyError,
     HouseholdNotFoundError,
     HouseholdRoleRequiredError,
     LastHouseholdOwnerError,
     ServiceError,
 )
 from app.models import (
+    HouseholdInviteAccept,
+    HouseholdInviteCreate,
+    HouseholdInvitePreview,
+    HouseholdInvitePublic,
+    HouseholdInvitesPublic,
+    HouseholdInviteStatus,
     HouseholdMemberPublic,
     HouseholdMembersPublic,
     HouseholdMemberUpdate,
@@ -35,8 +53,14 @@ def household_exception_mappings() -> dict[type[ServiceError], int]:
         HouseholdMembershipNotFoundError: status.HTTP_404_NOT_FOUND,
         HouseholdMemberNotFoundError: status.HTTP_404_NOT_FOUND,
         HouseholdMemberExistsError: status.HTTP_409_CONFLICT,
+        HouseholdInviteNotFoundError: status.HTTP_404_NOT_FOUND,
+        HouseholdInviteExistsError: status.HTTP_409_CONFLICT,
+        HouseholdNotEmptyError: status.HTTP_409_CONFLICT,
+        HouseholdInviteExpiredError: status.HTTP_400_BAD_REQUEST,
+        HouseholdInviteUsedError: status.HTTP_400_BAD_REQUEST,
         LastHouseholdOwnerError: status.HTTP_400_BAD_REQUEST,
         HouseholdRoleRequiredError: status.HTTP_403_FORBIDDEN,
+        HouseholdInviteEmailMismatchError: status.HTTP_403_FORBIDDEN,
     }
 
 
@@ -168,3 +192,127 @@ def remove_household_member(
             household with no owner (400).
     """
     return household_service.remove_member(household=household, user_id=user_id)
+
+
+@router.get("/me/invites", response_model=HouseholdInvitesPublic)
+def list_household_invites(
+    *,
+    household_service: HouseholdServiceDep,
+    household: CurrentHousehold,
+    invite_status: HouseholdInviteStatus | None = Query(default=None, alias="status"),
+) -> HouseholdInvitesPublic:
+    """List the invitations sent from this household.
+
+    Args:
+        household_service: The household service dependency.
+        household: The current household context.
+        invite_status: An optional status to filter on.
+
+    Returns:
+        The invitations, newest first.
+
+    Raises:
+        HTTPException: If the user belongs to no household (404).
+    """
+    return household_service.list_invites(household=household, status=invite_status)
+
+
+@router.post("/me/invites", response_model=HouseholdInvitePublic)
+def create_household_invite(
+    *,
+    household_service: HouseholdServiceDep,
+    household: OwnerHousehold,
+    invite_in: HouseholdInviteCreate,
+) -> HouseholdInvitePublic:
+    """Invite someone to share the household, and email them a link.
+
+    Args:
+        household_service: The household service dependency.
+        household: The current household context, which must be owned by the user.
+        invite_in: The address to invite and the role to give them.
+
+    Returns:
+        The created invitation.
+
+    Raises:
+        HTTPException: If the user is not an owner of the household (403), the
+            household no longer exists (404), or that address already has an
+            invitation or is already a member (409).
+    """
+    return household_service.create_invite(household=household, invite_create=invite_in)
+
+
+@router.delete("/me/invites/{invite_id}", response_model=Message)
+def revoke_household_invite(
+    *, household_service: HouseholdServiceDep, household: OwnerHousehold, invite_id: uuid.UUID
+) -> Message:
+    """Withdraw an invitation that has not been accepted.
+
+    Args:
+        household_service: The household service dependency.
+        household: The current household context, which must be owned by the user.
+        invite_id: The ID of the invitation to withdraw.
+
+    Returns:
+        A confirmation message.
+
+    Raises:
+        HTTPException: If the user is not an owner of the household (403), the
+            invitation does not exist in the household (404), or it was already
+            accepted or withdrawn (400).
+    """
+    return household_service.revoke_invite(household=household, invite_id=invite_id)
+
+
+# Declared before "/invites/{token}" so "accept" is not read as a token.
+@router.post("/invites/accept", response_model=HouseholdPublic)
+def accept_household_invite(
+    *,
+    household_service: HouseholdServiceDep,
+    category_service: CategoryServiceDep,
+    current_user: CurrentUser,
+    accept_in: HouseholdInviteAccept,
+) -> HouseholdPublic:
+    """Accept an invitation and join the household.
+
+    The household created when you signed up is discarded if it is still
+    empty. If you have already recorded anything in it, joining is refused
+    rather than silently leaving that behind.
+
+    Args:
+        household_service: The household service dependency.
+        category_service: The category service dependency.
+        current_user: The current authenticated user.
+        accept_in: The invitation token.
+
+    Returns:
+        The household you joined.
+
+    Raises:
+        HTTPException: If the token is not recognised (404), the invitation was
+            sent to a different address (403), it has expired or was already
+            used (400), or your current household holds data (409).
+    """
+    return household_service.accept_invite(user=current_user, token=accept_in.token, category_service=category_service)
+
+
+@router.get("/invites/{token}", response_model=HouseholdInvitePreview)
+def preview_household_invite(*, household_service: HouseholdServiceDep, token: str) -> HouseholdInvitePreview:
+    """Describe an invitation, for the page that offers to accept it.
+
+    Public, because the recipient may not have an account yet. It carries only
+    what somebody needs in order to decide, and nothing about the household's
+    money.
+
+    Args:
+        household_service: The household service dependency.
+        token: The invitation token.
+
+    Returns:
+        The household name, who invited them, and when it expires.
+
+    Raises:
+        HTTPException: If the token is not recognised (404), or the invitation
+            has expired or was already used (400).
+    """
+    return household_service.preview_invite(token=token)

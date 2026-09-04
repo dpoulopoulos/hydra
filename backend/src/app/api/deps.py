@@ -18,6 +18,7 @@ from app.repositories import (
     BudgetRepository,
     CategoryRepository,
     EmailVerificationRepository,
+    HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
     PasswordResetRepository,
@@ -284,10 +285,26 @@ def get_account_service(
 AccountServiceDep = Annotated[AccountService, Depends(get_account_service)]
 
 
+def get_household_invite_repository(session: SessionDep) -> HouseholdInviteRepository:
+    """Get a household invite repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A household invite repository instance.
+    """
+    return HouseholdInviteRepository(session=session)
+
+
+HouseholdInviteRepositoryDep = Annotated[HouseholdInviteRepository, Depends(get_household_invite_repository)]
+
+
 def get_household_service(
     session: SessionDep,
     household_repository: HouseholdRepositoryDep,
     household_member_repository: HouseholdMemberRepositoryDep,
+    household_invite_repository: HouseholdInviteRepositoryDep,
 ) -> HouseholdService:
     """Get a household service instance.
 
@@ -295,6 +312,7 @@ def get_household_service(
         session: The database session.
         household_repository: The household repository instance.
         household_member_repository: The household member repository instance.
+        household_invite_repository: The household invite repository instance.
 
     Returns:
         A household service instance.
@@ -303,6 +321,7 @@ def get_household_service(
         session=session,
         household_repository=household_repository,
         household_member_repository=household_member_repository,
+        household_invite_repository=household_invite_repository,
     )
 
 
