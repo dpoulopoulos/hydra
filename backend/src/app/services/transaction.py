@@ -1,5 +1,4 @@
 import uuid
-from typing import TYPE_CHECKING
 
 from sqlmodel import Session
 
@@ -29,9 +28,6 @@ from app.models import (
 from app.repositories.account import AccountRepository
 from app.repositories.category import CategoryRepository
 from app.repositories.transaction import TransactionRepository
-
-if TYPE_CHECKING:
-    from app.services.recurring_rule import RecurringRuleService
 
 # Which category kind each transaction kind needs. A transfer takes none.
 _CATEGORY_KIND_FOR: dict[TransactionKind, CategoryKind] = {
@@ -119,16 +115,16 @@ class TransactionService:
         self,
         household: HouseholdContext,
         filters: TransactionFilters,
-        recurring_rule_service: "RecurringRuleService | None" = None,
     ) -> TransactionsPublic:
         """List the transactions of the household matching a set of filters.
+
+        A read only: recurring transactions are recorded by
+        "POST /recurring-rules/run", so a list cannot leave the balances and
+        reports beside it describing an older ledger.
 
         Args:
             household: The household context.
             filters: The filters to apply.
-            recurring_rule_service: Optional recurring rule service. When given,
-                any recurring transactions that have fallen due are recorded
-                first, so the ledger is up to date before it is read.
 
         Returns:
             The matching transactions and the total number of matches.
@@ -137,9 +133,6 @@ class TransactionService:
             CategoryNotFoundError: If the category filter names a category
                 outside the household.
         """
-        if recurring_rule_service:
-            recurring_rule_service.materialize_due(household=household)
-
         category_ids = None
 
         if filters.category_id is not None:

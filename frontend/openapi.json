@@ -1604,7 +1604,7 @@
           "transactions"
         ],
         "summary": "List Transactions",
-        "description": "List the transactions of the household.\n\nAny recurring transactions that have fallen due are recorded first, so the\nledger is up to date without needing a scheduler.\n\nFiltering by a parent category includes the spending filed under its\nsubcategories, unless include_subcategories is set to false.\n\nArgs:\n    transaction_service: The transaction service dependency.\n    recurring_rule_service: The recurring rule service dependency, used to\n        bring the ledger up to date before reading it.\n    household: The current household context.\n    filters: The date range, account, category, kind, amount range, search\n        text, ordering and paging to apply.\n\nReturns:\n    The matching transactions and the total number of matches.\n\nRaises:\n    HTTPException: If the category filter names a category outside the\n        household (404), or a filter is not recognised (422).",
+        "description": "List the transactions of the household.\n\nFiltering by a parent category includes the spending filed under its\nsubcategories, unless include_subcategories is set to false.\n\nArgs:\n    transaction_service: The transaction service dependency.\n    household: The current household context.\n    filters: The date range, account, category, kind, amount range, search\n        text, ordering and paging to apply.\n\nReturns:\n    The matching transactions and the total number of matches.\n\nRaises:\n    HTTPException: If the category filter names a category outside the\n        household (404), or a filter is not recognised (422).",
         "operationId": "transactions-list_transactions",
         "security": [
           {
@@ -2495,7 +2495,7 @@
           "recurring-rules"
         ],
         "summary": "Run Recurring Rules",
-        "description": "Record the transactions the rules have fallen due for.\n\nThe read paths do this automatically, so this endpoint exists for catching\nup explicitly, or for creating occurrences ahead of today.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    until: The last day to record up to, inclusive. Defaults to today.\n\nReturns:\n    How many transactions were created and how many rules moved on.\n\nRaises:\n    HTTPException: If a rule points at an account that no longer exists (404).",
+        "description": "Record the transactions the rules have fallen due for.\n\nThe only way the rules are turned into transactions. The app calls it\nonce on load; it also serves for catching up by hand, or for creating\noccurrences ahead of today.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    until: The last day to record up to, inclusive. Defaults to today.\n\nReturns:\n    How many transactions were created and how many rules moved on.\n\nRaises:\n    HTTPException: If a rule points at an account that no longer exists (404).",
         "operationId": "recurring-rules-run_recurring_rules",
         "security": [
           {

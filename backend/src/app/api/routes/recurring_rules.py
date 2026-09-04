@@ -121,8 +121,9 @@ def run_recurring_rules(
 ) -> RecurringRunResult:
     """Record the transactions the rules have fallen due for.
 
-    The read paths do this automatically, so this endpoint exists for catching
-    up explicitly, or for creating occurrences ahead of today.
+    The only way the rules are turned into transactions. The app calls it
+    once on load; it also serves for catching up by hand, or for creating
+    occurrences ahead of today.
 
     Args:
         recurring_rule_service: The recurring rule service dependency.

@@ -237,6 +237,17 @@ class TestListTransactions:
         assert response.status_code == 200
         assert response.json()["count"] == 1
 
+    def test_does_not_record_recurring_transactions(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        """Writing here would leave the reports on the same screen out of date."""
+        wire.list_transactions.return_value = TransactionsPublic(data=[], count=0)
+
+        response = client.get("/api/v1/transactions/", headers=auth_headers)
+
+        assert response.status_code == 200
+        assert "recurring_rule_service" not in wire.list_transactions.call_args.kwargs
+
     def test_passes_the_filters_through(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:

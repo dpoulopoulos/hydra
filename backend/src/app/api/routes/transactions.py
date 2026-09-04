@@ -4,7 +4,6 @@ from fastapi import APIRouter, status
 
 from app.api.deps import (
     CurrentHousehold,
-    RecurringRuleServiceDep,
     TransactionFiltersDep,
     TransactionServiceDep,
 )
@@ -71,22 +70,16 @@ def create_transaction(
 def list_transactions(
     *,
     transaction_service: TransactionServiceDep,
-    recurring_rule_service: RecurringRuleServiceDep,
     household: CurrentHousehold,
     filters: TransactionFiltersDep,
 ) -> TransactionsPublic:
     """List the transactions of the household.
-
-    Any recurring transactions that have fallen due are recorded first, so the
-    ledger is up to date without needing a scheduler.
 
     Filtering by a parent category includes the spending filed under its
     subcategories, unless include_subcategories is set to false.
 
     Args:
         transaction_service: The transaction service dependency.
-        recurring_rule_service: The recurring rule service dependency, used to
-            bring the ledger up to date before reading it.
         household: The current household context.
         filters: The date range, account, category, kind, amount range, search
             text, ordering and paging to apply.
@@ -98,9 +91,7 @@ def list_transactions(
         HTTPException: If the category filter names a category outside the
             household (404), or a filter is not recognised (422).
     """
-    return transaction_service.list_transactions(
-        household=household, filters=filters, recurring_rule_service=recurring_rule_service
-    )
+    return transaction_service.list_transactions(household=household, filters=filters)
 
 
 @router.get("/{transaction_id}", response_model=TransactionPublic)
