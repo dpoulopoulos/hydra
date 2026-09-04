@@ -16,6 +16,7 @@ help:
 	@echo "  make web-format  - Format frontend files"
 	@echo "  make web-lint    - Scan frontend files for linting errors"
 	@echo "  make web-api     - Regenerate the API client from the backend schema"
+	@echo "  make web-api-check - Check the committed API client is up to date"
 
 # The compose stack reads its configuration from .env, which is not committed.
 # Fail with an actionable message rather than a variable error.
@@ -95,3 +96,9 @@ web-lint:
 .PHONY: web-api
 web-api:
 	cd frontend && pnpm generate:api
+
+# Regenerates the client and fails if it differs from what is committed. This
+# is what CI runs, so a forgotten web-api can be caught before pushing.
+.PHONY: web-api-check
+web-api-check:
+	bash ./.github/scripts/check_api_client_synced.sh

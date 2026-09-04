@@ -1,0 +1,68 @@
+name: API client
+
+on:
+  pull_request:
+
+# A new push to a pull request makes the run in progress obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# .env is not committed, so the job builds one from .env.example. These
+# override the "changethis" placeholders in it, which the settings otherwise
+# warn about on every import. They are throwaway CI values, not secrets.
+env:
+  SECRET_KEY: ci-secret-key-not-used-outside-ci
+  POSTGRES_PASSWORD: ci-postgres-password
+  FIRST_SUPERUSER_PASSWORD: ci-superuser-password
+
+jobs:
+  api-client:
+    name: Check the client is in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned exactly: setup-uv publishes no floating tag above v7.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      # No version here on purpose: the action reads it from the
+      # packageManager field in frontend/package.json, so CI and a developer's
+      # machine agree.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+
+      # Node 24 is what frontend/Dockerfile builds the app with.
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Create .env
+        run: cp .env.example .env
+
+      # Dumping the schema imports the app, so the backend environment is
+      # needed here as well as the frontend one.
+      - name: Install backend dependencies
+        run: uv sync --locked
+        working-directory: backend
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      # Regenerates the client and fails if it differs from what is committed,
+      # which is the only check that catches a forgotten `make web-api`.
+      - name: Check the API client is in sync
+        run: bash .github/scripts/check_api_client_synced.sh
