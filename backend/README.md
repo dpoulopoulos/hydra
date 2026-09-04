@@ -351,6 +351,17 @@ categories, budgets and transactions.
 | Recurring rules | `/api/v1/recurring-rules` | Materialize real transactions; run from the read paths. |
 | Reports | `/api/v1/reports` | Spend by category, spend over time, budget vs actual, income vs expense, dashboard summary. |
 
+Deleting an account deletes the household it leaves empty. A household is only reachable through its
+memberships, and everything below it is keyed on the household rather than on a user, so removing the last
+member would otherwise leave the accounts, transactions, budgets and rules behind with nobody able to read
+them. `HouseholdService.release_for_user` drops the membership and, when no member is left, the household,
+whose financial data cascades with it. A household that still has members keeps everything: the data is
+theirs too, and if the departing user was its last owner the longest-standing member is promoted, so the
+household is never left without somebody who can rename it, invite, or manage members. Every exit from a
+household — being removed, leaving, accepting an invite elsewhere, or deleting the account — goes through the
+same path, which takes a row lock on the household first so two members going at once cannot both conclude
+the other is still there.
+
 Three conventions run through the domain and are worth knowing before changing it:
 
 - **Money is an integer count of minor units**, on `BigInteger` columns, and every such field is named
