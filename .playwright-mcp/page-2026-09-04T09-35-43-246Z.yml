@@ -1,0 +1,161 @@
+- generic:
+  - generic:
+    - generic [aria-hidden]:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /
+                    - generic: h
+                    - generic:
+                      - generic: hydra
+                      - generic: admin@example.com's household
+            - generic:
+              - generic:
+                - generic: Money
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /
+                        - button:
+                          - generic: Dashboard
+                    - listitem:
+                      - link:
+                        - /url: /transactions
+                        - button:
+                          - generic: Transactions
+                    - listitem:
+                      - link:
+                        - /url: /accounts
+                        - button:
+                          - generic: Accounts
+              - generic:
+                - generic: Planning
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /budgets
+                        - button:
+                          - generic: Budgets
+                    - listitem:
+                      - link:
+                        - /url: /recurring
+                        - button:
+                          - generic: Recurring
+                    - listitem:
+                      - link:
+                        - /url: /categories
+                        - button:
+                          - generic: Categories
+              - generic:
+                - generic: Insight
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /reports
+                        - button:
+                          - generic: Reports
+            - generic:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /settings
+                    - button:
+                      - generic: Settings
+      - main:
+        - generic:
+          - button:
+            - generic: Toggle Sidebar
+          - button
+          - button:
+            - generic: AE
+        - generic:
+          - generic:
+            - generic:
+              - heading [level=1]: Transactions
+              - paragraph: Everything your household spent, earned and moved.
+            - generic:
+              - button: Record a transaction
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic: Search
+                  - textbox:
+                    - /placeholder: Merchant or note
+                - generic:
+                  - generic: Kind
+                  - combobox:
+                    - generic: Any kind
+                - generic:
+                  - generic: Account
+                  - combobox:
+                    - generic: Any account
+                - generic:
+                  - generic: Category
+                  - combobox:
+                    - generic: Any category
+                - generic:
+                  - generic: From
+                  - textbox
+                - generic:
+                  - generic: To
+                  - textbox
+                - generic:
+                  - generic: Order
+                  - combobox:
+                    - generic: Newest first
+          - generic:
+            - generic:
+              - paragraph: No transactions yet
+              - paragraph: Record what you spent and earned, and the budgets and reports fill in from there.
+            - button: Record your first transaction
+    - region "Notifications alt+T"
+  - dialog [ref=f21e2]:
+    - generic [ref=f21e3]:
+      - heading "Record a transaction" [level=2] [ref=f21e4]
+      - paragraph [ref=f21e5]: Money leaving or arriving in one of your accounts.
+    - generic [ref=f21e6]:
+      - tablist [ref=f21e8]:
+        - tab "Expense" [selected] [ref=f21e9]
+        - tab "Income" [ref=f21e10]
+        - tab "Transfer" [ref=f21e11]
+      - generic [ref=f21e12]:
+        - generic [ref=f21e13]:
+          - generic [ref=f21e14]: Amount
+          - generic [ref=f21e15]:
+            - generic: EUR
+            - textbox "Amount" [active] [ref=f21e16]:
+              - /placeholder: "0.00"
+        - generic [ref=f21e17]:
+          - generic [ref=f21e18]: Date
+          - textbox "Date" [ref=f21e19]: 2026-09-04
+      - generic [ref=f21e20]:
+        - generic [ref=f21e21]: Account
+        - combobox "Account" [ref=f21e22]:
+          - generic: Joint current
+        - combobox [aria-hidden] [ref=f21e23]
+      - generic [ref=f21e24]:
+        - generic [ref=f21e25]: Category
+        - combobox "Category" [ref=f21e26]:
+          - generic: Leave uncategorised
+        - combobox [aria-hidden] [ref=f21e27]
+      - generic [ref=f21e28]:
+        - generic [ref=f21e29]:
+          - generic [ref=f21e30]: Merchant
+          - textbox "Merchant" [ref=f21e31]:
+            - /placeholder: Optional
+        - generic [ref=f21e32]:
+          - generic [ref=f21e33]: Note
+          - textbox "Note" [ref=f21e34]:
+            - /placeholder: Optional
+    - generic [ref=f21e35]:
+      - button "Cancel" [ref=f21e36]
+      - button "Record it" [ref=f21e37]
+    - button "Close" [ref=f21e38]

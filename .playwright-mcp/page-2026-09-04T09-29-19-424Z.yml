@@ -1,0 +1,8 @@
+- generic [ref=f16e2]:
+  - main [ref=f16e3]:
+    - paragraph [ref=f16e4]: "404"
+    - heading "There is nothing at this address" [level=1] [ref=f16e5]
+    - paragraph [ref=f16e6]: The link may be out of date, or the page may have moved.
+    - link "Go to the dashboard" [ref=f16e7] [cursor=pointer]:
+      - /url: /
+  - region "Notifications alt+T"

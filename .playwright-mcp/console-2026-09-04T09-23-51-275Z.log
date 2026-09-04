@@ -1,0 +1,75 @@
+[      69ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:14335
+[      80ms] [WARNING] No `HydrateFallback` element provided to render during initial hydration @ http://localhost:5173/@vite/client:532
+[   24164ms] [ERROR] Error handled by React Router default ErrorBoundary: Error: `Tooltip` must be used within `TooltipProvider`
+    at useContext (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:320:10)
+    at Tooltip (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:14257:26)
+    at Object.react_stack_bottom_frame (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:12866:12)
+    at renderWithHooks (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:4213:19)
+    at updateFunctionComponent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:5569:16)
+    at beginWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:6140:20)
+    at runWithFiberInDEV (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:851:66)
+    at performUnitOfWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8429:92)
+    at workLoopConcurrentByScheduler (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8425:55)
+    at renderRootConcurrent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8408:64) @ http://localhost:5173/@vite/client:532
+[   24164ms] [ERROR] Error handled by React Router default ErrorBoundary: Error: `Tooltip` must be used within `TooltipProvider`
+    at useContext (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:320:10)
+    at Tooltip (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:14257:26)
+    at Object.react_stack_bottom_frame (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:12866:12)
+    at renderWithHooks (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:4213:19)
+    at updateFunctionComponent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:5569:16)
+    at beginWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:6140:20)
+    at runWithFiberInDEV (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:851:66)
+    at performUnitOfWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8429:92)
+    at workLoopConcurrentByScheduler (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8425:55)
+    at renderRootConcurrent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8408:64) @ http://localhost:5173/@vite/client:532
+[   24168ms] [ERROR] Error handled by React Router default ErrorBoundary: Error: `Tooltip` must be used within `TooltipProvider`
+    at useContext (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:320:10)
+    at Tooltip (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:14257:26)
+    at Object.react_stack_bottom_frame (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:12866:12)
+    at renderWithHooks (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:4213:19)
+    at updateFunctionComponent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:5569:16)
+    at beginWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:6140:20)
+    at runWithFiberInDEV (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:851:66)
+    at performUnitOfWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8429:92)
+    at workLoopSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8325:37)
+    at renderRootSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8309:6) @ http://localhost:5173/@vite/client:532
+[   24168ms] [ERROR] Error handled by React Router default ErrorBoundary: Error: `Tooltip` must be used within `TooltipProvider`
+    at useContext (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:320:10)
+    at Tooltip (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:14257:26)
+    at Object.react_stack_bottom_frame (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:12866:12)
+    at renderWithHooks (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:4213:19)
+    at updateFunctionComponent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:5569:16)
+    at beginWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:6140:20)
+    at runWithFiberInDEV (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:851:66)
+    at performUnitOfWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8429:92)
+    at workLoopSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8325:37)
+    at renderRootSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8309:6) @ http://localhost:5173/@vite/client:532
+[   24168ms] [ERROR] %o
+
+%s
+
+%s
+ Error: `Tooltip` must be used within `TooltipProvider`
+    at useContext (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:320:10)
+    at Tooltip (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:14257:26)
+    at Object.react_stack_bottom_frame (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:12866:12)
+    at renderWithHooks (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:4213:19)
+    at updateFunctionComponent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:5569:16)
+    at beginWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:6140:20)
+    at runWithFiberInDEV (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:851:66)
+    at performUnitOfWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8429:92)
+    at workLoopSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8325:37)
+    at renderRootSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8309:6) The above error occurred in the <Tooltip> component. React will try to recreate this component tree from scratch using the error boundary you provided, RenderErrorBoundary. @ http://localhost:5173/@vite/client:532
+[   24169ms] [ERROR] React Router caught the following error during render Error: `Tooltip` must be used within `TooltipProvider`
+    at useContext (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:320:10)
+    at Tooltip (http://localhost:5173/node_modules/.vite/deps/radix-ui.js?v=91a62413:14257:26)
+    at Object.react_stack_bottom_frame (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:12866:12)
+    at renderWithHooks (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:4213:19)
+    at updateFunctionComponent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:5569:16)
+    at beginWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:6140:20)
+    at runWithFiberInDEV (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:851:66)
+    at performUnitOfWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8429:92)
+    at workLoopSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8325:37)
+    at renderRootSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:8309:6) @ http://localhost:5173/@vite/client:532
+[   43927ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=91a62413:14335
+[   43943ms] [WARNING] No `HydrateFallback` element provided to render during initial hydration @ http://localhost:5173/@vite/client:532

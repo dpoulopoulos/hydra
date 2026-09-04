@@ -1,0 +1,127 @@
+- generic:
+  - generic:
+    - generic [aria-hidden]:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /
+                    - generic: h
+                    - generic:
+                      - generic: hydra
+                      - generic: admin@example.com's household
+            - generic:
+              - generic:
+                - generic: Money
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /
+                        - button:
+                          - generic: Dashboard
+                    - listitem:
+                      - link:
+                        - /url: /transactions
+                        - button:
+                          - generic: Transactions
+                    - listitem:
+                      - link:
+                        - /url: /accounts
+                        - button:
+                          - generic: Accounts
+              - generic:
+                - generic: Planning
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /budgets
+                        - button:
+                          - generic: Budgets
+                    - listitem:
+                      - link:
+                        - /url: /recurring
+                        - button:
+                          - generic: Recurring
+                    - listitem:
+                      - link:
+                        - /url: /categories
+                        - button:
+                          - generic: Categories
+              - generic:
+                - generic: Insight
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /reports
+                        - button:
+                          - generic: Reports
+            - generic:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /settings
+                    - button:
+                      - generic: Settings
+      - main:
+        - generic:
+          - button:
+            - generic: Toggle Sidebar
+          - button
+          - button:
+            - generic: AE
+        - generic:
+          - generic:
+            - generic:
+              - heading [level=1]: Accounts
+              - paragraph: Every place your household keeps money.
+            - generic:
+              - generic:
+                - generic: Show archived
+                - switch
+              - button: Add account
+          - generic:
+            - generic:
+              - paragraph: No accounts yet
+              - paragraph: Add the accounts you use, with the balance each one holds today. Everything else builds on them.
+            - button: Add your first account
+    - region "Notifications alt+T"
+  - dialog [ref=f18e8]:
+    - generic [ref=f18e9]:
+      - heading "Add an account" [level=2] [ref=f18e10]
+      - paragraph [ref=f18e11]: Start from the balance the account holds today, or from the day you want to track.
+    - generic [ref=f18e12]:
+      - generic [ref=f18e13]:
+        - generic [ref=f18e14]: Name
+        - textbox "Name" [active] [ref=f18e15]:
+          - /placeholder: Current account
+      - generic [ref=f18e16]:
+        - generic [ref=f18e17]: Type
+        - combobox "Type" [ref=f18e18]:
+          - generic: Current account
+        - combobox [aria-hidden] [ref=f18e19]
+      - generic [ref=f18e20]:
+        - generic [ref=f18e21]: Bank
+        - textbox "Bank" [ref=f18e22]:
+          - /placeholder: Optional
+        - paragraph [ref=f18e23]: Optional. Helps tell similar accounts apart.
+      - generic [ref=f18e24]:
+        - generic [ref=f18e25]:
+          - generic [ref=f18e26]: Balance today
+          - generic [ref=f18e27]:
+            - generic: EUR
+            - textbox "Balance today" [ref=f18e28]:
+              - /placeholder: "0.00"
+              - text: "0"
+        - generic [ref=f18e29]:
+          - generic [ref=f18e30]: As of
+          - textbox "As of" [ref=f18e31]: 2026-09-04
+    - generic [ref=f18e32]:
+      - button "Cancel" [ref=f18e33]
+      - button "Add account" [ref=f18e34]
+    - button "Close" [ref=f18e35]

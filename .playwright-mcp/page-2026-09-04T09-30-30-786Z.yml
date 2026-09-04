@@ -1,0 +1,97 @@
+- generic [ref=f18e2]:
+  - generic [ref=f18e37]:
+    - generic [ref=f18e40]:
+      - list [ref=f18e42]:
+        - listitem [ref=f18e43]:
+          - link "h hydra admin@example.com's household" [ref=f18e44] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f18e45]: h
+            - generic [ref=f18e46]:
+              - generic [ref=f18e47]: hydra
+              - generic [ref=f18e48]: admin@example.com's household
+      - generic [ref=f18e49]:
+        - generic [ref=f18e50]:
+          - generic [ref=f18e51]: Money
+          - list [ref=f18e53]:
+            - listitem [ref=f18e54]:
+              - link [ref=f18e55] [cursor=pointer]:
+                - /url: /
+                - button "Dashboard" [ref=f18e56]
+            - listitem [ref=f18e63]:
+              - link [ref=f18e64] [cursor=pointer]:
+                - /url: /transactions
+                - button "Transactions" [ref=f18e65]
+            - listitem [ref=f18e70]:
+              - link [ref=f18e71] [cursor=pointer]:
+                - /url: /accounts
+                - button "Accounts" [ref=f18e72]
+        - generic [ref=f18e77]:
+          - generic [ref=f18e78]: Planning
+          - list [ref=f18e80]:
+            - listitem [ref=f18e81]:
+              - link [ref=f18e82] [cursor=pointer]:
+                - /url: /budgets
+                - button "Budgets" [ref=f18e83]
+            - listitem [ref=f18e89]:
+              - link [ref=f18e90] [cursor=pointer]:
+                - /url: /recurring
+                - button "Recurring" [ref=f18e91]
+            - listitem [ref=f18e98]:
+              - link [ref=f18e99] [cursor=pointer]:
+                - /url: /categories
+                - button "Categories" [ref=f18e100]
+        - generic [ref=f18e106]:
+          - generic [ref=f18e107]: Insight
+          - list [ref=f18e109]:
+            - listitem [ref=f18e110]:
+              - link [ref=f18e111] [cursor=pointer]:
+                - /url: /reports
+                - button "Reports" [ref=f18e112]
+      - list [ref=f18e117]:
+        - listitem [ref=f18e118]:
+          - link [ref=f18e119] [cursor=pointer]:
+            - /url: /settings
+            - button "Settings" [ref=f18e120]
+    - main [ref=f18e125]:
+      - generic [ref=f18e126]:
+        - button "Toggle Sidebar" [ref=f18e127]
+        - button "Change theme" [ref=f18e129]
+        - button "Your account" [ref=f18e130]:
+          - generic [ref=f18e131]: AE
+      - generic [ref=f18e133]:
+        - generic [ref=f18e134]:
+          - generic [ref=f18e135]:
+            - heading "Accounts" [level=1] [ref=f18e136]
+            - paragraph [ref=f18e137]: Every place your household keeps money.
+          - generic [ref=f18e138]:
+            - generic [ref=f18e139]:
+              - generic [ref=f18e140]: Show archived
+              - switch "Show archived" [ref=f18e141]
+            - button "Add account" [ref=f18e142]
+        - generic [ref=f18e144]:
+          - generic [ref=f18e145]:
+            - generic [ref=f18e146]: Net worth
+            - generic [ref=f18e147]: Across 1 account
+          - generic [ref=f18e148]: €2,500.00
+        - table [ref=f18e151]:
+          - rowgroup [ref=f18e152]:
+            - row [ref=f18e153]:
+              - columnheader "Account" [ref=f18e154]
+              - columnheader "Type" [ref=f18e155]
+              - columnheader "Tracking since" [ref=f18e156]
+              - columnheader "Balance" [ref=f18e157]
+              - columnheader [ref=f18e158]
+          - rowgroup [ref=f18e159]:
+            - row [ref=f18e160]:
+              - cell "Joint current Revolut" [ref=f18e161]:
+                - generic [ref=f18e162]: Joint current
+                - paragraph [ref=f18e163]: Revolut
+              - cell "Current account" [ref=f18e164]
+              - cell "Jan 1, 2026" [ref=f18e165]
+              - cell "€2,500.00" [ref=f18e166]
+              - cell [ref=f18e167]:
+                - button "Manage Joint current" [ref=f18e168]
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=f18e169]:
+        - generic [ref=f18e174]: Account added
