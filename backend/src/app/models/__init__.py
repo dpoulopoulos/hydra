@@ -60,6 +60,17 @@ from .password import (
     PasswordResetVerify,
     PasswordUpdate,
 )
+from .report import (
+    CategoryDepth,
+    CategorySpendSlice,
+    IncomeExpenseReport,
+    MonthlyFlow,
+    ReportPeriod,
+    SpendByCategoryReport,
+    SpendOverTimeReport,
+    TimeGranularity,
+    TimeSeriesPoint,
+)
 from .token import Token, TokenPayload
 from .transaction import (
     Transaction,
@@ -138,6 +149,15 @@ __all__ = [
     "PasswordResetRequest",
     "PasswordResetStatus",
     "PasswordResetVerify",
+    "CategoryDepth",
+    "CategorySpendSlice",
+    "IncomeExpenseReport",
+    "MonthlyFlow",
+    "ReportPeriod",
+    "SpendByCategoryReport",
+    "SpendOverTimeReport",
+    "TimeGranularity",
+    "TimeSeriesPoint",
     "Token",
     "TokenPayload",
     "Transaction",
