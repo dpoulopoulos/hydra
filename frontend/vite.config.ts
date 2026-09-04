@@ -2,7 +2,7 @@ import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import path from 'node:path'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 
 // Set by the compose stack. Inside a container the dev server has to listen on
 // every interface, and file changes arrive as writes from outside the process,
@@ -16,6 +16,13 @@ export default defineConfig({
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
     },
+  },
+  // Unit tests run in jsdom against the same aliases and plugins as the app,
+  // so a test imports a component exactly the way a screen does.
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
   },
   build: {
     // Vite calls this folder "assets" by default, but the API already serves
