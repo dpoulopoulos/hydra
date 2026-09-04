@@ -162,17 +162,31 @@ class PasswordResetService:
         self.verify_token(token)
 
         decoded_token = decode_token(token, expected_type=TokenType.PASSWORD_RESET)
-        email = decoded_token["sub"]
 
         password_reset = self.password_reset_repository.get_by_token(token)
+        if not password_reset:
+            raise PasswordResetNotFoundError from None
 
-        user = user_service.get_user_by_email(email=email)
+        # The row names the account the reset was issued for. Looking the
+        # account up by the token's subject instead would hand the reset to
+        # whoever holds that address at redemption time, and addresses change
+        # hands: release one with a reset still pending and the next holder's
+        # account is what the old token would rewrite.
+        if not password_reset.user_id:
+            raise UserNotFoundError from None
+
+        user = user_service.user_repository.get_by_id(password_reset.user_id)
         if not user:
             raise UserNotFoundError from None
+
+        # The subject is only ever cross-checked, never resolved: a reset whose
+        # address the account no longer holds is no longer about that account.
+        if decoded_token["sub"] != user.email:
+            raise PasswordResetTokenNotValidError from None
 
         user.hashed_password = get_password_hash(new_password)
         user_service.user_repository.save(user)
 
-        self._mark_password_reset(password_reset_id=password_reset.id, status=PasswordResetStatus.USED)  # type: ignore[union-attr]
+        self._mark_password_reset(password_reset_id=password_reset.id, status=PasswordResetStatus.USED)
 
         return Message(message="Password reset successfully.")
