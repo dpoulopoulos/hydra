@@ -155,10 +155,12 @@ class TestListAccounts:
         current = make_account(name="Current", opening_balance_minor=100_000)
         savings = make_account(name="Savings", account_type=AccountType.SAVINGS, opening_balance_minor=50_000)
         mock_account_service.session.exec = MagicMock()
+        # The count, the page, the opening balances, then the ledger deltas.
         mock_account_service.session.exec.return_value.all.side_effect = [
             [current, savings],
             [current, savings],
             [(current.id, 100_000), (savings.id, 50_000)],
+            [],
         ]
 
         result = mock_account_service.list_accounts(household=household_context)
@@ -180,6 +182,7 @@ class TestListAccounts:
             [current, card],
             [current, card],
             [(current.id, 100_000), (card.id, -40_000)],
+            [],
         ]
 
         result = mock_account_service.list_accounts(household=household_context)
@@ -190,7 +193,7 @@ class TestListAccounts:
         self, mock_account_service: AccountService, household_context: HouseholdContext
     ) -> None:
         mock_account_service.session.exec = MagicMock()
-        mock_account_service.session.exec.return_value.all.side_effect = [[], []]
+        mock_account_service.session.exec.return_value.all.side_effect = [[], []]  # count, page
 
         result = mock_account_service.list_accounts(household=household_context)
 
@@ -207,11 +210,15 @@ class TestGetAccount:
         account = make_account()
         mock_account_service.session.exec = MagicMock()
         mock_account_service.session.exec.return_value.first.return_value = account
-        mock_account_service.session.exec.return_value.all.return_value = [(account.id, 100_000)]
+        # The opening balances, then the ledger deltas.
+        mock_account_service.session.exec.return_value.all.side_effect = [
+            [(account.id, 100_000)],
+            [(account.id, -4_250)],
+        ]
 
         result = mock_account_service.get_account(household=household_context, account_id=account.id)
 
-        assert result.current_balance_minor == 100_000
+        assert result.current_balance_minor == 95_750
 
     def test_an_account_from_another_household_is_not_found(
         self, mock_account_service: AccountService, household_context: HouseholdContext
@@ -233,7 +240,7 @@ class TestUpdateAccount:
         account = make_account()
         mock_account_service.session.exec = MagicMock()
         mock_account_service.session.exec.return_value.first.side_effect = [account, None]
-        mock_account_service.session.exec.return_value.all.return_value = [(account.id, 100_000)]
+        mock_account_service.session.exec.return_value.all.side_effect = [[(account.id, 100_000)], []]
 
         result = mock_account_service.update_account(
             household=household_context, account_id=account.id, account_update=AccountUpdate(name="Main")
@@ -262,7 +269,7 @@ class TestUpdateAccount:
         account = make_account()
         mock_account_service.session.exec = MagicMock()
         mock_account_service.session.exec.return_value.first.return_value = account
-        mock_account_service.session.exec.return_value.all.return_value = [(account.id, 100_000)]
+        mock_account_service.session.exec.return_value.all.side_effect = [[(account.id, 100_000)], []]
 
         result = mock_account_service.update_account(
             household=household_context,
@@ -278,7 +285,7 @@ class TestUpdateAccount:
         account = make_account(archived=True)
         mock_account_service.session.exec = MagicMock()
         mock_account_service.session.exec.return_value.first.return_value = account
-        mock_account_service.session.exec.return_value.all.return_value = [(account.id, 100_000)]
+        mock_account_service.session.exec.return_value.all.side_effect = [[(account.id, 100_000)], []]
 
         result = mock_account_service.update_account(
             household=household_context,

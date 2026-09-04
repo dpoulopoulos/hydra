@@ -1,9 +1,12 @@
 import uuid
 from collections.abc import Sequence
+from typing import Any
 
-from sqlmodel import Session, col, select
+from sqlalchemy import case, union_all
+from sqlmodel import Session, col, func, select
+from sqlmodel.sql.expression import SelectOfScalar
 
-from app.models import Account, AccountType
+from app.models import Account, AccountType, Transaction, TransactionKind
 from app.repositories.base import HouseholdScopedRepository
 
 
@@ -99,10 +102,50 @@ class AccountRepository(HouseholdScopedRepository[Account]):
         if not account_ids:
             return {}
 
-        statement = select(Account.id, Account.opening_balance_minor).where(
+        openings = select(Account.id, Account.opening_balance_minor).where(
             Account.household_id == household_id, col(Account.id).in_(account_ids)
         )
+        balances = dict(self.session.exec(openings).all())
 
-        # Until the ledger exists, an account's balance is what it opened with.
-        # The transaction legs are added to this sum in the ledger slice.
-        return dict(self.session.exec(statement).all())
+        for account_id, delta in self.session.exec(
+            self._ledger_deltas(account_ids=account_ids, household_id=household_id)
+        ).all():
+            if account_id in balances:
+                balances[account_id] += delta
+
+        return balances
+
+    def _ledger_deltas(self, account_ids: Sequence[uuid.UUID], household_id: uuid.UUID) -> SelectOfScalar[Any]:
+        """Build the query that sums each account's transactions, in minor units.
+
+        Amounts are stored as positive magnitudes, so the sign is applied here:
+        income adds to the account, an expense or an outgoing transfer subtracts
+        from it. A transfer is a single row, so the destination account is
+        picked up by a second leg over counter_account_id, and the two legs
+        cancel out across the household exactly as they should.
+
+        Args:
+            account_ids: The IDs of the accounts.
+            household_id: The ID of the household that owns them.
+
+        Returns:
+            A query yielding (account_id, delta) pairs.
+        """
+        outgoing: Any = select(
+            col(Transaction.account_id).label("account_id"),
+            case(
+                (col(Transaction.kind) == TransactionKind.INCOME, col(Transaction.amount_minor)),
+                else_=-col(Transaction.amount_minor),
+            ).label("delta"),
+        ).where(Transaction.household_id == household_id, col(Transaction.account_id).in_(account_ids))
+        incoming: Any = select(
+            col(Transaction.counter_account_id).label("account_id"),
+            col(Transaction.amount_minor).label("delta"),
+        ).where(
+            Transaction.household_id == household_id,
+            col(Transaction.counter_account_id).in_(account_ids),
+        )
+
+        legs = union_all(outgoing, incoming).subquery()
+
+        return select(legs.c.account_id, func.sum(legs.c.delta)).group_by(legs.c.account_id)  # type: ignore[return-value]
