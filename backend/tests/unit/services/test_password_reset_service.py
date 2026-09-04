@@ -1,7 +1,9 @@
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 from app.core.security import JWT, create_password_reset_token
@@ -187,7 +189,7 @@ class TestRequestPasswordReset:
             mock_settings.emails_enabled = True
             mock_settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 24
             with patch("app.services.password_reset.generate_password_reset_email") as mock_generate:
-                with patch("app.services.password_reset.send_email") as mock_send:
+                with patch("app.services.password_reset.try_send_email") as mock_send:
                     mock_email_data = MagicMock()
                     mock_email_data.subject = "Reset your password"
                     mock_email_data.html_content = "<html>Reset link</html>"
@@ -201,13 +203,14 @@ class TestRequestPasswordReset:
                     mock_generate.assert_called_once()
                     mock_send.assert_called_once()
 
-    def test_request_password_reset_email_fails_silently(
+    def test_request_password_reset_reports_success_when_delivery_fails(
         self,
         mock_password_reset_service: PasswordResetService,
         mock_user_service: MagicMock,
         test_user: User,
+        caplog,
     ) -> None:
-        """Test that email sending failures are handled silently."""
+        """Test that a delivery failure is logged and does not fail the request."""
         # Arrange: Mock user service to return test user
         mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
 
@@ -218,20 +221,23 @@ class TestRequestPasswordReset:
         mock_password_reset_service.session.commit = MagicMock()
         mock_password_reset_service.session.refresh = MagicMock()
 
-        # Act: Request password reset with email sending failure
+        # Act: Request password reset while the provider is unreachable
         with patch("app.services.password_reset.settings") as mock_settings:
             mock_settings.emails_enabled = True
             mock_settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 24
-            with patch("app.services.password_reset.send_email") as mock_send:
-                mock_send.side_effect = Exception("Email sending failed")
+            with patch("app.utils.email_utils.send_email") as mock_send:
+                mock_send.side_effect = httpx.ConnectTimeout("timed out")
 
-                result = mock_password_reset_service.request_password_reset(
-                    user_service=mock_user_service, email=test_user.email
-                )
+                with caplog.at_level(logging.ERROR, logger="app.utils.email_utils"):
+                    result = mock_password_reset_service.request_password_reset(
+                        user_service=mock_user_service, email=test_user.email
+                    )
 
-                # Assert: Verify success message is returned despite email failure
-                assert isinstance(result, Message)
-                assert "If an account exists" in result.message
+        # Assert: Verify the generic message is returned and the failure is on record
+        assert isinstance(result, Message)
+        assert "If an account exists" in result.message
+        assert test_user.email in caplog.text
+        assert "ConnectTimeout" in caplog.text
 
 
     def test_request_password_reset_expiry_is_relative_to_request_time(
