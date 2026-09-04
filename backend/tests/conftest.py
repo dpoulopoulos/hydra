@@ -20,6 +20,7 @@ from app.repositories import (
     HouseholdMemberRepository,
     HouseholdRepository,
     PasswordResetRepository,
+    RecurringRuleRepository,
     ReportRepository,
     TransactionRepository,
     UserRepository,
@@ -31,6 +32,7 @@ from app.services import (
     EmailVerificationService,
     HouseholdService,
     PasswordResetService,
+    RecurringRuleService,
     ReportService,
     TransactionService,
     UserService,
@@ -593,4 +595,46 @@ def mock_report_service(
         category_repository=mock_category_repository,
         budget_repository=mock_budget_repository,
         account_repository=mock_account_repository,
+    )
+
+
+@pytest.fixture
+def mock_recurring_rule_repository(mock_db_session: MagicMock) -> RecurringRuleRepository:
+    """Create a RecurringRuleRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        A RecurringRuleRepository instance with a mocked session.
+    """
+    return RecurringRuleRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_recurring_rule_service(
+    mock_db_session: MagicMock,
+    mock_recurring_rule_repository: RecurringRuleRepository,
+    mock_transaction_repository: TransactionRepository,
+    mock_account_repository: AccountRepository,
+    mock_category_repository: CategoryRepository,
+) -> RecurringRuleService:
+    """Create a RecurringRuleService instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+        mock_recurring_rule_repository: The recurring rule repository instance.
+        mock_transaction_repository: The transaction repository instance.
+        mock_account_repository: The account repository instance.
+        mock_category_repository: The category repository instance.
+
+    Returns:
+        A RecurringRuleService instance with a mocked session.
+    """
+    return RecurringRuleService(
+        session=mock_db_session,
+        recurring_rule_repository=mock_recurring_rule_repository,
+        transaction_repository=mock_transaction_repository,
+        account_repository=mock_account_repository,
+        category_repository=mock_category_repository,
     )
