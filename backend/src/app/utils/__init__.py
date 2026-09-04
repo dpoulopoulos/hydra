@@ -4,6 +4,7 @@ from .email_utils import (
     generate_new_account_email,
     generate_password_reset_email,
     send_email,
+    try_send_email,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "generate_new_account_email",
     "generate_password_reset_email",
     "send_email",
+    "try_send_email",
 ]
