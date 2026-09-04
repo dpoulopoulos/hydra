@@ -5,6 +5,7 @@ import { Link } from 'react-router'
 
 import {
   reportsBudgetProgress,
+  reportsIncomeExpense,
   reportsMonthSummary,
   transactionsListTransactions,
   TransactionKind,
@@ -14,6 +15,7 @@ import { ErrorState, LoadingRows } from '@/components/data-state'
 import { PageHeader } from '@/components/layout/page-header'
 import { Money } from '@/components/money'
 import { MonthPicker } from '@/components/month-picker'
+import { PeriodToggle, type Period } from '@/components/period-toggle'
 import { StatTile } from '@/components/stat-tile'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -41,6 +43,8 @@ export function Component() {
   const currency = useCurrency()
   const { user } = useAuth()
   const [month, setMonth] = useState(currentMonth)
+  const [savedSpan, setSavedSpan] = useState<Period>('month')
+  const year = month.slice(0, 4)
 
   // The summary is one request on purpose, and it also brings any recurring
   // transactions that have fallen due up to date.
@@ -57,6 +61,19 @@ export function Component() {
     queryKey: ['reports', 'budget-progress', month],
     queryFn: async () => {
       const { data, error } = await reportsBudgetProgress({ query: { month } })
+      if (error) throw error
+      return data
+    },
+  })
+
+  // Fetched with the month rather than on demand, so switching the Saved
+  // tile to the year does not put a spinner inside it.
+  const flows = useQuery({
+    queryKey: ['reports', 'income-expense', year],
+    queryFn: async () => {
+      const { data, error } = await reportsIncomeExpense({
+        query: { month_from: `${year}-01`, month_to: `${year}-12` },
+      })
       if (error) throw error
       return data
     },
@@ -107,11 +124,28 @@ export function Component() {
             />
             <StatTile
               label="Saved"
-              minor={summary.data.net_minor}
+              minor={
+                savedSpan === 'year' && flows.data
+                  ? flows.data.total_net_minor
+                  : summary.data.net_minor
+              }
               currency={currency}
               signed
               tone="auto"
-              hint={`${summary.data.transaction_count} transactions this month`}
+              hint={
+                savedSpan === 'year'
+                  ? `Everything recorded in ${year}`
+                  : `${summary.data.transaction_count} transactions this month`
+              }
+              action={
+                <PeriodToggle
+                  label="What Saved covers"
+                  value={savedSpan}
+                  onChange={setSavedSpan}
+                  // Nothing to show for the year until its figures arrive.
+                  disabled={!flows.data}
+                />
+              }
             />
             <StatTile
               label="Net worth"
