@@ -1077,7 +1077,8 @@ export const budgetsBulkUpsertBudgets = <ThrowOnError extends boolean = false>(o
  *
  * Raises:
  * HTTPException: If the target month already has budgets and overwrite was
- * not requested (409).
+ * not requested, or the source month budgets both a parent and its
+ * subcategory (409).
  */
 export const budgetsCopyBudgets = <ThrowOnError extends boolean = false>(options: Options<BudgetsCopyBudgetsData, ThrowOnError>): RequestResult<BudgetsCopyBudgetsResponses, BudgetsCopyBudgetsErrors, ThrowOnError> => (options.client ?? client).post<BudgetsCopyBudgetsResponses, BudgetsCopyBudgetsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
