@@ -312,6 +312,8 @@ def get_household_service(
     household_repository: HouseholdRepositoryDep,
     household_member_repository: HouseholdMemberRepositoryDep,
     household_invite_repository: HouseholdInviteRepositoryDep,
+    user_repository: UserRepositoryDep,
+    email_verification_repository: EmailVerificationRepositoryDep,
 ) -> HouseholdService:
     """Get a household service instance.
 
@@ -320,6 +322,8 @@ def get_household_service(
         household_repository: The household repository instance.
         household_member_repository: The household member repository instance.
         household_invite_repository: The household invite repository instance.
+        user_repository: The user repository instance.
+        email_verification_repository: The email verification repository instance.
 
     Returns:
         A household service instance.
@@ -329,6 +333,8 @@ def get_household_service(
         household_repository=household_repository,
         household_member_repository=household_member_repository,
         household_invite_repository=household_invite_repository,
+        user_repository=user_repository,
+        email_verification_repository=email_verification_repository,
     )
 
 

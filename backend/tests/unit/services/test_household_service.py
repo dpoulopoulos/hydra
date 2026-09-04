@@ -22,6 +22,8 @@ from app.exceptions import (
     LastHouseholdOwnerError,
 )
 from app.models import (
+    EmailVerification,
+    EmailVerificationStatus,
     Household,
     HouseholdContext,
     HouseholdInvite,
@@ -572,6 +574,27 @@ def make_invite(
     )
 
 
+def make_verification(user_id: uuid.UUID, email: str) -> EmailVerification:
+    """Build the proof that an account holds an address."""
+    return EmailVerification(
+        email=email,
+        user_id=user_id,
+        status=EmailVerificationStatus.VERIFIED,
+        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=24),
+        token="a-verification-token",
+    )
+
+
+def saved_invite(service: HouseholdService) -> HouseholdInvite:
+    """Return the invite the service handed to the session."""
+    saved = [
+        call.args[0]
+        for call in service.session.add.call_args_list  # type: ignore[attr-defined]
+        if isinstance(call.args[0], HouseholdInvite)
+    ]
+    return saved[0]
+
+
 class TestCreateInvite:
     """Tests for create_invite."""
 
@@ -630,6 +653,76 @@ class TestCreateInvite:
         mock_household_service.session.commit.assert_called_once()
         assert "partner@example.com" in caplog.text
         assert "HTTPStatusError" in caplog.text
+
+    def test_binds_the_invite_to_the_account_that_proved_the_address(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """The invitation names an account, not a piece of text anybody can adopt."""
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        # No outstanding invite, then the account holding the invited address,
+        # then its verification of that address.
+        mock_household_service.session.exec.return_value.first.side_effect = [
+            None,
+            another_test_user,
+            make_verification(user_id=another_test_user.id, email=another_test_user.email),
+        ]
+        mock_household_service.session.exec.return_value.all.return_value = []
+
+        mock_household_service.create_invite(
+            household=context,
+            invite_create=HouseholdInviteCreate(email=another_test_user.email),
+        )
+
+        assert saved_invite(mock_household_service).invited_user_id == another_test_user.id
+
+    def test_leaves_the_invite_unbound_when_the_address_was_never_proved(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """An address on a profile is a claim: `PATCH /users/me` takes any unclaimed one.
+
+        Binding on that alone would record whoever squatted the address ahead
+        of the invitation as the account it was issued to.
+        """
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        # No outstanding invite, the account holding the address, no proof of it.
+        mock_household_service.session.exec.return_value.first.side_effect = [None, another_test_user, None]
+        mock_household_service.session.exec.return_value.all.return_value = []
+
+        mock_household_service.create_invite(
+            household=context,
+            invite_create=HouseholdInviteCreate(email=another_test_user.email),
+        )
+
+        assert saved_invite(mock_household_service).invited_user_id is None
+
+    def test_leaves_the_invite_unbound_when_the_address_has_no_account(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        """The ordinary case of inviting somebody new: there is no identity yet."""
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [None, None]
+        mock_household_service.session.exec.return_value.all.return_value = []
+
+        mock_household_service.create_invite(
+            household=context,
+            invite_create=HouseholdInviteCreate(email="nobody@example.com"),
+        )
+
+        assert saved_invite(mock_household_service).invited_user_id is None
 
     def test_rejects_a_second_invite_to_the_same_address(
         self,

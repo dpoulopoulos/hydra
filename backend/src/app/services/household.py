@@ -38,11 +38,13 @@ from app.models import (
     Message,
     User,
 )
+from app.repositories.email_verification import EmailVerificationRepository
 from app.repositories.household import (
     HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
 )
+from app.repositories.user import UserRepository
 from app.utils import generate_household_invite_email, try_send_email
 
 
@@ -83,6 +85,8 @@ class HouseholdService:
         household_repository: HouseholdRepository,
         household_member_repository: HouseholdMemberRepository,
         household_invite_repository: HouseholdInviteRepository,
+        user_repository: UserRepository,
+        email_verification_repository: EmailVerificationRepository,
     ) -> None:
         """Initialize the household service.
 
@@ -91,11 +95,16 @@ class HouseholdService:
             household_repository: The household repository instance.
             household_member_repository: The household member repository instance.
             household_invite_repository: The household invite repository instance.
+            user_repository: The user repository instance, used to resolve invited addresses to accounts.
+            email_verification_repository: The email verification repository instance, used to tell
+                an address somebody has proved they hold from one they have only claimed.
         """
         self.session = session
         self.household_repository = household_repository
         self.household_member_repository = household_member_repository
         self.household_invite_repository = household_invite_repository
+        self.user_repository = user_repository
+        self.email_verification_repository = email_verification_repository
 
     def get_context(self, user: User) -> HouseholdContext:
         """Resolve the household scope of a user.
@@ -568,6 +577,21 @@ class HouseholdService:
             ),
         )
         invite.invited_by_user_id = household.user_id
+        # Whoever has proved they hold the address is who the invitation is
+        # for. Recording it makes the invitation redeemable by that account
+        # alone, rather than by anybody who can put the address in their
+        # profile. The proof matters: an address on a profile is a claim, and
+        # `PATCH /users/me` hands out any unclaimed one without asking for
+        # anything, so binding on the profile alone would record whoever
+        # squatted the address ahead of the invitation as its recipient. An
+        # invitation that binds to nobody here is attributed later, when the
+        # address is verified.
+        invited_user = self.user_repository.get_by_email_ignoring_case(email)
+        invite.invited_user_id = (
+            invited_user.id
+            if invited_user and self.email_verification_repository.has_verified(user_id=invited_user.id, email=email)
+            else None
+        )
         self.household_invite_repository.save(invite)
         self.session.commit()
 

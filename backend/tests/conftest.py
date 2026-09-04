@@ -401,6 +401,8 @@ def mock_household_service(
     mock_household_repository: HouseholdRepository,
     mock_household_member_repository: HouseholdMemberRepository,
     mock_household_invite_repository: HouseholdInviteRepository,
+    mock_user_repository: UserRepository,
+    mock_email_verification_repository: EmailVerificationRepository,
 ) -> HouseholdService:
     """Create a HouseholdService instance with a mocked session.
 
@@ -409,6 +411,8 @@ def mock_household_service(
         mock_household_repository: The household repository instance.
         mock_household_member_repository: The household member repository instance.
         mock_household_invite_repository: The household invite repository instance.
+        mock_user_repository: The user repository instance.
+        mock_email_verification_repository: The email verification repository instance.
 
     Returns:
         A HouseholdService instance with a mocked session.
@@ -418,6 +422,8 @@ def mock_household_service(
         household_repository=mock_household_repository,
         household_member_repository=mock_household_member_repository,
         household_invite_repository=mock_household_invite_repository,
+        user_repository=mock_user_repository,
+        email_verification_repository=mock_email_verification_repository,
     )
 
 
