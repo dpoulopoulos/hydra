@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -6,12 +7,14 @@ from pydantic import ValidationError
 from app.api.deps import (
     get_current_active_superuser,
     get_current_user,
+    get_household_context,
+    get_household_owner,
     get_password_reset_service,
     get_user_service,
 )
-from app.exceptions import UserNotAuthorizedError
+from app.exceptions import HouseholdMembershipNotFoundError, HouseholdRoleRequiredError, UserNotAuthorizedError
 from app.exceptions.password_exceptions import InvalidCredentialsError
-from app.models import User
+from app.models import HouseholdContext, HouseholdRole, User
 from app.repositories import PasswordResetRepository, UserRepository
 from app.services import PasswordResetService, UserService
 
@@ -123,3 +126,70 @@ class TestGetCurrentActiveSuperuser:
         # Act & Assert: Verify UserNotAuthorizedError is raised for regular user
         with pytest.raises(UserNotAuthorizedError):
             get_current_active_superuser(test_user)
+
+
+class TestGetHouseholdContext:
+    """Tests for the get_household_context dependency."""
+
+    def test_returns_the_context_from_the_service(self, test_user: User) -> None:
+        """Test that the dependency delegates to the household service."""
+        # Arrange: A service that returns a context
+        context = HouseholdContext(
+            user=test_user,
+            household_id=uuid.uuid4(),
+            membership_id=uuid.uuid4(),
+            role=HouseholdRole.OWNER,
+        )
+        household_service = MagicMock()
+        household_service.get_context.return_value = context
+
+        # Act: Resolve the dependency
+        result = get_household_context(current_user=test_user, household_service=household_service)
+
+        # Assert: The context comes from the service, keyed on the current user
+        assert result is context
+        household_service.get_context.assert_called_once_with(user=test_user)
+
+    def test_propagates_a_missing_membership(self, test_user: User) -> None:
+        """Test that a user with no household is reported, not silently scoped."""
+        # Arrange: A service that has no membership for the user
+        household_service = MagicMock()
+        household_service.get_context.side_effect = HouseholdMembershipNotFoundError
+
+        # Act & Assert: The error reaches the caller
+        with pytest.raises(HouseholdMembershipNotFoundError):
+            get_household_context(current_user=test_user, household_service=household_service)
+
+
+class TestGetHouseholdOwner:
+    """Tests for the get_household_owner dependency."""
+
+    def test_allows_an_owner(self, test_user: User) -> None:
+        """Test that an owner passes the check unchanged."""
+        # Arrange: An owner context
+        context = HouseholdContext(
+            user=test_user,
+            household_id=uuid.uuid4(),
+            membership_id=uuid.uuid4(),
+            role=HouseholdRole.OWNER,
+        )
+
+        # Act: Resolve the dependency
+        result = get_household_owner(household=context)
+
+        # Assert: The same context is returned
+        assert result is context
+
+    def test_rejects_a_member(self, test_user: User) -> None:
+        """Test that a plain member cannot pass the owner check."""
+        # Arrange: A member context
+        context = HouseholdContext(
+            user=test_user,
+            household_id=uuid.uuid4(),
+            membership_id=uuid.uuid4(),
+            role=HouseholdRole.MEMBER,
+        )
+
+        # Act & Assert: The check refuses the request
+        with pytest.raises(HouseholdRoleRequiredError):
+            get_household_owner(household=context)

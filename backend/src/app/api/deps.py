@@ -10,15 +10,17 @@ from sqlmodel import Session
 from app.core.config import settings
 from app.core.db import engine
 from app.core.security import TokenType, decode_token
-from app.exceptions import UserNotAuthorizedError
+from app.exceptions import HouseholdRoleRequiredError, UserNotAuthorizedError
 from app.exceptions.password_exceptions import InvalidCredentialsError
-from app.models import TokenPayload, User
+from app.models import HouseholdContext, HouseholdRole, TokenPayload, User
 from app.repositories import (
     EmailVerificationRepository,
+    HouseholdMemberRepository,
+    HouseholdRepository,
     PasswordResetRepository,
     UserRepository,
 )
-from app.services import EmailVerificationService, PasswordResetService, UserService
+from app.services import EmailVerificationService, HouseholdService, PasswordResetService, UserService
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login/access-token")
 
@@ -79,6 +81,61 @@ def get_email_verification_repository(session: SessionDep) -> EmailVerificationR
 
 
 EmailVerificationRepositoryDep = Annotated[EmailVerificationRepository, Depends(get_email_verification_repository)]
+
+
+def get_household_repository(session: SessionDep) -> HouseholdRepository:
+    """Get a household repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A household repository instance.
+    """
+    return HouseholdRepository(session=session)
+
+
+HouseholdRepositoryDep = Annotated[HouseholdRepository, Depends(get_household_repository)]
+
+
+def get_household_member_repository(session: SessionDep) -> HouseholdMemberRepository:
+    """Get a household member repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A household member repository instance.
+    """
+    return HouseholdMemberRepository(session=session)
+
+
+HouseholdMemberRepositoryDep = Annotated[HouseholdMemberRepository, Depends(get_household_member_repository)]
+
+
+def get_household_service(
+    session: SessionDep,
+    household_repository: HouseholdRepositoryDep,
+    household_member_repository: HouseholdMemberRepositoryDep,
+) -> HouseholdService:
+    """Get a household service instance.
+
+    Args:
+        session: The database session.
+        household_repository: The household repository instance.
+        household_member_repository: The household member repository instance.
+
+    Returns:
+        A household service instance.
+    """
+    return HouseholdService(
+        session=session,
+        household_repository=household_repository,
+        household_member_repository=household_member_repository,
+    )
+
+
+HouseholdServiceDep = Annotated[HouseholdService, Depends(get_household_service)]
 
 
 def get_user_service(session: SessionDep, user_repository: UserRepositoryDep) -> UserService:
@@ -179,3 +236,46 @@ def get_current_active_superuser(current_user: CurrentUser) -> User:
         raise UserNotAuthorizedError(current_user)
 
     return current_user
+
+
+def get_household_context(current_user: CurrentUser, household_service: HouseholdServiceDep) -> HouseholdContext:
+    """Resolve the household scope of the current request.
+
+    The household is derived from the membership row rather than from the token,
+    so joining a different household takes effect without logging in again.
+
+    Args:
+        current_user: The current user.
+        household_service: The household service instance.
+
+    Returns:
+        The household context of the request.
+
+    Raises:
+        HouseholdMembershipNotFoundError: If the user belongs to no household.
+    """
+    return household_service.get_context(user=current_user)
+
+
+CurrentHousehold = Annotated[HouseholdContext, Depends(get_household_context)]
+
+
+def get_household_owner(household: CurrentHousehold) -> HouseholdContext:
+    """Require that the current user owns their household.
+
+    Args:
+        household: The current household context.
+
+    Returns:
+        The household context.
+
+    Raises:
+        HouseholdRoleRequiredError: If the user is not an owner of the household.
+    """
+    if not household.is_owner:
+        raise HouseholdRoleRequiredError(role=HouseholdRole.OWNER)
+
+    return household
+
+
+OwnerHousehold = Annotated[HouseholdContext, Depends(get_household_owner)]
