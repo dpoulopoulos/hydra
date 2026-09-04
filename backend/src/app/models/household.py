@@ -131,6 +131,13 @@ class HouseholdInvite(HouseholdInviteBase, PrimaryKeyMixin, CreatedAtMixin, Upda
     token: str = Field(unique=True, index=True)
     household_id: uuid.UUID = Field(foreign_key="household.id", ondelete="CASCADE", index=True)
     invited_by_user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", ondelete="SET NULL")
+    # The account the invitation is for, once one has proved it holds the
+    # invited address. An address is a profile field its owner can change at
+    # will, so it identifies nobody; this column is what the accept path
+    # compares against. Null while nobody has proved the address: such an
+    # invitation is redeemable by no one until the address is verified and the
+    # invitation is claimed.
+    invited_user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", ondelete="SET NULL", index=True)
 
 
 @dataclass(frozen=True, slots=True)
