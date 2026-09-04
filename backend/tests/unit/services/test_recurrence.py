@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 
 from app.models import RecurrenceFrequency
+from app.models.recurring_rule import MAX_RECURRENCE_INTERVAL
 from app.services.recurrence import advance, first_occurrence, occurrences_until
 
 
@@ -157,6 +158,69 @@ class TestAdvanceYearly:
         ) == date(2032, 2, 29)
 
 
+class TestAdvanceInterval:
+    """Tests for the intervals advance accepts."""
+
+    @pytest.mark.parametrize("interval", [0, -1])
+    def test_rejects_an_interval_that_would_not_move_the_date_on(self, interval: int) -> None:
+        with pytest.raises(ValueError):
+            advance(
+                current=date(2026, 3, 4), frequency=RecurrenceFrequency.YEARLY, interval=interval
+            )
+
+    def test_accepts_the_largest_interval(self) -> None:
+        assert advance(
+            current=date(2026, 3, 4),
+            frequency=RecurrenceFrequency.YEARLY,
+            interval=MAX_RECURRENCE_INTERVAL,
+        ) == date(3226, 3, 4)
+
+
+class TestAdvancePastTheCalendar:
+    """A step that would leave the calendar ends the schedule instead of raising."""
+
+    @pytest.mark.parametrize(
+        ("frequency", "interval"),
+        [
+            (RecurrenceFrequency.YEARLY, 1),
+            (RecurrenceFrequency.MONTHLY, 1),
+            (RecurrenceFrequency.WEEKLY, 1),
+        ],
+    )
+    def test_returns_none_at_the_end_of_the_calendar(
+        self, frequency: RecurrenceFrequency, interval: int
+    ) -> None:
+        assert advance(current=date.max, frequency=frequency, interval=interval) is None
+
+    def test_returns_none_for_a_stored_interval_above_the_cap(self) -> None:
+        """A rule saved before the cap must not raise from the arithmetic on a read."""
+        assert (
+            advance(
+                current=date(2026, 3, 4),
+                frequency=RecurrenceFrequency.YEARLY,
+                interval=MAX_RECURRENCE_INTERVAL * 10,
+            )
+            is None
+        )
+
+    def test_the_last_step_that_still_fits_is_taken(self) -> None:
+        assert advance(
+            current=date(9998, 12, 31), frequency=RecurrenceFrequency.YEARLY, interval=1
+        ) == date(9999, 12, 31)
+
+
+class TestFirstOccurrencePastTheCalendar:
+    """A first occurrence that cannot be placed on the calendar."""
+
+    def test_returns_none_when_the_first_occurrence_leaves_the_calendar(self) -> None:
+        assert (
+            first_occurrence(
+                start_date=date.max, frequency=RecurrenceFrequency.MONTHLY, day_of_month=1
+            )
+            is None
+        )
+
+
 class TestOccurrencesUntil:
     """Tests for occurrences_until."""
 
@@ -234,8 +298,8 @@ class TestOccurrencesUntil:
         ) == [date(2026, 1, 31), date(2026, 2, 28), date(2026, 3, 31), date(2026, 4, 30)]
 
     @pytest.mark.parametrize("interval", [0, -1])
-    def test_rejects_an_interval_that_would_not_move(self, interval: int) -> None:
-        """Otherwise the loop would never end."""
+    def test_rejects_an_interval_that_would_not_move_the_date_on(self, interval: int) -> None:
+        """The loop would otherwise never end."""
         with pytest.raises(ValueError):
             occurrences_until(
                 cursor=date(2026, 1, 1),
@@ -243,3 +307,22 @@ class TestOccurrencesUntil:
                 frequency=RecurrenceFrequency.MONTHLY,
                 interval=interval,
             )
+
+    @pytest.mark.parametrize(
+        ("frequency", "interval"),
+        [(RecurrenceFrequency.YEARLY, MAX_RECURRENCE_INTERVAL), (RecurrenceFrequency.WEEKLY, 1)],
+    )
+    def test_stops_when_the_schedule_runs_off_the_calendar(
+        self, frequency: RecurrenceFrequency, interval: int
+    ) -> None:
+        """Asking to look ahead to the last day there is must not raise."""
+        dates = occurrences_until(
+            cursor=date(9990, 1, 1),
+            until=date.max,
+            frequency=frequency,
+            interval=interval,
+        )
+
+        assert dates
+        assert dates[0] == date(9990, 1, 1)
+        assert dates[-1] <= date.max

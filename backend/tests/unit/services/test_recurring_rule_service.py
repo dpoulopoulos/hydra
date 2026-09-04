@@ -168,6 +168,26 @@ class TestCreateRule:
                 ),
             )
 
+    def test_rejects_a_start_date_with_no_room_left_on_the_calendar(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """The first occurrence would fall past the last date there is: a 400, not a 500."""
+        account = make_account()
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = account
+
+        with pytest.raises(InvalidRecurrenceError):
+            mock_recurring_rule_service.create_rule(
+                household=household_context,
+                rule_create=RecurringRuleCreate(
+                    name="Gym",
+                    day_of_month=1,
+                    start_date=date(9999, 12, 31),
+                    amount_minor=3_000,
+                    account_id=account.id,
+                ),
+            )
+
     def test_rejects_a_zero_interval(self) -> None:
         with pytest.raises(ValueError):
             RecurringRuleCreate(
@@ -490,6 +510,68 @@ class TestListUpcoming:
         )
 
         assert result.count == 0
+
+
+class TestSchedulesPastTheCalendar:
+    """A schedule that runs out of calendar ends, rather than raising a 500."""
+
+    @pytest.mark.parametrize(
+        ("frequency", "interval"),
+        [
+            (RecurrenceFrequency.YEARLY, 1200),
+            (RecurrenceFrequency.WEEKLY, 1),
+        ],
+    )
+    def test_looking_ahead_to_the_last_date_there_is(
+        self,
+        mock_recurring_rule_service: RecurringRuleService,
+        household_context: HouseholdContext,
+        frequency: RecurrenceFrequency,
+        interval: int,
+    ) -> None:
+        rule = make_rule(frequency=frequency, interval=interval, next_occurrence_on=date(9990, 1, 1))
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
+
+        result = mock_recurring_rule_service.list_upcoming(
+            household=household_context, until=date(9999, 12, 31)
+        )
+
+        assert result.count > 0
+        assert all(occurrence.occurs_on <= date(9999, 12, 31) for occurrence in result.data)
+
+    def test_a_rule_stored_with_an_interval_above_the_cap_still_reads(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """Nothing clamps a rule saved before the cap, so a read must survive one."""
+        rule = make_rule(
+            frequency=RecurrenceFrequency.YEARLY, interval=100_000, next_occurrence_on=date(2026, 4, 1)
+        )
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
+
+        result = mock_recurring_rule_service.list_upcoming(
+            household=household_context, until=date(2026, 6, 15)
+        )
+
+        assert [occurrence.occurs_on for occurrence in result.data] == [date(2026, 4, 1)]
+
+    def test_a_rule_that_runs_out_of_calendar_is_exhausted(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        rule = make_rule(
+            frequency=RecurrenceFrequency.YEARLY,
+            interval=1200,
+            day_of_month=None,
+            next_occurrence_on=date(9990, 1, 1),
+        )
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
+
+        mock_recurring_rule_service.materialize_due(household=household_context, until=date(9999, 12, 31))
+
+        assert rule.last_generated_on == date(9990, 1, 1)
+        assert rule.next_occurrence_on is None
 
 
 class TestUpdateRule:
