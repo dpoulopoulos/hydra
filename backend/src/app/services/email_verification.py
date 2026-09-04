@@ -17,8 +17,6 @@ from app.repositories.email_verification import EmailVerificationRepository
 from app.services.user import UserService
 from app.utils import generate_email_verification_email, send_email
 
-EXPIRATION_TIME = datetime.now(UTC) + timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
-
 
 class EmailVerificationService:
     """Provide services for email verification management."""
@@ -92,7 +90,7 @@ class EmailVerificationService:
             email=user.email,
             user_id=user.id,
             status=EmailVerificationStatus.PENDING,
-            expires_at=EXPIRATION_TIME,
+            expires_at=datetime.now(UTC) + timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS),
             token=token,
         )
 

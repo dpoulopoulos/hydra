@@ -249,6 +249,35 @@ class TestSendVerificationEmail:
                 )
 
 
+    def test_send_verification_email_expiry_is_relative_to_request_time(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+    ) -> None:
+        """Test that the stored expiry is measured from the request, not from process start."""
+        # Arrange: Pretend the process has been up far longer than the configured window
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        request_time = datetime.now(UTC) + timedelta(days=30)
+
+        # Act: Send a verification email at that later point in time
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            with patch("app.services.email_verification.send_email"):
+                with patch("app.services.email_verification.generate_email_verification_email"):
+                    with patch("app.services.email_verification.datetime") as mock_datetime:
+                        mock_datetime.now.return_value = request_time
+
+                        mock_email_verification_service.send_verification_email(
+                            user_service=mock_user_service, user_email=test_user.email
+                        )
+
+        # Assert: The row expires a full window after the request, not after the import
+        email_verification = mock_email_verification_service.session.add.call_args[0][0]
+        expected = request_time + timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
+        assert email_verification.expires_at == expected
+
 class TestResendVerificationEmail:
     """Tests for the resend_verification_email method."""
 
