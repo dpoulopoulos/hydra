@@ -18,25 +18,28 @@ ENV UV_COMPILE_BYTECODE=1
 
 # uv Cache
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#caching
-#
-# There is deliberately no --mount=type=cache below. Railway's builder only
-# accepts a cache mount whose id carries its own prefix, s/<service id>-<path>,
-# and it forbids reading that from a variable, so honouring it would mean
-# writing one environment's service id into this file. The mount only earns its
-# keep when the lock file changes; the layer cache covers every other build.
 ENV UV_LINK_MODE=copy
 
 # Install dependencies
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
-RUN --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project
+#
+# uv's own guide reaches for --mount here, both to cache its downloads and to
+# read the manifests without copying them. Neither is available on every
+# builder: Railway's accepts no mount but type=cache, and only with an id
+# carrying its own s/<service id>-<path> prefix, which cannot come from a
+# variable and so would mean writing one environment's id into this file.
+#
+# Copying the two manifests on their own gets the same thing that matters. This
+# layer is rebuilt when a dependency changes and reused when only the app does.
+COPY ./pyproject.toml ./uv.lock /app/
+
+RUN uv sync --frozen --no-install-project
 
 ENV PYTHONPATH=/app
 
 COPY ./scripts /app/scripts
 
-COPY ./pyproject.toml ./uv.lock ./alembic.ini /app/
+COPY ./alembic.ini /app/
 
 COPY ./src/app /app/src/app
 
