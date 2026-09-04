@@ -6,6 +6,8 @@ import {
   formatMoney,
   formatPercent,
   formatSignedMoney,
+  numberGrouping,
+  numberSeparators,
   toMajor,
   toMinor,
 } from '@/lib/money'
@@ -157,5 +159,44 @@ describe('the currency parameter', () => {
     expect(() => formatAmount(4250)).toThrow()
     // @ts-expect-error the currency is required
     expect(() => formatCompactAmount(4250)).toThrow()
+    // @ts-expect-error the currency is required
+    expect(() => formatMajorInput(4250)).toThrow()
+  })
+})
+
+describe('numberSeparators', () => {
+  it.each([
+    ['en-US', '.', ','],
+    ['en-GB', '.', ','],
+    ['de-DE', ',', '.'],
+    ['fr-FR', ',', '\u202f'], // a narrow no-break space
+    ['de-CH', '.', "'"],
+    // Neither of its separators is one of "." and ",".
+    ['ar-EG', '\u066b', '\u066c'],
+    ['fa-IR', '\u066b', '\u066c'],
+  ])('reports %s as decimal %j and group %j', (locale, decimal, group) => {
+    expect(numberSeparators(locale)).toEqual({ decimal, group })
+  })
+
+  it('falls back to the runtime locale', () => {
+    const runtime = new Intl.NumberFormat().resolvedOptions().locale
+    expect(numberSeparators()).toEqual(numberSeparators(runtime))
+  })
+})
+
+describe('numberGrouping', () => {
+  it.each([
+    ['en-US', 3, 3],
+    ['de-DE', 3, 3],
+    ['fr-FR', 3, 3],
+    ['en-IN', 3, 2], // the lakh: 1234567 is written "12,34,567"
+    ['hi-IN', 3, 2],
+  ])('reports %s as groups of %i and %i digits', (locale, primary, secondary) => {
+    expect(numberGrouping(locale)).toEqual({ primary, secondary })
+  })
+
+  it('falls back to the runtime locale', () => {
+    const runtime = new Intl.NumberFormat().resolvedOptions().locale
+    expect(numberGrouping()).toEqual(numberGrouping(runtime))
   })
 })
