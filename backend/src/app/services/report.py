@@ -155,13 +155,20 @@ class ReportService:
 
         Raises:
             InvalidDateRangeError: If the range starts after it ends.
-            ReportRangeTooLargeError: If daily buckets are asked for over more than two years.
+            ReportRangeTooLargeError: If more than two years of daily buckets, or more than ten
+                years of monthly ones, are asked for.
             CategoryNotFoundError: If the category does not exist in the household.
         """
         self._check_range(date_from=date_from, date_to=date_to)
 
         if granularity is TimeGranularity.DAY and (date_to - date_from).days > MAX_DAILY_RANGE_DAYS:
             raise ReportRangeTooLargeError(limit="two years of daily figures") from None
+
+        if (
+            granularity is TimeGranularity.MONTH
+            and self._month_count(date_from=date_from, date_to=date_to) > MAX_FLOW_RANGE_MONTHS
+        ):
+            raise ReportRangeTooLargeError(limit="ten years of monthly figures") from None
 
         category_ids = None
 
