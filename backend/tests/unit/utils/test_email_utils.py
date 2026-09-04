@@ -264,3 +264,83 @@ class TestSendEmail:
                 "user": "user@example.com",
             },
         )
+
+
+class TestSendEmailViaResend:
+    """Test send_email when the provider is Resend."""
+
+    @pytest.fixture(autouse=True)
+    def _resend_settings(self, monkeypatch) -> None:
+        """Point the settings at Resend, with a key and a sender."""
+        monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+        monkeypatch.setattr(settings, "EMAILS_FROM_NAME", "Test Sender")
+
+    def test_send_email_raises_assertion_error_without_api_key(self, monkeypatch) -> None:
+        """Send email raises AssertionError when the Resend key is missing."""
+        # Arrange: Take the key away, which is all that enables the provider
+        monkeypatch.setattr(settings, "RESEND_API_KEY", None)
+
+        # Act & Assert: Verify assertion error is raised when emails are disabled
+        with pytest.raises(AssertionError, match="no provided configuration for email variables"):
+            send_email(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>Test content</p>",
+            )
+
+    @patch("app.utils.email_utils.httpx.post")
+    def test_send_email_posts_to_resend(self, mock_post: MagicMock) -> None:
+        """Send email posts the message to the Resend API."""
+        # Act: Send email
+        send_email(
+            email_to="recipient@example.com",
+            subject="Test Subject",
+            html_content="<p>Test content</p>",
+        )
+
+        # Assert: Verify the request carries the key, the sender and the message
+        mock_post.assert_called_once_with(
+            "https://api.resend.com/emails",
+            headers={"Authorization": "Bearer re_test_key"},
+            json={
+                "from": "Test Sender <from@example.com>",
+                "to": ["recipient@example.com"],
+                "subject": "Test Subject",
+                "html": "<p>Test content</p>",
+            },
+            timeout=10,
+        )
+        mock_post.return_value.raise_for_status.assert_called_once()
+
+    @patch("app.utils.email_utils.httpx.post")
+    def test_send_email_omits_display_name_when_unset(self, mock_post: MagicMock, monkeypatch) -> None:
+        """Send email sends a bare address when there is no display name."""
+        # Arrange: Drop the display name
+        monkeypatch.setattr(settings, "EMAILS_FROM_NAME", None)
+
+        # Act: Send email
+        send_email(
+            email_to="recipient@example.com",
+            subject="Test Subject",
+            html_content="<p>Test content</p>",
+        )
+
+        # Assert: Verify the sender is the address on its own
+        assert mock_post.call_args.kwargs["json"]["from"] == "from@example.com"
+
+    @patch("app.utils.email_utils.Message")
+    @patch("app.utils.email_utils.httpx.post")
+    def test_send_email_does_not_use_smtp(self, mock_post: MagicMock, mock_message_class: MagicMock) -> None:
+        """Send email leaves SMTP alone when the provider is Resend."""
+        # Act: Send email
+        send_email(
+            email_to="recipient@example.com",
+            subject="Test Subject",
+            html_content="<p>Test content</p>",
+        )
+
+        # Assert: Verify no message was built for a mail server
+        mock_post.assert_called_once()
+        mock_message_class.assert_not_called()

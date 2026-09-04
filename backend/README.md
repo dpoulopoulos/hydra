@@ -282,9 +282,14 @@ Key settings:
 | `BACKEND_CORS_ORIGINS` | Allowed CORS origins | `[]` |
 | `FRONTEND_HOST` | Base URL used in email links | `http://localhost:5173` |
 | `HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS` | Household invitation lifetime | 168 (7 days) |
+| `EMAIL_PROVIDER` | How mail leaves: `smtp` or `resend` | `smtp` |
+| `RESEND_API_KEY` | Required when the provider is `resend` | `None` |
 
 The `Settings` class validates that "changethis" values are not used outside the `local` environment, where it warns
 instead.
+
+`EMAIL_PROVIDER` exists because some hosts block outgoing SMTP. `smtp` talks to a mail server, which is what the local
+mail catcher offers. `resend` posts to an HTTPS API instead, and needs `RESEND_API_KEY`.
 
 ## Database Migrations
 

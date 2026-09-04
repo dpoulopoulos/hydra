@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import httpx
 from emails.message import Message
 from jinja2 import Template
 
@@ -102,6 +103,45 @@ def generate_email_verification_email(email: str, token: str) -> EmailData:
     return EmailData(html_content=html_content, subject=subject)
 
 
+def _send_email_via_resend(
+    *,
+    email_to: str,
+    subject: str,
+    html_content: str,
+) -> None:
+    """Post one email to the Resend API.
+
+    Some hosts block outgoing SMTP, so mail has to leave over HTTPS instead.
+
+    Args:
+        email_to: The recipient's email address.
+        subject: The subject of the email.
+        html_content: The HTML content of the email.
+
+    Raises:
+        HTTPStatusError: If Resend rejects the request.
+    """
+    # emails_enabled already implies both, but it is not something mypy can narrow.
+    assert settings.RESEND_API_KEY is not None
+    assert settings.EMAILS_FROM_EMAIL is not None
+
+    # Resend takes the sender as one header value, so the display name, when
+    # there is one, is folded into it the way a mail client would write it.
+    mail_from = (
+        f"{settings.EMAILS_FROM_NAME} <{settings.EMAILS_FROM_EMAIL}>"
+        if settings.EMAILS_FROM_NAME
+        else settings.EMAILS_FROM_EMAIL
+    )
+
+    response = httpx.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
+        json={"from": mail_from, "to": [email_to], "subject": subject, "html": html_content},
+        timeout=10,
+    )
+    response.raise_for_status()
+
+
 def send_email(
     *,
     email_to: str,
@@ -121,6 +161,10 @@ def send_email(
     assert settings.emails_enabled, "no provided configuration for email variables"
     # emails_enabled already implies this, but it is not something mypy can narrow.
     assert settings.EMAILS_FROM_EMAIL is not None
+
+    if settings.EMAIL_PROVIDER == "resend":
+        _send_email_via_resend(email_to=email_to, subject=subject, html_content=html_content)
+        return
 
     message = Message(
         subject=subject,

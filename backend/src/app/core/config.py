@@ -104,6 +104,12 @@ class Settings(BaseSettings):
 
         return self
 
+    # How mail leaves the app. "smtp" talks to a mail server, which is what the
+    # local mail catcher offers. "resend" posts to an HTTPS API instead, for
+    # hosts that block outgoing SMTP.
+    EMAIL_PROVIDER: Literal["smtp", "resend"] = "smtp"
+    RESEND_API_KEY: str | None = None
+
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
     SMTP_PORT: int = 587
@@ -117,7 +123,11 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def emails_enabled(self) -> bool:
-        return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
+        if not self.EMAILS_FROM_EMAIL:
+            return False
+        if self.EMAIL_PROVIDER == "resend":
+            return bool(self.RESEND_API_KEY)
+        return bool(self.SMTP_HOST)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
