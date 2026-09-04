@@ -87,6 +87,20 @@ if settings.all_cors_origins:
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+
+# Kept out of the schema so the generated client is unchanged by it: the check is
+# for whoever runs the app, not for the app's own callers. The tag is not for the
+# docs either; custom_generate_unique_id reads it for every route, schema or not.
+@app.get("/health", tags=["health"], include_in_schema=False)
+def health() -> dict[str, str]:
+    """Report that the process is up and serving.
+
+    Returns:
+        A small object a host's health check can read.
+    """
+    return {"status": "ok"}
+
+
 assets_dir = Path(__file__).parent / "assets"
 if assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
