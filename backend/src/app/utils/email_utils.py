@@ -140,3 +140,34 @@ def send_email(
         smtp_options["password"] = settings.SMTP_PASSWORD
 
     message.send(to=email_to, smtp=smtp_options)
+
+
+def generate_household_invite_email(email: str, token: str, household_name: str, inviter_name: str) -> EmailData:
+    """Generate a household invitation email.
+
+    Args:
+        email: Recipient email address.
+        token: The invite token.
+        household_name: The name of the household they are being invited to.
+        inviter_name: Who is inviting them.
+
+    Returns:
+        EmailData object with HTML content and subject.
+    """
+    # The household name is whatever the owner chose, and often already ends
+    # in "household", so the subject must not add the word itself.
+    subject = f"You have been invited to {household_name} - {settings.PROJECT_NAME}"
+    html_content = _render_email_template(
+        template_name="household_invite.html",
+        context={
+            "project_name": settings.PROJECT_NAME,
+            "email": email,
+            "token": token,
+            "household_name": household_name,
+            "inviter_name": inviter_name,
+            "expire_hours": settings.HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS,
+            "link": f"{settings.FRONTEND_HOST}/join-household?token={token}",
+            "assets_base_url": settings.assets_base_url,
+        },
+    )
+    return EmailData(html_content=html_content, subject=subject)
