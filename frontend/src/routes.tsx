@@ -26,7 +26,9 @@ const openRoutes: RouteObject[] = [
 /** Screens inside the signed-in shell. */
 const appRoutes: RouteObject[] = [
   { index: true, lazy: () => import('@/pages/dashboard') },
+  { path: '/transactions', lazy: () => import('@/pages/transactions') },
   { path: '/accounts', lazy: () => import('@/pages/accounts') },
+  { path: '/categories', lazy: () => import('@/pages/categories') },
 ]
 
 export const router = createBrowserRouter([
