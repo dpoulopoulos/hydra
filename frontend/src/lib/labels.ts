@@ -30,14 +30,22 @@ export const FREQUENCY_LABELS: Record<string, string> = {
   [RecurrenceFrequency.YEARLY]: 'Yearly',
 }
 
-/** How often a rule repeats, in words, e.g. "Every 2 weeks". */
+/**
+ * How often a rule repeats, in words, e.g. "Every 2 weeks on day 15".
+ *
+ * Both the frequency and the interval have defaults on the wire, so they
+ * arrive optional.
+ */
 export function describeSchedule(
-  frequency: string,
-  interval: number,
+  frequency: string | undefined,
+  interval: number | undefined,
   dayOfMonth?: number | null,
 ): string {
-  const unit = { weekly: 'week', monthly: 'month', yearly: 'year' }[frequency] ?? frequency
-  const every = interval === 1 ? `Every ${unit}` : `Every ${interval} ${unit}s`
-  if (frequency === 'monthly' && dayOfMonth) return `${every} on day ${dayOfMonth}`
-  return every
+  const every = frequency ?? 'monthly'
+  const unit = { weekly: 'week', monthly: 'month', yearly: 'year' }[every] ?? every
+  const count = interval ?? 1
+  const phrase = count === 1 ? `Every ${unit}` : `Every ${count} ${unit}s`
+
+  if (every === 'monthly' && dayOfMonth) return `${phrase} on day ${dayOfMonth}`
+  return phrase
 }
