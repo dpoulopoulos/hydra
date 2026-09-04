@@ -23,6 +23,7 @@ import { useCurrency } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
 import { toMajor, toMinor } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
+import { cn } from '@/lib/utils'
 
 /**
  * Set a whole month of limits at once.
@@ -69,6 +70,10 @@ export function BudgetEditor({
       ),
     [existing.data, currency],
   )
+
+  /** Record what was typed in a field. */
+  const setLimit = (categoryId: string, value: string) =>
+    setEdits((current) => ({ ...current, [categoryId]: value }))
 
   /** What a field shows: the edit if there is one, otherwise the saved limit. */
   const valueFor = (categoryId: string) => edits[categoryId] ?? saved[categoryId] ?? ''
@@ -139,38 +144,23 @@ export function BudgetEditor({
             <div className="space-y-4">
               {parents.map((parent) => (
                 <div key={parent.id} className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <Label htmlFor={`limit-${parent.id}`} className="flex-1 font-medium">
-                      {parent.name}
-                    </Label>
-                    <MoneyInput
-                      id={`limit-${parent.id}`}
-                      currency={currency}
-                      className="w-40"
-                      value={valueFor(parent.id)}
-                      onChange={(event) =>
-                        setEdits((current) => ({ ...current, [parent.id]: event.target.value }))
-                      }
-                    />
-                  </div>
+                  <LimitRow
+                    categoryId={parent.id}
+                    name={parent.name}
+                    currency={currency}
+                    value={valueFor(parent.id)}
+                    onChange={(value) => setLimit(parent.id, value)}
+                  />
                   {(parent.children ?? []).map((child) => (
-                    <div key={child.id} className="flex items-center gap-3 pl-4">
-                      <Label
-                        htmlFor={`limit-${child.id}`}
-                        className="text-muted-foreground flex-1 font-normal"
-                      >
-                        {child.name}
-                      </Label>
-                      <MoneyInput
-                        id={`limit-${child.id}`}
-                        currency={currency}
-                        className="w-40"
-                        value={valueFor(child.id)}
-                        onChange={(event) =>
-                          setEdits((current) => ({ ...current, [child.id]: event.target.value }))
-                        }
-                      />
-                    </div>
+                    <LimitRow
+                      key={child.id}
+                      categoryId={child.id}
+                      name={child.name}
+                      currency={currency}
+                      value={valueFor(child.id)}
+                      onChange={(value) => setLimit(child.id, value)}
+                      nested
+                    />
                   ))}
                 </div>
               ))}
@@ -193,5 +183,48 @@ export function BudgetEditor({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * One category's limit field.
+ *
+ * Both levels of the tree render the same row, a subcategory only indented and
+ * set in lighter type, so the two stay in step.
+ */
+function LimitRow({
+  categoryId,
+  name,
+  currency,
+  value,
+  nested = false,
+  onChange,
+}: {
+  categoryId: string
+  name: string
+  currency: string
+  value: string
+  /** Whether this is a subcategory, shown under its parent. */
+  nested?: boolean
+  onChange: (value: string) => void
+}) {
+  const id = `limit-${categoryId}`
+
+  return (
+    <div className={cn('flex items-center gap-3', nested && 'pl-4')}>
+      <Label
+        htmlFor={id}
+        className={cn('flex-1', nested ? 'text-muted-foreground font-normal' : 'font-medium')}
+      >
+        {name}
+      </Label>
+      <MoneyInput
+        id={id}
+        currency={currency}
+        className="w-40"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </div>
   )
 }
