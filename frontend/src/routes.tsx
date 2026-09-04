@@ -31,6 +31,7 @@ const appRoutes: RouteObject[] = [
   { path: '/budgets', lazy: () => import('@/pages/budgets') },
   { path: '/recurring', lazy: () => import('@/pages/recurring') },
   { path: '/categories', lazy: () => import('@/pages/categories') },
+  { path: '/reports', lazy: () => import('@/pages/reports') },
 ]
 
 export const router = createBrowserRouter([
