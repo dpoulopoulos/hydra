@@ -28,6 +28,7 @@ backend/
 │   │   ├── config.py               # Settings and configuration
 │   │   ├── db.py                   # Database setup
 │   │   └── security.py             # Authentication utilities
+│   ├── data/                       # Static seed data (default categories)
 │   ├── models/                     # Data models
 │   ├── repositories/               # Data access layer
 │   ├── services/                   # Business logic layer
@@ -280,6 +281,7 @@ Key settings:
 | `FIRST_SUPERUSER_PASSWORD` | Seeded superuser password | Required |
 | `BACKEND_CORS_ORIGINS` | Allowed CORS origins | `[]` |
 | `FRONTEND_HOST` | Base URL used in email links | `http://localhost:5173` |
+| `HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS` | Household invitation lifetime | 168 (7 days) |
 
 The `Settings` class validates that "changethis" values are not used outside the `local` environment, where it warns
 instead.
@@ -319,6 +321,37 @@ uv run alembic downgrade -1 # Rollback one version
 - Drop enum types explicitly in `downgrade()`. Alembic drops the table but leaves the Postgres enum behind, so
   without this a downgrade followed by an upgrade fails with `DuplicateObject`
 - Never edit applied migrations
+
+## Domain
+
+The application is a personal finance manager. Everything below the household
+is shared: every member of a household sees and can edit the same accounts,
+categories, budgets and transactions.
+
+| Resource | Route | Notes |
+|---|---|---|
+| Households | `/api/v1/households` | One household per user. Owners manage members and invitations; all money data is shared. |
+| Accounts | `/api/v1/accounts` | Cash, current, savings, credit card. Balances are derived from the ledger, never stored. |
+| Categories | `/api/v1/categories` | Two levels deep, seeded on household creation. |
+| Transactions | `/api/v1/transactions` | Expenses, income and transfers. A transfer is one row, not two. |
+| Budgets | `/api/v1/budgets` | One limit per category per month. No rollover. |
+| Recurring rules | `/api/v1/recurring-rules` | Materialize real transactions; run from the read paths. |
+| Reports | `/api/v1/reports` | Spend by category, spend over time, budget vs actual, income vs expense, dashboard summary. |
+
+Three conventions run through the domain and are worth knowing before changing it:
+
+- **Money is an integer count of minor units**, on `BigInteger` columns, and every such field is named
+  `*_minor`. Amounts are exact, so a budget comparison needs no tolerance, and nothing arrives at the
+  frontend as a `Decimal` rendered into a JSON string. The API exposes minor units and the client formats
+  them.
+- **An amount is always a positive magnitude; the meaning lives in `kind`.** A sign convention cannot be
+  enforced by a constraint, so a mis-signed row would be silently wrong forever, and a transfer has no
+  natural single sign. The sign is applied once, in SQL. A transfer is therefore a single row with a
+  `counter_account_id`, which is why every spending report is simply `kind = 'EXPENSE'` and a transfer can
+  never leak into spending.
+- **Account balances are computed, never stored.** A stored balance is a cache with no invalidation story
+  that survives back-dated edits, re-pointed transfers and recurring runs, and a balance that has quietly
+  drifted is the most damaging bug a finance app can have.
 
 ## Authentication
 
