@@ -130,6 +130,31 @@ describe('changing a limit', () => {
 })
 
 describe('reading the amount', () => {
+  it('reads a limit typed with a thousands separator as thousands', async () => {
+    const user = userEvent.setup()
+    renderDialog(progressRow(30000))
+
+    const field = await screen.findByLabelText('Monthly limit')
+    await user.clear(field)
+    await user.type(field, '1,200')
+    await user.click(screen.getByRole('button', { name: 'Change limit' }))
+
+    await vi.waitFor(() => expect(api.budgetsUpdateBudget).toHaveBeenCalled())
+    expect(updatedBody()).toEqual({ limit_minor: 120000 })
+  })
+
+  it('keeps the figure when a saved limit is opened and saved again', async () => {
+    const user = userEvent.setup()
+    renderDialog(progressRow(120000))
+
+    // The field is filled with the saved limit, so saving it untouched has to
+    // send back exactly what was read out of it.
+    await user.click(await screen.findByRole('button', { name: 'Change limit' }))
+
+    await vi.waitFor(() => expect(api.budgetsUpdateBudget).toHaveBeenCalled())
+    expect(updatedBody()).toEqual({ limit_minor: 120000 })
+  })
+
   it('takes an amount typed with a thousands space', async () => {
     const user = userEvent.setup()
     renderDialog(progressRow(30000))
