@@ -70,6 +70,14 @@ The application follows a clean, layered architecture:
      can span several repositories in a single transaction
    - Example: [repositories/user.py](src/app/repositories/user.py)
 
+   Entities owned by a household extend `HouseholdScopedRepository` instead of `BaseRepository`. It puts
+   `household_id` in the `WHERE` clause of every read, so a caller can never receive a row from another household.
+
+   > **Convention:** if a repository extends `HouseholdScopedRepository`, its service calls `get_for_household()` and
+   > never the inherited `get_by_id()`, which is unscoped. A write that references another entity by ID must
+   > re-resolve that ID through `get_for_household()` before using it. An ID belonging to another household is
+   > reported as `404`, never `403`, so the API does not leak which IDs exist.
+
 4. **Models Layer** ([src/app/models/](src/app/models/))
    - SQLModel database models
    - Pydantic schemas for creation, update, and responses
