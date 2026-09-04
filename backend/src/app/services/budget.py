@@ -229,7 +229,10 @@ class BudgetService:
         """Copy the budgets of one month onto another.
 
         Budgets do not roll over, so "same as last month" would otherwise mean
-        retyping every limit.
+        retyping every limit. Overwriting makes the target month a copy of the
+        source: a limit the source does not set is removed rather than left in
+        place, which would otherwise leave a parent and its child budgeted
+        together.
 
         Args:
             household: The household context.
@@ -258,7 +261,7 @@ class BudgetService:
             raise BudgetExistsError(identifier=copy_request.to_month) from None
 
         for budget in source:
-            target = existing.get(budget.category_id)
+            target = existing.pop(budget.category_id, None)
 
             if target:
                 target.limit_minor = budget.limit_minor
@@ -272,6 +275,10 @@ class BudgetService:
                         limit_minor=budget.limit_minor,
                     )
                 )
+
+        # What the source does not budget is no longer budgeted on the target.
+        for budget in existing.values():
+            self.budget_repository.delete(budget)
 
         self.budget_repository.flush()
         self.session.commit()

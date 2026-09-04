@@ -474,3 +474,61 @@ class TestCopyMonth:
         )
 
         assert target.limit_minor == 45_000
+
+    def test_removes_target_limits_the_source_does_not_set(
+        self, mock_budget_service: BudgetService, household_context: HouseholdContext
+    ) -> None:
+        """Overwriting makes the target a copy, so a stale limit cannot survive it."""
+        source = make_budget(limit_minor=45_000)
+        stale = make_budget(limit_minor=40_000, period_month=date(2026, 4, 1))
+        mock_budget_service.session.exec = MagicMock()
+        mock_budget_service.session.exec.return_value.all.side_effect = [[source], [stale], []]
+
+        mock_budget_service.copy_month(
+            household=household_context,
+            copy_request=BudgetCopyRequest(from_month="2026-03", to_month="2026-04", overwrite=True),
+        )
+
+        deleted = [call.args[0] for call in mock_budget_service.session.delete.call_args_list]
+        assert deleted == [stale]
+
+    def test_clears_the_target_when_the_source_month_is_empty(
+        self, mock_budget_service: BudgetService, household_context: HouseholdContext
+    ) -> None:
+        """An empty source is still a copy of the source: the target keeps nothing."""
+        stale = [
+            make_budget(limit_minor=40_000, period_month=date(2026, 4, 1)),
+            make_budget(limit_minor=15_000, period_month=date(2026, 4, 1)),
+        ]
+        mock_budget_service.session.exec = MagicMock()
+        mock_budget_service.session.exec.return_value.all.side_effect = [[], stale, []]
+
+        mock_budget_service.copy_month(
+            household=household_context,
+            copy_request=BudgetCopyRequest(from_month="2026-03", to_month="2026-04", overwrite=True),
+        )
+
+        deleted = [call.args[0] for call in mock_budget_service.session.delete.call_args_list]
+        assert deleted == stale
+        mock_budget_service.session.add.assert_not_called()
+
+    def test_does_not_leave_a_parent_and_its_child_both_budgeted(
+        self, mock_budget_service: BudgetService, household_context: HouseholdContext
+    ) -> None:
+        """Copying a parent onto a month budgeting its child would double count the branch."""
+        parent = make_category(name="Food & Drink")
+        child = make_category(name="Groceries", parent_id=parent.id)
+        source = make_budget(category_id=parent.id, limit_minor=50_000)
+        target = make_budget(category_id=child.id, limit_minor=30_000, period_month=date(2026, 4, 1))
+        mock_budget_service.session.exec = MagicMock()
+        mock_budget_service.session.exec.return_value.all.side_effect = [[source], [target], []]
+
+        mock_budget_service.copy_month(
+            household=household_context,
+            copy_request=BudgetCopyRequest(from_month="2026-03", to_month="2026-04", overwrite=True),
+        )
+
+        added = [call.args[0] for call in mock_budget_service.session.add.call_args_list]
+        deleted = [call.args[0] for call in mock_budget_service.session.delete.call_args_list]
+        assert [budget.category_id for budget in added] == [parent.id]
+        assert deleted == [target]

@@ -2111,7 +2111,7 @@
           "budgets"
         ],
         "summary": "Copy Budgets",
-        "description": "Copy the budgets of one month onto another.\n\nBudgets do not roll over, so this is what makes \"same as last month\" a\nsingle action rather than retyping every limit.\n\nArgs:\n    budget_service: The budget service dependency.\n    household: The current household context.\n    copy_in: The source month, the target month, and whether to replace\n        limits already set on the target.\n\nReturns:\n    The budgets now set for the target month.\n\nRaises:\n    HTTPException: If the target month already has budgets and overwrite was\n        not requested (409).",
+        "description": "Copy the budgets of one month onto another.\n\nBudgets do not roll over, so this is what makes \"same as last month\" a\nsingle action rather than retyping every limit. Overwriting replaces the\ntarget month with the source: a limit the source does not set is removed.\n\nArgs:\n    budget_service: The budget service dependency.\n    household: The current household context.\n    copy_in: The source month, the target month, and whether to replace\n        limits already set on the target.\n\nReturns:\n    The budgets now set for the target month.\n\nRaises:\n    HTTPException: If the target month already has budgets and overwrite was\n        not requested (409).",
         "operationId": "budgets-copy_budgets",
         "requestBody": {
           "content": {
