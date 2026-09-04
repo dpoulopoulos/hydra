@@ -18,6 +18,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -168,6 +169,7 @@ export function Component() {
                         <Pencil className="size-4" />
                         Change the limit
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem variant="destructive" onClick={() => setRemoving(row)}>
                         <Trash2 className="size-4" />
                         Stop budgeting it
