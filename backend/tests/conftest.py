@@ -20,6 +20,7 @@ from app.repositories import (
     HouseholdMemberRepository,
     HouseholdRepository,
     PasswordResetRepository,
+    ReportRepository,
     TransactionRepository,
     UserRepository,
 )
@@ -30,6 +31,7 @@ from app.services import (
     EmailVerificationService,
     HouseholdService,
     PasswordResetService,
+    ReportService,
     TransactionService,
     UserService,
 )
@@ -545,5 +547,44 @@ def mock_budget_service(
     return BudgetService(
         session=mock_db_session,
         budget_repository=mock_budget_repository,
+        category_repository=mock_category_repository,
+    )
+
+
+@pytest.fixture
+def mock_report_repository(mock_db_session: MagicMock) -> ReportRepository:
+    """Create a ReportRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        A ReportRepository instance with a mocked session.
+    """
+    return ReportRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_report_service(
+    mock_db_session: MagicMock,
+    mock_report_repository: ReportRepository,
+    mock_household_repository: HouseholdRepository,
+    mock_category_repository: CategoryRepository,
+) -> ReportService:
+    """Create a ReportService instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+        mock_report_repository: The report repository instance.
+        mock_household_repository: The household repository instance.
+        mock_category_repository: The category repository instance.
+
+    Returns:
+        A ReportService instance with a mocked session.
+    """
+    return ReportService(
+        session=mock_db_session,
+        report_repository=mock_report_repository,
+        household_repository=mock_household_repository,
         category_repository=mock_category_repository,
     )

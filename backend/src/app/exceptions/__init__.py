@@ -44,6 +44,7 @@ from .password_exceptions import (
     PasswordResetUsedError,
     PasswordUnmodifiedError,
 )
+from .report_exceptions import InvalidDateRangeError, ReportRangeTooLargeError
 from .transaction_exceptions import (
     SameAccountTransferError,
     TransactionCategoryKindError,
@@ -98,6 +99,8 @@ __all__ = [
     "TransactionNotFoundError",
     "TransferShapeError",
     "InvalidCredentialsError",
+    "InvalidDateRangeError",
+    "ReportRangeTooLargeError",
     "UserExistsError",
     "UserNotActiveError",
     "UserNotAuthorizedError",
