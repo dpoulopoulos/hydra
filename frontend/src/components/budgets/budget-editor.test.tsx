@@ -113,6 +113,97 @@ describe('loading the month', () => {
   })
 })
 
+describe('saving', () => {
+  /** The entries the last save sent to the bulk endpoint. */
+  function sentEntries() {
+    const call = vi.mocked(api.budgetsBulkUpsertBudgets).mock.calls.at(-1)
+    return (call?.[0] as { body: { entries: unknown[] } }).body.entries
+  }
+
+  it('reads an amount typed with a thousands space rather than dropping it', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.clear(await screen.findByLabelText('Groceries'))
+    await user.type(limitField('Groceries'), '1 000')
+    await user.click(screen.getByRole('button', { name: 'Save budgets' }))
+
+    await vi.waitFor(() => expect(api.budgetsBulkUpsertBudgets).toHaveBeenCalled())
+    expect(sentEntries()).toEqual([
+      { category_id: GROCERIES, limit_minor: 100000 },
+      { category_id: TRANSPORT, limit_minor: 10000 },
+    ])
+  })
+
+  it('reports an amount it cannot read instead of deleting that budget', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.clear(await screen.findByLabelText('Groceries'))
+    await user.type(limitField('Groceries'), 'abc')
+    await user.click(screen.getByRole('button', { name: 'Save budgets' }))
+
+    expect(await screen.findByText('Enter a number.')).toBeInTheDocument()
+    expect(limitField('Groceries')).toBeInvalid()
+    expect(api.budgetsBulkUpsertBudgets).not.toHaveBeenCalled()
+  })
+
+  it('clears the complaint once the amount is retyped', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.clear(await screen.findByLabelText('Groceries'))
+    await user.type(limitField('Groceries'), 'abc')
+    await user.click(screen.getByRole('button', { name: 'Save budgets' }))
+    expect(await screen.findByText('Enter a number.')).toBeInTheDocument()
+
+    await user.clear(limitField('Groceries'))
+    await user.type(limitField('Groceries'), '250')
+
+    expect(screen.queryByText('Enter a number.')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Save budgets' }))
+    await vi.waitFor(() => expect(api.budgetsBulkUpsertBudgets).toHaveBeenCalled())
+    expect(sentEntries()).toEqual([
+      { category_id: GROCERIES, limit_minor: 25000 },
+      { category_id: TRANSPORT, limit_minor: 10000 },
+    ])
+  })
+
+  it('drops the edits once they are saved, so the next save starts from the month', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.clear(await screen.findByLabelText('Groceries'))
+    await user.click(screen.getByRole('button', { name: 'Save budgets' }))
+    await vi.waitFor(() => expect(api.budgetsBulkUpsertBudgets).toHaveBeenCalled())
+
+    // The month has moved on since: whatever it holds now is what a reopened
+    // dialog edits, not the emptied field from the save before.
+    budgetsAre([budget(GROCERIES, 30000), budget(TRANSPORT, 10000)])
+    await user.click(screen.getByRole('button', { name: 'Reopen' }))
+    expect(await screen.findByLabelText('Groceries')).toHaveValue('300')
+
+    await user.click(screen.getByRole('button', { name: 'Save budgets' }))
+    await vi.waitFor(() => expect(api.budgetsBulkUpsertBudgets).toHaveBeenCalledTimes(2))
+    expect(sentEntries()).toEqual([
+      { category_id: GROCERIES, limit_minor: 30000 },
+      { category_id: TRANSPORT, limit_minor: 10000 },
+    ])
+  })
+
+  it('still un-budgets a category whose field was emptied on purpose', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.clear(await screen.findByLabelText('Groceries'))
+    await user.click(screen.getByRole('button', { name: 'Save budgets' }))
+
+    await vi.waitFor(() => expect(api.budgetsBulkUpsertBudgets).toHaveBeenCalled())
+    expect(sentEntries()).toEqual([{ category_id: TRANSPORT, limit_minor: 10000 }])
+  })
+})
+
 describe('cancelling', () => {
   it('drops the edits, so a reopened dialog shows the saved limits', async () => {
     const user = userEvent.setup()
