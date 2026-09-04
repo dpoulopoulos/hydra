@@ -43,7 +43,7 @@ from app.repositories.household import (
     HouseholdMemberRepository,
     HouseholdRepository,
 )
-from app.utils import generate_household_invite_email, send_email
+from app.utils import generate_household_invite_email, try_send_email
 
 
 class CategorySeeder(Protocol):
@@ -496,6 +496,9 @@ class HouseholdService:
         self.household_invite_repository.save(invite)
         self.session.commit()
 
+        # The invite is committed and valid whether or not the mail leaves, and
+        # reporting it as failed would only send the owner into the pending
+        # invite guard above. Log the delivery failure and return the invite.
         if settings.emails_enabled:
             email_data = generate_household_invite_email(
                 email=email,
@@ -503,7 +506,7 @@ class HouseholdService:
                 household_name=entity.name,
                 inviter_name=household.user.full_name or household.user.email,
             )
-            send_email(email_to=email, subject=email_data.subject, html_content=email_data.html_content)
+            try_send_email(email_to=email, subject=email_data.subject, html_content=email_data.html_content)
 
         return HouseholdInvitePublic.model_validate(invite)
 
