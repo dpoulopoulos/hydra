@@ -553,7 +553,7 @@
           "households"
         ],
         "summary": "Leave Household",
-        "description": "Leave the household.\n\nThe caller keeps their account and is given a fresh, empty household.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the caller is the household's only owner (400), or the\n        membership no longer exists (404).",
+        "description": "Leave the household.\n\nThe caller keeps their account and is given a fresh, empty household.\n\nArgs:\n    household_service: The household service dependency.\n    category_service: The category service dependency, used to seed the\n        categories of the replacement household.\n    household: The current household context.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the caller is the household's only owner (400), or the\n        membership no longer exists (404).",
         "operationId": "households-leave_household",
         "responses": {
           "200": {
@@ -637,7 +637,7 @@
           "households"
         ],
         "summary": "Remove Household Member",
-        "description": "Remove a member from the household.\n\nThe removed member keeps their account and is given a fresh, empty household.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context, which must be owned by the user.\n    user_id: The ID of the user to remove.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the user is not an owner of the household (403), the\n        member is not in the household (404), or the removal would leave the\n        household with no owner (400).",
+        "description": "Remove a member from the household.\n\nThe removed member keeps their account and is given a fresh, empty household.\n\nArgs:\n    household_service: The household service dependency.\n    category_service: The category service dependency, used to seed the\n        categories of the replacement household.\n    household: The current household context, which must be owned by the user.\n    user_id: The ID of the user to remove.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the user is not an owner of the household (403), the\n        member is not in the household (404), or the removal would leave the\n        household with no owner (400).",
         "operationId": "households-remove_household_member",
         "security": [
           {

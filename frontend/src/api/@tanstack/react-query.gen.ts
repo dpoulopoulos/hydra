@@ -468,6 +468,8 @@ export const householdsListHouseholdMembersOptions = (options?: Options<Househol
  *
  * Args:
  * household_service: The household service dependency.
+ * category_service: The category service dependency, used to seed the
+ * categories of the replacement household.
  * household: The current household context.
  *
  * Returns:
@@ -500,6 +502,8 @@ export const householdsLeaveHouseholdMutation = (options?: Partial<Options<House
  *
  * Args:
  * household_service: The household service dependency.
+ * category_service: The category service dependency, used to seed the
+ * categories of the replacement household.
  * household: The current household context, which must be owned by the user.
  * user_id: The ID of the user to remove.
  *

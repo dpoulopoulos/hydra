@@ -311,6 +311,28 @@ class TestRemoveMember:
         assert any(isinstance(entity, Household) for entity in added)
         assert any(isinstance(entity, HouseholdMember) and entity.user_id == another_test_user.id for entity in added)
 
+    def test_seeds_the_categories_of_the_fresh_household(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        another_test_user: User,
+    ) -> None:
+        """The removed member must land in a household they can use."""
+        target = HouseholdMember(
+            household_id=context.household_id, user_id=another_test_user.id, role=HouseholdRole.MEMBER
+        )
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [(target, another_test_user), None]
+        category_service = MagicMock()
+
+        mock_household_service.remove_member(
+            household=context, user_id=another_test_user.id, category_service=category_service
+        )
+
+        added = [call.args[0] for call in mock_household_service.session.add.call_args_list]
+        fresh = next(entity for entity in added if isinstance(entity, Household))
+        category_service.seed_defaults.assert_called_once_with(household_id=fresh.id)
+
     def test_refuses_to_remove_the_last_owner(
         self,
         mock_household_service: HouseholdService,
@@ -346,6 +368,27 @@ class TestLeaveHousehold:
 
         assert isinstance(result, Message)
         mock_household_service.session.delete.assert_called_once_with(target)
+
+    def test_seeds_the_categories_of_the_fresh_household(
+        self, mock_household_service: HouseholdService, test_user: User, household: Household
+    ) -> None:
+        """Leaving must not strand the caller in a household with no categories."""
+        member_context = HouseholdContext(
+            user=test_user,
+            household_id=household.id,
+            membership_id=uuid.uuid4(),
+            role=HouseholdRole.MEMBER,
+        )
+        target = HouseholdMember(household_id=household.id, user_id=test_user.id, role=HouseholdRole.MEMBER)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [(target, test_user), None]
+        category_service = MagicMock()
+
+        mock_household_service.leave_household(household=member_context, category_service=category_service)
+
+        added = [call.args[0] for call in mock_household_service.session.add.call_args_list]
+        fresh = next(entity for entity in added if isinstance(entity, Household))
+        category_service.seed_defaults.assert_called_once_with(household_id=fresh.id)
 
     def test_the_last_owner_may_not_leave(
         self, mock_household_service: HouseholdService, context: HouseholdContext
