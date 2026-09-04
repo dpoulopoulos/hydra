@@ -57,8 +57,7 @@ export function Component() {
     formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { full_name: '', email: invite?.email ?? '', password: '' },
-    values: invite?.email ? { full_name: '', email: invite.email, password: '' } : undefined,
+    defaultValues: { full_name: '', email: '', password: '' },
   })
 
   const signUp = useMutation({
@@ -141,7 +140,15 @@ export function Component() {
           )}
         </Field>
 
-        <Field id="email" label="Email" error={errors.email?.message}>
+        {/* The invited address is only ever shown masked, so it cannot be
+            filled in for them: they type the address the invitation was sent
+            to, and the backend accepts the sign-up only if it matches. */}
+        <Field
+          id="email"
+          label="Email"
+          hint={invite ? `Use the invited address, ${invite.masked_email}.` : undefined}
+          error={errors.email?.message}
+        >
           {(props) => (
             <Input
               {...props}
@@ -149,7 +156,6 @@ export function Component() {
               type="email"
               autoComplete="email"
               placeholder="you@example.com"
-              readOnly={Boolean(invite?.email)}
             />
           )}
         </Field>

@@ -822,7 +822,10 @@ class TestPreviewInvite:
 
         assert result.household_name == "Test household"
         assert result.invited_by == test_user.email
-        assert result.email == "partner@example.com"
+        # Anybody holding the link can read this, and the full address would
+        # tell them which one to aim at.
+        assert result.masked_email == "p*****@example.com"
+        assert "partner@example.com" not in result.model_dump_json()
 
     def test_an_unknown_token_is_not_found(
         self, mock_household_service: HouseholdService

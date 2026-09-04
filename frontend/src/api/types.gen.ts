@@ -835,9 +835,9 @@ export type HouseholdInvitePreview = {
      */
     invited_by: string;
     /**
-     * Email
+     * Masked Email
      */
-    email: string;
+    masked_email: string;
     role: HouseholdRole;
     /**
      * Expires At

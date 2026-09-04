@@ -46,7 +46,7 @@ from app.repositories.household import (
     HouseholdRepository,
 )
 from app.repositories.user import UserRepository
-from app.utils import generate_household_invite_email, try_send_email
+from app.utils import generate_household_invite_email, mask_email, try_send_email
 
 
 class CategorySeeder(Protocol):
@@ -674,7 +674,8 @@ class HouseholdService:
             token: The invite token.
 
         Returns:
-            The household name, who invited them, and when it expires.
+            The household name, who invited them, the invited address masked,
+            and when it expires.
 
         Raises:
             HouseholdInviteNotFoundError: If no invite has that token.
@@ -694,7 +695,7 @@ class HouseholdService:
         return HouseholdInvitePreview(
             household_name=entity.name,
             invited_by=inviter.email if inviter else invite.email,
-            email=invite.email,
+            masked_email=mask_email(invite.email),
             role=invite.role,
             expires_at=invite.expires_at,
         )

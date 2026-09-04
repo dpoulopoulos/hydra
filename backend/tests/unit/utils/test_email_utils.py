@@ -15,6 +15,7 @@ from app.utils.email_utils import (
     generate_email_verification_email,
     generate_new_account_email,
     generate_password_reset_email,
+    mask_email,
     send_email,
     try_send_email,
 )
@@ -469,3 +470,23 @@ class TestTrySendEmail:
                 subject="Test Subject",
                 html_content="<p>Test content</p>",
             )
+
+
+class TestMaskEmail:
+    """Tests for mask_email."""
+
+    def test_keeps_only_the_first_character_and_the_domain(self) -> None:
+        """Enough to recognise your own address, not enough to learn somebody else's."""
+        assert mask_email("partner@example.com") == "p*****@example.com"
+
+    def test_hides_how_long_the_local_part_is(self) -> None:
+        """A variable number of stars would narrow the guess down."""
+        assert mask_email("jo@example.com") == "j*****@example.com"
+        assert mask_email("a-very-long-address@example.com") == "a*****@example.com"
+
+    def test_masks_a_single_character_local_part_entirely(self) -> None:
+        assert mask_email("a@example.com") == "*****@example.com"
+
+    def test_masks_a_string_that_is_not_an_address(self) -> None:
+        """It is only ever fed stored addresses, but it must not leak one if it is not."""
+        assert mask_email("not-an-address") == "*****"
