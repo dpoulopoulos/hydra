@@ -1,6 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { ChevronDown } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -17,6 +19,7 @@ import { Field, FormError } from '@/components/form-field'
 import { MoneyInput } from '@/components/money-input'
 import { SubmitButton } from '@/components/submit-button'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Dialog,
   DialogContent,
@@ -26,6 +29,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -39,9 +43,10 @@ import { useCategoryTree } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
-import { FREQUENCY_LABELS } from '@/lib/labels'
-import { toMajor } from '@/lib/money'
-import { today } from '@/lib/month'
+import { describeSchedule, FREQUENCY_LABELS } from '@/lib/labels'
+import { formatMoney, toMajor, toMinor } from '@/lib/money'
+import { formatDate, today } from '@/lib/month'
+import { cn } from '@/lib/utils'
 
 const NO_CATEGORY = 'none'
 
@@ -88,6 +93,66 @@ const schema = z
 type Values = z.input<typeof schema>
 type Parsed = z.output<typeof schema>
 
+/**
+ * What the rule will do, in a sentence.
+ *
+ * The fields above can stay terse because this says the whole thing back in
+ * plain words, which is also where a reader learns what an empty "on day" or
+ * an interval of 3 actually means.
+ */
+function describeRule({
+  kind,
+  amount,
+  currency,
+  frequency,
+  interval,
+  dayOfMonth,
+  startDate,
+  endDate,
+  from,
+  to,
+  category,
+}: {
+  kind: TransactionKind
+  amount: string
+  currency: string
+  frequency: RecurrenceFrequency
+  interval: number
+  dayOfMonth: number | null
+  startDate: string
+  endDate: string
+  from: string | undefined
+  to: string | undefined
+  category: string | undefined
+}): string | null {
+  const major = Number(amount.replace(/\s/g, '').replace(',', '.'))
+  if (!amount || !Number.isFinite(major) || major <= 0 || !startDate) return null
+
+  const money = formatMoney(toMinor(major, currency), currency)
+  const schedule = describeSchedule(frequency, interval, dayOfMonth).toLowerCase()
+  const head =
+    kind === TransactionKind.TRANSFER
+      ? `${money} moves${from && to ? ` from ${from} to ${to}` : from ? ` out of ${from}` : ''}`
+      : kind === TransactionKind.INCOME
+        ? `${money} arrives${from ? ` in ${from}` : ''}`
+        : `${money} leaves${from ? ` ${from}` : ''}`
+
+  let sentence = `${head} ${schedule}, starting ${formatDate(startDate)}.`
+  if (endDate) sentence += ` It stops after ${formatDate(endDate)}.`
+  if (category && kind !== TransactionKind.TRANSFER) sentence += ` Filed under ${category}.`
+  return sentence
+}
+
+/** A titled group of fields, so ten controls read as three decisions. */
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{title}</p>
+      {children}
+    </div>
+  )
+}
+
 export function RuleDialog({
   open,
   rule,
@@ -102,6 +167,7 @@ export function RuleDialog({
   const queryClient = useQueryClient()
   const isEdit = rule !== null
   const { data: accounts } = useAccounts()
+  const [showMore, setShowMore] = useState(false)
 
   const form = useForm<Values, unknown, Parsed>({
     resolver: zodResolver(schema),
@@ -132,6 +198,7 @@ export function RuleDialog({
 
   useEffect(() => {
     if (!open) return
+    setShowMore(Boolean(rule && ((rule.interval ?? 1) > 1 || rule.end_date || rule.merchant)))
     form.reset({
       name: rule?.name ?? '',
       kind: rule?.kind ?? TransactionKind.EXPENSE,
@@ -203,10 +270,37 @@ export function RuleDialog({
 
   const errors = form.formState.errors
   const accountOptions = accounts?.data ?? []
+  const nameOf = (id: string) => accountOptions.find((account) => account.id === id)?.name
+  const categoryName = (() => {
+    const id = form.watch('category_id')
+    if (id === NO_CATEGORY) return undefined
+    for (const parent of categoryTree?.data ?? []) {
+      if (parent.id === id) return parent.name
+      const child = (parent.children ?? []).find((candidate) => candidate.id === id)
+      if (child) return `${parent.name} › ${child.name}`
+    }
+    return undefined
+  })()
+
+  const summary = describeRule({
+    kind,
+    amount: form.watch('amount'),
+    currency,
+    frequency,
+    interval: Number(form.watch('interval')) || 1,
+    dayOfMonth: isMonthly && form.watch('day_of_month') ? Number(form.watch('day_of_month')) : null,
+    startDate: form.watch('start_date'),
+    endDate: form.watch('end_date'),
+    from: nameOf(form.watch('account_id')),
+    to: nameOf(form.watch('counter_account_id')),
+    category: categoryName,
+  })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      {/* The form is long enough to outgrow a phone screen, so it scrolls
+          inside the dialog while the title and the buttons stay put. */}
+      <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] gap-5 sm:max-w-2xl sm:p-6">
         <DialogHeader>
           <DialogTitle>{isEdit ? `Edit ${rule.name}` : 'Add a recurring rule'}</DialogTitle>
           <DialogDescription>
@@ -219,7 +313,7 @@ export function RuleDialog({
         <form
           id="rule-form"
           onSubmit={form.handleSubmit((values) => save.mutate(values))}
-          className="space-y-4"
+          className="-mx-1 space-y-6 overflow-y-auto px-1"
           noValidate
         >
           <FormError message={save.isError ? errorMessage(save.error) : null} />
@@ -247,175 +341,224 @@ export function RuleDialog({
             </Tabs>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="name" label="Name" error={errors.name?.message}>
-              {(props) => (
-                <Input {...props} {...form.register('name')} placeholder="Rent" autoFocus />
-              )}
-            </Field>
-
-            <Field id="amount" label="Amount" error={errors.amount?.message}>
-              {(props) => (
-                <MoneyInput {...props} {...form.register('amount')} currency={currency} />
-              )}
-            </Field>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field id="frequency" label="Repeats" error={errors.frequency?.message}>
-              {(props) => (
-                <Select
-                  value={frequency}
-                  onValueChange={(value) =>
-                    form.setValue('frequency', value as RecurrenceFrequency)
-                  }
-                >
-                  <SelectTrigger id={props.id} className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(RecurrenceFrequency).map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {FREQUENCY_LABELS[value]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </Field>
-
-            <Field
-              id="interval"
-              label="Every"
-              hint={frequency === RecurrenceFrequency.WEEKLY ? 'weeks' : undefined}
-              error={errors.interval?.message}
-            >
-              {(props) => (
-                <Input {...props} {...form.register('interval')} type="number" min={1} max={60} />
-              )}
-            </Field>
-
-            {isMonthly ? (
-              <Field
-                id="day_of_month"
-                label="On day"
-                hint="A day past the end of a short month falls back to its last day."
-                error={errors.day_of_month?.message}
-              >
+          <Section title="What it is">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="name" label="Name" error={errors.name?.message}>
                 {(props) => (
-                  <Input
-                    {...props}
-                    {...form.register('day_of_month')}
-                    type="number"
-                    min={1}
-                    max={31}
-                    placeholder="Same as start"
-                  />
+                  <Input {...props} {...form.register('name')} placeholder="Rent" autoFocus />
                 )}
               </Field>
-            ) : null}
-          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="start_date" label="Starts" error={errors.start_date?.message}>
-              {(props) => (
-                <Input {...props} {...form.register('start_date')} type="date" disabled={isEdit} />
-              )}
-            </Field>
+              <Field id="amount" label="Amount" error={errors.amount?.message}>
+                {(props) => (
+                  <MoneyInput {...props} {...form.register('amount')} currency={currency} />
+                )}
+              </Field>
+            </div>
 
-            <Field
-              id="end_date"
-              label="Ends"
-              hint="Leave empty to keep going."
-              error={errors.end_date?.message}
-            >
-              {(props) => <Input {...props} {...form.register('end_date')} type="date" />}
-            </Field>
-          </div>
-
-          <Field
-            id="account_id"
-            label={isTransfer ? 'From account' : 'Account'}
-            error={errors.account_id?.message}
-          >
-            {(props) => (
-              <Select
-                value={form.watch('account_id')}
-                onValueChange={(value) => form.setValue('account_id', value)}
-                disabled={isEdit}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                id="account_id"
+                label={isTransfer ? 'From account' : 'Account'}
+                error={errors.account_id?.message}
               >
-                <SelectTrigger id={props.id} className="w-full">
-                  <SelectValue placeholder="Choose an account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accountOptions.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </Field>
-
-          {isTransfer ? (
-            <Field
-              id="counter_account_id"
-              label="To account"
-              error={errors.counter_account_id?.message}
-            >
-              {(props) => (
-                <Select
-                  value={form.watch('counter_account_id')}
-                  onValueChange={(value) => form.setValue('counter_account_id', value)}
-                  disabled={isEdit}
-                >
-                  <SelectTrigger id={props.id} className="w-full">
-                    <SelectValue placeholder="Choose an account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accountOptions
-                      .filter((account) => account.id !== form.watch('account_id'))
-                      .map((account) => (
+                {(props) => (
+                  <Select
+                    value={form.watch('account_id')}
+                    onValueChange={(value) => form.setValue('account_id', value)}
+                    disabled={isEdit}
+                  >
+                    <SelectTrigger id={props.id} className="w-full">
+                      <SelectValue placeholder="Choose an account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accountOptions.map((account) => (
                         <SelectItem key={account.id} value={account.id}>
                           {account.name}
                         </SelectItem>
                       ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </Field>
-          ) : (
-            <Field id="category_id" label="Category" error={errors.category_id?.message}>
-              {(props) => (
-                <Select
-                  value={form.watch('category_id')}
-                  onValueChange={(value) => form.setValue('category_id', value)}
-                >
-                  <SelectTrigger id={props.id} className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_CATEGORY}>Leave uncategorised</SelectItem>
-                    {(categoryTree?.data ?? []).map((parent) => (
-                      <div key={parent.id}>
-                        <SelectItem value={parent.id}>{parent.name}</SelectItem>
-                        {(parent.children ?? []).map((child) => (
-                          <SelectItem key={child.id} value={child.id} className="pl-8">
-                            {child.name}
-                          </SelectItem>
-                        ))}
-                      </div>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </Field>
-          )}
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
 
-          <Field id="merchant" label="Merchant" error={errors.merchant?.message}>
-            {(props) => <Input {...props} {...form.register('merchant')} placeholder="Optional" />}
-          </Field>
+              {isTransfer ? (
+                <Field
+                  id="counter_account_id"
+                  label="To account"
+                  error={errors.counter_account_id?.message}
+                >
+                  {(props) => (
+                    <Select
+                      value={form.watch('counter_account_id')}
+                      onValueChange={(value) => form.setValue('counter_account_id', value)}
+                      disabled={isEdit}
+                    >
+                      <SelectTrigger id={props.id} className="w-full">
+                        <SelectValue placeholder="Choose an account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accountOptions
+                          .filter((account) => account.id !== form.watch('account_id'))
+                          .map((account) => (
+                            <SelectItem key={account.id} value={account.id}>
+                              {account.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </Field>
+              ) : (
+                <Field id="category_id" label="Category" error={errors.category_id?.message}>
+                  {(props) => (
+                    <Select
+                      value={form.watch('category_id')}
+                      onValueChange={(value) => form.setValue('category_id', value)}
+                    >
+                      <SelectTrigger id={props.id} className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_CATEGORY}>Leave uncategorised</SelectItem>
+                        {(categoryTree?.data ?? []).map((parent) => (
+                          <div key={parent.id}>
+                            <SelectItem value={parent.id}>{parent.name}</SelectItem>
+                            {(parent.children ?? []).map((child) => (
+                              <SelectItem key={child.id} value={child.id} className="pl-8">
+                                {child.name}
+                              </SelectItem>
+                            ))}
+                          </div>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </Field>
+              )}
+            </div>
+          </Section>
+
+          <Separator />
+
+          <Section title="When it happens">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field id="frequency" label="Repeats" error={errors.frequency?.message}>
+                {(props) => (
+                  <Select
+                    value={frequency}
+                    onValueChange={(value) =>
+                      form.setValue('frequency', value as RecurrenceFrequency)
+                    }
+                  >
+                    <SelectTrigger id={props.id} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(RecurrenceFrequency).map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {FREQUENCY_LABELS[value]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
+
+              <Field id="start_date" label="Starts" error={errors.start_date?.message}>
+                {(props) => (
+                  <Input
+                    {...props}
+                    {...form.register('start_date')}
+                    type="date"
+                    disabled={isEdit}
+                  />
+                )}
+              </Field>
+
+              {isMonthly ? (
+                <Field
+                  id="day_of_month"
+                  label="On day"
+                  // The short-month rule only matters once a day can miss one.
+                  hint={
+                    Number(form.watch('day_of_month')) > 28
+                      ? 'Short months use their last day.'
+                      : undefined
+                  }
+                  error={errors.day_of_month?.message}
+                >
+                  {(props) => (
+                    <Input
+                      {...props}
+                      {...form.register('day_of_month')}
+                      type="number"
+                      min={1}
+                      max={31}
+                      placeholder="Same as start"
+                    />
+                  )}
+                </Field>
+              ) : null}
+            </div>
+          </Section>
+
+          {/* Three fields most rules never touch. Whatever is set in here still
+              shows up in the sentence below, so nothing hides silently. */}
+          <Collapsible open={showMore} onOpenChange={setShowMore}>
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground -ml-2 h-8"
+              >
+                <ChevronDown
+                  className={cn('size-4 transition-transform', showMore && 'rotate-180')}
+                />
+                More options
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field
+                  id="interval"
+                  label="Every"
+                  hint={frequency === RecurrenceFrequency.WEEKLY ? 'weeks' : 'months or years'}
+                  error={errors.interval?.message}
+                >
+                  {(props) => (
+                    <Input
+                      {...props}
+                      {...form.register('interval')}
+                      type="number"
+                      min={1}
+                      max={60}
+                    />
+                  )}
+                </Field>
+
+                <Field
+                  id="end_date"
+                  label="Ends"
+                  hint="Leave empty to keep going."
+                  error={errors.end_date?.message}
+                >
+                  {(props) => <Input {...props} {...form.register('end_date')} type="date" />}
+                </Field>
+
+                <Field id="merchant" label="Merchant" error={errors.merchant?.message}>
+                  {(props) => (
+                    <Input {...props} {...form.register('merchant')} placeholder="Optional" />
+                  )}
+                </Field>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {summary ? (
+            <p className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-sm">{summary}</p>
+          ) : null}
         </form>
 
         <DialogFooter>
