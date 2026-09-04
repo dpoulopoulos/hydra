@@ -413,6 +413,11 @@ verifying returns 403 with a message asking the user to verify. Accounts created
 Password reset and verification resend endpoints return the same response whether or not the address is registered,
 so they cannot be used to enumerate accounts.
 
+Login is held to the same rule. An address with no account and an account whose password does not match both answer
+`401` with `Incorrect email or password.`, and the unknown address still pays for a bcrypt verification against a
+throwaway hash, so neither the status code nor the response time says which addresses are registered. The `403` for an
+unverified account is only reachable once the correct password has been supplied.
+
 ### Protected Routes
 
 Use dependency injection for authentication:
