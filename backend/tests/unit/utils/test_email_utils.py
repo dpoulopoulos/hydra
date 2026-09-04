@@ -1,3 +1,7 @@
+import inspect
+import re
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -344,3 +348,49 @@ class TestSendEmailViaResend:
         # Assert: Verify no message was built for a mail server
         mock_post.assert_called_once()
         mock_message_class.assert_not_called()
+
+
+class TestDocstringsMatchSignatures:
+    """Test that the documented parameters exist.
+
+    Neither ruff nor mypy compares a docstring's ``Args:`` section against the signature it describes, so a
+    parameter can be renamed or dropped without anything failing. These tests close that gap for the email
+    generators, whose docstrings are the only description a caller gets of what ends up in a message.
+    """
+
+    @staticmethod
+    def _documented_args(func: Callable[..., Any]) -> list[str]:
+        """Collect the parameter names listed in a Google-style ``Args:`` section."""
+        docstring = inspect.getdoc(func) or ""
+        lines = docstring.splitlines()
+        if "Args:" not in lines:
+            return []
+        body = lines[lines.index("Args:") + 1 :]
+        names = []
+        for line in body:
+            if not line.startswith("    "):  # The section ends at the next unindented line.
+                break
+            match = re.match(r"    (\w+):", line)
+            if match:
+                names.append(match.group(1))
+        return names
+
+    @pytest.mark.parametrize(
+        "func",
+        [
+            generate_new_account_email,
+            generate_password_reset_email,
+            generate_email_verification_email,
+            send_email,
+        ],
+    )
+    def test_documented_args_match_signature(self, func: Callable[..., Any]) -> None:
+        """Every generator documents exactly the parameters it accepts."""
+        # Arrange: Read the parameters the function actually takes
+        expected = [name for name in inspect.signature(func).parameters]
+
+        # Act: Read the parameters the docstring claims it takes
+        documented = self._documented_args(func)
+
+        # Assert: Verify the docstring describes this signature and no other
+        assert documented == expected
