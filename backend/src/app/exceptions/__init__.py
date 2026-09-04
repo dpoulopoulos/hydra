@@ -43,6 +43,7 @@ from .household_exceptions import (
 )
 from .password_exceptions import (
     InvalidCredentialsError,
+    InvalidEmailOrPasswordError,
     PasswordIsWrongError,
     PasswordResetExpiredError,
     PasswordResetNotFoundError,
@@ -113,6 +114,7 @@ __all__ = [
     "TransferShapeError",
     "InvalidCredentialsError",
     "InvalidDateRangeError",
+    "InvalidEmailOrPasswordError",
     "InvalidRecurrenceError",
     "RecurringRuleNotFoundError",
     "ReportRangeTooLargeError",

@@ -29,6 +29,23 @@ class PasswordIsWrongError(ValidationError):
         super().__init__(msg, exc)
 
 
+class InvalidEmailOrPasswordError(ValidationError):
+    """Signal that a login attempt carried an email or a password that does not check out.
+
+    Deliberately does not say which of the two was wrong: telling an unknown address apart from a wrong
+    password turns the login endpoint into a way of asking whether an address has an account here.
+    """
+
+    def __init__(self, exc: Exception | None = None):
+        """Initialize an InvalidEmailOrPasswordError.
+
+        Args:
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        msg = "Incorrect email or password."
+        super().__init__(msg, exc)
+
+
 class InvalidCredentialsError(ValidationError):
     """Signal that invalid credentials were provided."""
 
