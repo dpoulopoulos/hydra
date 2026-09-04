@@ -13,6 +13,7 @@ from app.core.security import (
     create_access_token,
     create_email_verification_token,
     create_password_reset_token,
+    dummy_password_hash,
     get_password_hash,
     verify_password,
     verify_typed_token,
@@ -152,6 +153,36 @@ class TestGetPasswordHash:
         # Assert: Verify hash is a non-empty string
         assert isinstance(hashed, str)
         assert len(hashed) > 0
+
+
+class TestDummyPasswordHash:
+    """Test suite for dummy_password_hash function."""
+
+    def test_dummy_password_hash_produces_bcrypt_format(self):
+        """Test that the dummy hash looks like any other stored hash."""
+        # Act: Ask for the dummy hash
+        hashed = dummy_password_hash()
+
+        # Assert: Verify it is bcrypt at the same cost as a stored hash, so verifying costs the same
+        assert hashed.startswith("$2b$")
+        assert hashed.split("$")[2] == get_password_hash("testpassword123").split("$")[2]
+
+    def test_dummy_password_hash_is_computed_once(self):
+        """Test that repeated calls return the same hash rather than hashing again."""
+        # Act: Ask for the dummy hash twice
+        first = dummy_password_hash()
+        second = dummy_password_hash()
+
+        # Assert: Verify the same hash comes back, so no request pays to build it
+        assert first == second
+
+    def test_dummy_password_hash_matches_no_password(self):
+        """Test that verifying against the dummy hash fails."""
+        # Act: Verify a password against the dummy hash
+        result = verify_password("testpassword123", dummy_password_hash())
+
+        # Assert: Verify the result is False, since nobody holds the hashed password
+        assert result is False
 
 
 class TestVerifyPassword:

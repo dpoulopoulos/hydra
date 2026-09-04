@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.core.security import create_access_token, get_password_hash, verify_password
+from app.core.security import create_access_token, dummy_password_hash, get_password_hash, verify_password
 from app.exceptions import (
     DeleteSuperUserError,
     InvalidEmailOrPasswordError,
@@ -72,6 +72,10 @@ class UserService:
         user = self.get_user_by_email(email=email)
 
         if not user:
+            # Check the password against a hash nobody holds, rather than returning here. Skipping the
+            # hashing would answer sooner for an unregistered address, which is the same disclosure the
+            # shared error avoids, told by the clock instead.
+            verify_password(password, dummy_password_hash())
             raise InvalidEmailOrPasswordError from None
 
         if not verify_password(password, user.hashed_password):
