@@ -54,4 +54,20 @@ RUN uv sync
 RUN chmod +x /app/scripts/entrypoint.sh
 RUN chmod +x /app/scripts/prestart.sh
 
+# The last thing the build does is drop to an unprivileged user. The server
+# holds SECRET_KEY, the database password and the mail API key in its
+# environment: a code execution bug in the app or in any of its dependencies
+# should not also come with root inside the container.
+#
+# Only the virtual environment changes hands. `uv run` in prestart.sh reinstalls
+# the project into it on every start, so it has to be writable; the app's own
+# source stays owned by root and read only, and a compromise cannot rewrite it
+# and persist for the life of the container.
+#
+# A high uid that no host user is likely to own, so a bind mount cannot hand it
+# someone else's files. HOME is its own, which is where uv keeps its cache.
+RUN useradd --create-home --uid 10001 app && chown -R app:app /app/.venv
+
+USER app
+
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]
