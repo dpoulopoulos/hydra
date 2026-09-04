@@ -1,8 +1,12 @@
+import logging
 import uuid
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
+
+from app.core.config import settings
 
 from app.exceptions import (
     DeleteSuperUserError,
@@ -186,6 +190,38 @@ class TestCreateUser:
         mock_user_service.session.add.assert_called_once()
         mock_user_service.session.commit.assert_called_once()
         mock_user_service.session.refresh.assert_called_once()
+
+    def test_create_user_survives_a_failed_welcome_email(
+        self, mock_user_service: UserService, monkeypatch, caplog
+    ) -> None:
+        """Test that a welcome email that cannot be delivered is only logged."""
+        # Arrange: Mock database operations and turn mail on
+        mock_user_service.session.exec = MagicMock()
+        mock_user_service.session.exec.return_value.first.return_value = None
+        mock_user_service.session.add = MagicMock()
+        mock_user_service.session.commit = MagicMock()
+        mock_user_service.session.refresh = MagicMock()
+
+        monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        user_create = UserCreate(
+            email="newuser@example.com",
+            password="password123",
+            full_name="New User",
+        )
+
+        # Act: Create the user while the provider is unreachable
+        with patch("app.utils.email_utils.send_email", side_effect=httpx.ConnectTimeout("timed out")):
+            with caplog.at_level(logging.ERROR, logger="app.utils.email_utils"):
+                result = mock_user_service.create_user(user_create=user_create)
+
+        # Assert: Verify the account is returned and the failure is on record
+        assert isinstance(result, UserPublic)
+        mock_user_service.session.commit.assert_called_once()
+        assert "newuser@example.com" in caplog.text
+        assert "ConnectTimeout" in caplog.text
 
     def test_create_user_with_user_register(
         self, mock_user_service: UserService
