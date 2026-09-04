@@ -1,6 +1,8 @@
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
+from functools import cache
 from typing import Any, Final
 
 import jwt
@@ -194,6 +196,21 @@ def get_password_hash(password: str) -> str:
        Bcrypt hashed password string.
     """
     return pwd_context.hash(password)
+
+
+@cache
+def dummy_password_hash() -> str:
+    """Return a hash to verify against when there is no stored hash to use.
+
+    Hashing is deliberately slow, so a caller who skips it answers measurably sooner. Verifying against
+    this hash instead keeps a login attempt for an address with no account as expensive as one for an
+    address that has it. It is built from a password nobody holds, once per process, at the same cost
+    factor as every stored hash.
+
+    Returns:
+        A bcrypt hash that no password matches.
+    """
+    return get_password_hash(secrets.token_urlsafe(32))
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

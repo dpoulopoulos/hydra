@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from app.core.config import settings
-
+from app.core.security import dummy_password_hash
 from app.exceptions import (
     DeleteSuperUserError,
     InvalidEmailOrPasswordError,
@@ -89,6 +89,28 @@ class TestAuthenticate:
                 mock_user_service.authenticate(
                     email=test_user.email, password="wrongpassword"
                 )
+
+    def test_authenticate_hashes_a_password_even_when_the_email_is_unknown(
+        self, mock_user_service: UserService
+    ) -> None:
+        """Test that an unknown address still pays for a password check.
+
+        Hashing is deliberately slow, so returning without it would make an unregistered address answer
+        measurably sooner and give the same answer the status code no longer does.
+        """
+        # Arrange: Mock database query to return None (user not found)
+        mock_user_service.session.exec = MagicMock()
+        mock_user_service.session.exec.return_value.first.return_value = None
+
+        # Act: Authenticate an unregistered address
+        with patch("app.services.user.verify_password", return_value=False) as mock_verify_password:
+            with pytest.raises(InvalidEmailOrPasswordError):
+                mock_user_service.authenticate(
+                    email="nonexistent@example.com", password="junkpassword123"
+                )
+
+        # Assert: Verify the password was checked against the dummy hash
+        mock_verify_password.assert_called_once_with("junkpassword123", dummy_password_hash())
 
     def test_authenticate_reports_unknown_email_and_wrong_password_alike(
         self, mock_user_service: UserService, test_user: User
