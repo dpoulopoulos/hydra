@@ -427,6 +427,8 @@ def get_report_service(
     report_repository: ReportRepositoryDep,
     household_repository: HouseholdRepositoryDep,
     category_repository: CategoryRepositoryDep,
+    budget_repository: BudgetRepositoryDep,
+    account_repository: AccountRepositoryDep,
 ) -> ReportService:
     """Get a report service instance.
 
@@ -435,6 +437,8 @@ def get_report_service(
         report_repository: The report repository instance.
         household_repository: The household repository instance.
         category_repository: The category repository instance.
+        budget_repository: The budget repository instance.
+        account_repository: The account repository instance.
 
     Returns:
         A report service instance.
@@ -444,6 +448,8 @@ def get_report_service(
         report_repository=report_repository,
         household_repository=household_repository,
         category_repository=category_repository,
+        budget_repository=budget_repository,
+        account_repository=account_repository,
     )
 
 

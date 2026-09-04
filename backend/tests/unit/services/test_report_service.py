@@ -6,6 +6,7 @@ import pytest
 
 from app.exceptions import CategoryNotFoundError, InvalidDateRangeError, ReportRangeTooLargeError
 from app.models import (
+    Budget,
     Category,
     CategoryDepth,
     Household,
@@ -425,3 +426,224 @@ class TestIncomeExpense:
             mock_report_service.income_expense(
                 household=household_context, month_from="2000-01", month_to="2026-01"
             )
+
+
+def budget_pair(
+    name: str = "Food & Drink",
+    limit_minor: int = 40_000,
+    parent_id: uuid.UUID | None = None,
+    category_id: uuid.UUID | None = None,
+) -> tuple[Budget, Category]:
+    """Build a budget joined to its category."""
+    category = Category(household_id=HOUSEHOLD_ID, name=name, parent_id=parent_id)
+
+    if category_id is not None:
+        category.id = category_id
+
+    budget = Budget(
+        household_id=HOUSEHOLD_ID,
+        category_id=category.id,
+        period_month=date(2026, 3, 1),
+        limit_minor=limit_minor,
+    )
+    return budget, category
+
+
+class TestBudgetProgress:
+    """Tests for budget_progress."""
+
+    def test_a_parent_limit_counts_its_subcategories(
+        self,
+        mock_report_service: ReportService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        """Budgeting Food & Drink must track groceries and restaurants together."""
+        budget, parent = budget_pair(name="Food & Drink", limit_minor=9_000)
+        groceries = Category(household_id=HOUSEHOLD_ID, name="Groceries", parent_id=parent.id)
+        restaurants = Category(household_id=HOUSEHOLD_ID, name="Restaurants", parent_id=parent.id)
+        mock_report_service.session.exec = MagicMock()
+        mock_report_service.session.exec.return_value.all.side_effect = [
+            [(budget, parent)],
+            [parent, groceries, restaurants],
+        ]
+        mock_report_service.session.execute = MagicMock()
+        mock_report_service.session.execute.return_value.all.return_value = [
+            spend_row(name="Groceries", amount_minor=7_000, category_id=groceries.id),
+            spend_row(name="Restaurants", amount_minor=3_000, category_id=restaurants.id),
+        ]
+        mock_report_service.session.get = MagicMock(return_value=household)
+
+        result = mock_report_service.budget_progress(household=household_context, month="2026-03")
+
+        assert result.rows[0].spent_minor == 10_000
+        assert result.rows[0].covers_subcategories is True
+        assert result.rows[0].remaining_minor == -1_000
+        assert result.rows[0].is_over_budget is True
+        assert result.unbudgeted_spend_minor == 0
+
+    def test_progress_is_not_capped(
+        self,
+        mock_report_service: ReportService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        """Flattening it at 1 would hide how far over the limit the month went."""
+        budget, category = budget_pair(limit_minor=10_000)
+        mock_report_service.session.exec = MagicMock()
+        mock_report_service.session.exec.return_value.all.side_effect = [
+            [(budget, category)],
+            [category],
+        ]
+        mock_report_service.session.execute = MagicMock()
+        mock_report_service.session.execute.return_value.all.return_value = [
+            spend_row(amount_minor=25_000, category_id=category.id)
+        ]
+        mock_report_service.session.get = MagicMock(return_value=household)
+
+        result = mock_report_service.budget_progress(household=household_context, month="2026-03")
+
+        assert result.rows[0].progress == 2.5
+
+    def test_a_leaf_limit_counts_only_itself(
+        self,
+        mock_report_service: ReportService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        parent_id = uuid.uuid4()
+        budget, leaf = budget_pair(name="Fuel", limit_minor=20_000, parent_id=parent_id)
+        sibling = Category(household_id=HOUSEHOLD_ID, name="Parking & Tolls", parent_id=parent_id)
+        mock_report_service.session.exec = MagicMock()
+        mock_report_service.session.exec.return_value.all.side_effect = [
+            [(budget, leaf)],
+            [leaf, sibling],
+        ]
+        mock_report_service.session.execute = MagicMock()
+        mock_report_service.session.execute.return_value.all.return_value = [
+            spend_row(name="Fuel", amount_minor=10_000, category_id=leaf.id),
+            spend_row(name="Parking & Tolls", amount_minor=4_000, category_id=sibling.id),
+        ]
+        mock_report_service.session.get = MagicMock(return_value=household)
+
+        result = mock_report_service.budget_progress(household=household_context, month="2026-03")
+
+        assert result.rows[0].spent_minor == 10_000
+        assert result.rows[0].covers_subcategories is False
+        # The sibling's spending had no limit of its own.
+        assert result.unbudgeted_spend_minor == 4_000
+
+    def test_reports_spending_that_has_no_limit(
+        self,
+        mock_report_service: ReportService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        """Otherwise the report would account for only part of the month."""
+        budget, category = budget_pair(limit_minor=10_000)
+        other = Category(household_id=HOUSEHOLD_ID, name="Pharmacy")
+        mock_report_service.session.exec = MagicMock()
+        mock_report_service.session.exec.return_value.all.side_effect = [
+            [(budget, category)],
+            [category, other],
+        ]
+        mock_report_service.session.execute = MagicMock()
+        mock_report_service.session.execute.return_value.all.return_value = [
+            spend_row(amount_minor=4_000, category_id=category.id),
+            spend_row(name="Pharmacy", amount_minor=5_000, category_id=other.id),
+        ]
+        mock_report_service.session.get = MagicMock(return_value=household)
+
+        result = mock_report_service.budget_progress(household=household_context, month="2026-03")
+
+        assert result.total_spent_minor == 4_000
+        assert result.unbudgeted_spend_minor == 5_000
+
+    def test_a_zero_limit_does_not_divide_by_zero(
+        self,
+        mock_report_service: ReportService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        """A limit of nothing is a real choice: spend nothing here this month."""
+        budget, category = budget_pair(limit_minor=0)
+        mock_report_service.session.exec = MagicMock()
+        mock_report_service.session.exec.return_value.all.side_effect = [
+            [(budget, category)],
+            [category],
+        ]
+        mock_report_service.session.execute = MagicMock()
+        mock_report_service.session.execute.return_value.all.return_value = [
+            spend_row(amount_minor=500, category_id=category.id)
+        ]
+        mock_report_service.session.get = MagicMock(return_value=household)
+
+        result = mock_report_service.budget_progress(household=household_context, month="2026-03")
+
+        assert result.rows[0].progress == 1.0
+        assert result.rows[0].is_over_budget is True
+
+    def test_a_zero_limit_with_no_spending_is_not_over_budget(
+        self,
+        mock_report_service: ReportService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        budget, category = budget_pair(limit_minor=0)
+        mock_report_service.session.exec = MagicMock()
+        mock_report_service.session.exec.return_value.all.side_effect = [
+            [(budget, category)],
+            [category],
+        ]
+        mock_report_service.session.execute = MagicMock()
+        mock_report_service.session.execute.return_value.all.return_value = []
+        mock_report_service.session.get = MagicMock(return_value=household)
+
+        result = mock_report_service.budget_progress(household=household_context, month="2026-03")
+
+        assert result.rows[0].progress == 0.0
+        assert result.rows[0].is_over_budget is False
+
+    def test_sorts_the_most_used_limits_first(
+        self,
+        mock_report_service: ReportService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        low_budget, low = budget_pair(name="Fuel", limit_minor=20_000)
+        high_budget, high = budget_pair(name="Food & Drink", limit_minor=10_000)
+        mock_report_service.session.exec = MagicMock()
+        mock_report_service.session.exec.return_value.all.side_effect = [
+            [(low_budget, low), (high_budget, high)],
+            [low, high],
+        ]
+        mock_report_service.session.execute = MagicMock()
+        mock_report_service.session.execute.return_value.all.return_value = [
+            spend_row(name="Fuel", amount_minor=2_000, category_id=low.id),
+            spend_row(name="Food & Drink", amount_minor=9_000, category_id=high.id),
+        ]
+        mock_report_service.session.get = MagicMock(return_value=household)
+
+        result = mock_report_service.budget_progress(household=household_context, month="2026-03")
+
+        assert [row.category_name for row in result.rows] == ["Food & Drink", "Fuel"]
+
+    def test_a_month_with_no_budgets_is_empty(
+        self,
+        mock_report_service: ReportService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        mock_report_service.session.exec = MagicMock()
+        mock_report_service.session.exec.return_value.all.side_effect = [[], []]
+        mock_report_service.session.execute = MagicMock()
+        mock_report_service.session.execute.return_value.all.return_value = [
+            spend_row(amount_minor=5_000)
+        ]
+        mock_report_service.session.get = MagicMock(return_value=household)
+
+        result = mock_report_service.budget_progress(household=household_context, month="2026-03")
+
+        assert result.rows == []
+        assert result.total_limit_minor == 0
+        assert result.unbudgeted_spend_minor == 5_000

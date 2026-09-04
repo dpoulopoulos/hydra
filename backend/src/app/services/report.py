@@ -6,11 +6,14 @@ from sqlmodel import Session
 
 from app.exceptions import CategoryNotFoundError, InvalidDateRangeError, ReportRangeTooLargeError
 from app.models import (
+    BudgetProgressReport,
+    BudgetProgressRow,
     CategoryDepth,
     CategorySpendSlice,
     HouseholdContext,
     IncomeExpenseReport,
     MonthlyFlow,
+    MonthSummaryReport,
     ReportPeriod,
     SpendByCategoryReport,
     SpendOverTimeReport,
@@ -19,6 +22,8 @@ from app.models import (
     TransactionKind,
 )
 from app.models.fields import month_key_of, month_start, next_month_start
+from app.repositories.account import AccountRepository
+from app.repositories.budget import BudgetRepository
 from app.repositories.category import CategoryRepository
 from app.repositories.household import HouseholdRepository
 from app.repositories.report import ReportRepository
@@ -32,6 +37,9 @@ MAX_FLOW_RANGE_MONTHS = 120
 # The label used for spending that has no category at all.
 UNCATEGORIZED_LABEL = "Uncategorized"
 
+# How many categories the dashboard summary highlights.
+TOP_CATEGORY_COUNT = 5
+
 
 class ReportService:
     """Provide the aggregated figures the charts are drawn from."""
@@ -42,6 +50,8 @@ class ReportService:
         report_repository: ReportRepository,
         household_repository: HouseholdRepository,
         category_repository: CategoryRepository,
+        budget_repository: BudgetRepository,
+        account_repository: AccountRepository,
     ) -> None:
         """Initialize the report service.
 
@@ -50,11 +60,15 @@ class ReportService:
             report_repository: The report repository instance.
             household_repository: The household repository instance, used for the currency.
             category_repository: The category repository instance.
+            budget_repository: The budget repository instance.
+            account_repository: The account repository instance, used for net worth.
         """
         self.session = session
         self.report_repository = report_repository
         self.household_repository = household_repository
         self.category_repository = category_repository
+        self.budget_repository = budget_repository
+        self.account_repository = account_repository
 
     def spend_by_category(
         self,
@@ -385,3 +399,144 @@ class ReportService:
             date_to=date_to,
             currency_code=entity.currency_code if entity else "EUR",
         )
+
+    def budget_progress(self, household: HouseholdContext, month: str) -> BudgetProgressReport:
+        """Compare a month's spending against the limits set for it.
+
+        A limit on a parent category covers the spending filed under its
+        subcategories, so the figure for such a row includes the whole branch.
+        Because a parent and its child can never both be budgeted in the same
+        month, every unit of spending is counted against at most one limit.
+
+        Args:
+            household: The household context.
+            month: The month, in "YYYY-MM" form.
+
+        Returns:
+            One row per budget, plus the spending that had no limit at all.
+        """
+        date_from = month_start(month)
+        date_to = next_month_start(month) - datetime.timedelta(days=1)
+
+        budgets = self.budget_repository.list_with_categories(
+            household_id=household.household_id, period_month=date_from
+        )
+        spend_rows = self.report_repository.spend_by_category(
+            household_id=household.household_id,
+            date_from=date_from,
+            date_to=date_to,
+            kind=TransactionKind.EXPENSE,
+            depth=CategoryDepth.LEAF,
+        )
+
+        spend_by_category = {row.category_id: row.amount_minor for row in spend_rows}
+        children = self._children_by_parent(household=household)
+
+        rows: list[BudgetProgressRow] = []
+        attributed = 0
+
+        for budget, category in budgets:
+            covered = [category.id, *children.get(category.id, [])]
+            spent = sum(spend_by_category.get(category_id, 0) for category_id in covered)
+            attributed += spent
+
+            rows.append(
+                BudgetProgressRow(
+                    budget_id=budget.id,
+                    category_id=category.id,
+                    category_name=category.name,
+                    parent_id=category.parent_id,
+                    covers_subcategories=bool(children.get(category.id)),
+                    limit_minor=budget.limit_minor,
+                    spent_minor=spent,
+                    remaining_minor=budget.limit_minor - spent,
+                    # A limit of nothing is a real choice, so guard the divide
+                    # and treat any spending against it as fully used.
+                    progress=(round(spent / budget.limit_minor, 4) if budget.limit_minor else (1.0 if spent else 0.0)),
+                    is_over_budget=spent > budget.limit_minor,
+                )
+            )
+
+        rows.sort(key=lambda row: row.progress, reverse=True)
+        total_spent = sum(row.amount_minor for row in spend_rows)
+        total_limit = sum(row.limit_minor for row in rows)
+
+        return BudgetProgressReport(
+            period=self._period(household=household, date_from=date_from, date_to=date_to),
+            total_limit_minor=total_limit,
+            total_spent_minor=attributed,
+            total_remaining_minor=total_limit - attributed,
+            rows=rows,
+            unbudgeted_spend_minor=total_spent - attributed,
+        )
+
+    def month_summary(self, household: HouseholdContext, month: str) -> MonthSummaryReport:
+        """Gather the dashboard figures for one month.
+
+        One request rather than several, so opening the app is a single round
+        trip.
+
+        Args:
+            household: The household context.
+            month: The month, in "YYYY-MM" form.
+
+        Returns:
+            The month's totals, the current net worth, and the biggest categories.
+        """
+        date_from = month_start(month)
+        date_to = next_month_start(month) - datetime.timedelta(days=1)
+
+        totals = {
+            row.kind: row
+            for row in self.report_repository.totals_by_kind(
+                household_id=household.household_id, date_from=date_from, date_to=date_to
+            )
+        }
+        income = totals[TransactionKind.INCOME].amount_minor if TransactionKind.INCOME in totals else 0
+        expense = totals[TransactionKind.EXPENSE].amount_minor if TransactionKind.EXPENSE in totals else 0
+        transaction_count = sum(row.transaction_count for row in totals.values())
+
+        accounts, _ = self.account_repository.list_for_household(
+            household_id=household.household_id, include_archived=False, limit=1000
+        )
+        balances = self.account_repository.balances_of(
+            account_ids=[account.id for account in accounts], household_id=household.household_id
+        )
+
+        progress = self.budget_progress(household=household, month=month)
+        breakdown = self.spend_by_category(household=household, month=month)
+
+        return MonthSummaryReport(
+            period=self._period(household=household, date_from=date_from, date_to=date_to),
+            income_minor=income,
+            expense_minor=expense,
+            net_minor=income - expense,
+            net_worth_minor=sum(balances.values()),
+            budgeted_minor=progress.total_limit_minor,
+            over_budget_category_count=sum(1 for row in progress.rows if row.is_over_budget),
+            transaction_count=transaction_count,
+            top_categories=breakdown.slices[:TOP_CATEGORY_COUNT],
+        )
+
+    def _children_by_parent(self, household: HouseholdContext) -> dict[uuid.UUID, list[uuid.UUID]]:
+        """Map each parent category to the IDs of its subcategories.
+
+        Read once per report rather than per budget row, and archived
+        categories are included: past spending filed under them still counts
+        towards the parent's limit.
+
+        Args:
+            household: The household context.
+
+        Returns:
+            Subcategory IDs keyed by parent ID.
+        """
+        children: dict[uuid.UUID, list[uuid.UUID]] = {}
+
+        for category in self.category_repository.list_for_household(
+            household_id=household.household_id, include_archived=True
+        ):
+            if category.parent_id is not None:
+                children.setdefault(category.parent_id, []).append(category.id)
+
+        return children

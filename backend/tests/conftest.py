@@ -570,6 +570,8 @@ def mock_report_service(
     mock_report_repository: ReportRepository,
     mock_household_repository: HouseholdRepository,
     mock_category_repository: CategoryRepository,
+    mock_budget_repository: BudgetRepository,
+    mock_account_repository: AccountRepository,
 ) -> ReportService:
     """Create a ReportService instance with a mocked session.
 
@@ -578,6 +580,8 @@ def mock_report_service(
         mock_report_repository: The report repository instance.
         mock_household_repository: The household repository instance.
         mock_category_repository: The category repository instance.
+        mock_budget_repository: The budget repository instance.
+        mock_account_repository: The account repository instance.
 
     Returns:
         A ReportService instance with a mocked session.
@@ -587,4 +591,6 @@ def mock_report_service(
         report_repository=mock_report_repository,
         household_repository=mock_household_repository,
         category_repository=mock_category_repository,
+        budget_repository=mock_budget_repository,
+        account_repository=mock_account_repository,
     )
