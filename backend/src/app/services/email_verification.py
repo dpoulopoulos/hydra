@@ -192,17 +192,26 @@ class EmailVerificationService:
             )
             raise EmailVerificationExpiredError from None
 
+        # The row names the account the verification was issued for. Looking
+        # the account up by the token's subject instead would activate whoever
+        # holds that address at redemption time, so a stale token could stand
+        # in for a proof the present holder never gave.
+        user = user_service.user_repository.get_by_id(email_verification.user_id)
+        if not user:
+            raise UserNotFoundError from None
+
+        # The subject is only ever cross-checked, never resolved: a
+        # verification of an address the account no longer holds proves
+        # nothing about the address it holds now.
+        if decoded_token["sub"] != user.email:
+            raise EmailVerificationTokenNotValidError from None
+
         # Mark email verification as verified
         self._mark_email_verification(
             email_verification_id=email_verification.id, status=EmailVerificationStatus.VERIFIED
         )
 
         # Activate user account
-        email = decoded_token["sub"]
-        user = user_service.get_user_by_email(email=email)
-        if not user:
-            raise UserNotFoundError from None
-
         user.is_active = True
         user_service.user_repository.save(user)
         self.session.commit()
