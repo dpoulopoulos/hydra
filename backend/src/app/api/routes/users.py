@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.api.deps import (
     CategoryServiceDep,
@@ -163,7 +163,12 @@ def get_user_by_id(*, user_service: UserServiceDep, current_user: CurrentUser, u
     dependencies=[Depends(get_current_active_superuser)],
     response_model=UsersPublic,
 )
-def get_users(*, user_service: UserServiceDep, skip: int = 0, limit: int = 100) -> UsersPublic:
+def get_users(
+    *,
+    user_service: UserServiceDep,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=200),
+) -> UsersPublic:
     """Get registered users.
 
     Args:
