@@ -19,6 +19,7 @@ from app.repositories import (
     HouseholdMemberRepository,
     HouseholdRepository,
     PasswordResetRepository,
+    TransactionRepository,
     UserRepository,
 )
 from app.services import (
@@ -27,6 +28,7 @@ from app.services import (
     EmailVerificationService,
     HouseholdService,
     PasswordResetService,
+    TransactionService,
     UserService,
 )
 
@@ -467,4 +469,43 @@ def mock_account_service(
         session=mock_db_session,
         account_repository=mock_account_repository,
         household_repository=mock_household_repository,
+    )
+
+
+@pytest.fixture
+def mock_transaction_repository(mock_db_session: MagicMock) -> TransactionRepository:
+    """Create a TransactionRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        A TransactionRepository instance with a mocked session.
+    """
+    return TransactionRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_transaction_service(
+    mock_db_session: MagicMock,
+    mock_transaction_repository: TransactionRepository,
+    mock_account_repository: AccountRepository,
+    mock_category_repository: CategoryRepository,
+) -> TransactionService:
+    """Create a TransactionService instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+        mock_transaction_repository: The transaction repository instance.
+        mock_account_repository: The account repository instance.
+        mock_category_repository: The category repository instance.
+
+    Returns:
+        A TransactionService instance with a mocked session.
+    """
+    return TransactionService(
+        session=mock_db_session,
+        transaction_repository=mock_transaction_repository,
+        account_repository=mock_account_repository,
+        category_repository=mock_category_repository,
     )
