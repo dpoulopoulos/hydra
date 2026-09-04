@@ -259,6 +259,25 @@ class HouseholdInviteRepository(HouseholdScopedRepository[HouseholdInvite]):
 
         return self.session.exec(statement.order_by(col(HouseholdInvite.created_at).desc())).all()
 
+    def list_pending_for_email(self, email: str) -> Sequence[HouseholdInvite]:
+        """List every outstanding invite sent to an address.
+
+        Not scoped to a household: the address may have been invited by
+        several, and the caller is acting on the address rather than from
+        inside a household.
+
+        Args:
+            email: The invited address.
+
+        Returns:
+            The pending invites sent to that address.
+        """
+        statement = select(HouseholdInvite).where(
+            func.lower(col(HouseholdInvite.email)) == email.lower(),
+            HouseholdInvite.status == HouseholdInviteStatus.PENDING,
+        )
+        return self.session.exec(statement).all()
+
     def get_pending_for_email(self, household_id: uuid.UUID, email: str) -> HouseholdInvite | None:
         """Get the outstanding invite for an address, if there is one.
 

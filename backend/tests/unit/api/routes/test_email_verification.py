@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_db
+from app.api.deps import get_current_user, get_db
 from app.exceptions import (
     EmailVerificationExpiredError,
     EmailVerificationNotFoundError,
@@ -11,7 +11,7 @@ from app.exceptions import (
     EmailVerificationUsedError,
 )
 from app.main import app
-from app.models import Message
+from app.models import Message, User
 from app.services import EmailVerificationService
 
 
@@ -154,6 +154,52 @@ class TestResendVerificationEmail:
         finally:
             # Cleanup
             app.dependency_overrides.clear()
+
+
+class TestSendVerificationEmailMe:
+    """Tests for the send_verification_email_me endpoint (POST /email-verification/me/send)."""
+
+    def test_send_verification_email_me_success(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test that an active account can ask for a confirmation of the address it holds."""
+        # Arrange: Set up dependency overrides with an authenticated user
+        def override_get_db() -> Generator[MagicMock, None, None]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        try:
+            with patch.object(
+                EmailVerificationService,
+                "send_verification_email",
+                return_value=Message(message="Verification email sent successfully."),
+            ) as send:
+                # Act: Ask for a confirmation of the caller's own address
+                response = client.post("/api/v1/email-verification/me/send")
+
+                # Assert: The caller's own address is the one confirmed, never one it names
+                assert response.status_code == 200
+                assert response.json()["message"] == "Verification email sent successfully."
+                assert send.call_args.kwargs["user_email"] == test_user.email
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+    def test_send_verification_email_me_requires_authentication(self, client: TestClient) -> None:
+        """Test that the endpoint refuses a caller with no token."""
+        # Act: Ask for a confirmation without signing in
+        response = client.post("/api/v1/email-verification/me/send")
+
+        # Assert: Verify 401 unauthorized response
+        assert response.status_code == 401
 
 
 class TestVerifyEmail:

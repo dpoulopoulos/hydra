@@ -305,6 +305,39 @@ class TestSendVerificationEmail:
         assert isinstance(result, Message)
         assert test_email_verification.status == EmailVerificationStatus.EXPIRED
 
+    def test_send_verification_email_serves_an_active_account_with_no_history(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+    ) -> None:
+        """An account created by an administrator was never sent a confirmation, so it needs one now.
+
+        Nothing else can prove the address it holds, and without a proof the
+        invitations sent to that address stay unredeemable for ever.
+        """
+        # Arrange: an active account with no verification of any kind on record.
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+        saved: list[EmailVerification] = []
+        mock_email_verification_service.email_verification_repository.save = MagicMock(  # type: ignore[method-assign]
+            side_effect=lambda verification: saved.append(verification) or verification
+        )
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            with patch("app.services.email_verification.try_send_email"):
+                result = mock_email_verification_service.send_verification_email(
+                    user_service=mock_user_service, user_email=test_user.email
+                )
+
+        # Assert: a pending verification of the address the account holds now.
+        assert isinstance(result, Message)
+        assert len(saved) == 1
+        assert saved[0].email == test_user.email
+        assert saved[0].user_id == test_user.id
+        assert saved[0].status == EmailVerificationStatus.PENDING
+
     def test_send_verification_email_user_not_found(
         self,
         mock_email_verification_service: EmailVerificationService,
@@ -559,6 +592,59 @@ class TestVerifyEmail:
         assert isinstance(result, Message)
         assert "Email verified successfully" in result.message
         assert test_user.is_active is True
+
+    def test_verify_email_claims_the_invites_sent_to_the_address(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Proving the mailbox is what makes an invitation to it redeemable."""
+        # Arrange
+        token = create_email_verification_token(subject=test_user.email)
+        test_email_verification.token = token
+        claimer = MagicMock()
+
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act
+        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=test_user):
+            mock_email_verification_service.verify_email(
+                user_service=mock_user_service, token=token, invite_claimer=claimer
+            )
+
+        # Assert
+        claimer.claim_invites_for_verified_email.assert_called_once_with(user=test_user)
+
+    def test_verify_email_claims_no_invites_when_the_token_is_rejected(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Nothing was proved, so nothing may be handed over."""
+        # Arrange: the account no longer holds the address the token names.
+        token = create_email_verification_token(subject=test_user.email)
+        test_email_verification.token = token
+        test_user.email = "moved-on@example.com"
+        claimer = MagicMock()
+
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act & Assert
+        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=test_user):
+            with pytest.raises(EmailVerificationTokenNotValidError):
+                mock_email_verification_service.verify_email(
+                    user_service=mock_user_service, token=token, invite_claimer=claimer
+                )
+
+        claimer.claim_invites_for_verified_email.assert_not_called()
 
     def test_verify_email_resolves_the_target_from_the_verification_row(
         self,

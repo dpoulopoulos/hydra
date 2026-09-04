@@ -842,6 +842,40 @@ class TestPreviewInvite:
         assert invite.status is HouseholdInviteStatus.EXPIRED
 
 
+class TestClaimInvites:
+    """Tests for claim_invites_for_verified_email."""
+
+    def test_hands_a_pending_invite_to_the_account_that_proved_the_address(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """Somebody who signed up without the link still gets to accept it."""
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.all.return_value = [invite]
+
+        mock_household_service.claim_invites_for_verified_email(user=another_test_user)
+
+        assert invite.invited_user_id == another_test_user.id
+
+    def test_does_not_commit(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """It runs inside the transaction that is verifying the address."""
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.all.return_value = [invite]
+
+        mock_household_service.claim_invites_for_verified_email(user=another_test_user)
+
+        mock_household_service.session.commit.assert_not_called()
+
+
 class TestAcceptInvite:
     """Tests for accept_invite."""
 

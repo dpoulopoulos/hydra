@@ -5695,6 +5695,22 @@ export type EmailVerificationResendVerificationEmailResponses = {
 
 export type EmailVerificationResendVerificationEmailResponse = EmailVerificationResendVerificationEmailResponses[keyof EmailVerificationResendVerificationEmailResponses];
 
+export type EmailVerificationSendVerificationEmailMeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/email-verification/me/send';
+};
+
+export type EmailVerificationSendVerificationEmailMeResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type EmailVerificationSendVerificationEmailMeResponse = EmailVerificationSendVerificationEmailMeResponses[keyof EmailVerificationSendVerificationEmailMeResponses];
+
 export type EmailVerificationVerifyEmailData = {
     body: EmailVerificationConfirm;
     path?: never;
