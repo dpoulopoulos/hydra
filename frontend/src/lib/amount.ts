@@ -3,6 +3,16 @@ import { z } from 'zod'
 import { toMinor } from '@/lib/money'
 
 /**
+ * The largest amount a form accepts, in minor units.
+ *
+ * The API caps every amount far above this, but past Number.MAX_SAFE_INTEGER a
+ * JavaScript number no longer holds an exact integer, so what would be sent is
+ * not what was typed. Bounding it here keeps an absurd amount an inline message
+ * on the field rather than a rejected request.
+ */
+export const MAX_AMOUNT_MINOR = Number.MAX_SAFE_INTEGER
+
+/**
  * A typed amount, as minor units.
  *
  * People type "42.50" or "42,50" depending on their keyboard and locale, so
@@ -22,4 +32,5 @@ export function amountSchema(options?: { currency?: string; allowZero?: boolean 
     .refine((minor) => Number.isFinite(minor) && minor >= min, {
       message: options?.allowZero ? 'Enter zero or more.' : 'Enter an amount above zero.',
     })
+    .refine((minor) => minor <= MAX_AMOUNT_MINOR, { message: 'Enter a smaller amount.' })
 }
