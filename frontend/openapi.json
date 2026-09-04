@@ -2990,7 +2990,7 @@
           "reports"
         ],
         "summary": "Month Summary",
-        "description": "Gather the dashboard figures for one month.\n\nOne request rather than several, so opening the app is a single round trip.\nAny recurring transactions that have fallen due are recorded first, so the\ndashboard is not out of date the moment it loads.\n\nArgs:\n    report_service: The report service dependency.\n    recurring_rule_service: The recurring rule service dependency, used to\n        bring the ledger up to date before reading it.\n    household: The current household context.\n    month: The month, in \"YYYY-MM\" form.\n\nReturns:\n    The month's income, spending and net, the current net worth, how much\n    was budgeted, how many categories went over, and the biggest categories.\n\nRaises:\n    HTTPException: If the month is not in \"YYYY-MM\" form (422).",
+        "description": "Gather the dashboard figures for one month.\n\nOne request rather than several, so opening the app is a single round trip.\n\nArgs:\n    report_service: The report service dependency.\n    household: The current household context.\n    month: The month, in \"YYYY-MM\" form.\n\nReturns:\n    The month's income, spending and net, the current net worth, how much\n    was budgeted, how many categories went over, and the biggest categories.\n\nRaises:\n    HTTPException: If the month is not in \"YYYY-MM\" form (422).",
         "operationId": "reports-month_summary",
         "security": [
           {

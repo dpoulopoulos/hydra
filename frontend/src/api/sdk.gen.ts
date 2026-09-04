@@ -1467,13 +1467,9 @@ export const reportsBudgetProgress = <ThrowOnError extends boolean = false>(opti
  * Gather the dashboard figures for one month.
  *
  * One request rather than several, so opening the app is a single round trip.
- * Any recurring transactions that have fallen due are recorded first, so the
- * dashboard is not out of date the moment it loads.
  *
  * Args:
  * report_service: The report service dependency.
- * recurring_rule_service: The recurring rule service dependency, used to
- * bring the ledger up to date before reading it.
  * household: The current household context.
  * month: The month, in "YYYY-MM" form.
  *
