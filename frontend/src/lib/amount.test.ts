@@ -14,7 +14,9 @@ describe('amountSchema', () => {
     ['42,50', 4250],
     ['1 000', 100000],
     ['0.01', 1],
+    ['0.05', 5],
     ['.5', 50],
+    [',5', 50],
     ['5.', 500],
     ['42', 4200],
   ])('reads %j as %d minor units', (value, expected) => {
@@ -43,6 +45,7 @@ describe('amountSchema', () => {
     ['', 'Enter an amount.'],
     ['   ', 'Enter an amount.'],
     ['abc', 'Enter a number.'],
+    ['4a2', 'Enter a number.'],
     ['.', 'Enter a number.'],
     ['4.2.5', 'Enter a number.'],
     ['-5', 'Enter a number.'],

@@ -302,7 +302,11 @@ def email_verification_repository(db_session: Session) -> EmailVerificationRepos
 
 @pytest.fixture
 def account_service(
-    db_session: Session, account_repository: AccountRepository, household_repository: HouseholdRepository
+    db_session: Session,
+    account_repository: AccountRepository,
+    household_repository: HouseholdRepository,
+    transaction_repository: TransactionRepository,
+    recurring_rule_repository: RecurringRuleRepository,
 ) -> AccountService:
     """Build an account service on the real session.
 
@@ -310,12 +314,18 @@ def account_service(
         db_session: The database session.
         account_repository: The account repository.
         household_repository: The household repository.
+        transaction_repository: The transaction repository.
+        recurring_rule_repository: The recurring rule repository.
 
     Returns:
         An account service.
     """
     return AccountService(
-        session=db_session, account_repository=account_repository, household_repository=household_repository
+        session=db_session,
+        account_repository=account_repository,
+        household_repository=household_repository,
+        transaction_repository=transaction_repository,
+        recurring_rule_repository=recurring_rule_repository,
     )
 
 
