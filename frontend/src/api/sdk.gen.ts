@@ -520,7 +520,6 @@ export const householdsRevokeHouseholdInvite = <ThrowOnError extends boolean = f
  *
  * Args:
  * household_service: The household service dependency.
- * category_service: The category service dependency.
  * current_user: The current authenticated user.
  * accept_in: The invitation token.
  *
