@@ -289,6 +289,33 @@ class HouseholdService:
 
         return Message(message="You have left the household.")
 
+    def release_for_user(self, user: User) -> None:
+        """Give up the household of a user who is being deleted, without committing.
+
+        The caller owns the transaction, so the user row and everything their
+        household held go in one go.
+
+        Deleting the user would cascade their membership away on its own, but
+        never the household: accounts, transactions, budgets and recurring
+        rules are keyed on the household, not on the user, so a sole member's
+        ledger would survive with nobody left who could reach it. Their
+        household therefore leaves with them, and its financial data cascades
+        with it, which is what deleting an account promises.
+
+        A household with other members in it stays: the data is theirs too,
+        and if the departing user was its last owner one of them is promoted,
+        so the household never ends up with nobody who can run it.
+
+        Args:
+            user: The user whose account is being deleted.
+        """
+        membership = self.household_member_repository.get_by_user_id(user.id)
+
+        if not membership:
+            return
+
+        self._release_membership(membership)
+
     def ensure_every_user_has_a_household(self, category_service: CategorySeeder) -> int:
         """Provision a household for every user that does not have one.
 
@@ -372,10 +399,57 @@ class HouseholdService:
             user: The user the membership belongs to.
             category_service: The category service, used to seed the default categories.
         """
-        self.household_member_repository.delete(membership)
-        self.household_member_repository.flush()
+        self._release_membership(membership)
         self.create_for_user(user=user, category_service=category_service)
         self.session.commit()
+
+    def _release_membership(self, membership: HouseholdMember) -> None:
+        """Remove a membership and leave its household in a usable state.
+
+        Every way out of a household comes through here, so the household is
+        locked first: two members going at the same time would otherwise each
+        see the other still in place, and the household they both left would
+        survive with nobody in it.
+
+        With the lock held, the household is re-read after the membership is
+        gone. An empty one is deleted, since nothing could reach it or its
+        ledger again. One that still has members but lost its last owner gets
+        a new one, or every owner-only route would fail forever and the
+        members left could only leave, stranding it after all.
+
+        Args:
+            membership: The membership to remove.
+        """
+        household = self.household_repository.get_by_id_for_update(membership.household_id)
+        self.household_member_repository.delete(membership)
+        self.household_member_repository.flush()
+
+        if not household:
+            return
+
+        if self.household_repository.count_members(household.id) == 0:
+            self.household_repository.delete(household)
+            self.household_repository.flush()
+            return
+
+        self._ensure_an_owner(household_id=household.id)
+
+    def _ensure_an_owner(self, household_id: uuid.UUID) -> None:
+        """Promote the longest-standing member if the household has no owner.
+
+        Args:
+            household_id: The ID of the household.
+        """
+        if self.household_member_repository.count_by_role(household_id, HouseholdRole.OWNER) > 0:
+            return
+
+        successor = self.household_member_repository.get_longest_standing(household_id)
+
+        if not successor:
+            return
+
+        successor.role = HouseholdRole.OWNER
+        self.household_member_repository.save(successor)
 
     def _require_household(self, household: HouseholdContext) -> Household:
         """Load the household of the current request.
@@ -605,7 +679,8 @@ class HouseholdService:
         The caller already has a household, created when they signed up. If it
         is still empty it is discarded, since nothing would be lost. If they
         have started using it, joining is refused rather than silently
-        abandoning their data.
+        abandoning their data. A household they share with others stays, with
+        a new owner if they were its last one.
 
         Args:
             user: The user accepting the invite.
@@ -642,15 +717,11 @@ class HouseholdService:
             if self.household_repository.has_financial_data(membership.household_id):
                 raise HouseholdNotEmptyError from None
 
-            previous = self.household_repository.get_by_id(membership.household_id)
-            self.household_member_repository.delete(membership)
-            self.household_member_repository.flush()
-
-            # The household it leaves behind held nothing but seeded
-            # categories, and nobody else is in it, so it goes with them.
-            if previous and self.household_repository.count_members(previous.id) == 0:
-                self.household_repository.delete(previous)
-                self.household_repository.flush()
+            # Moving out is one more way of leaving a household, so it takes
+            # the same exit as the others: an empty one is discarded, since it
+            # held nothing but seeded categories, and one that keeps its
+            # members is left with an owner.
+            self._release_membership(membership)
 
         self.household_member_repository.save(
             HouseholdMember(household_id=entity.id, user_id=user.id, role=invite.role)
