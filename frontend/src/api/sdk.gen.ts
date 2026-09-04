@@ -534,8 +534,9 @@ export const householdsRevokeHouseholdInvite = <ThrowOnError extends boolean = f
  *
  * Raises:
  * HTTPException: If the token is not recognised (404), the invitation was
- * sent to a different address (403), it has expired or was already
- * used (400), or your current household holds data (409).
+ * issued to another account or to an address nobody has proved (403),
+ * it has expired or was already used (400), or your current household
+ * holds data (409).
  */
 export const householdsAcceptHouseholdInvite = <ThrowOnError extends boolean = false>(options: Options<HouseholdsAcceptHouseholdInviteData, ThrowOnError>): RequestResult<HouseholdsAcceptHouseholdInviteResponses, HouseholdsAcceptHouseholdInviteErrors, ThrowOnError> => (options.client ?? client).post<HouseholdsAcceptHouseholdInviteResponses, HouseholdsAcceptHouseholdInviteErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

@@ -85,7 +85,12 @@ export function Component() {
           <MailCheck className="size-4" />
           <AlertTitle>Verification sent to {registeredEmail}</AlertTitle>
           <AlertDescription>
-            Open the link in that email to activate your account. You can close this page.
+            {/* The invitation is not taken at sign-up: registering with an
+                address does not prove the mailbox is yours. Verifying it does,
+                and that is when the invitation becomes theirs to accept. */}
+            {invite
+              ? `Open the link in that email to activate your account. Then open the invitation again to join ${invite.household_name}.`
+              : 'Open the link in that email to activate your account. You can close this page.'}
           </AlertDescription>
         </Alert>
         <Link
