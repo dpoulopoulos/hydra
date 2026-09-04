@@ -36,10 +36,12 @@ configuration to get wrong, and why the API is not reachable except through the 
 
 ## Before you start
 
-- A [Railway](https://railway.com) account, with your GitHub account connected to it. Both services build from
-  `github.com/dpoulopoulos/hydra`, and Railway needs read access to that repository to do it. Railway asks for this the
-  first time you connect a repo; you can also do it at
-  [github.com/settings/installations](https://github.com/settings/installations).
+- A [Railway](https://railway.com) account, with your GitHub account connected to it, and the Railway app installed on
+  this **private** repository. Install it at
+  [github.com/apps/railway-app/installations/new](https://github.com/apps/railway-app/installations/new) and grant it
+  `hydra` by name, or every repository. Do this before step 4: `railway config apply` writes down the repository it was
+  told to use without checking that it can read it, so a missing grant leaves you with services that never build and a
+  plan that reports no drift.
 - A [Resend](https://resend.com) account, with a sending domain verified. You need one API key and one from-address.
   Read [why not SMTP](#why-email-goes-over-https-and-not-smtp) if you are wondering.
 - Node.js, to fetch the one package `.railway/railway.ts` imports.
@@ -100,13 +102,35 @@ put in its email links, and none of its secrets. The next three steps are what g
 railway domain --service web
 ```
 
+```
+Service domain created:
+  URL: https://web-production-20157.up.railway.app
+  ID: 97a316ed-2f3b-4c54-bd29-e8aa123ac334
+  Type: service
+  Target port: -
+  Sync status: CREATING
+  Created: 2026-09-04T12:34:37.795+00:00
+  Updated: 2026-09-04T12:34:37.795+00:00
+```
+
 That address is the app's address. The backend reads it too, for the links and the logo in its emails, so it has to
 exist before the backend can start.
 
 Write it down. You need it in step 8.
 
-Using your own domain instead? Add it to the `domains` list in `.railway/railway.ts`, then `railway config plan` and
-`railway config apply`.
+Whichever domain you use, check that it has a target port:
+
+```bash
+railway domain list --service web
+```
+
+A generated domain can arrive without one, and then the edge has nowhere to send traffic: every path answers 404 with an
+`x-railway-fallback: true` header, while the container itself is healthy and passing Railway's own health check. Set it
+with `railway domain update <domain> --service web --port 8080`.
+
+Using your own domain instead? Add it to the `domains` list in `.railway/railway.ts`, apply, and then create **both**
+records Railway prints: the `CNAME`, and the `_railway-verify` `TXT`. With only the `CNAME` the name resolves and every
+request still answers 404, because Railway will not route traffic until the `TXT` has proved you own the domain.
 
 ## Step 6 — set the secrets
 
@@ -164,10 +188,17 @@ You are looking for the migrations running, the first user being created, and th
 Use the domain from step 5.
 
 ```bash
-curl -s https://YOUR-DOMAIN/health          # {"status":"ok"}  — the API answers
-curl -s -o /dev/null -w '%{http_code}\n' \
-  https://YOUR-DOMAIN/assets/logo.svg       # 200 — the email logo is served
+D=https://YOUR-DOMAIN
+for p in / /budgets /assets/logo.svg /api/v1/openapi.json; do
+  printf '%-24s %s\n' "$p" "$(curl -s -o /dev/null -w '%{http_code}' $D$p)"
+done
 ```
+
+All four answer `200`, and each one proves a different thing: the app is served, a path that only exists inside the app
+is served too, the logo the emails point at comes back through the proxy, and the API is reachable behind it.
+
+Do not check `/health` here. The backend has one, and Railway uses it, but Caddy forwards only `/api` and `/assets`, so
+from outside that path is just another route of the app and answers with its HTML.
 
 Then open `https://YOUR-DOMAIN` and sign in with the `FIRST_SUPERUSER` address and password from step 6.
 
@@ -250,6 +281,12 @@ it prints.
 step 6: the app refuses to start on a half-configured environment rather than run in one. Confirm with `railway variable
 list --service backend`.
 
+**A build fails on the Dockerfile itself.** Railway's builder is stricter than the Docker on your machine, so an image
+that builds locally can still be rejected before a line of it runs. It takes no mount but `type=cache`, and only with an
+id carrying its own `s/<service id>-<path>` prefix, which cannot come from a variable. `backend/Dockerfile` therefore
+uses no mounts at all, and says so; do not reintroduce one from a library's own Docker guide without checking it there
+first.
+
 **The site loads but every request fails.** The web service cannot reach the backend. Check that `BACKEND_ORIGIN` on
 `web` resolves, and that `PORT` on `backend` is still `8000` — those two have to agree, and
 [`.railway/railway.ts`](.railway/railway.ts) is what keeps them agreeing.
@@ -261,5 +298,8 @@ list --service backend`.
 `RESEND_API_KEY` correct. Resend's own dashboard logs every attempt and its outcome, which is the quickest way to tell
 whether the app sent anything at all.
 
-**Links in the emails point at the wrong place.** `FRONTEND_HOST` and `BACKEND_HOST` on the backend both resolve to the
-web service's public domain. If you added a custom domain, redeploy the backend so it picks up the change.
+**Links in the emails point at the wrong place.** `FRONTEND_HOST` and `BACKEND_HOST` on the backend are both built from
+`PUBLIC_DOMAIN` in [`.railway/railway.ts`](.railway/railway.ts). Change the domain there, apply, and the backend
+redeploys with it. It is written out rather than read from the web service on purpose: the reference that used to read
+it went stale when the domain changed and stayed stale through a redeploy, which pointed every link in every email at
+an address that no longer answered.
