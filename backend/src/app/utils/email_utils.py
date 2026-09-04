@@ -24,20 +24,10 @@ def _render_email_template(*, template_name: str, context: dict[str, Any]) -> st
 def generate_new_account_email(username: str) -> EmailData:
     """Generate a 'new account' email.
 
-    SECURITY WARNING: This function sends the plain text password via email,
-    which is a security risk. Emails are typically:
-    - Transmitted over potentially unencrypted channels
-    - Stored in plaintext on email servers
-    - Accessible to email administrators
-    - Susceptible to interception
-
-    Consider using a password reset link instead,
-    allowing users to set their own password on first login.
+    The message welcomes the user and links to the front end. It carries no credentials.
 
     Args:
-        email_to: Recipient email address.
         username: Username for the new account.
-        password: Plain text password (SECURITY RISK).
 
     Returns:
         EmailData object with HTML content and subject.
