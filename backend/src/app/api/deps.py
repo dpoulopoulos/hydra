@@ -131,22 +131,6 @@ def get_category_repository(session: SessionDep) -> CategoryRepository:
 CategoryRepositoryDep = Annotated[CategoryRepository, Depends(get_category_repository)]
 
 
-def get_category_service(session: SessionDep, category_repository: CategoryRepositoryDep) -> CategoryService:
-    """Get a category service instance.
-
-    Args:
-        session: The database session.
-        category_repository: The category repository instance.
-
-    Returns:
-        A category service instance.
-    """
-    return CategoryService(session=session, category_repository=category_repository)
-
-
-CategoryServiceDep = Annotated[CategoryService, Depends(get_category_service)]
-
-
 def get_budget_repository(session: SessionDep) -> BudgetRepository:
     """Get a budget repository instance.
 
@@ -441,6 +425,37 @@ def get_recurring_rule_repository(session: SessionDep) -> RecurringRuleRepositor
 
 
 RecurringRuleRepositoryDep = Annotated[RecurringRuleRepository, Depends(get_recurring_rule_repository)]
+
+
+def get_category_service(
+    session: SessionDep,
+    category_repository: CategoryRepositoryDep,
+    transaction_repository: TransactionRepositoryDep,
+    budget_repository: BudgetRepositoryDep,
+    recurring_rule_repository: RecurringRuleRepositoryDep,
+) -> CategoryService:
+    """Get a category service instance.
+
+    Args:
+        session: The database session.
+        category_repository: The category repository instance.
+        transaction_repository: The transaction repository instance.
+        budget_repository: The budget repository instance.
+        recurring_rule_repository: The recurring rule repository instance.
+
+    Returns:
+        A category service instance.
+    """
+    return CategoryService(
+        session=session,
+        category_repository=category_repository,
+        transaction_repository=transaction_repository,
+        budget_repository=budget_repository,
+        recurring_rule_repository=recurring_rule_repository,
+    )
+
+
+CategoryServiceDep = Annotated[CategoryService, Depends(get_category_service)]
 
 
 def get_recurring_rule_service(
