@@ -177,7 +177,7 @@ export function TransactionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit transaction' : 'Record a transaction'}</DialogTitle>
           <DialogDescription>
@@ -190,7 +190,7 @@ export function TransactionDialog({
         <form
           id="transaction-form"
           onSubmit={form.handleSubmit((values) => save.mutate(values))}
-          className="space-y-4"
+          className="-mx-1 space-y-4 overflow-y-auto px-1"
           noValidate
         >
           <FormError message={save.isError ? errorMessage(save.error) : null} />
