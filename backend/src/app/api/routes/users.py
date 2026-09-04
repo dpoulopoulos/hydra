@@ -7,6 +7,7 @@ from app.api.deps import (
     CurrentUser,
     EmailVerificationServiceDep,
     HouseholdServiceDep,
+    PasswordResetServiceDep,
     UserServiceDep,
     get_current_active_superuser,
 )
@@ -180,11 +181,20 @@ def get_users(*, user_service: UserServiceDep, skip: int = 0, limit: int = 100) 
 
 
 @router.patch("/me", response_model=UserPublic)
-def update_user_me(*, user_service: UserServiceDep, user_in: UserUpdateMe, current_user: CurrentUser) -> UserPublic:
+def update_user_me(
+    *,
+    user_service: UserServiceDep,
+    password_reset_service: PasswordResetServiceDep,
+    email_verification_service: EmailVerificationServiceDep,
+    user_in: UserUpdateMe,
+    current_user: CurrentUser,
+) -> UserPublic:
     """Update the current user's information.
 
     Args:
         user_service: The user service dependency.
+        password_reset_service: The password reset service dependency.
+        email_verification_service: The email verification service dependency.
         user_in: The user data to update.
         current_user: The current authenticated user.
 
@@ -195,7 +205,12 @@ def update_user_me(*, user_service: UserServiceDep, user_in: UserUpdateMe, curre
         HTTPException: If a user with the same email already exists (409), the user's token is invalid (401),
             the user is not found (404), or the user is inactive (403).
     """
-    return user_service.update_user_me(current_user=current_user, user_update=user_in)
+    return user_service.update_user_me(
+        current_user=current_user,
+        user_update=user_in,
+        password_reset_service=password_reset_service,
+        email_verification_service=email_verification_service,
+    )
 
 
 @router.patch(

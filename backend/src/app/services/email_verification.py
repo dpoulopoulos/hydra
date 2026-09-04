@@ -59,6 +59,18 @@ class EmailVerificationService:
         """
         return self.email_verification_repository.get_pending_by_user_id(user_id)
 
+    def invalidate_pending_for_user(self, user_id: uuid.UUID) -> None:
+        """Expire the pending email verification of a user, if there is one.
+
+        Args:
+            user_id: The user whose pending verification is no longer redeemable.
+        """
+        pending_verification = self.email_verification_repository.get_pending_by_user_id(user_id)
+        if pending_verification:
+            self._mark_email_verification(
+                email_verification_id=pending_verification.id, status=EmailVerificationStatus.EXPIRED
+            )
+
     def send_verification_email(self, user_service: UserService, user_email: str) -> Message:
         """Send an email verification to a user.
 

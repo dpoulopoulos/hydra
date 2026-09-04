@@ -54,6 +54,16 @@ class PasswordResetService:
         self.password_reset_repository.update_status(password_reset, status)
         self.session.commit()
 
+    def invalidate_pending_for_user(self, user_id: uuid.UUID) -> None:
+        """Expire the pending password reset of a user, if there is one.
+
+        Args:
+            user_id: The user whose pending reset is no longer redeemable.
+        """
+        pending_reset = self.password_reset_repository.get_pending_by_user_id(user_id)
+        if pending_reset:
+            self._mark_password_reset(password_reset_id=pending_reset.id, status=PasswordResetStatus.EXPIRED)
+
     def request_password_reset(self, user_service: UserService, email: str) -> Message:
         """Request a password reset.
 

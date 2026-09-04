@@ -33,6 +33,7 @@ from app.utils import generate_new_account_email, try_send_email
 if TYPE_CHECKING:
     from app.services.email_verification import EmailVerificationService
     from app.services.household import CategorySeeder, HouseholdService
+    from app.services.password_reset import PasswordResetService
 
 
 class UserService:
@@ -220,12 +221,22 @@ class UserService:
         users, count = self.user_repository.get_all_paginated(skip=skip, limit=limit)
         return UsersPublic(data=[UserPublic.model_validate(user) for user in users], count=count)
 
-    def update_user_me(self, current_user: User, user_update: UserUpdateMe) -> UserPublic:
+    def update_user_me(
+        self,
+        current_user: User,
+        user_update: UserUpdateMe,
+        password_reset_service: "PasswordResetService",
+        email_verification_service: "EmailVerificationService",
+    ) -> UserPublic:
         """Update the current user's information.
 
         Args:
             current_user: The current authenticated user.
             user_update: The user data to update.
+            password_reset_service: A password reset service instance, used to
+                retire a reset that was issued for the old address.
+            email_verification_service: An email verification service instance,
+                used to retire a verification of the old address.
 
         Returns:
             The updated user.
@@ -235,6 +246,8 @@ class UserService:
         """
         user_data = user_update.model_dump(exclude_unset=True)
 
+        email_changed = bool(user_update.email) and user_update.email != current_user.email
+
         if user_update.email:
             existing_user = self.get_user_by_email(email=user_update.email)
             if existing_user and existing_user.id != current_user.id:
@@ -243,6 +256,14 @@ class UserService:
         current_user.sqlmodel_update(user_data)
         current_user = self.user_repository.save(current_user)
         self.session.commit()
+
+        # A pending reset or verification was issued for the address the
+        # account held at the time. Leaving one pending across a change of
+        # address releases it still redeemable, which is what lets a token
+        # outlive the account's claim to the address it names.
+        if email_changed:
+            password_reset_service.invalidate_pending_for_user(user_id=current_user.id)
+            email_verification_service.invalidate_pending_for_user(user_id=current_user.id)
 
         return UserPublic.model_validate(current_user)
 

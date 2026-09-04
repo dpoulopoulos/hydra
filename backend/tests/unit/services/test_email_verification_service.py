@@ -160,6 +160,45 @@ class TestGetPendingVerificationByUserId:
         assert result is None
 
 
+class TestInvalidatePendingForUser:
+    """Tests for the invalidate_pending_for_user method."""
+
+    def test_invalidate_pending_for_user_expires_the_pending_verification(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test a pending verification is expired."""
+        # Arrange: The user has a pending verification
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act
+        mock_email_verification_service.invalidate_pending_for_user(user_id=test_user.id)
+
+        # Assert
+        assert test_email_verification.status == EmailVerificationStatus.EXPIRED
+
+    def test_invalidate_pending_for_user_without_a_pending_verification(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+    ) -> None:
+        """Test a user with nothing pending is left alone."""
+        # Arrange: The user has no pending verification
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+        mock_email_verification_service._mark_email_verification = MagicMock()
+
+        # Act
+        mock_email_verification_service.invalidate_pending_for_user(user_id=test_user.id)
+
+        # Assert
+        mock_email_verification_service._mark_email_verification.assert_not_called()
+
+
 class TestSendVerificationEmail:
     """Tests for the send_verification_email method."""
 

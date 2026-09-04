@@ -154,6 +154,8 @@ export const usersGetUserMe = <ThrowOnError extends boolean = false>(options?: O
  *
  * Args:
  * user_service: The user service dependency.
+ * password_reset_service: The password reset service dependency.
+ * email_verification_service: The email verification service dependency.
  * user_in: The user data to update.
  * current_user: The current authenticated user.
  *
