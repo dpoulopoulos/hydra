@@ -3,8 +3,19 @@ from collections.abc import Sequence
 
 from sqlmodel import Session, col, func, select
 
-from app.models import Household, HouseholdMember, HouseholdRole, User
-from app.repositories.base import BaseRepository
+from app.models import (
+    Account,
+    Budget,
+    Household,
+    HouseholdInvite,
+    HouseholdInviteStatus,
+    HouseholdMember,
+    HouseholdRole,
+    RecurringRule,
+    Transaction,
+    User,
+)
+from app.repositories.base import BaseRepository, HouseholdScopedRepository
 
 
 class HouseholdRepository(BaseRepository[Household]):
@@ -17,6 +28,27 @@ class HouseholdRepository(BaseRepository[Household]):
             session: The database session.
         """
         super().__init__(session, Household)
+
+    def has_financial_data(self, household_id: uuid.UUID) -> bool:
+        """Check whether a household holds anything worth keeping.
+
+        Seeded categories do not count: every household starts with those, and
+        nobody would miss them. Accounts, transactions, budgets and recurring
+        rules do.
+
+        Args:
+            household_id: The ID of the household.
+
+        Returns:
+            True if the household has any financial records.
+        """
+        for model in (Account, Transaction, Budget, RecurringRule):
+            statement = select(func.count()).select_from(model).where(model.household_id == household_id)
+
+            if self.session.exec(statement).one():
+                return True
+
+        return False
 
     def count_members(self, household_id: uuid.UUID) -> int:
         """Count the members of a household.
@@ -79,6 +111,19 @@ class HouseholdMemberRepository(BaseRepository[HouseholdMember]):
         )
         return self.session.exec(statement).first()
 
+    def get_user(self, user_id: uuid.UUID) -> User | None:
+        """Get a user by ID.
+
+        Used to name the person who sent an invite.
+
+        Args:
+            user_id: The ID of the user.
+
+        Returns:
+            The user if they still exist, None otherwise.
+        """
+        return self.session.get(User, user_id)
+
     def list_with_users(self, household_id: uuid.UUID) -> Sequence[tuple[HouseholdMember, User]]:
         """List the members of a household together with their user rows.
 
@@ -131,3 +176,66 @@ class HouseholdMemberRepository(BaseRepository[HouseholdMember]):
             .where(col(HouseholdMember.id).is_(None))
         )
         return self.session.exec(statement).all()
+
+
+class HouseholdInviteRepository(HouseholdScopedRepository[HouseholdInvite]):
+    """Repository for HouseholdInvite database operations."""
+
+    def __init__(self, session: Session) -> None:
+        """Initialize the household invite repository.
+
+        Args:
+            session: The database session.
+        """
+        super().__init__(session, HouseholdInvite)
+
+    def get_by_token(self, token: str) -> HouseholdInvite | None:
+        """Get an invite by its token.
+
+        Not scoped to a household: the recipient is not a member yet, so the
+        token is the only thing identifying which household they are joining.
+
+        Args:
+            token: The invite token.
+
+        Returns:
+            The invite if one exists with that token, None otherwise.
+        """
+        statement = select(HouseholdInvite).where(HouseholdInvite.token == token)
+        return self.session.exec(statement).first()
+
+    def list_for_household(
+        self, household_id: uuid.UUID, status: HouseholdInviteStatus | None = None
+    ) -> Sequence[HouseholdInvite]:
+        """List the invites of a household.
+
+        Args:
+            household_id: The ID of the household.
+            status: An optional status to filter on.
+
+        Returns:
+            The invites, newest first.
+        """
+        statement = select(HouseholdInvite).where(HouseholdInvite.household_id == household_id)
+
+        if status is not None:
+            statement = statement.where(HouseholdInvite.status == status)
+
+        return self.session.exec(statement.order_by(col(HouseholdInvite.created_at).desc())).all()
+
+    def get_pending_for_email(self, household_id: uuid.UUID, email: str) -> HouseholdInvite | None:
+        """Get the outstanding invite for an address, if there is one.
+
+        Args:
+            household_id: The ID of the household.
+            email: The invited address.
+
+        Returns:
+            The pending invite if one exists, None otherwise.
+        """
+        statement = select(HouseholdInvite).where(
+            HouseholdInvite.household_id == household_id,
+            func.lower(col(HouseholdInvite.email)) == email.lower(),
+            HouseholdInvite.status == HouseholdInviteStatus.PENDING,
+        )
+        return self.session.exec(statement).first()

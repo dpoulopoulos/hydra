@@ -81,3 +81,90 @@ class HouseholdRoleRequiredError(ServiceError):
         """
         msg = f"This action requires the '{role.value}' role in the household."
         super().__init__(msg, exc)
+
+
+class HouseholdInviteNotFoundError(NotFoundError):
+    """Signal that an invite does not exist, or its token is not recognised."""
+
+    def __init__(self, message: str | None = None, exc: Exception | None = None):
+        """Initialize a HouseholdInviteNotFoundError.
+
+        Args:
+            message: An optional error message.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__("Household invite", message, exc)
+
+
+class HouseholdInviteExistsError(ConflictError):
+    """Signal that the address already has an outstanding invite."""
+
+    def __init__(self, email: str, message: str | None = None, exc: Exception | None = None):
+        """Initialize a HouseholdInviteExistsError.
+
+        Args:
+            email: The address that was invited twice.
+            message: An optional error message.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__("Household invite", email, message, exc)
+
+
+class HouseholdInviteExpiredError(ValidationError):
+    """Signal that an invite is past its expiry."""
+
+    def __init__(self, exc: Exception | None = None):
+        """Initialize a HouseholdInviteExpiredError.
+
+        Args:
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        msg = "This invitation has expired. Ask for a new one."
+        super().__init__(msg, exc)
+
+
+class HouseholdInviteUsedError(ValidationError):
+    """Signal that an invite has already been accepted or was revoked."""
+
+    def __init__(self, exc: Exception | None = None):
+        """Initialize a HouseholdInviteUsedError.
+
+        Args:
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        msg = "This invitation is no longer valid. It has already been used, or it was withdrawn."
+        super().__init__(msg, exc)
+
+
+class HouseholdInviteEmailMismatchError(ServiceError):
+    """Signal that an invite was accepted by someone it was not addressed to.
+
+    Without this check a leaked link would hand a stranger full access to the
+    household's finances.
+    """
+
+    def __init__(self, exc: Exception | None = None):
+        """Initialize a HouseholdInviteEmailMismatchError.
+
+        Args:
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        msg = "This invitation was sent to a different email address."
+        super().__init__(msg, exc)
+
+
+class HouseholdNotEmptyError(ConflictError):
+    """Signal that a household with data cannot be abandoned to join another."""
+
+    def __init__(self, message: str | None = None, exc: Exception | None = None):
+        """Initialize a HouseholdNotEmptyError.
+
+        Args:
+            message: An optional error message.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        msg = message or (
+            "Your current household already has accounts or transactions in it. Joining another "
+            "household would leave that data behind, so it has to be dealt with first."
+        )
+        super().__init__("Household", "current", msg, exc)
