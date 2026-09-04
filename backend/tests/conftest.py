@@ -428,18 +428,31 @@ def mock_category_repository(mock_db_session: MagicMock) -> CategoryRepository:
 
 @pytest.fixture
 def mock_category_service(
-    mock_db_session: MagicMock, mock_category_repository: CategoryRepository
+    mock_db_session: MagicMock,
+    mock_category_repository: CategoryRepository,
+    mock_transaction_repository: TransactionRepository,
+    mock_budget_repository: BudgetRepository,
+    mock_recurring_rule_repository: RecurringRuleRepository,
 ) -> CategoryService:
     """Create a CategoryService instance with a mocked session.
 
     Args:
         mock_db_session: The mock database session.
         mock_category_repository: The category repository instance.
+        mock_transaction_repository: The transaction repository instance.
+        mock_budget_repository: The budget repository instance.
+        mock_recurring_rule_repository: The recurring rule repository instance.
 
     Returns:
         A CategoryService instance with a mocked session.
     """
-    return CategoryService(session=mock_db_session, category_repository=mock_category_repository)
+    return CategoryService(
+        session=mock_db_session,
+        category_repository=mock_category_repository,
+        transaction_repository=mock_transaction_repository,
+        budget_repository=mock_budget_repository,
+        recurring_rule_repository=mock_recurring_rule_repository,
+    )
 
 
 @pytest.fixture

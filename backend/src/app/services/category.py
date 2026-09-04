@@ -26,21 +26,37 @@ from app.models import (
     HouseholdContext,
     Message,
 )
+from app.repositories.budget import BudgetRepository
 from app.repositories.category import CategoryRepository
+from app.repositories.recurring_rule import RecurringRuleRepository
+from app.repositories.transaction import TransactionRepository
 
 
 class CategoryService:
     """Provide services for category management."""
 
-    def __init__(self, session: Session, category_repository: CategoryRepository) -> None:
+    def __init__(
+        self,
+        session: Session,
+        category_repository: CategoryRepository,
+        transaction_repository: TransactionRepository,
+        budget_repository: BudgetRepository,
+        recurring_rule_repository: RecurringRuleRepository,
+    ) -> None:
         """Initialize the category service.
 
         Args:
             session: The database session.
             category_repository: The category repository instance.
+            transaction_repository: The transaction repository instance.
+            budget_repository: The budget repository instance.
+            recurring_rule_repository: The recurring rule repository instance.
         """
         self.session = session
         self.category_repository = category_repository
+        self.transaction_repository = transaction_repository
+        self.budget_repository = budget_repository
+        self.recurring_rule_repository = recurring_rule_repository
 
     def seed_defaults(self, household_id: uuid.UUID) -> None:
         """Create the default categories of a household, without committing.
@@ -244,20 +260,49 @@ class CategoryService:
         Raises:
             CategoryNotFoundError: If the category does not exist in the household.
             SystemCategoryError: If the category is built in.
-            CategoryInUseError: If the category still has subcategories.
+            CategoryInUseError: If a subcategory, transaction, budget or recurring rule still
+                references the category.
         """
         category = self._require_category(household=household, category_id=category_id)
 
         if category.is_system:
             raise SystemCategoryError from None
 
-        if self.category_repository.count_children(category_id=category.id, household_id=household.household_id):
-            raise CategoryInUseError(name=category.name) from None
+        self._require_nothing_references(household=household, category=category)
 
         self.category_repository.delete(category)
         self.session.commit()
 
         return Message(message="Category deleted.")
+
+    def _require_nothing_references(self, household: HouseholdContext, category: Category) -> None:
+        """Check that a category can be deleted without breaking a reference to it.
+
+        Every foreign key onto category is RESTRICT, so an unchecked delete
+        fails in the database at commit time and surfaces as a 500. Ask for
+        each reference up front instead, in the order the user is likeliest to
+        be able to act on, so the refusal can say what is holding the category.
+
+        Args:
+            household: The household context.
+            category: The category about to be deleted.
+
+        Raises:
+            CategoryInUseError: If anything still references the category.
+        """
+        household_id = household.household_id
+
+        if self.category_repository.count_children(category_id=category.id, household_id=household_id):
+            raise CategoryInUseError(name=category.name, reason="has subcategories") from None
+
+        if self.transaction_repository.count_for_category(category_id=category.id, household_id=household_id):
+            raise CategoryInUseError(name=category.name, reason="has transactions filed under it") from None
+
+        if self.budget_repository.count_for_category(category_id=category.id, household_id=household_id):
+            raise CategoryInUseError(name=category.name, reason="has a budget set on it") from None
+
+        if self.recurring_rule_repository.count_for_category(category_id=category.id, household_id=household_id):
+            raise CategoryInUseError(name=category.name, reason="has recurring rules filed under it") from None
 
     def _build_tree(self, categories: Sequence[Category]) -> list[CategoryTreeNode]:
         """Assemble a flat list of categories into a two level tree.

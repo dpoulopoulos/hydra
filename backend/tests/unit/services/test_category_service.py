@@ -385,3 +385,45 @@ class TestDeleteCategory:
 
         with pytest.raises(SystemCategoryError):
             mock_category_service.delete_category(household=household_context, category_id=category.id)
+
+    @pytest.mark.parametrize(
+        ("counts", "blocker"),
+        [
+            ([0, 1, 0, 0], "transactions"),
+            ([0, 0, 1, 0], "budget"),
+            ([0, 0, 0, 1], "recurring"),
+        ],
+        ids=["transactions", "budgets", "recurring rules"],
+    )
+    def test_refuses_to_delete_a_category_the_ledger_references(
+        self,
+        mock_category_service: CategoryService,
+        household_context: HouseholdContext,
+        counts: list[int],
+        blocker: str,
+    ) -> None:
+        """The foreign keys onto category are RESTRICT, so an unchecked delete is a 500."""
+        category = make_category(name="Coffee", parent_id=uuid.uuid4())
+        mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.first.return_value = category
+        mock_category_service.session.exec.return_value.one.side_effect = counts
+
+        with pytest.raises(CategoryInUseError) as excinfo:
+            mock_category_service.delete_category(household=household_context, category_id=category.id)
+
+        assert blocker in str(excinfo.value)
+        mock_category_service.session.delete.assert_not_called()
+
+    def test_stops_at_the_first_blocker(
+        self, mock_category_service: CategoryService, household_context: HouseholdContext
+    ) -> None:
+        """Subcategories are checked first, so the message names them and not the transactions below."""
+        category = make_category(name="Coffee")
+        mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.first.return_value = category
+        mock_category_service.session.exec.return_value.one.side_effect = [1, 4, 0, 0]
+
+        with pytest.raises(CategoryInUseError) as excinfo:
+            mock_category_service.delete_category(household=household_context, category_id=category.id)
+
+        assert "subcategories" in str(excinfo.value)
