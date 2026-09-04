@@ -14,6 +14,9 @@ manage the same accounts, categories, budgets and transactions.
   stack, the generated API client, and the pages.
 - `docker-compose.yaml` — runs the backend, Postgres, and a mail catcher together.
 - `Makefile` — short commands for common tasks.
+- `.railway/railway.ts` — the deployed project: which services exist, how they
+  are wired, and where each builds from.
+- `DEPLOY.md` — deploying to Railway, step by step.
 - `.github/workflows/` — CI checks on every pull request: format, lint, tests, migrations.
 
 ## What it does
@@ -75,6 +78,31 @@ Run these from the repository root.
 | `make web-format` | Format the frontend code |
 | `make web-lint` | Type check and lint the frontend code |
 | `make web-api` | Regenerate the API client from the backend's schema |
+
+## Deploying to Railway
+
+Three services, described in one file, [`.railway/railway.ts`](.railway/railway.ts).
+
+| Service | What it is | Public? |
+|---|---|---|
+| `web` | The compiled web app, served by Caddy, which also forwards `/api` and `/assets` to the backend over the private network. | Yes. This is the app's address. |
+| `backend` | The FastAPI app. | No. Reachable only through `web`. |
+| `postgres` | Railway's managed Postgres. | No. |
+
+One public origin means the browser never makes a cross-site request, so CORS
+never comes into it and the API is not exposed on its own.
+
+Both services build from this repository, so **pushing to `main` redeploys
+them**. Editing `.railway/railway.ts` is the exception: run `railway config
+plan` and `railway config apply`, because a push does not read that file.
+
+**[DEPLOY.md](DEPLOY.md) is the step by step**, for a first deployment and for
+what to check when something is wrong.
+
+One thing worth knowing before you read it: Railway blocks outgoing SMTP below
+its Pro plan, so the deployed app posts to the Resend API over HTTPS instead.
+That is what `EMAIL_PROVIDER=resend` selects. Locally the setting stays `smtp`
+and mail lands in the mail catcher, unchanged.
 
 ## How the two halves fit together
 
