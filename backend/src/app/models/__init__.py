@@ -1,5 +1,14 @@
 from sqlmodel import SQLModel
 
+from .account import (
+    Account,
+    AccountBase,
+    AccountCreate,
+    AccountPublic,
+    AccountsPublic,
+    AccountType,
+    AccountUpdate,
+)
 from .category import (
     CategoriesPublic,
     Category,
@@ -60,6 +69,13 @@ class Message(SQLModel):
 
 __all__ = [
     "Message",
+    "Account",
+    "AccountBase",
+    "AccountCreate",
+    "AccountPublic",
+    "AccountType",
+    "AccountUpdate",
+    "AccountsPublic",
     "CategoriesPublic",
     "Category",
     "CategoryBase",
