@@ -1711,6 +1711,7 @@
               "anyOf": [
                 {
                   "type": "integer",
+                  "maximum": 4611686018427387904,
                   "minimum": 0
                 },
                 {
@@ -1728,6 +1729,7 @@
               "anyOf": [
                 {
                   "type": "integer",
+                  "maximum": 4611686018427387904,
                   "minimum": 0
                 },
                 {
@@ -3307,6 +3309,8 @@
           },
           "opening_balance_minor": {
             "type": "integer",
+            "maximum": 4.611686018427388e+18,
+            "minimum": -4.611686018427388e+18,
             "title": "Opening Balance Minor",
             "default": 0
           },
@@ -3626,6 +3630,7 @@
           },
           "limit_minor": {
             "type": "integer",
+            "maximum": 4.611686018427388e+18,
             "minimum": 0.0,
             "title": "Limit Minor"
           }
@@ -3647,6 +3652,7 @@
           },
           "limit_minor": {
             "type": "integer",
+            "maximum": 4.611686018427388e+18,
             "minimum": 0.0,
             "title": "Limit Minor"
           }
@@ -3828,6 +3834,7 @@
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 4.611686018427388e+18,
                 "minimum": 0.0
               },
               {
@@ -4994,6 +5001,7 @@
           },
           "amount_minor": {
             "type": "integer",
+            "maximum": 4.611686018427388e+18,
             "exclusiveMinimum": 0.0,
             "title": "Amount Minor"
           },
@@ -5308,6 +5316,7 @@
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 4.611686018427388e+18,
                 "exclusiveMinimum": 0.0
               },
               {
@@ -5567,6 +5576,7 @@
           },
           "amount_minor": {
             "type": "integer",
+            "maximum": 4.611686018427388e+18,
             "exclusiveMinimum": 0.0,
             "title": "Amount Minor"
           },
@@ -5798,6 +5808,7 @@
             "anyOf": [
               {
                 "type": "integer",
+                "maximum": 4.611686018427388e+18,
                 "exclusiveMinimum": 0.0
               },
               {

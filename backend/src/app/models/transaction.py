@@ -6,6 +6,7 @@ from pydantic import ConfigDict
 from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, Index, text
 from sqlmodel import Field, SQLModel
 
+from .fields import MAX_AMOUNT_MINOR
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
 
@@ -28,6 +29,10 @@ class TransactionBase(SQLModel):
     # not in its sign: a sign convention cannot be enforced by a constraint, so
     # a mis-signed row would be silently wrong forever, and a transfer has no
     # natural single sign at all. Sign is applied once, in SQL.
+    #
+    # The ceiling lives on the input models rather than here: the response
+    # models share this base, and an amount stored before the cap existed has
+    # to stay readable.
     amount_minor: int = Field(gt=0)
     occurred_on: datetime.date
     merchant: str | None = Field(default=None, max_length=255)
@@ -35,6 +40,7 @@ class TransactionBase(SQLModel):
 
 
 class TransactionCreate(TransactionBase):
+    amount_minor: int = Field(gt=0, le=MAX_AMOUNT_MINOR)
     account_id: uuid.UUID
     category_id: uuid.UUID | None = None
     # Set only for a transfer, where it is the destination account.
@@ -43,7 +49,7 @@ class TransactionCreate(TransactionBase):
 
 class TransactionUpdate(SQLModel):
     kind: TransactionKind | None = Field(default=None)
-    amount_minor: int | None = Field(default=None, gt=0)
+    amount_minor: int | None = Field(default=None, gt=0, le=MAX_AMOUNT_MINOR)
     occurred_on: datetime.date | None = Field(default=None)
     merchant: str | None = Field(default=None, max_length=255)
     note: str | None = Field(default=None, max_length=1024)
@@ -84,8 +90,8 @@ class TransactionFilters(SQLModel):
     # Whether a parent category also matches spending filed under its children.
     include_subcategories: bool = True
     kind: TransactionKind | None = None
-    min_amount_minor: int | None = Field(default=None, ge=0)
-    max_amount_minor: int | None = Field(default=None, ge=0)
+    min_amount_minor: int | None = Field(default=None, ge=0, le=MAX_AMOUNT_MINOR)
+    max_amount_minor: int | None = Field(default=None, ge=0, le=MAX_AMOUNT_MINOR)
     q: str | None = Field(default=None, max_length=255)
     skip: int = Field(default=0, ge=0)
     limit: int = Field(default=50, ge=1, le=200)

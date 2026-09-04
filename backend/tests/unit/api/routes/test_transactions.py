@@ -24,6 +24,7 @@ from app.models import (
     TransactionSort,
     User,
 )
+from app.models.fields import MAX_AMOUNT_MINOR
 
 TRANSACTION_ID = uuid.UUID("55555555-5555-5555-5555-555555555555")
 ACCOUNT_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
@@ -143,6 +144,23 @@ class TestCreateTransaction:
             json={
                 "kind": "expense",
                 "amount_minor": -4250,
+                "occurred_on": "2026-03-04",
+                "account_id": str(ACCOUNT_ID),
+            },
+        )
+
+        assert response.status_code == 422
+
+    def test_rejects_an_amount_beyond_the_cap(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        """Beyond the cap the value is one the column cannot hold: a 422, not a 500."""
+        response = client.post(
+            "/api/v1/transactions/",
+            headers=auth_headers,
+            json={
+                "kind": "expense",
+                "amount_minor": MAX_AMOUNT_MINOR + 1,
                 "occurred_on": "2026-03-04",
                 "account_id": str(ACCOUNT_ID),
             },
@@ -277,6 +295,17 @@ class TestListTransactions:
 
         assert response.status_code == 422
 
+    def test_caps_an_amount_filter(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        response = client.get(
+            "/api/v1/transactions/",
+            headers=auth_headers,
+            params={"min_amount_minor": MAX_AMOUNT_MINOR + 1},
+        )
+
+        assert response.status_code == 422
+
     def test_defaults_to_newest_first(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
@@ -341,6 +370,18 @@ class TestUpdateTransaction:
     ) -> None:
         response = client.patch(
             f"/api/v1/transactions/{TRANSACTION_ID}", headers=auth_headers, json={"amount_minor": 0}
+        )
+
+        assert response.status_code == 422
+
+
+    def test_rejects_an_amount_beyond_the_cap(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        response = client.patch(
+            f"/api/v1/transactions/{TRANSACTION_ID}",
+            headers=auth_headers,
+            json={"amount_minor": MAX_AMOUNT_MINOR + 1},
         )
 
         assert response.status_code == 422

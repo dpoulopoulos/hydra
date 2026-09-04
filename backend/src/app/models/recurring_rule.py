@@ -5,6 +5,7 @@ from enum import StrEnum
 from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, Index
 from sqlmodel import Field, SQLModel
 
+from .fields import MAX_AMOUNT_MINOR
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 from .transaction import TransactionKind
 
@@ -34,6 +35,11 @@ class RecurringRuleBase(SQLModel):
 
 
 class RecurringRuleCreate(RecurringRuleBase):
+    # The cap lives here rather than on the base, which the table and the
+    # response models share. A rule stored before the cap existed still has to
+    # be readable: refusing it on the way out is the 500 this bound is meant to
+    # prevent, moved to the read path.
+    amount_minor: int = Field(gt=0, le=MAX_AMOUNT_MINOR)
     account_id: uuid.UUID
     category_id: uuid.UUID | None = None
     counter_account_id: uuid.UUID | None = None
@@ -45,7 +51,7 @@ class RecurringRuleUpdate(SQLModel):
     interval: int | None = Field(default=None, ge=1)
     end_date: datetime.date | None = Field(default=None)
     day_of_month: int | None = Field(default=None, ge=1, le=31)
-    amount_minor: int | None = Field(default=None, gt=0)
+    amount_minor: int | None = Field(default=None, gt=0, le=MAX_AMOUNT_MINOR)
     merchant: str | None = Field(default=None, max_length=255)
     note: str | None = Field(default=None, max_length=1024)
     category_id: uuid.UUID | None = Field(default=None)

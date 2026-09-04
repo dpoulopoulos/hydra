@@ -26,6 +26,7 @@ from app.models import (
     UpcomingOccurrencesPublic,
     User,
 )
+from app.models.fields import MAX_AMOUNT_MINOR
 
 RULE_ID = uuid.UUID("77777777-7777-7777-7777-777777777777")
 ACCOUNT_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
@@ -109,6 +110,23 @@ class TestCreateRecurringRule:
                 "name": "Rent",
                 "start_date": "2026-01-01",
                 "amount_minor": 0,
+                "account_id": str(ACCOUNT_ID),
+            },
+        )
+
+        assert response.status_code == 422
+
+    def test_rejects_an_amount_beyond_the_cap(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        """Beyond the cap the value is one the column cannot hold: a 422, not a 500."""
+        response = client.post(
+            "/api/v1/recurring-rules/",
+            headers=auth_headers,
+            json={
+                "name": "Rent",
+                "start_date": "2026-01-01",
+                "amount_minor": MAX_AMOUNT_MINOR + 1,
                 "account_id": str(ACCOUNT_ID),
             },
         )
