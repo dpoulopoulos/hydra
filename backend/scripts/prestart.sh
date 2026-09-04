@@ -3,6 +3,8 @@
 set -e
 set -x
 
+cd "$(dirname "$0")/.."
+
 # Let the DB start
 uv run python src/app/scripts/backend_pre_start.py
 

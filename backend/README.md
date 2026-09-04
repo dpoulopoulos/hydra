@@ -284,12 +284,18 @@ Key settings:
 | `HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS` | Household invitation lifetime | 168 (7 days) |
 | `EMAIL_PROVIDER` | How mail leaves: `smtp` or `resend` | `smtp` |
 | `RESEND_API_KEY` | Required when the provider is `resend` | `None` |
+| `PORT` | Port the server listens on | `8000` |
+| `RUN_PRESTART` | Whether the entrypoint migrates and seeds before serving | `true` |
 
 The `Settings` class validates that "changethis" values are not used outside the `local` environment, where it warns
 instead.
 
 `EMAIL_PROVIDER` exists because some hosts block outgoing SMTP. `smtp` talks to a mail server, which is what the local
 mail catcher offers. `resend` posts to an HTTPS API instead, and needs `RESEND_API_KEY`.
+
+`RUN_PRESTART` exists because `scripts/entrypoint.sh` migrates and seeds the database before it starts serving, which is
+right for one container and wrong for several. A host that can run the migrations as its own step before the deploy sets
+this to `false` and runs `scripts/prestart.sh` there instead.
 
 ## Database Migrations
 
