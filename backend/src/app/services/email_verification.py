@@ -15,7 +15,7 @@ from app.exceptions import (
 from app.models import EmailVerification, EmailVerificationStatus, Message
 from app.repositories.email_verification import EmailVerificationRepository
 from app.services.user import UserService
-from app.utils import generate_email_verification_email, send_email
+from app.utils import generate_email_verification_email, try_send_email
 
 
 class EmailVerificationService:
@@ -97,10 +97,12 @@ class EmailVerificationService:
         email_verification = self.email_verification_repository.save(email_verification)
         self.session.commit()
 
-        # Send email
+        # The verification row is committed by now, so a provider that is down
+        # must not turn this into a 500: the caller would retry, expire the row
+        # it just created and write another one for mail that never leaves.
         if settings.emails_enabled:
             email_data = generate_email_verification_email(email=user.email, token=token)
-            send_email(
+            try_send_email(
                 email_to=user.email,
                 subject=email_data.subject,
                 html_content=email_data.html_content,
