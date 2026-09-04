@@ -90,3 +90,48 @@ class IncomeExpenseReport(SQLModel):
     total_expense_minor: int
     total_net_minor: int
     average_savings_rate: float | None = None
+
+
+class BudgetProgressRow(SQLModel):
+    """One category's spending against its limit for a month."""
+
+    budget_id: uuid.UUID
+    category_id: uuid.UUID
+    category_name: str
+    parent_id: uuid.UUID | None = None
+    # True when the limit is set on a parent, so the figure includes the
+    # spending filed under its subcategories.
+    covers_subcategories: bool = False
+    limit_minor: int
+    spent_minor: int
+    # Negative once the limit is passed, which is the useful number to show.
+    remaining_minor: int
+    # Not capped at 1, so overspending is visible rather than flattened.
+    progress: float
+    is_over_budget: bool
+
+
+class BudgetProgressReport(SQLModel):
+    period: ReportPeriod
+    total_limit_minor: int
+    total_spent_minor: int
+    total_remaining_minor: int
+    rows: list[BudgetProgressRow]
+    # Spending in categories with no limit this month, so the report accounts
+    # for the whole month rather than only the budgeted part of it.
+    unbudgeted_spend_minor: int
+
+
+class MonthSummaryReport(SQLModel):
+    """The dashboard figures for one month, in a single request."""
+
+    period: ReportPeriod
+    income_minor: int
+    expense_minor: int
+    net_minor: int
+    # Across every account that is not archived.
+    net_worth_minor: int
+    budgeted_minor: int
+    over_budget_category_count: int
+    transaction_count: int
+    top_categories: list[CategorySpendSlice]
