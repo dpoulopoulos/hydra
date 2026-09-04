@@ -269,11 +269,15 @@ def update_password_me(
 
 
 @router.delete("/me", response_model=Message)
-def delete_user_me(*, user_service: UserServiceDep, current_user: CurrentUser) -> Message:
+def delete_user_me(
+    *, user_service: UserServiceDep, household_service: HouseholdServiceDep, current_user: CurrentUser
+) -> Message:
     """Delete the current user.
 
     Args:
         user_service: The user service dependency.
+        household_service: The household service dependency, used to release
+            the household the user leaves behind.
         current_user: The current authenticated user.
 
     Returns:
@@ -283,17 +287,19 @@ def delete_user_me(*, user_service: UserServiceDep, current_user: CurrentUser) -
         HTTPException: If a superuser tries to delete their own account (400), the token is invalid (401),
             the user is not found (404), or the user is inactive (403).
     """
-    return user_service.delete_user_me(user=current_user)
+    return user_service.delete_user_me(user=current_user, household_service=household_service)
 
 
 @router.delete("/{user_id}", dependencies=[Depends(get_current_active_superuser)])
-def delete_user(*, user_service: UserServiceDep, user_id: uuid.UUID) -> Message:
+def delete_user(*, user_service: UserServiceDep, household_service: HouseholdServiceDep, user_id: uuid.UUID) -> Message:
     """Delete a user.
 
     This endpoint is only accessible to superusers.
 
     Args:
         user_service: The user service dependency.
+        household_service: The household service dependency, used to release
+            the household the user leaves behind.
         user_id: The ID of the user to delete.
 
     Returns:
@@ -303,4 +309,4 @@ def delete_user(*, user_service: UserServiceDep, user_id: uuid.UUID) -> Message:
         HTTPException: If the user to delete is not found (404), trying to delete any superuser account (400),
             the current user is not authorized (403), or the token is invalid (401).
     """
-    return user_service.delete_user(user_id=user_id)
+    return user_service.delete_user(user_id=user_id, household_service=household_service)

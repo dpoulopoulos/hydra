@@ -869,6 +869,35 @@ class TestDeleteUserMe:
         mock_user_service.session.delete.assert_called_once_with(test_user)
         mock_user_service.session.commit.assert_called_once()
 
+    def test_delete_user_me_releases_the_household(
+        self, mock_user_service: UserService, test_user: User
+    ) -> None:
+        """Their household would otherwise be left behind with its ledger."""
+        # Arrange: Mock database delete operations and a household service
+        mock_user_service.session.delete = MagicMock()
+        mock_user_service.session.commit = MagicMock()
+        household_service = MagicMock()
+
+        # Act: Delete current user
+        mock_user_service.delete_user_me(user=test_user, household_service=household_service)
+
+        # Assert: Verify the household was released before the user went
+        household_service.release_for_user.assert_called_once_with(user=test_user)
+        mock_user_service.session.commit.assert_called_once()
+
+    def test_delete_user_me_superuser_keeps_the_household(
+        self, mock_user_service: UserService, test_superuser: User
+    ) -> None:
+        """The account survives the refusal, so its household must too."""
+        # Arrange: Provide a household service that must not be used
+        household_service = MagicMock()
+
+        # Act & Assert: Verify the household is untouched when the delete is refused
+        with pytest.raises(DeleteSuperUserError):
+            mock_user_service.delete_user_me(user=test_superuser, household_service=household_service)
+
+        household_service.release_for_user.assert_not_called()
+
     def test_delete_user_me_superuser(
         self, mock_user_service: UserService, test_superuser: User
     ) -> None:
@@ -902,6 +931,25 @@ class TestDeleteUser:
         assert isinstance(result, Message)
         assert result.message == "User deleted successfully"
         mock_user_service.session.delete.assert_called_once_with(test_user)
+        mock_user_service.session.commit.assert_called_once()
+
+    def test_delete_user_releases_the_household(
+        self,
+        mock_user_service: UserService,
+        test_user: User,
+    ) -> None:
+        """A superuser deleting somebody must not strand their data either."""
+        # Arrange: Mock database operations and a household service
+        mock_user_service.session.get = MagicMock(return_value=test_user)
+        mock_user_service.session.delete = MagicMock()
+        mock_user_service.session.commit = MagicMock()
+        household_service = MagicMock()
+
+        # Act: Delete the user as a superuser
+        mock_user_service.delete_user(user_id=test_user.id, household_service=household_service)
+
+        # Assert: Verify the household went with them
+        household_service.release_for_user.assert_called_once_with(user=test_user)
         mock_user_service.session.commit.assert_called_once()
 
     def test_delete_user_not_found(
