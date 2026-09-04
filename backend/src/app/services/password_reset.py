@@ -21,7 +21,7 @@ from app.exceptions import (
 from app.models import Message, PasswordReset, PasswordResetStatus
 from app.repositories.password_reset import PasswordResetRepository
 from app.services.user import UserService
-from app.utils import generate_password_reset_email, send_email
+from app.utils import generate_password_reset_email, try_send_email
 
 
 class PasswordResetService:
@@ -89,18 +89,16 @@ class PasswordResetService:
             password_reset = self.password_reset_repository.save(password_reset)
             self.session.commit()
 
-            # Send email (silently fail if emails are not enabled)
+            # A delivery failure is logged rather than raised: the reset row is
+            # already committed, and the reply below says nothing about whether
+            # the address resolved to a user, so there is nothing to reveal.
             if settings.emails_enabled:
-                try:
-                    email_data = generate_password_reset_email(email=email, token=token)
-                    send_email(
-                        email_to=email,
-                        subject=email_data.subject,
-                        html_content=email_data.html_content,
-                    )
-                except Exception:
-                    # Silently fail to not reveal if email exists
-                    pass
+                email_data = generate_password_reset_email(email=email, token=token)
+                try_send_email(
+                    email_to=email,
+                    subject=email_data.subject,
+                    html_content=email_data.html_content,
+                )
 
         return Message(message="If an account exists with this email, you will receive password reset instructions.")
 
