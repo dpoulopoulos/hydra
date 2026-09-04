@@ -21,6 +21,7 @@ from app.repositories import (
     HouseholdMemberRepository,
     HouseholdRepository,
     PasswordResetRepository,
+    ReportRepository,
     TransactionRepository,
     UserRepository,
 )
@@ -31,6 +32,7 @@ from app.services import (
     EmailVerificationService,
     HouseholdService,
     PasswordResetService,
+    ReportService,
     TransactionService,
     UserService,
 )
@@ -403,6 +405,49 @@ def get_current_active_superuser(current_user: CurrentUser) -> User:
         raise UserNotAuthorizedError(current_user)
 
     return current_user
+
+
+def get_report_repository(session: SessionDep) -> ReportRepository:
+    """Get a report repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A report repository instance.
+    """
+    return ReportRepository(session=session)
+
+
+ReportRepositoryDep = Annotated[ReportRepository, Depends(get_report_repository)]
+
+
+def get_report_service(
+    session: SessionDep,
+    report_repository: ReportRepositoryDep,
+    household_repository: HouseholdRepositoryDep,
+    category_repository: CategoryRepositoryDep,
+) -> ReportService:
+    """Get a report service instance.
+
+    Args:
+        session: The database session.
+        report_repository: The report repository instance.
+        household_repository: The household repository instance.
+        category_repository: The category repository instance.
+
+    Returns:
+        A report service instance.
+    """
+    return ReportService(
+        session=session,
+        report_repository=report_repository,
+        household_repository=household_repository,
+        category_repository=category_repository,
+    )
+
+
+ReportServiceDep = Annotated[ReportService, Depends(get_report_service)]
 
 
 def get_household_context(current_user: CurrentUser, household_service: HouseholdServiceDep) -> HouseholdContext:
