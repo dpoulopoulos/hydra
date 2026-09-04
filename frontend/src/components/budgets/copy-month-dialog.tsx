@@ -100,9 +100,11 @@ export function CopyMonthDialog({
               onCheckedChange={(checked) => setOverwrite(checked === true)}
             />
             <div className="space-y-1">
-              <Label htmlFor="overwrite">Replace limits already set</Label>
+              <Label htmlFor="overwrite">Replace the limits already set</Label>
               <p className="text-muted-foreground text-sm">
-                Without this, the copy is refused if {formatMonth(month)} already has budgets.
+                {formatMonth(month)} becomes a copy of {formatMonth(from)}: a limit that{' '}
+                {formatMonth(from)} does not set is removed. Without this, the copy is refused if{' '}
+                {formatMonth(month)} already has budgets.
               </p>
             </div>
           </div>
