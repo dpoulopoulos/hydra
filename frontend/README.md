@@ -155,6 +155,35 @@ in the compose file:
 `node_modules` is never synced from the host. It is built for the container's
 platform, and `.dockerignore` keeps the host's copy out of the image.
 
+## Security headers in production
+
+The session token is kept in `localStorage`, so any script running on the origin
+can read it. What keeps a script that should not be there from running at all is
+the browser, told what to allow by the response headers `Caddyfile` sets:
+
+| Header                      | Value                                                      |
+| --------------------------- | ---------------------------------------------------------- |
+| `Content-Security-Policy`   | `'self'` throughout, plus `data:` images and inline styles |
+| `X-Content-Type-Options`    | `nosniff`                                                  |
+| `Referrer-Policy`           | `no-referrer`                                              |
+| `X-Frame-Options`           | `DENY`                                                     |
+| `Strict-Transport-Security` | one year, including subdomains                             |
+
+Two of those are worth a word. The policy is nearly all `'self'` because there is
+one origin to allow: the bundles and fonts under `/static`, and the API under
+`/api`. Inline styles are the exception, because the UI components set style
+attributes as they render. And `no-referrer` matters here in particular, since
+password reset, email verification and invite links all carry a single use token
+in the query string, which a `Referer` header would otherwise hand to whatever
+other origin the page happens to talk to.
+
+A new front end dependency that loads something from elsewhere will be blocked,
+and will say so in the browser console. Widen the policy deliberately when that
+happens, rather than by reflex.
+
+`make web-test` from the repository root runs the `Caddyfile` in a container and
+checks the headers and the routing. It needs Docker, but not a build of the app.
+
 ## Notes on the vendored parts
 
 Components under `src/components/ui` come from shadcn/ui, and `shadcn add`
