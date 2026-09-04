@@ -302,6 +302,24 @@ describe('the sentence under the fields', () => {
     expect(await screen.findByText(/Filed under Rent\./)).toBeInTheDocument()
   })
 
+  it('reads an amount typed with a thousands separator as thousands', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Amount'), '1,200')
+
+    expect(await screen.findByText(/€1,200\.00 leaves Current/)).toBeInTheDocument()
+  })
+
+  it('says nothing about an amount it cannot read', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Amount'), '1,2,3')
+
+    expect(screen.queryByText(/leaves/)).not.toBeInTheDocument()
+  })
+
   it('names both accounts of a transfer', async () => {
     const user = userEvent.setup()
     renderDialog()
