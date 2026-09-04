@@ -263,6 +263,18 @@ class TestSpendOverTime:
                 household=household_context, date_from=date(2020, 1, 1), date_to=date(2026, 1, 1)
             )
 
+    def test_rejects_too_many_monthly_buckets(
+        self, mock_report_service: ReportService, household_context: HouseholdContext
+    ) -> None:
+        """Monthly buckets are cheap each, but a range of centuries is not."""
+        with pytest.raises(ReportRangeTooLargeError):
+            mock_report_service.spend_over_time(
+                household=household_context,
+                date_from=date(1, 1, 1),
+                date_to=date(9999, 12, 31),
+                granularity=TimeGranularity.MONTH,
+            )
+
     def test_allows_a_long_range_of_months(
         self,
         mock_report_service: ReportService,
@@ -282,6 +294,26 @@ class TestSpendOverTime:
         )
 
         assert len(result.points) == 73
+
+    def test_allows_monthly_buckets_up_to_the_cap(
+        self,
+        mock_report_service: ReportService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        """Ten years of months is the most the report accepts, and it accepts it."""
+        mock_report_service.session.execute = MagicMock()
+        mock_report_service.session.execute.return_value.all.return_value = []
+        mock_report_service.session.get = MagicMock(return_value=household)
+
+        result = mock_report_service.spend_over_time(
+            household=household_context,
+            date_from=date(2016, 1, 1),
+            date_to=date(2025, 12, 31),
+            granularity=TimeGranularity.MONTH,
+        )
+
+        assert len(result.points) == 120
 
     def test_a_parent_category_filter_includes_its_subcategories(
         self,
