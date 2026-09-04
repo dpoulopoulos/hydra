@@ -1,0 +1,6306 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "hydra",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/users/": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Create User",
+        "description": "Create a new user.\n\nArgs:\n    user_service: The user service dependency.\n    household_service: The household service dependency, used to provision\n        the user's household in the same transaction.\n    category_service: The category service dependency, used to seed the\n        household's default categories.\n    user_in: The user creation payload.\n\nReturns:\n    The newly created user.\n\nRaises:\n    HTTPException: If a user with this email already exists (409),\n        the user is not authorized to perform this action (403),\n        the user's token is invalid (401), or the authenticated\n        user is not found in the database (404).",
+        "operationId": "users-create_user",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get Users",
+        "description": "Get registered users.\n\nArgs:\n    user_service: The user service dependency.\n    skip (int): The number of users to skip.\n    limit (int): The maximum number of users to return.\n\nReturns:\n    A list of users.\n\nRaises:\n    HTTPException: If the user is not authorized (403), has an invalid token (401), or is not found (404).",
+        "operationId": "users-get_users",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsersPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/signup": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Register User",
+        "description": "Register a new user.\n\nThis endpoint allows users to register without being authenticated.\nThe user will be created with is_active=False and must verify their email\nbefore they can log in.\n\nArgs:\n    user_service: The user service dependency.\n    email_verification_service: The email verification service dependency.\n    household_service: The household service dependency, used to provision\n        the user's household in the same transaction.\n    category_service: The category service dependency, used to seed the\n        household's default categories.\n    user_in: The user registration data.\n\nReturns:\n    The newly created user.\n\nRaises:\n    HTTPException: If a user with the same email already exists (409).",
+        "operationId": "users-register_user",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRegister"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get User Me",
+        "description": "Get the current user's information.\n\nArgs:\n    current_user: The current authenticated user.\n\nReturns:\n    The current user's public information.\n\nRaises:\n    HTTPException: If the user's token is invalid (401), the user is not found (404), or the user is inactive (403).",
+        "operationId": "users-get_user_me",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPublic"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete User Me",
+        "description": "Delete the current user.\n\nArgs:\n    user_service: The user service dependency.\n    current_user: The current authenticated user.\n\nReturns:\n    A message indicating that the user was deleted successfully.\n\nRaises:\n    HTTPException: If a superuser tries to delete their own account (400), the token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
+        "operationId": "users-delete_user_me",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update User Me",
+        "description": "Update the current user's information.\n\nArgs:\n    user_service: The user service dependency.\n    user_in: The user data to update.\n    current_user: The current authenticated user.\n\nReturns:\n    The updated user information.\n\nRaises:\n    HTTPException: If a user with the same email already exists (409), the user's token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
+        "operationId": "users-update_user_me",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdateMe"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/{user_id}": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get User By Id",
+        "description": "Get a specific user by their ID.\n\nA user can retrieve their own information. Superusers can retrieve any\nuser's information.\n\nArgs:\n    user_service: The user service dependency.\n    current_user: The current authenticated user.\n    user_id: The ID of the user to retrieve.\n\nReturns:\n    The user's public information.\n\nRaises:\n    HTTPException: If the user does not have sufficient privileges (403), the user is not found (404),\n        or the token is invalid (401).",
+        "operationId": "users-get_user_by_id",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update User",
+        "description": "Update a user's information.\n\nThis endpoint is only accessible to superusers.\n\nArgs:\n    user_service: The user service dependency.\n    user_id: The ID of the user to update.\n    user_in: The user data to update.\n\nReturns:\n    The updated user information.\n\nRaises:\n    HTTPException: If the user is not found (404), the new email already exists (409),\n        the current user is not authorized (403), or the token is invalid (401).",
+        "operationId": "users-update_user",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete User",
+        "description": "Delete a user.\n\nThis endpoint is only accessible to superusers.\n\nArgs:\n    user_service: The user service dependency.\n    user_id: The ID of the user to delete.\n\nReturns:\n    A message indicating that the user was deleted successfully.\n\nRaises:\n    HTTPException: If the user to delete is not found (404), trying to delete any superuser account (400),\n        the current user is not authorized (403), or the token is invalid (401).",
+        "operationId": "users-delete_user",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/password": {
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update Password Me",
+        "description": "Update the current user's password.\n\nArgs:\n    user_service: The user service dependency.\n    password_in: The current and new password.\n    current_user: The current authenticated user.\n\nReturns:\n    A message indicating that the password was updated successfully.\n\nRaises:\n    HTTPException: If the current password is incorrect (401),\n        the new password is the same as the current one (400),\n        the user is not found (404), or the user is inactive (403).",
+        "operationId": "users-update_password_me",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/households/me": {
+      "get": {
+        "tags": [
+          "households"
+        ],
+        "summary": "Get Household Me",
+        "description": "Get the household of the current user.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context.\n\nReturns:\n    The household, with its member count.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
+        "operationId": "households-get_household_me",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdPublic"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "households"
+        ],
+        "summary": "Update Household Me",
+        "description": "Rename the household of the current user.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context, which must be owned by the user.\n    household_in: The fields to update.\n\nReturns:\n    The updated household.\n\nRaises:\n    HTTPException: If the user is not an owner of the household (403), or the\n        household no longer exists (404).",
+        "operationId": "households-update_household_me",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/households/me/members": {
+      "get": {
+        "tags": [
+          "households"
+        ],
+        "summary": "List Household Members",
+        "description": "List the members of the household.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context.\n\nReturns:\n    The members of the household.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
+        "operationId": "households-list_household_members",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdMembersPublic"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/households/me/members/me": {
+      "delete": {
+        "tags": [
+          "households"
+        ],
+        "summary": "Leave Household",
+        "description": "Leave the household.\n\nThe caller keeps their account and is given a fresh, empty household.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the caller is the household's only owner (400), or the\n        membership no longer exists (404).",
+        "operationId": "households-leave_household",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/households/me/members/{user_id}": {
+      "patch": {
+        "tags": [
+          "households"
+        ],
+        "summary": "Update Household Member",
+        "description": "Change the role of a household member.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context, which must be owned by the user.\n    user_id: The ID of the user whose role changes.\n    member_in: The new role.\n\nReturns:\n    The updated membership.\n\nRaises:\n    HTTPException: If the user is not an owner of the household (403), the\n        member is not in the household (404), or the change would leave the\n        household with no owner (400).",
+        "operationId": "households-update_household_member",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdMemberUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdMemberPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "households"
+        ],
+        "summary": "Remove Household Member",
+        "description": "Remove a member from the household.\n\nThe removed member keeps their account and is given a fresh, empty household.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context, which must be owned by the user.\n    user_id: The ID of the user to remove.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the user is not an owner of the household (403), the\n        member is not in the household (404), or the removal would leave the\n        household with no owner (400).",
+        "operationId": "households-remove_household_member",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/households/me/invites": {
+      "get": {
+        "tags": [
+          "households"
+        ],
+        "summary": "List Household Invites",
+        "description": "List the invitations sent from this household.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context.\n    invite_status: An optional status to filter on.\n\nReturns:\n    The invitations, newest first.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
+        "operationId": "households-list_household_invites",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/HouseholdInviteStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdInvitesPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "households"
+        ],
+        "summary": "Create Household Invite",
+        "description": "Invite someone to share the household, and email them a link.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context, which must be owned by the user.\n    invite_in: The address to invite and the role to give them.\n\nReturns:\n    The created invitation.\n\nRaises:\n    HTTPException: If the user is not an owner of the household (403), the\n        household no longer exists (404), or that address already has an\n        invitation or is already a member (409).",
+        "operationId": "households-create_household_invite",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdInviteCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdInvitePublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/households/me/invites/{invite_id}": {
+      "delete": {
+        "tags": [
+          "households"
+        ],
+        "summary": "Revoke Household Invite",
+        "description": "Withdraw an invitation that has not been accepted.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context, which must be owned by the user.\n    invite_id: The ID of the invitation to withdraw.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the user is not an owner of the household (403), the\n        invitation does not exist in the household (404), or it was already\n        accepted or withdrawn (400).",
+        "operationId": "households-revoke_household_invite",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invite_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invite Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/households/invites/accept": {
+      "post": {
+        "tags": [
+          "households"
+        ],
+        "summary": "Accept Household Invite",
+        "description": "Accept an invitation and join the household.\n\nThe household created when you signed up is discarded if it is still\nempty. If you have already recorded anything in it, joining is refused\nrather than silently leaving that behind.\n\nArgs:\n    household_service: The household service dependency.\n    category_service: The category service dependency.\n    current_user: The current authenticated user.\n    accept_in: The invitation token.\n\nReturns:\n    The household you joined.\n\nRaises:\n    HTTPException: If the token is not recognised (404), the invitation was\n        sent to a different address (403), it has expired or was already\n        used (400), or your current household holds data (409).",
+        "operationId": "households-accept_household_invite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdInviteAccept"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/households/invites/{token}": {
+      "get": {
+        "tags": [
+          "households"
+        ],
+        "summary": "Preview Household Invite",
+        "description": "Describe an invitation, for the page that offers to accept it.\n\nPublic, because the recipient may not have an account yet. It carries only\nwhat somebody needs in order to decide, and nothing about the household's\nmoney.\n\nArgs:\n    household_service: The household service dependency.\n    token: The invitation token.\n\nReturns:\n    The household name, who invited them, and when it expires.\n\nRaises:\n    HTTPException: If the token is not recognised (404), or the invitation\n        has expired or was already used (400).",
+        "operationId": "households-preview_household_invite",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdInvitePreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/categories/": {
+      "post": {
+        "tags": [
+          "categories"
+        ],
+        "summary": "Create Category",
+        "description": "Create a category or subcategory.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    category_in: The category to create.\n\nReturns:\n    The created category.\n\nRaises:\n    HTTPException: If a sibling already has that name (409), or the parent is\n        missing (404) or invalid (400).",
+        "operationId": "categories-create_category",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "categories"
+        ],
+        "summary": "List Categories",
+        "description": "List the categories of the household as a flat list.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    include_archived: Whether to include archived categories.\n    kind: An optional kind to filter on.\n    parent_id: An optional parent to filter on.\n\nReturns:\n    The categories.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
+        "operationId": "categories-list_categories",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "include_archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Archived"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CategoryKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoriesPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/categories/tree": {
+      "get": {
+        "tags": [
+          "categories"
+        ],
+        "summary": "Get Category Tree",
+        "description": "Get the categories of the household as a two level tree.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    include_archived: Whether to include archived categories.\n    kind: An optional kind to filter on.\n\nReturns:\n    The top level categories, each with its subcategories.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
+        "operationId": "categories-get_category_tree",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "include_archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Archived"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CategoryKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryTreePublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/categories/{category_id}": {
+      "get": {
+        "tags": [
+          "categories"
+        ],
+        "summary": "Get Category",
+        "description": "Get one category of the household.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    category_id: The ID of the category.\n\nReturns:\n    The category.\n\nRaises:\n    HTTPException: If the category does not exist in the household (404).",
+        "operationId": "categories-get_category",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "categories"
+        ],
+        "summary": "Update Category",
+        "description": "Rename, re-parent, archive or restore a category.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    category_id: The ID of the category to update.\n    category_in: The fields to update.\n\nReturns:\n    The updated category.\n\nRaises:\n    HTTPException: If the category or the new parent does not exist in the\n        household (404), a sibling already has the new name (409), or the\n        change is not allowed (400).",
+        "operationId": "categories-update_category",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "categories"
+        ],
+        "summary": "Delete Category",
+        "description": "Delete a category that nothing references.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    category_id: The ID of the category to delete.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the category does not exist in the household (404), it\n        still has subcategories (409), or it is built in (400).",
+        "operationId": "categories-delete_category",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/": {
+      "post": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Create Account",
+        "description": "Create an account.\n\nArgs:\n    account_service: The account service dependency.\n    household: The current household context.\n    account_in: The account to create, with the balance it already held.\n\nReturns:\n    The created account.\n\nRaises:\n    HTTPException: If the household already has an account with that name\n        (409), or the household no longer exists (404).",
+        "operationId": "accounts-create_account",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "List Accounts",
+        "description": "List the accounts of the household with their balances.\n\nArgs:\n    account_service: The account service dependency.\n    household: The current household context.\n    include_archived: Whether to include archived accounts.\n    account_type: An optional type to filter on.\n    skip: Number of records to skip.\n    limit: Maximum number of records to return.\n\nReturns:\n    The accounts, and the total of the balances returned.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
+        "operationId": "accounts-list_accounts",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "include_archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Archived"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AccountType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountsPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}": {
+      "get": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Get Account",
+        "description": "Get one account of the household with its balance.\n\nArgs:\n    account_service: The account service dependency.\n    household: The current household context.\n    account_id: The ID of the account.\n\nReturns:\n    The account.\n\nRaises:\n    HTTPException: If the account does not exist in the household (404).",
+        "operationId": "accounts-get_account",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Update Account",
+        "description": "Rename, re-type, archive or restore an account.\n\nThe opening balance cannot be changed, since that would rewrite every\nhistorical balance. Record an adjustment transaction instead.\n\nArgs:\n    account_service: The account service dependency.\n    household: The current household context.\n    account_id: The ID of the account to update.\n    account_in: The fields to update.\n\nReturns:\n    The updated account.\n\nRaises:\n    HTTPException: If the account does not exist in the household (404), or\n        the household already has an account with the new name (409).",
+        "operationId": "accounts-update_account",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Delete Account",
+        "description": "Delete an account that has no history.\n\nArgs:\n    account_service: The account service dependency.\n    household: The current household context.\n    account_id: The ID of the account to delete.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the account does not exist in the household (404), or\n        it still has transactions (409).",
+        "operationId": "accounts-delete_account",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/": {
+      "post": {
+        "tags": [
+          "transactions"
+        ],
+        "summary": "Create Transaction",
+        "description": "Record an expense, some income, or a transfer between accounts.\n\nA transfer is an ordinary transaction with kind \"transfer\" and a\ndestination account, so it needs no separate endpoint.\n\nArgs:\n    transaction_service: The transaction service dependency.\n    household: The current household context.\n    transaction_in: The transaction to record.\n\nReturns:\n    The recorded transaction.\n\nRaises:\n    HTTPException: If an account or category does not exist in the household\n        (404), or the transaction does not match its kind (400).",
+        "operationId": "transactions-create_transaction",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "summary": "List Transactions",
+        "description": "List the transactions of the household.\n\nAny recurring transactions that have fallen due are recorded first, so the\nledger is up to date without needing a scheduler.\n\nFiltering by a parent category includes the spending filed under its\nsubcategories, unless include_subcategories is set to false.\n\nArgs:\n    transaction_service: The transaction service dependency.\n    recurring_rule_service: The recurring rule service dependency, used to\n        bring the ledger up to date before reading it.\n    household: The current household context.\n    filters: The date range, account, category, kind, amount range, search\n        text, ordering and paging to apply.\n\nReturns:\n    The matching transactions and the total number of matches.\n\nRaises:\n    HTTPException: If the category filter names a category outside the\n        household (404), or a filter is not recognised (422).",
+        "operationId": "transactions-list_transactions",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "name": "include_subcategories",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Include Subcategories"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "min_amount_minor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Amount Minor"
+            }
+          },
+          {
+            "name": "max_amount_minor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Amount Minor"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TransactionSort",
+              "default": "-date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionsPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction_id}": {
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "summary": "Get Transaction",
+        "description": "Get one transaction of the household.\n\nArgs:\n    transaction_service: The transaction service dependency.\n    household: The current household context.\n    transaction_id: The ID of the transaction.\n\nReturns:\n    The transaction.\n\nRaises:\n    HTTPException: If the transaction does not exist in the household (404).",
+        "operationId": "transactions-get_transaction",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "transactions"
+        ],
+        "summary": "Update Transaction",
+        "description": "Edit a transaction.\n\nArgs:\n    transaction_service: The transaction service dependency.\n    household: The current household context.\n    transaction_id: The ID of the transaction to edit.\n    transaction_in: The fields to change.\n\nReturns:\n    The updated transaction.\n\nRaises:\n    HTTPException: If the transaction, an account or a category does not\n        exist in the household (404), or the change does not match the kind\n        (400).",
+        "operationId": "transactions-update_transaction",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "transactions"
+        ],
+        "summary": "Delete Transaction",
+        "description": "Delete a transaction.\n\nArgs:\n    transaction_service: The transaction service dependency.\n    household: The current household context.\n    transaction_id: The ID of the transaction to delete.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the transaction does not exist in the household (404).",
+        "operationId": "transactions-delete_transaction",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/budgets/": {
+      "post": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Create Budget",
+        "description": "Set the spending limit of a category for a month.\n\nA limit on a parent category covers the spending filed under its\nsubcategories, so a parent and one of its children cannot both be\nbudgeted in the same month.\n\nArgs:\n    budget_service: The budget service dependency.\n    household: The current household context.\n    budget_in: The category, month and limit.\n\nReturns:\n    The created budget.\n\nRaises:\n    HTTPException: If the category does not exist in the household (404),\n        the category or an overlapping one is already budgeted that month\n        (409), or the category is an income category (400).",
+        "operationId": "budgets-create_budget",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "List Budgets",
+        "description": "List the budgets of the household for one month.\n\nArgs:\n    budget_service: The budget service dependency.\n    household: The current household context.\n    month: The month, in \"YYYY-MM\" form.\n\nReturns:\n    The budgets, and the total of the limits.\n\nRaises:\n    HTTPException: If the month is not in \"YYYY-MM\" form (422).",
+        "operationId": "budgets-list_budgets",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetsPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/budgets/bulk": {
+      "put": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Bulk Upsert Budgets",
+        "description": "Replace the whole set of budgets for one month.\n\nThis is what a month-at-a-time editing screen saves, so it is one request\nrather than one per category. A category left out of the set has its limit\nremoved.\n\nArgs:\n    budget_service: The budget service dependency.\n    household: The current household context.\n    bulk_in: The month and the complete set of limits.\n\nReturns:\n    The budgets now set for that month.\n\nRaises:\n    HTTPException: If a category does not exist in the household (404), the\n        set budgets both a parent and its subcategory (409), or it names a\n        category twice or an income category (400).",
+        "operationId": "budgets-bulk_upsert_budgets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetBulkUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetsPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/budgets/copy": {
+      "post": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Copy Budgets",
+        "description": "Copy the budgets of one month onto another.\n\nBudgets do not roll over, so this is what makes \"same as last month\" a\nsingle action rather than retyping every limit.\n\nArgs:\n    budget_service: The budget service dependency.\n    household: The current household context.\n    copy_in: The source month, the target month, and whether to replace\n        limits already set on the target.\n\nReturns:\n    The budgets now set for the target month.\n\nRaises:\n    HTTPException: If the target month already has budgets and overwrite was\n        not requested (409).",
+        "operationId": "budgets-copy_budgets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetsPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/budgets/{budget_id}": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Get Budget",
+        "description": "Get one budget of the household.\n\nArgs:\n    budget_service: The budget service dependency.\n    household: The current household context.\n    budget_id: The ID of the budget.\n\nReturns:\n    The budget.\n\nRaises:\n    HTTPException: If the budget does not exist in the household (404).",
+        "operationId": "budgets-get_budget",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Budget Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Update Budget",
+        "description": "Change the limit of a budget.\n\nThe category and month identify the budget, so changing either means\nsetting a different budget rather than editing this one.\n\nArgs:\n    budget_service: The budget service dependency.\n    household: The current household context.\n    budget_id: The ID of the budget to change.\n    budget_in: The new limit.\n\nReturns:\n    The updated budget.\n\nRaises:\n    HTTPException: If the budget does not exist in the household (404).",
+        "operationId": "budgets-update_budget",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Budget Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Delete Budget",
+        "description": "Remove a budget.\n\nArgs:\n    budget_service: The budget service dependency.\n    household: The current household context.\n    budget_id: The ID of the budget to remove.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the budget does not exist in the household (404).",
+        "operationId": "budgets-delete_budget",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Budget Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recurring-rules/": {
+      "post": {
+        "tags": [
+          "recurring-rules"
+        ],
+        "summary": "Create Recurring Rule",
+        "description": "Create a recurring rule, such as rent or a subscription.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    rule_in: The rule to create.\n\nReturns:\n    The created rule, with the date it first falls due.\n\nRaises:\n    HTTPException: If an account or category does not exist in the household\n        (404), or the rule does not match its kind or would never come due\n        (400).",
+        "operationId": "recurring-rules-create_recurring_rule",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurringRuleCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringRulePublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "recurring-rules"
+        ],
+        "summary": "List Recurring Rules",
+        "description": "List the recurring rules of the household.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    is_active: An optional active state to filter on.\n    skip: Number of records to skip.\n    limit: Maximum number of records to return.\n\nReturns:\n    The rules, soonest due first.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
+        "operationId": "recurring-rules-list_recurring_rules",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "is_active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Is Active"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringRulesPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recurring-rules/upcoming": {
+      "get": {
+        "tags": [
+          "recurring-rules"
+        ],
+        "summary": "List Upcoming Occurrences",
+        "description": "Show the recurring occurrences that have not been recorded yet.\n\nRead only: nothing is created, so this can be used to plan ahead.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    until: The last day to look ahead to, inclusive. Defaults to two months out.\n\nReturns:\n    The projected occurrences, soonest first, and what they add up to.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
+        "operationId": "recurring-rules-list_upcoming_occurrences",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpcomingOccurrencesPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recurring-rules/run": {
+      "post": {
+        "tags": [
+          "recurring-rules"
+        ],
+        "summary": "Run Recurring Rules",
+        "description": "Record the transactions the rules have fallen due for.\n\nThe read paths do this automatically, so this endpoint exists for catching\nup explicitly, or for creating occurrences ahead of today.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    until: The last day to record up to, inclusive. Defaults to today.\n\nReturns:\n    How many transactions were created and how many rules moved on.\n\nRaises:\n    HTTPException: If a rule points at an account that no longer exists (404).",
+        "operationId": "recurring-rules-run_recurring_rules",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringRunResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recurring-rules/{rule_id}": {
+      "get": {
+        "tags": [
+          "recurring-rules"
+        ],
+        "summary": "Get Recurring Rule",
+        "description": "Get one recurring rule of the household.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    rule_id: The ID of the rule.\n\nReturns:\n    The rule.\n\nRaises:\n    HTTPException: If the rule does not exist in the household (404).",
+        "operationId": "recurring-rules-get_recurring_rule",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringRulePublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "recurring-rules"
+        ],
+        "summary": "Update Recurring Rule",
+        "description": "Edit a recurring rule, or pause it by setting is_active to false.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    rule_id: The ID of the rule to edit.\n    rule_in: The fields to change.\n\nReturns:\n    The updated rule.\n\nRaises:\n    HTTPException: If the rule or the category does not exist in the\n        household (404), or the new schedule would never come due (400).",
+        "operationId": "recurring-rules-update_recurring_rule",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurringRuleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringRulePublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "recurring-rules"
+        ],
+        "summary": "Delete Recurring Rule",
+        "description": "Delete a recurring rule.\n\nThe transactions it already created are kept: they happened, and the rule\nis only the template that made them.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    rule_id: The ID of the rule to delete.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the rule does not exist in the household (404).",
+        "operationId": "recurring-rules-delete_recurring_rule",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/spend-by-category": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Spend By Category",
+        "description": "Break a month's spending down by category.\n\nTransfers can never appear here: they are their own kind, so moving money\nbetween your own accounts is not spending.\n\nArgs:\n    report_service: The report service dependency.\n    household: The current household context.\n    month: The month, in \"YYYY-MM\" form.\n    kind: Whether to break down expenses or income.\n    depth: Whether to report per subcategory, or rolled up to the parent.\n\nReturns:\n    One slice per category, largest first, with each share of the total.\n\nRaises:\n    HTTPException: If the month is not in \"YYYY-MM\" form (422).",
+        "operationId": "reports-spend_by_category",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "title": "Month"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TransactionKind",
+              "default": "expense"
+            }
+          },
+          {
+            "name": "depth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CategoryDepth",
+              "default": "parent"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendByCategoryReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/spend-over-time": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Spend Over Time",
+        "description": "Chart spending over a period.\n\nBuckets with no activity are returned as zero rather than left out, so the\nchart cannot imply a gap in time that is not there.\n\nArgs:\n    report_service: The report service dependency.\n    household: The current household context.\n    date_from: First day of the period, inclusive.\n    date_to: Last day of the period, inclusive.\n    granularity: Whether to bucket by day or by month.\n    kind: Whether to chart expenses or income.\n    account_id: An optional account to restrict to.\n    category_id: An optional category to restrict to. A parent category\n        includes the spending filed under its subcategories.\n\nReturns:\n    One point per bucket, oldest first.\n\nRaises:\n    HTTPException: If the range starts after it ends (400), the range is too\n        large for daily buckets (422), or the category does not exist in the\n        household (404).",
+        "operationId": "reports-spend_over_time",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Date To"
+            }
+          },
+          {
+            "name": "granularity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TimeGranularity",
+              "default": "day"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TransactionKind",
+              "default": "expense"
+            }
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendOverTimeReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/income-expense": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Income Expense",
+        "description": "Compare money in against money out, month by month.\n\nEach month also carries the running net, which is the savings trend.\nTransfers appear on neither side.\n\nArgs:\n    report_service: The report service dependency.\n    household: The current household context.\n    month_from: First month of the range, in \"YYYY-MM\" form.\n    month_to: Last month of the range, in \"YYYY-MM\" form.\n\nReturns:\n    One entry per month, oldest first, plus the totals for the range.\n\nRaises:\n    HTTPException: If the range starts after it ends (400), or covers more\n        than ten years (422).",
+        "operationId": "reports-income_expense",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "title": "Month From"
+            }
+          },
+          {
+            "name": "month_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "title": "Month To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomeExpenseReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/budget-progress": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Budget Progress",
+        "description": "Compare a month's spending against the limits set for it.\n\nA limit on a parent category counts the spending filed under its\nsubcategories, so budgeting \"Food & Drink\" tracks what was spent on\ngroceries and restaurants together.\n\nArgs:\n    report_service: The report service dependency.\n    household: The current household context.\n    month: The month, in \"YYYY-MM\" form.\n\nReturns:\n    One row per budget, sorted by how much of each limit is used, plus the\n    spending that had no limit at all.\n\nRaises:\n    HTTPException: If the month is not in \"YYYY-MM\" form (422).",
+        "operationId": "reports-budget_progress",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetProgressReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/summary": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Month Summary",
+        "description": "Gather the dashboard figures for one month.\n\nOne request rather than several, so opening the app is a single round trip.\nAny recurring transactions that have fallen due are recorded first, so the\ndashboard is not out of date the moment it loads.\n\nArgs:\n    report_service: The report service dependency.\n    recurring_rule_service: The recurring rule service dependency, used to\n        bring the ledger up to date before reading it.\n    household: The current household context.\n    month: The month, in \"YYYY-MM\" form.\n\nReturns:\n    The month's income, spending and net, the current net worth, how much\n    was budgeted, how many categories went over, and the biggest categories.\n\nRaises:\n    HTTPException: If the month is not in \"YYYY-MM\" form (422).",
+        "operationId": "reports-month_summary",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthSummaryReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/login/access-token": {
+      "post": {
+        "tags": [
+          "login"
+        ],
+        "summary": "Login Access Token",
+        "description": "Get an access token for future requests.\n\nThe obtained token could be used as a Bearer token in subsequent authenticated requests.\n\nArgs:\n    user_service: The user service dependency.\n    email_verification_service: The email verification service dependency.\n    form_data: The OAuth2 password request form data.\n\nReturns:\n    A token containing the access token.\n\nRaises:\n    HTTPException: If the user is not found (404), the password is incorrect (401), or the user\n        is inactive (403). For 403, the error message will indicate if email verification is pending.",
+        "operationId": "login-login_access_token",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login-login_access_token"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/password-reset/request": {
+      "post": {
+        "tags": [
+          "password-reset"
+        ],
+        "summary": "Request Password Reset",
+        "description": "Request a password reset.\n\nFor security reasons, this always returns success even if the email doesn't exist.\nThis prevents user enumeration attacks.\n\nArgs:\n    password_reset_service: The password reset service dependency.\n    user_service: The user service dependency.\n    password_reset_in: The password reset request payload.\n\nReturns:\n    A message indicating that the request was successful.",
+        "operationId": "password-reset-request_password_reset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/password-reset/verify": {
+      "post": {
+        "tags": [
+          "password-reset"
+        ],
+        "summary": "Verify Password Reset Token",
+        "description": "Verify a password reset token is valid.\n\nArgs:\n    password_reset_service: The password reset service dependency.\n    password_reset_verify: The password reset verification payload.\n\nReturns:\n    A message indicating that the token is valid.\n\nRaises:\n    HTTPException: If the token is invalid (400), expired (400), used (400), or not found (404).",
+        "operationId": "password-reset-verify_password_reset_token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetVerify"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/password-reset/confirm": {
+      "post": {
+        "tags": [
+          "password-reset"
+        ],
+        "summary": "Confirm Password Reset",
+        "description": "Reset a user's password.\n\nArgs:\n    password_reset_service: The password reset service dependency.\n    user_service: The user service dependency.\n    password_reset_confirm: The password reset confirmation payload.\n\nReturns:\n    A message indicating that the password was reset successfully.\n\nRaises:\n    HTTPException: If the token is invalid (400), expired (400), used (400), or not found (404).",
+        "operationId": "password-reset-confirm_password_reset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email-verification/send": {
+      "post": {
+        "tags": [
+          "email-verification"
+        ],
+        "summary": "Resend Verification Email",
+        "description": "Send or resend an email verification.\n\nFor security reasons, this always returns success even if the email doesn't exist.\nThis prevents user enumeration attacks.\n\nArgs:\n    email_verification_service: The email verification service dependency.\n    user_service: The user service dependency.\n    email_verification_request: The email verification request payload.\n\nReturns:\n    A message indicating that the request was successful.",
+        "operationId": "email-verification-resend_verification_email",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailVerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/email-verification/verify": {
+      "post": {
+        "tags": [
+          "email-verification"
+        ],
+        "summary": "Verify Email",
+        "description": "Verify a user's email address.\n\nArgs:\n    email_verification_service: The email verification service dependency.\n    user_service: The user service dependency.\n    email_verification_confirm: The email verification confirmation payload.\n\nReturns:\n    A message indicating that the email was verified successfully.\n\nRaises:\n    HTTPException: If the token is invalid (400), expired (400), already used (400), or not found (404).",
+        "operationId": "email-verification-verify_email",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailVerificationConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccountType"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "opening_balance_minor": {
+            "type": "integer",
+            "title": "Opening Balance Minor",
+            "default": 0
+          },
+          "opening_balance_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Opening Balance Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "opening_balance_date"
+        ],
+        "title": "AccountCreate"
+      },
+      "AccountPublic": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccountType"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Household Id"
+          },
+          "currency_code": {
+            "type": "string",
+            "title": "Currency Code"
+          },
+          "opening_balance_minor": {
+            "type": "integer",
+            "title": "Opening Balance Minor"
+          },
+          "opening_balance_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Opening Balance Date"
+          },
+          "current_balance_minor": {
+            "type": "integer",
+            "title": "Current Balance Minor",
+            "default": 0
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "id",
+          "household_id",
+          "currency_code",
+          "opening_balance_minor",
+          "opening_balance_date",
+          "created_at"
+        ],
+        "title": "AccountPublic"
+      },
+      "AccountType": {
+        "type": "string",
+        "enum": [
+          "cash",
+          "current",
+          "savings",
+          "credit_card"
+        ],
+        "title": "AccountType"
+      },
+      "AccountUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccountType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "is_archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Archived"
+          }
+        },
+        "type": "object",
+        "title": "AccountUpdate"
+      },
+      "AccountsPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AccountPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "total_balance_minor": {
+            "type": "integer",
+            "title": "Total Balance Minor",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "AccountsPublic"
+      },
+      "Body_login-login_access_token": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^password$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Type"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "title": "Password"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": ""
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "format": "password",
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login-login_access_token"
+      },
+      "BudgetBulkUpsert": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Month"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "entries"
+        ],
+        "title": "BudgetBulkUpsert",
+        "description": "The complete set of limits for one month."
+      },
+      "BudgetCopyRequest": {
+        "properties": {
+          "from_month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "From Month"
+          },
+          "to_month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "To Month"
+          },
+          "overwrite": {
+            "type": "boolean",
+            "title": "Overwrite",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_month",
+          "to_month"
+        ],
+        "title": "BudgetCopyRequest",
+        "description": "Copy a month of limits onto another month."
+      },
+      "BudgetCreate": {
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Category Id"
+          },
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Month"
+          },
+          "limit_minor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Limit Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category_id",
+          "month",
+          "limit_minor"
+        ],
+        "title": "BudgetCreate"
+      },
+      "BudgetEntry": {
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Category Id"
+          },
+          "limit_minor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Limit Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category_id",
+          "limit_minor"
+        ],
+        "title": "BudgetEntry",
+        "description": "One category limit within a bulk update."
+      },
+      "BudgetProgressReport": {
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ReportPeriod"
+          },
+          "total_limit_minor": {
+            "type": "integer",
+            "title": "Total Limit Minor"
+          },
+          "total_spent_minor": {
+            "type": "integer",
+            "title": "Total Spent Minor"
+          },
+          "total_remaining_minor": {
+            "type": "integer",
+            "title": "Total Remaining Minor"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetProgressRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "unbudgeted_spend_minor": {
+            "type": "integer",
+            "title": "Unbudgeted Spend Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "total_limit_minor",
+          "total_spent_minor",
+          "total_remaining_minor",
+          "rows",
+          "unbudgeted_spend_minor"
+        ],
+        "title": "BudgetProgressReport"
+      },
+      "BudgetProgressRow": {
+        "properties": {
+          "budget_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Budget Id"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Category Id"
+          },
+          "category_name": {
+            "type": "string",
+            "title": "Category Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "covers_subcategories": {
+            "type": "boolean",
+            "title": "Covers Subcategories",
+            "default": false
+          },
+          "limit_minor": {
+            "type": "integer",
+            "title": "Limit Minor"
+          },
+          "spent_minor": {
+            "type": "integer",
+            "title": "Spent Minor"
+          },
+          "remaining_minor": {
+            "type": "integer",
+            "title": "Remaining Minor"
+          },
+          "progress": {
+            "type": "number",
+            "title": "Progress"
+          },
+          "is_over_budget": {
+            "type": "boolean",
+            "title": "Is Over Budget"
+          }
+        },
+        "type": "object",
+        "required": [
+          "budget_id",
+          "category_id",
+          "category_name",
+          "limit_minor",
+          "spent_minor",
+          "remaining_minor",
+          "progress",
+          "is_over_budget"
+        ],
+        "title": "BudgetProgressRow",
+        "description": "One category's spending against its limit for a month."
+      },
+      "BudgetPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Household Id"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Category Id"
+          },
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Month"
+          },
+          "limit_minor": {
+            "type": "integer",
+            "title": "Limit Minor"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "household_id",
+          "category_id",
+          "month",
+          "limit_minor",
+          "created_at"
+        ],
+        "title": "BudgetPublic"
+      },
+      "BudgetUpdate": {
+        "properties": {
+          "limit_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Minor"
+          }
+        },
+        "type": "object",
+        "title": "BudgetUpdate"
+      },
+      "BudgetsPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "total_limit_minor": {
+            "type": "integer",
+            "title": "Total Limit Minor",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "BudgetsPublic"
+      },
+      "CategoriesPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "CategoriesPublic"
+      },
+      "CategoryCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CategoryKind",
+            "default": "expense"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order",
+            "default": 0
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CategoryCreate"
+      },
+      "CategoryDepth": {
+        "type": "string",
+        "enum": [
+          "leaf",
+          "parent"
+        ],
+        "title": "CategoryDepth",
+        "description": "Whether spending is reported per subcategory or rolled up to its parent."
+      },
+      "CategoryKind": {
+        "type": "string",
+        "enum": [
+          "expense",
+          "income"
+        ],
+        "title": "CategoryKind"
+      },
+      "CategoryPublic": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CategoryKind",
+            "default": "expense"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order",
+            "default": 0
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Household Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "is_system": {
+            "type": "boolean",
+            "title": "Is System",
+            "default": false
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "household_id",
+          "created_at"
+        ],
+        "title": "CategoryPublic"
+      },
+      "CategorySpendSlice": {
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "category_name": {
+            "type": "string",
+            "title": "Category Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "parent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Name"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "transaction_count": {
+            "type": "integer",
+            "title": "Transaction Count"
+          },
+          "share": {
+            "type": "number",
+            "title": "Share"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category_name",
+          "amount_minor",
+          "transaction_count",
+          "share"
+        ],
+        "title": "CategorySpendSlice",
+        "description": "One category's share of the spending in a period."
+      },
+      "CategoryTreeNode": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CategoryKind",
+            "default": "expense"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order",
+            "default": 0
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Household Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "is_system": {
+            "type": "boolean",
+            "title": "Is System",
+            "default": false
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryPublic"
+            },
+            "type": "array",
+            "title": "Children",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "household_id",
+          "created_at"
+        ],
+        "title": "CategoryTreeNode"
+      },
+      "CategoryTreePublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryTreeNode"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "CategoryTreePublic"
+      },
+      "CategoryUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "is_archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Archived"
+          }
+        },
+        "type": "object",
+        "title": "CategoryUpdate"
+      },
+      "EmailVerificationConfirm": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "EmailVerificationConfirm"
+      },
+      "EmailVerificationRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "EmailVerificationRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HouseholdInviteAccept": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "HouseholdInviteAccept"
+      },
+      "HouseholdInviteCreate": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 255,
+            "format": "email",
+            "title": "Email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/HouseholdRole",
+            "default": "member"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "HouseholdInviteCreate"
+      },
+      "HouseholdInvitePreview": {
+        "properties": {
+          "household_name": {
+            "type": "string",
+            "title": "Household Name"
+          },
+          "invited_by": {
+            "type": "string",
+            "format": "email",
+            "title": "Invited By"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/HouseholdRole"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "household_name",
+          "invited_by",
+          "email",
+          "role",
+          "expires_at"
+        ],
+        "title": "HouseholdInvitePreview",
+        "description": "What the join page may show before the recipient has signed in.\n\nDeliberately thin: anyone holding the link can read this, so it carries\nonly what is needed to decide whether to accept, and nothing about the\nhousehold's money."
+      },
+      "HouseholdInvitePublic": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 255,
+            "format": "email",
+            "title": "Email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/HouseholdRole",
+            "default": "member"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HouseholdInviteStatus",
+            "default": "pending"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Household Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "expires_at",
+          "id",
+          "household_id",
+          "created_at"
+        ],
+        "title": "HouseholdInvitePublic"
+      },
+      "HouseholdInviteStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "accepted",
+          "revoked",
+          "expired"
+        ],
+        "title": "HouseholdInviteStatus"
+      },
+      "HouseholdInvitesPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/HouseholdInvitePublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "HouseholdInvitesPublic"
+      },
+      "HouseholdMemberPublic": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/HouseholdRole",
+            "default": "member"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Household Id"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "household_id",
+          "user_id",
+          "email",
+          "created_at"
+        ],
+        "title": "HouseholdMemberPublic"
+      },
+      "HouseholdMemberUpdate": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/HouseholdRole"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role"
+        ],
+        "title": "HouseholdMemberUpdate"
+      },
+      "HouseholdMembersPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/HouseholdMemberPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "HouseholdMembersPublic"
+      },
+      "HouseholdPublic": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "currency_code": {
+            "type": "string",
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency Code",
+            "default": "EUR"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "member_count": {
+            "type": "integer",
+            "title": "Member Count",
+            "default": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "created_at"
+        ],
+        "title": "HouseholdPublic"
+      },
+      "HouseholdRole": {
+        "type": "string",
+        "enum": [
+          "owner",
+          "member"
+        ],
+        "title": "HouseholdRole"
+      },
+      "HouseholdUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "title": "HouseholdUpdate"
+      },
+      "IncomeExpenseReport": {
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ReportPeriod"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/MonthlyFlow"
+            },
+            "type": "array",
+            "title": "Months"
+          },
+          "total_income_minor": {
+            "type": "integer",
+            "title": "Total Income Minor"
+          },
+          "total_expense_minor": {
+            "type": "integer",
+            "title": "Total Expense Minor"
+          },
+          "total_net_minor": {
+            "type": "integer",
+            "title": "Total Net Minor"
+          },
+          "average_savings_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Savings Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "months",
+          "total_income_minor",
+          "total_expense_minor",
+          "total_net_minor"
+        ],
+        "title": "IncomeExpenseReport"
+      },
+      "Message": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "Message"
+      },
+      "MonthSummaryReport": {
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ReportPeriod"
+          },
+          "income_minor": {
+            "type": "integer",
+            "title": "Income Minor"
+          },
+          "expense_minor": {
+            "type": "integer",
+            "title": "Expense Minor"
+          },
+          "net_minor": {
+            "type": "integer",
+            "title": "Net Minor"
+          },
+          "net_worth_minor": {
+            "type": "integer",
+            "title": "Net Worth Minor"
+          },
+          "budgeted_minor": {
+            "type": "integer",
+            "title": "Budgeted Minor"
+          },
+          "over_budget_category_count": {
+            "type": "integer",
+            "title": "Over Budget Category Count"
+          },
+          "transaction_count": {
+            "type": "integer",
+            "title": "Transaction Count"
+          },
+          "top_categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategorySpendSlice"
+            },
+            "type": "array",
+            "title": "Top Categories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "income_minor",
+          "expense_minor",
+          "net_minor",
+          "net_worth_minor",
+          "budgeted_minor",
+          "over_budget_category_count",
+          "transaction_count",
+          "top_categories"
+        ],
+        "title": "MonthSummaryReport",
+        "description": "The dashboard figures for one month, in a single request."
+      },
+      "MonthlyFlow": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "income_minor": {
+            "type": "integer",
+            "title": "Income Minor"
+          },
+          "expense_minor": {
+            "type": "integer",
+            "title": "Expense Minor"
+          },
+          "net_minor": {
+            "type": "integer",
+            "title": "Net Minor"
+          },
+          "cumulative_net_minor": {
+            "type": "integer",
+            "title": "Cumulative Net Minor"
+          },
+          "savings_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Savings Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "income_minor",
+          "expense_minor",
+          "net_minor",
+          "cumulative_net_minor"
+        ],
+        "title": "MonthlyFlow",
+        "description": "Money in and out for one month."
+      },
+      "PasswordResetConfirm": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 8,
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "PasswordResetConfirm"
+      },
+      "PasswordResetRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "PasswordResetRequest"
+      },
+      "PasswordResetVerify": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "PasswordResetVerify"
+      },
+      "PasswordUpdate": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 8,
+            "title": "Current Password"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 8,
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordUpdate"
+      },
+      "RecurrenceFrequency": {
+        "type": "string",
+        "enum": [
+          "weekly",
+          "monthly",
+          "yearly"
+        ],
+        "title": "RecurrenceFrequency"
+      },
+      "RecurringRuleCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/RecurrenceFrequency",
+            "default": "monthly"
+          },
+          "interval": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Interval",
+            "default": 1
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "day_of_month": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Of Month"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind",
+            "default": "expense"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "merchant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "counter_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Account Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "start_date",
+          "amount_minor",
+          "account_id"
+        ],
+        "title": "RecurringRuleCreate"
+      },
+      "RecurringRulePublic": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/RecurrenceFrequency",
+            "default": "monthly"
+          },
+          "interval": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Interval",
+            "default": 1
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "day_of_month": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Of Month"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind",
+            "default": "expense"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "merchant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Household Id"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "counter_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Account Id"
+          },
+          "next_occurrence_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Occurrence On"
+          },
+          "last_generated_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Generated On"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "start_date",
+          "amount_minor",
+          "id",
+          "household_id",
+          "account_id",
+          "created_at"
+        ],
+        "title": "RecurringRulePublic"
+      },
+      "RecurringRuleUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecurrenceFrequency"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "day_of_month": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Of Month"
+          },
+          "amount_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Minor"
+          },
+          "merchant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "title": "RecurringRuleUpdate"
+      },
+      "RecurringRulesPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/RecurringRulePublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "RecurringRulesPublic"
+      },
+      "RecurringRunResult": {
+        "properties": {
+          "created_count": {
+            "type": "integer",
+            "title": "Created Count"
+          },
+          "skipped_count": {
+            "type": "integer",
+            "title": "Skipped Count"
+          },
+          "rules_advanced": {
+            "type": "integer",
+            "title": "Rules Advanced"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created_count",
+          "skipped_count",
+          "rules_advanced"
+        ],
+        "title": "RecurringRunResult",
+        "description": "What one materialization pass did."
+      },
+      "ReportPeriod": {
+        "properties": {
+          "date_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Date From"
+          },
+          "date_to": {
+            "type": "string",
+            "format": "date",
+            "title": "Date To"
+          },
+          "currency_code": {
+            "type": "string",
+            "title": "Currency Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date_from",
+          "date_to",
+          "currency_code"
+        ],
+        "title": "ReportPeriod",
+        "description": "The period a report covers, resolved to real dates."
+      },
+      "SpendByCategoryReport": {
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ReportPeriod"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "depth": {
+            "$ref": "#/components/schemas/CategoryDepth"
+          },
+          "total_minor": {
+            "type": "integer",
+            "title": "Total Minor"
+          },
+          "slices": {
+            "items": {
+              "$ref": "#/components/schemas/CategorySpendSlice"
+            },
+            "type": "array",
+            "title": "Slices"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "kind",
+          "depth",
+          "total_minor",
+          "slices"
+        ],
+        "title": "SpendByCategoryReport"
+      },
+      "SpendOverTimeReport": {
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ReportPeriod"
+          },
+          "granularity": {
+            "$ref": "#/components/schemas/TimeGranularity"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "total_minor": {
+            "type": "integer",
+            "title": "Total Minor"
+          },
+          "average_minor": {
+            "type": "integer",
+            "title": "Average Minor"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/TimeSeriesPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "granularity",
+          "kind",
+          "total_minor",
+          "average_minor",
+          "points"
+        ],
+        "title": "SpendOverTimeReport"
+      },
+      "TimeGranularity": {
+        "type": "string",
+        "enum": [
+          "day",
+          "month"
+        ],
+        "title": "TimeGranularity"
+      },
+      "TimeSeriesPoint": {
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "format": "date",
+            "title": "Bucket"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "transaction_count": {
+            "type": "integer",
+            "title": "Transaction Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket",
+          "amount_minor",
+          "transaction_count"
+        ],
+        "title": "TimeSeriesPoint",
+        "description": "One bucket of a time series."
+      },
+      "Token": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token"
+        ],
+        "title": "Token"
+      },
+      "TransactionCreate": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "occurred_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Occurred On"
+          },
+          "merchant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "counter_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Account Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "amount_minor",
+          "occurred_on",
+          "account_id"
+        ],
+        "title": "TransactionCreate"
+      },
+      "TransactionKind": {
+        "type": "string",
+        "enum": [
+          "expense",
+          "income",
+          "transfer"
+        ],
+        "title": "TransactionKind"
+      },
+      "TransactionPublic": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "occurred_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Occurred On"
+          },
+          "merchant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Household Id"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "counter_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Account Id"
+          },
+          "recurring_rule_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurring Rule Id"
+          },
+          "is_generated": {
+            "type": "boolean",
+            "title": "Is Generated",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "amount_minor",
+          "occurred_on",
+          "id",
+          "household_id",
+          "account_id",
+          "created_at"
+        ],
+        "title": "TransactionPublic"
+      },
+      "TransactionSort": {
+        "type": "string",
+        "enum": [
+          "-date",
+          "date",
+          "-amount",
+          "amount"
+        ],
+        "title": "TransactionSort"
+      },
+      "TransactionUpdate": {
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransactionKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Minor"
+          },
+          "occurred_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred On"
+          },
+          "merchant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "counter_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Account Id"
+          }
+        },
+        "type": "object",
+        "title": "TransactionUpdate"
+      },
+      "TransactionsPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TransactionPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "TransactionsPublic"
+      },
+      "UpcomingOccurrence": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Rule Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "occurs_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Occurs On"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "name",
+          "kind",
+          "amount_minor",
+          "occurs_on",
+          "account_id"
+        ],
+        "title": "UpcomingOccurrence",
+        "description": "A date a rule will fall due on, not yet recorded."
+      },
+      "UpcomingOccurrencesPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/UpcomingOccurrence"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "total_minor": {
+            "type": "integer",
+            "title": "Total Minor",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "UpcomingOccurrencesPublic"
+      },
+      "UserCreate": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 255,
+            "format": "email",
+            "title": "Email"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "is_superuser": {
+            "type": "boolean",
+            "title": "Is Superuser",
+            "default": false
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 8,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "UserCreate"
+      },
+      "UserPublic": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 255,
+            "format": "email",
+            "title": "Email"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "is_superuser": {
+            "type": "boolean",
+            "title": "Is Superuser",
+            "default": false
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "id",
+          "created_at"
+        ],
+        "title": "UserPublic"
+      },
+      "UserRegister": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 255,
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 8,
+            "title": "Password"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "invite_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "UserRegister"
+      },
+      "UserUpdate": {
+        "properties": {
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 72,
+                "minLength": 8
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "is_superuser": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Superuser"
+          }
+        },
+        "type": "object",
+        "title": "UserUpdate"
+      },
+      "UserUpdateMe": {
+        "properties": {
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "title": "UserUpdateMe"
+      },
+      "UsersPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/UserPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "UsersPublic"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "/api/v1/login/access-token"
+          }
+        }
+      }
+    }
+  }
+}
