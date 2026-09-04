@@ -9,6 +9,10 @@ import { cn } from '@/lib/utils'
  * Written here rather than taken from the registry, which does not ship a form
  * component for this style. It wires the label, the hint and the error to the
  * control by id, so screen readers announce them together.
+ *
+ * Spaced with a gap rather than margins: a select renders a hidden native one
+ * for form fallback, and a margin on that would leave the field taller than it
+ * looks, which pushes the control up in a row aligned to its bottom.
  */
 export function Field({
   id,
@@ -35,7 +39,7 @@ export function Field({
   const describedBy = [errorId, hintId].filter(Boolean).join(' ') || undefined
 
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn('flex flex-col gap-2', className)}>
       <Label htmlFor={id}>{label}</Label>
       {children({ id, 'aria-describedby': describedBy, 'aria-invalid': Boolean(error) })}
       {error ? (
