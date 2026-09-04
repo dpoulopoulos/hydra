@@ -18,6 +18,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ErrorState, LoadingRows } from '@/components/data-state'
 import { Field, FormError } from '@/components/form-field'
 import { PageHeader } from '@/components/layout/page-header'
+import { Pagination } from '@/components/pagination'
 import { SettingsNav } from '@/components/layout/settings-nav'
 import { SubmitButton } from '@/components/submit-button'
 import { Badge } from '@/components/ui/badge'
@@ -52,6 +53,8 @@ import { errorMessage } from '@/lib/api'
 import { PASSWORD_HINT, passwordSchema } from '@/lib/password'
 import { formatDate } from '@/lib/month'
 
+const PAGE_SIZE = 25
+
 const schema = z.object({
   full_name: z.string().trim().max(255).optional(),
   email: z.email('Enter a valid email address.'),
@@ -69,12 +72,15 @@ export function Component() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [creating, setCreating] = useState(false)
+  const [page, setPage] = useState(0)
   const [deleting, setDeleting] = useState<UserPublic | null>(null)
 
   const users = useQuery({
-    queryKey: ['users'],
+    queryKey: ['users', page],
     queryFn: async () => {
-      const { data, error } = await usersGetUsers({ query: { limit: 100 } })
+      const { data, error } = await usersGetUsers({
+        query: { skip: page * PAGE_SIZE, limit: PAGE_SIZE },
+      })
       if (error) throw error
       return data
     },
@@ -241,6 +247,16 @@ export function Component() {
           </Table>
         )}
       </Card>
+
+      {users.data && users.data.count > 0 ? (
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={users.data.count}
+          onPageChange={setPage}
+          noun="account"
+        />
+      ) : null}
 
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent className="sm:max-w-md">

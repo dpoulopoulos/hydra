@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/data-state'
 import { PageHeader } from '@/components/layout/page-header'
 import { Money } from '@/components/money'
+import { Pagination } from '@/components/pagination'
 import { RuleDialog } from '@/components/recurring/rule-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -62,6 +63,8 @@ import { currentMonth, formatDate, formatMonth, monthEnd, shiftMonth } from '@/l
  * Each one ends on a month boundary rather than a day counted from today, so
  * the window a person picks is the one they see on a calendar.
  */
+const PAGE_SIZE = 25
+
 const HORIZONS = [
   { value: '1', label: 'This month', description: 'The rest of this month' },
   { value: '3', label: 'Next 3 months', description: 'The next three months' },
@@ -75,12 +78,15 @@ export function Component() {
   const [editing, setEditing] = useState<RecurringRulePublic | null>(null)
   const [creating, setCreating] = useState(false)
   const [horizon, setHorizon] = useState('1')
+  const [page, setPage] = useState(0)
   const [deleting, setDeleting] = useState<RecurringRulePublic | null>(null)
 
   const rules = useQuery({
-    queryKey: ['recurring', 'rules'],
+    queryKey: ['recurring', 'rules', page],
     queryFn: async () => {
-      const { data, error } = await recurringRulesListRecurringRules({ query: { limit: 200 } })
+      const { data, error } = await recurringRulesListRecurringRules({
+        query: { skip: page * PAGE_SIZE, limit: PAGE_SIZE },
+      })
       if (error) throw error
       return data
     },
@@ -284,6 +290,16 @@ export function Component() {
           </Table>
         </Card>
       )}
+
+      {rules.data && rules.data.count > 0 ? (
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={rules.data.count}
+          onPageChange={setPage}
+          noun="rule"
+        />
+      ) : null}
 
       {/* Shown whenever a rule exists, not only when the window has something
           in it: hiding the card would take the filter with it. */}

@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/data-state'
 import { PageHeader } from '@/components/layout/page-header'
 import { Money } from '@/components/money'
+import { Pagination } from '@/components/pagination'
 import { AccountDialog } from '@/components/accounts/account-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -39,19 +40,22 @@ import { errorMessage } from '@/lib/api'
 import { ACCOUNT_TYPE_LABELS } from '@/lib/labels'
 import { formatDate } from '@/lib/month'
 
+const PAGE_SIZE = 25
+
 export function Component() {
   const currency = useCurrency()
   const queryClient = useQueryClient()
   const [includeArchived, setIncludeArchived] = useState(false)
+  const [page, setPage] = useState(0)
   const [editing, setEditing] = useState<AccountPublic | null>(null)
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState<AccountPublic | null>(null)
 
   const accounts = useQuery({
-    queryKey: ['accounts', { includeArchived }],
+    queryKey: ['accounts', { includeArchived, page }],
     queryFn: async () => {
       const { data, error } = await accountsListAccounts({
-        query: { include_archived: includeArchived, limit: 200 },
+        query: { include_archived: includeArchived, skip: page * PAGE_SIZE, limit: PAGE_SIZE },
       })
       if (error) throw error
       return data
@@ -101,7 +105,14 @@ export function Component() {
           <Label htmlFor="archived" className="text-muted-foreground text-sm font-normal">
             Show archived
           </Label>
-          <Switch id="archived" checked={includeArchived} onCheckedChange={setIncludeArchived} />
+          <Switch
+            id="archived"
+            checked={includeArchived}
+            onCheckedChange={(next) => {
+              setIncludeArchived(next)
+              setPage(0)
+            }}
+          />
         </div>
         <Button onClick={() => setCreating(true)}>Add account</Button>
       </PageHeader>
@@ -225,6 +236,16 @@ export function Component() {
           </Table>
         </Card>
       )}
+
+      {accounts.data && accounts.data.count > 0 ? (
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={accounts.data.count}
+          onPageChange={setPage}
+          noun="account"
+        />
+      ) : null}
 
       <AccountDialog
         open={creating || editing !== null}
