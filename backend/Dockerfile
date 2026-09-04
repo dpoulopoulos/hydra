@@ -1,4 +1,8 @@
-FROM python:3.13
+# The slim variant: psycopg is installed from the [binary] extra and every
+# other dependency ships a wheel, so nothing is compiled here and the full
+# image's toolchain, git and system libraries would only be CVE surface the app
+# never uses.
+FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1
 
