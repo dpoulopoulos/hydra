@@ -1,4 +1,4 @@
-from .base_exceptions import ConflictError, NotFoundError, ValidationError
+from .base_exceptions import ConflictError, NotFoundError, ServiceError, ValidationError
 
 
 class AccountNotFoundError(NotFoundError):
@@ -28,19 +28,23 @@ class AccountExistsError(ConflictError):
         super().__init__("Account", name, message, exc)
 
 
-class AccountInUseError(ConflictError):
-    """Signal that an account cannot be deleted because it still has history."""
+class AccountInUseError(ServiceError):
+    """Signal that an account cannot be deleted because it still has history.
 
-    def __init__(self, name: str, message: str | None = None, exc: Exception | None = None):
+    A conflict, but not the "already exists" kind ConflictError describes, so
+    the message is written out rather than composed from that template.
+    """
+
+    def __init__(self, name: str, exc: Exception | None = None):
         """Initialize an AccountInUseError.
 
         Args:
             name: The name of the account in use.
-            message: An optional error message.
             exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
         """
-        msg = message or "Archive it instead, so its transactions and past balances are kept."
-        super().__init__("Account", name, msg, exc)
+        msg = f"Account '{name}' still has transactions. Archive it instead, so its history and past balances are kept."
+        super().__init__(msg, exc)
+        self.name = name
 
 
 class AccountArchivedError(ValidationError):

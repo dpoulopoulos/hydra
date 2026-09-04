@@ -1,4 +1,4 @@
-from .base_exceptions import ConflictError, NotFoundError, ValidationError
+from .base_exceptions import ConflictError, NotFoundError, ServiceError, ValidationError
 
 
 class CategoryNotFoundError(NotFoundError):
@@ -28,19 +28,23 @@ class CategoryExistsError(ConflictError):
         super().__init__("Category", name, message, exc)
 
 
-class CategoryInUseError(ConflictError):
-    """Signal that a category cannot be deleted because something still references it."""
+class CategoryInUseError(ServiceError):
+    """Signal that a category cannot be deleted because something still references it.
 
-    def __init__(self, name: str, message: str | None = None, exc: Exception | None = None):
+    A conflict, but not the "already exists" kind ConflictError describes, so
+    the message is written out rather than composed from that template.
+    """
+
+    def __init__(self, name: str, exc: Exception | None = None):
         """Initialize a CategoryInUseError.
 
         Args:
             name: The name of the category in use.
-            message: An optional error message.
             exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
         """
-        msg = message or "Archive it instead, so past reports keep their history."
-        super().__init__("Category", name, msg, exc)
+        msg = f"Category '{name}' is still in use. Archive it instead, so past reports keep their history."
+        super().__init__(msg, exc)
+        self.name = name
 
 
 class CategoryDepthExceededError(ValidationError):

@@ -1,0 +1,53 @@
+from .base_exceptions import NotFoundError, ValidationError
+
+
+class TransactionNotFoundError(NotFoundError):
+    """Signal that a transaction does not exist in the household."""
+
+    def __init__(self, message: str | None = None, exc: Exception | None = None):
+        """Initialize a TransactionNotFoundError.
+
+        Args:
+            message: An optional error message.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__("Transaction", message, exc)
+
+
+class SameAccountTransferError(ValidationError):
+    """Signal that a transfer cannot have the same account on both sides."""
+
+    def __init__(self, exc: Exception | None = None):
+        """Initialize a SameAccountTransferError.
+
+        Args:
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        msg = "A transfer needs two different accounts."
+        super().__init__(msg, exc)
+
+
+class TransferShapeError(ValidationError):
+    """Signal that a transaction does not match the shape its kind requires."""
+
+    def __init__(self, message: str, exc: Exception | None = None):
+        """Initialize a TransferShapeError.
+
+        Args:
+            message: What is wrong with the shape.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__(message, exc)
+
+
+class TransactionCategoryKindError(ValidationError):
+    """Signal that the category does not match the kind of the transaction."""
+
+    def __init__(self, exc: Exception | None = None):
+        """Initialize a TransactionCategoryKindError.
+
+        Args:
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        msg = "An expense needs an expense category, and income needs an income category."
+        super().__init__(msg, exc)
