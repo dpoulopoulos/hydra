@@ -10,11 +10,14 @@ from app.api.deps import get_current_user, get_db, get_household_context, get_re
 from app.exceptions import CategoryNotFoundError, InvalidDateRangeError, ReportRangeTooLargeError
 from app.main import app
 from app.models import (
+    BudgetProgressReport,
+    BudgetProgressRow,
     CategoryDepth,
     CategorySpendSlice,
     HouseholdContext,
     IncomeExpenseReport,
     MonthlyFlow,
+    MonthSummaryReport,
     ReportPeriod,
     SpendByCategoryReport,
     SpendOverTimeReport,
@@ -298,6 +301,98 @@ class TestIncomeExpense:
             "/api/v1/reports/income-expense",
             headers=auth_headers,
             params={"month_from": "2000-01", "month_to": "2026-01"},
+        )
+
+        assert response.status_code == 422
+
+
+class TestBudgetProgress:
+    """Tests for GET /reports/budget-progress."""
+
+    def test_returns_the_rows(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        wire.budget_progress.return_value = BudgetProgressReport(
+            period=period(),
+            total_limit_minor=9_000,
+            total_spent_minor=10_000,
+            total_remaining_minor=-1_000,
+            rows=[
+                BudgetProgressRow(
+                    budget_id=uuid.uuid4(),
+                    category_id=uuid.uuid4(),
+                    category_name="Food & Drink",
+                    covers_subcategories=True,
+                    limit_minor=9_000,
+                    spent_minor=10_000,
+                    remaining_minor=-1_000,
+                    progress=1.1111,
+                    is_over_budget=True,
+                )
+            ],
+            unbudgeted_spend_minor=5_000,
+        )
+
+        response = client.get(
+            "/api/v1/reports/budget-progress", headers=auth_headers, params={"month": "2026-03"}
+        )
+
+        assert response.status_code == 200
+        row = response.json()["rows"][0]
+        assert row["is_over_budget"] is True
+        assert row["covers_subcategories"] is True
+        assert row["remaining_minor"] == -1000
+        assert response.json()["unbudgeted_spend_minor"] == 5000
+
+    def test_requires_a_month(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        response = client.get("/api/v1/reports/budget-progress", headers=auth_headers)
+
+        assert response.status_code == 422
+
+
+class TestMonthSummary:
+    """Tests for GET /reports/summary."""
+
+    def test_returns_the_dashboard_figures(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        wire.month_summary.return_value = MonthSummaryReport(
+            period=period(),
+            income_minor=250_000,
+            expense_minor=25_000,
+            net_minor=225_000,
+            net_worth_minor=225_000,
+            budgeted_minor=29_000,
+            over_budget_category_count=1,
+            transaction_count=6,
+            top_categories=[
+                CategorySpendSlice(
+                    category_id=uuid.uuid4(),
+                    category_name="Transport",
+                    amount_minor=10_000,
+                    transaction_count=1,
+                    share=0.4,
+                )
+            ],
+        )
+
+        response = client.get(
+            "/api/v1/reports/summary", headers=auth_headers, params={"month": "2026-03"}
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["net_minor"] == 225000
+        assert body["over_budget_category_count"] == 1
+        assert body["top_categories"][0]["category_name"] == "Transport"
+
+    def test_rejects_a_month_that_is_not_a_month(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        response = client.get(
+            "/api/v1/reports/summary", headers=auth_headers, params={"month": "2026-00"}
         )
 
         assert response.status_code == 422

@@ -6,8 +6,10 @@ from fastapi import APIRouter, Query, status
 from app.api.deps import CurrentHousehold, ReportServiceDep
 from app.exceptions import InvalidDateRangeError, ReportRangeTooLargeError, ServiceError
 from app.models import (
+    BudgetProgressReport,
     CategoryDepth,
     IncomeExpenseReport,
+    MonthSummaryReport,
     SpendByCategoryReport,
     SpendOverTimeReport,
     TimeGranularity,
@@ -138,3 +140,57 @@ def income_expense(
             than ten years (422).
     """
     return report_service.income_expense(household=household, month_from=month_from, month_to=month_to)
+
+
+@router.get("/budget-progress", response_model=BudgetProgressReport)
+def budget_progress(
+    *,
+    report_service: ReportServiceDep,
+    household: CurrentHousehold,
+    month: str = Query(pattern=MONTH_KEY_PATTERN),
+) -> BudgetProgressReport:
+    """Compare a month's spending against the limits set for it.
+
+    A limit on a parent category counts the spending filed under its
+    subcategories, so budgeting "Food & Drink" tracks what was spent on
+    groceries and restaurants together.
+
+    Args:
+        report_service: The report service dependency.
+        household: The current household context.
+        month: The month, in "YYYY-MM" form.
+
+    Returns:
+        One row per budget, sorted by how much of each limit is used, plus the
+        spending that had no limit at all.
+
+    Raises:
+        HTTPException: If the month is not in "YYYY-MM" form (422).
+    """
+    return report_service.budget_progress(household=household, month=month)
+
+
+@router.get("/summary", response_model=MonthSummaryReport)
+def month_summary(
+    *,
+    report_service: ReportServiceDep,
+    household: CurrentHousehold,
+    month: str = Query(pattern=MONTH_KEY_PATTERN),
+) -> MonthSummaryReport:
+    """Gather the dashboard figures for one month.
+
+    One request rather than several, so opening the app is a single round trip.
+
+    Args:
+        report_service: The report service dependency.
+        household: The current household context.
+        month: The month, in "YYYY-MM" form.
+
+    Returns:
+        The month's income, spending and net, the current net worth, how much
+        was budgeted, how many categories went over, and the biggest categories.
+
+    Raises:
+        HTTPException: If the month is not in "YYYY-MM" form (422).
+    """
+    return report_service.month_summary(household=household, month=month)
