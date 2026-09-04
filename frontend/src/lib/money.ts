@@ -26,6 +26,68 @@ export function fractionDigits(currency: string): number {
   return digits
 }
 
+const separatorsCache = new Map<string, NumberSeparators>()
+
+/** Which characters a locale writes numbers with. */
+export type NumberSeparators = { decimal: string; group: string }
+
+/**
+ * Get the characters a locale separates a number with, e.g. "." and "," for
+ * en-US, "," and "." for de-DE.
+ *
+ * The app formats every figure through Intl, so a reader is shown that
+ * locale's separators; anything that reads an amount back has to know the same
+ * two characters, or it cannot tell a typed decimal point from a group mark.
+ */
+export function numberSeparators(locale?: string): NumberSeparators {
+  const key = locale ?? ''
+  const cached = separatorsCache.get(key)
+  if (cached !== undefined) return cached
+
+  const parts = new Intl.NumberFormat(locale).formatToParts(11111.1)
+  const separators = {
+    decimal: parts.find((part) => part.type === 'decimal')?.value ?? '.',
+    group: parts.find((part) => part.type === 'group')?.value ?? ',',
+  }
+  separatorsCache.set(key, separators)
+  return separators
+}
+
+const groupingCache = new Map<string, NumberGrouping>()
+
+/** How many digits a locale groups by, the group nearest the decimal point first. */
+export type NumberGrouping = { primary: number; secondary: number }
+
+/**
+ * Get how many digits a locale groups a number by, e.g. 3 and 3 for en-US,
+ * which writes 11111111 as "11,111,111", and 3 and 2 for en-IN, which writes
+ * the same number as "1,11,11,111".
+ *
+ * Reading a grouped number back means knowing where its marks belong, and
+ * "a mark every three digits" is only most of the world.
+ */
+export function numberGrouping(locale?: string): NumberGrouping {
+  const key = locale ?? ''
+  const cached = groupingCache.get(key)
+  if (cached !== undefined) return cached
+
+  // Long enough to carry more than one group mark, so the group before the
+  // last one is there to be counted rather than being the leading remainder.
+  const runs = new Intl.NumberFormat(locale)
+    .formatToParts(11111111)
+    .filter((part) => part.type === 'integer')
+    .map((part) => part.value.length)
+
+  // A locale that groups nothing says nothing about where a mark belongs, so
+  // read marks typed anyway as the threes almost every locale writes.
+  const grouping =
+    runs.length > 2
+      ? { primary: runs[runs.length - 1], secondary: runs[runs.length - 2] }
+      : { primary: 3, secondary: 3 }
+  groupingCache.set(key, grouping)
+  return grouping
+}
+
 /** Convert minor units to the major amount, e.g. 4250 -> 42.5 for EUR. */
 export function toMajor(minor: number, currency: string): number {
   return minor / 10 ** fractionDigits(currency)
@@ -80,4 +142,25 @@ export function formatPercent(ratio: number): string {
     style: 'percent',
     maximumFractionDigits: 0,
   }).format(ratio)
+}
+
+/**
+ * Write minor units the way a field is edited, e.g. 120000 -> "1200.5" in
+ * en-US and "1200,5" in de-DE.
+ *
+ * A field filled with a bare `String(toMajor(...))` writes the decimal point
+ * as a dot whatever the reader's locale is, and whoever reads the field back
+ * has only the characters to go on: in a locale that groups with a dot, a
+ * three-decimal currency round-trips "1.005" as a thousand and five. The field
+ * is written with the separator that locale reads as a decimal point instead,
+ * and with no group marks to be ambiguous about at all.
+ */
+export function formatMajorInput(minor: number, currency: string, locale?: string): string {
+  // Plain `String`, not `Intl`, so the digits are the ASCII ones every field
+  // takes; only the character between them is the reader's. That character is
+  // whatever the locale reads back as a decimal point, which is not always "."
+  // or ",": ar-EG and fa-IR write the Arabic decimal separator, "٫".
+  const text = String(toMajor(minor, currency))
+  const { decimal } = numberSeparators(locale)
+  return decimal === '.' ? text : text.replace('.', decimal)
 }
