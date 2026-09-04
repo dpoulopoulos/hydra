@@ -243,9 +243,7 @@ class HouseholdService:
 
         return Message(message="Member removed from the household.")
 
-    def leave_household(
-        self, household: HouseholdContext, category_service: CategorySeeder | None = None
-    ) -> Message:
+    def leave_household(self, household: HouseholdContext, category_service: CategorySeeder | None = None) -> Message:
         """Leave the household.
 
         Args:
