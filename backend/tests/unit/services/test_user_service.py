@@ -10,6 +10,7 @@ from app.core.config import settings
 
 from app.exceptions import (
     DeleteSuperUserError,
+    InvalidEmailOrPasswordError,
     PasswordIsWrongError,
     PasswordUnmodifiedError,
     UserExistsError,
@@ -68,8 +69,8 @@ class TestAuthenticate:
         mock_user_service.session.exec = MagicMock()
         mock_user_service.session.exec.return_value.first.return_value = None
 
-        # Act & Assert: Verify UserNotFoundError is raised
-        with pytest.raises(UserNotFoundError):
+        # Act & Assert: Verify the failure does not name the email as the reason
+        with pytest.raises(InvalidEmailOrPasswordError):
             mock_user_service.authenticate(
                 email="nonexistent@example.com", password="password123"
             )
@@ -82,12 +83,41 @@ class TestAuthenticate:
         mock_user_service.session.exec = MagicMock()
         mock_user_service.session.exec.return_value.first.return_value = test_user
 
-        # Act & Assert: Verify PasswordIsWrongError is raised
+        # Act & Assert: Verify the failure does not name the password as the reason
         with patch("app.services.user.verify_password", return_value=False):
-            with pytest.raises(PasswordIsWrongError):
+            with pytest.raises(InvalidEmailOrPasswordError):
                 mock_user_service.authenticate(
                     email=test_user.email, password="wrongpassword"
                 )
+
+    def test_authenticate_reports_unknown_email_and_wrong_password_alike(
+        self, mock_user_service: UserService, test_user: User
+    ) -> None:
+        """Test that neither credential failure says which of the two it was.
+
+        The caller turns this message into the response body, so a difference here is a way of asking
+        whether an address has an account.
+        """
+        # Arrange: Mock database query to return no user, then the test user
+        mock_user_service.session.exec = MagicMock()
+        mock_user_service.session.exec.return_value.first.return_value = None
+
+        # Act: Authenticate an unregistered address, then a registered one with a wrong password
+        with pytest.raises(InvalidEmailOrPasswordError) as unknown_email:
+            mock_user_service.authenticate(
+                email="nonexistent@example.com", password="junkpassword123"
+            )
+
+        mock_user_service.session.exec.return_value.first.return_value = test_user
+
+        with patch("app.services.user.verify_password", return_value=False):
+            with pytest.raises(InvalidEmailOrPasswordError) as wrong_password:
+                mock_user_service.authenticate(
+                    email=test_user.email, password="junkpassword123"
+                )
+
+        # Assert: Both failures carry the same message
+        assert unknown_email.value.message == wrong_password.value.message
 
     def test_authenticate_inactive_user(
         self, mock_user_service: UserService, test_inactive_user: User

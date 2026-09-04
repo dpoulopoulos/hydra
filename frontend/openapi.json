@@ -3034,7 +3034,7 @@
           "login"
         ],
         "summary": "Login Access Token",
-        "description": "Get an access token for future requests.\n\nThe obtained token could be used as a Bearer token in subsequent authenticated requests.\n\nArgs:\n    user_service: The user service dependency.\n    email_verification_service: The email verification service dependency.\n    form_data: The OAuth2 password request form data.\n\nReturns:\n    A token containing the access token.\n\nRaises:\n    HTTPException: If the user is not found (404), the password is incorrect (401), or the user\n        is inactive (403). For 403, the error message will indicate if email verification is pending.",
+        "description": "Get an access token for future requests.\n\nThe obtained token could be used as a Bearer token in subsequent authenticated requests.\n\nArgs:\n    user_service: The user service dependency.\n    email_verification_service: The email verification service dependency.\n    form_data: The OAuth2 password request form data.\n\nReturns:\n    A token containing the access token.\n\nRaises:\n    HTTPException: If the credentials do not check out (401), or the user is inactive (403). The 401\n        is deliberately the same whether or not the address is registered, so that the endpoint cannot\n        be used to enumerate accounts. For 403, the error message will indicate if email verification\n        is pending.",
         "operationId": "login-login_access_token",
         "requestBody": {
           "content": {
