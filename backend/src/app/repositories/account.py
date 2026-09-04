@@ -48,6 +48,62 @@ class AccountRepository(HouseholdScopedRepository[Account]):
         Returns:
             Tuple of (accounts, total_count), ordered by name.
         """
+        statement = self._matching(
+            household_id=household_id, include_archived=include_archived, account_type=account_type
+        )
+
+        count = len(self.session.exec(statement).all())
+        page = self.session.exec(statement.order_by(col(Account.name)).offset(skip).limit(limit)).all()
+
+        return page, count
+
+    def total_balance(
+        self,
+        household_id: uuid.UUID,
+        include_archived: bool = False,
+        account_type: AccountType | None = None,
+    ) -> int:
+        """Sum the balances of every matching account, in minor units.
+
+        Covers the whole filtered set rather than one page, so a paged list
+        still reports what the household is actually worth.
+
+        Args:
+            household_id: The ID of the household.
+            include_archived: Whether to include archived accounts.
+            account_type: An optional type to filter on.
+
+        Returns:
+            The total balance, or zero when nothing matches.
+        """
+        statement = self._matching(
+            household_id=household_id, include_archived=include_archived, account_type=account_type
+        )
+        account_ids = self.session.exec(statement.with_only_columns(col(Account.id))).all()
+        if not account_ids:
+            return 0
+
+        return sum(self.balances_of(account_ids=account_ids, household_id=household_id).values())
+
+    def _matching(
+        self,
+        household_id: uuid.UUID,
+        include_archived: bool,
+        account_type: AccountType | None,
+    ) -> Any:
+        """Build the query for the accounts a listing covers.
+
+        Shared so a page and its total can never disagree about which
+        accounts they are talking about.
+
+        Args:
+            household_id: The ID of the household.
+            include_archived: Whether to include archived accounts.
+            account_type: An optional type to filter on.
+
+        Returns:
+            The filtered query, unordered and unpaged.
+        """
         statement = select(Account).where(Account.household_id == household_id)
 
         if not include_archived:
@@ -56,10 +112,7 @@ class AccountRepository(HouseholdScopedRepository[Account]):
         if account_type is not None:
             statement = statement.where(Account.type == account_type)
 
-        count = len(self.session.exec(statement).all())
-        page = self.session.exec(statement.order_by(col(Account.name)).offset(skip).limit(limit)).all()
-
-        return page, count
+        return statement
 
     def get_by_name(self, household_id: uuid.UUID, name: str) -> Account | None:
         """Get an account by name within a household.

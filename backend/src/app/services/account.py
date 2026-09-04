@@ -92,7 +92,7 @@ class AccountService:
             limit: Maximum number of records to return.
 
         Returns:
-            The accounts, and the total of the balances returned.
+            The accounts on the page, and the household's total balance.
         """
         accounts, count = self.account_repository.list_for_household(
             household_id=household.household_id,
@@ -109,7 +109,13 @@ class AccountService:
         return AccountsPublic(
             data=data,
             count=count,
-            total_balance_minor=sum(account.current_balance_minor for account in data),
+            # Asked for separately: summing the page would report a smaller
+            # net worth the moment a second page exists.
+            total_balance_minor=self.account_repository.total_balance(
+                household_id=household.household_id,
+                include_archived=include_archived,
+                account_type=account_type,
+            ),
         )
 
     def get_account(self, household: HouseholdContext, account_id: uuid.UUID) -> AccountPublic:

@@ -161,6 +161,10 @@ class TestListAccounts:
             [current, savings],
             [(current.id, 100_000), (savings.id, 50_000)],
             [],
+            # The household total: every matching id, then their balances.
+            [current.id, savings.id],
+            [(current.id, 100_000), (savings.id, 50_000)],
+            [],
         ]
 
         result = mock_account_service.list_accounts(household=household_context)
@@ -183,6 +187,9 @@ class TestListAccounts:
             [current, card],
             [(current.id, 100_000), (card.id, -40_000)],
             [],
+            [current.id, card.id],
+            [(current.id, 100_000), (card.id, -40_000)],
+            [],
         ]
 
         result = mock_account_service.list_accounts(household=household_context)
@@ -193,12 +200,37 @@ class TestListAccounts:
         self, mock_account_service: AccountService, household_context: HouseholdContext
     ) -> None:
         mock_account_service.session.exec = MagicMock()
-        mock_account_service.session.exec.return_value.all.side_effect = [[], []]  # count, page
+        # count, page, then the ids the total would cover
+        mock_account_service.session.exec.return_value.all.side_effect = [[], [], []]
 
         result = mock_account_service.list_accounts(household=household_context)
 
         assert result.count == 0
         assert result.total_balance_minor == 0
+
+    def test_the_total_covers_every_account_not_only_the_page(
+        self, mock_account_service: AccountService, household_context: HouseholdContext
+    ) -> None:
+        """Net worth is the household's, so a second page must not shrink it."""
+        current = make_account(name="Current", opening_balance_minor=100_000)
+        savings = make_account(name="Savings", account_type=AccountType.SAVINGS, opening_balance_minor=50_000)
+        mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.all.side_effect = [
+            [current, savings],
+            # One account on this page, both in the household.
+            [current],
+            [(current.id, 100_000)],
+            [],
+            [current.id, savings.id],
+            [(current.id, 100_000), (savings.id, 50_000)],
+            [],
+        ]
+
+        result = mock_account_service.list_accounts(household=household_context, limit=1)
+
+        assert [account.name for account in result.data] == ["Current"]
+        assert result.count == 2
+        assert result.total_balance_minor == 150_000
 
 
 class TestGetAccount:
