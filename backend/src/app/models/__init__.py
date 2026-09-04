@@ -9,6 +9,16 @@ from .account import (
     AccountType,
     AccountUpdate,
 )
+from .budget import (
+    Budget,
+    BudgetBulkUpsert,
+    BudgetCopyRequest,
+    BudgetCreate,
+    BudgetEntry,
+    BudgetPublic,
+    BudgetsPublic,
+    BudgetUpdate,
+)
 from .category import (
     CategoriesPublic,
     Category,
@@ -80,6 +90,14 @@ class Message(SQLModel):
 
 __all__ = [
     "Message",
+    "Budget",
+    "BudgetBulkUpsert",
+    "BudgetCopyRequest",
+    "BudgetCreate",
+    "BudgetEntry",
+    "BudgetPublic",
+    "BudgetUpdate",
+    "BudgetsPublic",
     "Account",
     "AccountBase",
     "AccountCreate",
