@@ -32,6 +32,32 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    def _check_unset_secret(self, var_name: str) -> None:
+        """Check that a secret with a generated default was supplied explicitly.
+
+        A field that is absent from the environment is filled in with its default, which for
+        SECRET_KEY is a fresh random token. That boots, but every process signs with a different
+        key: sessions break as requests land on other replicas, and every reset, verification and
+        invite link in someone's inbox stops verifying on the next restart.
+
+        Args:
+            var_name: The name of the variable to check.
+
+        Raises:
+            ValueError: If the variable was not set and the environment is not "local".
+        """
+        if var_name in self.model_fields_set:
+            return
+
+        message = (
+            f"{var_name} is not set, so a random one was generated for this process only. "
+            "Set it explicitly, at least for deployments."
+        )
+        if self.ENVIRONMENT == "local":
+            warnings.warn(message, stacklevel=1)
+        else:
+            raise ValueError(message)
+
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         """Check for default secret values.
 
@@ -98,6 +124,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Self:
         """Enforce that default secrets are not used."""
+        self._check_unset_secret("SECRET_KEY")
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
         self._check_default_secret("FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD)

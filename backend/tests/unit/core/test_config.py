@@ -80,6 +80,56 @@ class TestSettings:
         assert "SECRET_KEY" in str(exc_info.value)
         assert "changethis" in str(exc_info.value)
 
+    def test_unset_secret_key_warning_in_local_environment(self, base_settings_env, monkeypatch):
+        """Test that an unset SECRET_KEY only warns in the local environment."""
+        # Arrange: Remove SECRET_KEY so the generated default is used
+        monkeypatch.delenv("SECRET_KEY", raising=False)
+
+        # Act: Create settings instance and capture warnings, ignoring any .env at the repository root
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            settings = Settings(_env_file=None)  # type: ignore
+
+            # Assert: Verify a key was generated and the omission was reported
+            assert settings.SECRET_KEY
+            assert any("SECRET_KEY" in str(warning.message) for warning in w)
+
+    def test_unset_secret_key_error_in_staging_environment(self, base_settings_env, monkeypatch):
+        """Test that an unset SECRET_KEY is rejected in the staging environment."""
+        # Arrange: Set up staging environment without a SECRET_KEY
+        monkeypatch.delenv("SECRET_KEY", raising=False)
+        monkeypatch.setenv("ENVIRONMENT", "staging")
+
+        # Act & Assert: Verify ValueError is raised for the missing SECRET_KEY
+        with pytest.raises(ValueError) as exc_info:
+            Settings(_env_file=None)  # type: ignore
+
+        assert "SECRET_KEY" in str(exc_info.value)
+
+    def test_unset_secret_key_error_in_production_environment(self, base_settings_env, monkeypatch):
+        """Test that an unset SECRET_KEY is rejected in the production environment."""
+        # Arrange: Set up production environment without a SECRET_KEY
+        monkeypatch.delenv("SECRET_KEY", raising=False)
+        monkeypatch.setenv("ENVIRONMENT", "production")
+
+        # Act & Assert: Verify ValueError is raised for the missing SECRET_KEY
+        with pytest.raises(ValueError) as exc_info:
+            Settings(_env_file=None)  # type: ignore
+
+        assert "SECRET_KEY" in str(exc_info.value)
+
+    def test_explicit_secret_key_accepted_in_production_environment(self, base_settings_env, monkeypatch):
+        """Test that an explicit SECRET_KEY boots the production environment."""
+        # Arrange: Set up production environment with an explicit SECRET_KEY
+        monkeypatch.setenv("SECRET_KEY", "an-explicit-production-key")
+        monkeypatch.setenv("ENVIRONMENT", "production")
+
+        # Act: Create settings instance
+        settings = Settings(_env_file=None)  # type: ignore
+
+        # Assert: Verify the explicit key was kept
+        assert settings.SECRET_KEY == "an-explicit-production-key"
+
 
 class TestParseCors:
     """Test the parse_cors function."""
