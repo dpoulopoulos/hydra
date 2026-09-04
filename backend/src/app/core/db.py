@@ -10,9 +10,7 @@ logger = get_logger(__name__)
 engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
 
 
-def init_db(
-    user_service: UserService, household_service: HouseholdService, category_service: CategoryService
-) -> None:
+def init_db(user_service: UserService, household_service: HouseholdService, category_service: CategoryService) -> None:
     """Initialize the database.
 
     Ensure that a first superuser is created if one does not already exist in the database.

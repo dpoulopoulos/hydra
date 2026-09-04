@@ -138,9 +138,7 @@ def update_account(
         HTTPException: If the account does not exist in the household (404), or
             the household already has an account with the new name (409).
     """
-    return account_service.update_account(
-        household=household, account_id=account_id, account_update=account_in
-    )
+    return account_service.update_account(household=household, account_id=account_id, account_update=account_in)
 
 
 @router.delete("/{account_id}", response_model=Message)

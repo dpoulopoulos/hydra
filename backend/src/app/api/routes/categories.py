@@ -116,9 +116,7 @@ def get_category_tree(
     Raises:
         HTTPException: If the user belongs to no household (404).
     """
-    return category_service.get_category_tree(
-        household=household, include_archived=include_archived, kind=kind
-    )
+    return category_service.get_category_tree(household=household, include_archived=include_archived, kind=kind)
 
 
 @router.get("/{category_id}", response_model=CategoryPublic)
@@ -165,9 +163,7 @@ def update_category(
             household (404), a sibling already has the new name (409), or the
             change is not allowed (400).
     """
-    return category_service.update_category(
-        household=household, category_id=category_id, category_update=category_in
-    )
+    return category_service.update_category(household=household, category_id=category_id, category_update=category_in)
 
 
 @router.delete("/{category_id}", response_model=Message)

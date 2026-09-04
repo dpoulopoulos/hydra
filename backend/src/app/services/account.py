@@ -104,10 +104,7 @@ class AccountService:
         balances = self.account_repository.balances_of(
             account_ids=[account.id for account in accounts], household_id=household.household_id
         )
-        data = [
-            self._to_public(account=account, balance_minor=balances.get(account.id, 0))
-            for account in accounts
-        ]
+        data = [self._to_public(account=account, balance_minor=balances.get(account.id, 0)) for account in accounts]
 
         return AccountsPublic(
             data=data,
@@ -129,9 +126,7 @@ class AccountService:
             AccountNotFoundError: If the account does not exist in the household.
         """
         account = self.require_account(household=household, account_id=account_id)
-        balance = self.account_repository.balance_of(
-            account_id=account.id, household_id=household.household_id
-        )
+        balance = self.account_repository.balance_of(account_id=account.id, household_id=household.household_id)
 
         return self._to_public(account=account, balance_minor=balance)
 
@@ -172,9 +167,7 @@ class AccountService:
         self.account_repository.save(account)
         self.session.commit()
 
-        balance = self.account_repository.balance_of(
-            account_id=account.id, household_id=household.household_id
-        )
+        balance = self.account_repository.balance_of(account_id=account.id, household_id=household.household_id)
 
         return self._to_public(account=account, balance_minor=balance)
 
@@ -224,9 +217,7 @@ class AccountService:
         Raises:
             AccountNotFoundError: If the account does not exist in the household.
         """
-        account = self.account_repository.get_for_household(
-            entity_id=account_id, household_id=household.household_id
-        )
+        account = self.account_repository.get_for_household(entity_id=account_id, household_id=household.household_id)
 
         if not account:
             raise AccountNotFoundError from None

@@ -23,9 +23,7 @@ def init() -> None:
             household_repository=HouseholdRepository(session=session),
             household_member_repository=HouseholdMemberRepository(session=session),
         )
-        category_service = CategoryService(
-            session=session, category_repository=CategoryRepository(session=session)
-        )
+        category_service = CategoryService(session=session, category_repository=CategoryRepository(session=session))
         init_db(
             user_service=user_service,
             household_service=household_service,
