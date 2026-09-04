@@ -1393,8 +1393,8 @@ export const reportsSpendByCategory = <ThrowOnError extends boolean = false>(opt
  * One point per bucket, oldest first.
  *
  * Raises:
- * HTTPException: If the range starts after it ends (400), the range is too
- * large for daily buckets (422), or the category does not exist in the
+ * HTTPException: If the range starts after it ends (400), the range asks
+ * for too many buckets (422), or the category does not exist in the
  * household (404).
  */
 export const reportsSpendOverTime = <ThrowOnError extends boolean = false>(options: Options<ReportsSpendOverTimeData, ThrowOnError>): RequestResult<ReportsSpendOverTimeResponses, ReportsSpendOverTimeErrors, ThrowOnError> => (options.client ?? client).get<ReportsSpendOverTimeResponses, ReportsSpendOverTimeErrors, ThrowOnError>({
