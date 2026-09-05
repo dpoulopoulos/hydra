@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
 import { errorMessage } from '@/lib/api'
 import { PASSWORD_HINT, passwordSchema } from '@/lib/password'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const detailsSchema = z.object({
   full_name: z.string().trim().max(255).optional(),
@@ -46,9 +46,19 @@ export function Component() {
 
   const detailsForm = useForm<z.infer<typeof detailsSchema>>({
     resolver: zodResolver(detailsSchema),
-    values: user ? { full_name: user.full_name ?? '', email: user.email } : undefined,
     defaultValues: { full_name: '', email: '' },
   })
+
+  // The user is cached, so it arrives after the first render and can be
+  // fetched again at any point, window focus included. Mirror it into the form
+  // as it changes, field by field: `keepDirtyValues` leaves whatever is being
+  // edited alone, where handing the whole form to the query would discard it
+  // mid-sentence.
+  const { reset: resetDetails } = detailsForm
+  useEffect(() => {
+    if (!user) return
+    resetDetails({ full_name: user.full_name ?? '', email: user.email }, { keepDirtyValues: true })
+  }, [user, resetDetails])
 
   const saveDetails = useMutation({
     mutationFn: async (values: z.infer<typeof detailsSchema>) => {
@@ -58,18 +68,23 @@ export function Component() {
       if (error) throw error
       return values.email
     },
-    onSuccess: (requestedEmail) => {
+    onSuccess: (requestedEmail, values) => {
+      // What was saved is the new baseline. Without this the fields stay
+      // marked as edited and would ignore every later answer about the user.
+      detailsForm.resetField('full_name', { defaultValue: values.full_name })
+
       void queryClient.invalidateQueries({ queryKey: ['currentUser'] })
 
       // A new address is not the account's until the link sent to it is
       // followed, so the form goes back to saying which address the account
       // actually holds rather than the one that was asked for.
       if (user && requestedEmail !== user.email) {
-        detailsForm.setValue('email', user.email)
+        detailsForm.resetField('email', { defaultValue: user.email })
         toast.success(`Open the link we sent to ${requestedEmail} to finish the change`)
         return
       }
 
+      detailsForm.resetField('email', { defaultValue: values.email })
       toast.success('Profile saved')
     },
   })
