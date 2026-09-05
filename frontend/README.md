@@ -50,8 +50,41 @@ pnpm build          # Type check, then build
 pnpm typecheck      # Type check only
 pnpm lint           # eslint
 pnpm format         # prettier
+pnpm test           # Unit tests, once
+pnpm test:watch     # Unit tests, on every change
 pnpm generate:api   # Re-dump the backend schema and regenerate src/api
 ```
+
+## Tests
+
+Vitest, in jsdom, sharing this app's Vite config, so a test imports a module
+exactly the way a screen does. `make web-test-unit` from the repository root
+runs the same command, and so does CI on every pull request. Neither a backend
+nor Docker is needed.
+
+A test lives beside the module it covers, as `<module>.test.ts`, so `pnpm test`
+picks it up from anywhere under `src`. Components and pages render through
+Testing Library; the pure modules under `src/lib` are tested as tables, which
+is where the money and date logic lives: the amounts a form accepts, the
+minor-unit conversions across a two-, a zero- and a three-decimal currency, the
+month arithmetic around a year end and a leap February, the query the
+transaction filters serialise to, and the password rules. A wrong colour is
+obvious; a wrong amount is not.
+
+Two of those tables pin behaviour that is wrong today rather than pretending it
+is right: a thousands separator read as a decimal point ([#18][i18]) and a
+timestamp truncated to its UTC date ([#36][i36]). Each is marked as such and
+has to be flipped by the change that fixes it.
+
+Those helpers hand `Intl` no locale and no time zone, so what a test sees
+otherwise depends on the machine it runs on: `€42.50` here is `42,50 €` on a
+German laptop. `src/test/setup.ts` pins the fallback locale for the whole
+suite, and `vite.config.ts` pins the zone, so an assertion means the same thing
+on a laptop as it does in CI. A caller that asks for a locale of its own still
+gets it.
+
+[i18]: https://github.com/dpoulopoulos/hydra/issues/18
+[i36]: https://github.com/dpoulopoulos/hydra/issues/36
 
 ## The generated API client
 

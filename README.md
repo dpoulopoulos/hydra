@@ -215,6 +215,7 @@ Run these from the repository root.
 | `make web-build`     | Type check and build the web app                                    |
 | `make web-format`    | Format the frontend code                                            |
 | `make web-lint`      | Type check and lint the frontend code                               |
+| `make web-test-unit` | Run the frontend unit tests                                         |
 | `make web-api`       | Regenerate the API client from the backend's schema                 |
 | `make web-api-check` | Fail if the committed API client is out of date                     |
 
