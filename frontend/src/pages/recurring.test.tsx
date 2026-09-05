@@ -4,6 +4,8 @@ import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 
 import { TransactionKind, type RecurringRulePublic, type UpcomingOccurrence } from '@/api'
+import { formatMonth } from '@/lib/month'
+import { formatMoney, formatSignedMoney } from '@/lib/money'
 import { Component as RecurringPage } from '@/pages/recurring'
 
 // The page talks to the generated client directly, so the tests stand in for
@@ -65,7 +67,7 @@ function anOccurrence(overrides: Partial<UpcomingOccurrence> = {}): UpcomingOccu
   }
 }
 
-function renderPage(occurrences: UpcomingOccurrence[]) {
+function renderPage(occurrences: UpcomingOccurrence[], netMinor = 0) {
   const rules = occurrences.map((occurrence, index) =>
     aRule({ id: `r${index}`, name: occurrence.name, kind: occurrence.kind }),
   )
@@ -73,7 +75,7 @@ function renderPage(occurrences: UpcomingOccurrence[]) {
     data: { data: rules, count: rules.length },
   } as never)
   vi.mocked(api.recurringRulesListUpcomingOccurrences).mockResolvedValue({
-    data: { data: occurrences, count: occurrences.length, total_minor: 0 },
+    data: { data: occurrences, count: occurrences.length, net_minor: netMinor },
   } as never)
   vi.mocked(api.accountsListAccounts).mockResolvedValue({
     data: { data: [{ id: ACCOUNT_ID, name: 'Current' }], count: 1 },
@@ -96,6 +98,12 @@ async function upcomingRow(name: string) {
   expect(card).not.toBeNull()
   const row = await within(card as HTMLElement).findByText(name)
   return row.closest('li') as HTMLElement
+}
+
+/** The heading row of one month group, which carries that month's net. */
+async function monthHeading(month: string) {
+  const label = await screen.findByText(formatMonth(month))
+  return label.parentElement as HTMLElement
 }
 
 describe('the "Still to come" card', () => {
@@ -125,5 +133,53 @@ describe('the "Still to come" card', () => {
     expect(row).toHaveTextContent('€500.00')
     expect(row).not.toHaveTextContent('-€500.00')
     expect(row).not.toHaveTextContent('+€500.00')
+  })
+})
+
+/**
+ * Rent, a salary and a standing transfer to savings.
+ *
+ * The window's gross is meaningless: it counts the salary as an outgoing and
+ * counts a move between the household's own accounts at all.
+ */
+const OCCURRENCES = [
+  anOccurrence({ name: 'Rent', kind: TransactionKind.EXPENSE, occurs_on: '2026-04-01' }),
+  anOccurrence({
+    name: 'Salary',
+    kind: TransactionKind.INCOME,
+    amount_minor: 300_000,
+    occurs_on: '2026-04-25',
+  }),
+  anOccurrence({
+    name: 'To savings',
+    kind: TransactionKind.TRANSFER,
+    amount_minor: 50_000,
+    occurs_on: '2026-04-28',
+  }),
+  anOccurrence({ name: 'Rent', kind: TransactionKind.EXPENSE, occurs_on: '2026-05-01' }),
+]
+
+describe('the total the "Still to come" card heads the window with', () => {
+  it('is the net the window leaves, signed', async () => {
+    renderPage(OCCURRENCES, 60_000)
+
+    expect(await screen.findByText(formatSignedMoney(60_000, 'EUR'))).toBeInTheDocument()
+  })
+
+  it('is never the gross of the window, which counts income as an outgoing', async () => {
+    renderPage(OCCURRENCES, 60_000)
+
+    await screen.findByText(formatSignedMoney(60_000, 'EUR'))
+    expect(screen.queryByText(formatMoney(590_000, 'EUR'))).not.toBeInTheDocument()
+    expect(screen.queryByText(formatSignedMoney(590_000, 'EUR'))).not.toBeInTheDocument()
+  })
+
+  it('nets each month the same way, transfers left out', async () => {
+    renderPage(OCCURRENCES, 60_000)
+
+    // Every occurrence carries its own signed amount too, so a month's figure
+    // is read from its heading rather than from the page as a whole.
+    expect(await monthHeading('2026-04')).toHaveTextContent(formatSignedMoney(180_000, 'EUR'))
+    expect(await monthHeading('2026-05')).toHaveTextContent(formatSignedMoney(-120_000, 'EUR'))
   })
 })
