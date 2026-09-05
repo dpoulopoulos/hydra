@@ -377,7 +377,13 @@ export function Component() {
             </form>
             <FormError message={invite.isError ? errorMessage(invite.error) : null} />
 
-            {invites.data && invites.data.count > 0 ? (
+            {invites.isPending ? (
+              <LoadingRows rows={2} />
+            ) : invites.isError ? (
+              // Told "none outstanding", an owner re-invites someone and gets
+              // a 409 back saying that address is already invited.
+              <ErrorState error={invites.error} title="Invitations did not load" />
+            ) : invites.data.count > 0 ? (
               <ul className="divide-y border-t">
                 {invites.data.data.map((item) => (
                   <li key={item.id} className="flex items-center justify-between gap-3 py-3">
