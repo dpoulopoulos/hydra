@@ -155,9 +155,10 @@ class TestListAccounts:
         current = make_account(name="Current", opening_balance_minor=100_000)
         savings = make_account(name="Savings", account_type=AccountType.SAVINGS, opening_balance_minor=50_000)
         mock_account_service.session.exec = MagicMock()
-        # The count, the page, the opening balances, then the ledger deltas.
+        # The count is a scalar; then the page, the opening balances and the
+        # ledger deltas.
+        mock_account_service.session.exec.return_value.one.return_value = 2
         mock_account_service.session.exec.return_value.all.side_effect = [
-            [current, savings],
             [current, savings],
             [(current.id, 100_000), (savings.id, 50_000)],
             [],
@@ -182,8 +183,8 @@ class TestListAccounts:
             name="Card", account_type=AccountType.CREDIT_CARD, opening_balance_minor=-40_000
         )
         mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.one.return_value = 2
         mock_account_service.session.exec.return_value.all.side_effect = [
-            [current, card],
             [current, card],
             [(current.id, 100_000), (card.id, -40_000)],
             [],
@@ -200,8 +201,9 @@ class TestListAccounts:
         self, mock_account_service: AccountService, household_context: HouseholdContext
     ) -> None:
         mock_account_service.session.exec = MagicMock()
-        # count, page, then the ids the total would cover
-        mock_account_service.session.exec.return_value.all.side_effect = [[], [], []]
+        # The count, then the page and the ids the total would cover.
+        mock_account_service.session.exec.return_value.one.return_value = 0
+        mock_account_service.session.exec.return_value.all.side_effect = [[], []]
 
         result = mock_account_service.list_accounts(household=household_context)
 
@@ -215,8 +217,8 @@ class TestListAccounts:
         current = make_account(name="Current", opening_balance_minor=100_000)
         savings = make_account(name="Savings", account_type=AccountType.SAVINGS, opening_balance_minor=50_000)
         mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.one.return_value = 2
         mock_account_service.session.exec.return_value.all.side_effect = [
-            [current, savings],
             # One account on this page, both in the household.
             [current],
             [(current.id, 100_000)],
