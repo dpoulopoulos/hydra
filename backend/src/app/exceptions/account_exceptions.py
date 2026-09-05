@@ -35,16 +35,20 @@ class AccountInUseError(ServiceError):
     the message is written out rather than composed from that template.
     """
 
-    def __init__(self, name: str, exc: Exception | None = None):
+    def __init__(self, name: str, reason: str | None = None, exc: Exception | None = None):
         """Initialize an AccountInUseError.
 
         Args:
             name: The name of the account in use.
+            reason: What is still referencing the account, phrased to follow the name. Omit for the
+                generic wording.
             exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
         """
-        msg = f"Account '{name}' still has transactions. Archive it instead, so its history and past balances are kept."
+        blocker = reason or "still has transactions"
+        msg = f"Account '{name}' {blocker}. Archive it instead, so its history and past balances are kept."
         super().__init__(msg, exc)
         self.name = name
+        self.reason = reason
 
 
 class AccountArchivedError(ValidationError):
