@@ -9,7 +9,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
-import { formatMoney, toMajor } from '@/lib/money'
+import { formatCompactAmount, formatMoney } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
 
 /**
@@ -29,8 +29,8 @@ export function IncomeExpenseChart({
 }) {
   const data = report.months.map((month) => ({
     label: formatMonth(month.month, { month: 'short', year: '2-digit' }),
-    income: toMajor(month.income_minor, currency),
-    expense: toMajor(month.expense_minor, currency),
+    income: month.income_minor,
+    expense: month.expense_minor,
   }))
 
   const config: ChartConfig = {
@@ -56,15 +56,11 @@ export function IncomeExpenseChart({
           width={56}
           tick={{ fontSize: 12 }}
           className="fill-muted-foreground"
-          tickFormatter={(value: number) =>
-            new Intl.NumberFormat(undefined, { notation: 'compact' }).format(value)
-          }
+          tickFormatter={(value: number) => formatCompactAmount(value, currency)}
         />
         <ChartTooltip
           content={
-            <ChartTooltipContent
-              formatter={(value) => formatMoney(Math.round(Number(value) * 100), currency)}
-            />
+            <ChartTooltipContent formatter={(value) => formatMoney(Number(value), currency)} />
           }
         />
         <ChartLegend content={<ChartLegendContent />} />
@@ -92,7 +88,7 @@ export function SavingsTrendChart({
 }) {
   const data = report.months.map((month) => ({
     label: formatMonth(month.month, { month: 'short', year: '2-digit' }),
-    cumulative: toMajor(month.cumulative_net_minor, currency),
+    cumulative: month.cumulative_net_minor,
   }))
 
   const config: ChartConfig = {
@@ -117,15 +113,13 @@ export function SavingsTrendChart({
           width={56}
           tick={{ fontSize: 12 }}
           className="fill-muted-foreground"
-          tickFormatter={(value: number) =>
-            new Intl.NumberFormat(undefined, { notation: 'compact' }).format(value)
-          }
+          tickFormatter={(value: number) => formatCompactAmount(value, currency)}
         />
         <ChartTooltip
           content={
             <ChartTooltipContent
               labelKey="label"
-              formatter={(value) => formatMoney(Math.round(Number(value) * 100), currency)}
+              formatter={(value) => formatMoney(Number(value), currency)}
             />
           }
         />
