@@ -10,9 +10,10 @@ from app.exceptions import (
     EmailVerificationNotFoundError,
     EmailVerificationTokenNotValidError,
     EmailVerificationUsedError,
+    UserExistsError,
     UserNotFoundError,
 )
-from app.models import EmailVerification, EmailVerificationStatus, Message
+from app.models import EmailVerification, EmailVerificationStatus, Message, User
 from app.repositories.email_verification import EmailVerificationRepository
 from app.services.user import UserService
 from app.utils import generate_email_verification_email, try_send_email
@@ -166,6 +167,9 @@ class EmailVerificationService:
     def verify_email(self, user_service: UserService, token: str) -> Message:
         """Verify a user's email address.
 
+        A verification issued for a change of address moves the account to that
+        address; one issued for an account's own address activates it.
+
         Args:
             user_service: A user service instance.
             token: The email verification token.
@@ -179,6 +183,7 @@ class EmailVerificationService:
             EmailVerificationExpiredError: If the email verification has expired.
             EmailVerificationUsedError: If the email verification has already been used.
             UserNotFoundError: If the user is not found.
+            UserExistsError: If another account holds the address a change would move to.
         """
         decoded_token = verify_typed_token(token, TokenType.EMAIL_VERIFICATION, EmailVerificationTokenNotValidError)
 
@@ -212,6 +217,14 @@ class EmailVerificationService:
         if not user:
             raise UserNotFoundError from None
 
+        if email_verification.new_email:
+            return self._redeem_address_change(
+                user_service=user_service,
+                email_verification=email_verification,
+                user=user,
+                subject=decoded_token["sub"],
+            )
+
         # The subject is only ever cross-checked, never resolved: a
         # verification of an address the account no longer holds proves
         # nothing about the address it holds now.
@@ -229,3 +242,55 @@ class EmailVerificationService:
         self.session.commit()
 
         return Message(message="Email verified successfully. Your account is now active.")
+
+    def _redeem_address_change(
+        self,
+        user_service: UserService,
+        email_verification: EmailVerification,
+        user: User,
+        subject: str,
+    ) -> Message:
+        """Move an account to the address a redeemed verification proves.
+
+        Args:
+            user_service: A user service instance.
+            email_verification: The verification row being redeemed, which
+                names the address the account is moving to.
+            user: The account the row was issued for.
+            subject: The address the token was issued for.
+
+        Returns:
+            Success message.
+
+        Raises:
+            EmailVerificationTokenNotValidError: If the token was issued for
+                another address, or the account has moved on since the change
+                was asked for.
+            UserExistsError: If another account holds the new address by now.
+        """
+        # What a change of address has to prove is the new address, so that is
+        # what the token names. `email` is the address the account held when
+        # the change was asked for: an account that has moved since is no
+        # longer the one this row describes, and its holder never asked to end
+        # up here.
+        if subject != email_verification.new_email or email_verification.email != user.email:
+            raise EmailVerificationTokenNotValidError from None
+
+        # The address was free when the change was asked for, which says
+        # nothing about now: a token redeemed hours later must not walk an
+        # account onto an address someone else registered in between.
+        existing_user = user_service.get_user_by_email(email=email_verification.new_email)
+        if existing_user and existing_user.id != user.id:
+            raise UserExistsError(user=existing_user) from None
+
+        self._mark_email_verification(
+            email_verification_id=email_verification.id, status=EmailVerificationStatus.VERIFIED
+        )
+
+        # Only the address moves. Whether the account is active is a separate
+        # question, and a proof of address is not an answer to it.
+        user.email = email_verification.new_email
+        user_service.user_repository.save(user)
+        self.session.commit()
+
+        return Message(message="Email address updated successfully.")

@@ -3249,7 +3249,7 @@
           "email-verification"
         ],
         "summary": "Verify Email",
-        "description": "Verify a user's email address.\n\nArgs:\n    email_verification_service: The email verification service dependency.\n    user_service: The user service dependency.\n    email_verification_confirm: The email verification confirmation payload.\n\nReturns:\n    A message indicating that the email was verified successfully.\n\nRaises:\n    HTTPException: If the token is invalid (400), expired (400), already used (400), or not found (404).",
+        "description": "Verify a user's email address.\n\nA token issued for a change of address moves the account to that address.\n\nArgs:\n    email_verification_service: The email verification service dependency.\n    user_service: The user service dependency.\n    email_verification_confirm: The email verification confirmation payload.\n\nReturns:\n    A message indicating that the email was verified successfully.\n\nRaises:\n    HTTPException: If the token is invalid (400), expired (400), already used (400), not found (404),\n        or another account holds the address the change would move to (409).",
         "operationId": "email-verification-verify_email",
         "requestBody": {
           "content": {

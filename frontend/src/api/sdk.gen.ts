@@ -1625,6 +1625,8 @@ export const emailVerificationResendVerificationEmail = <ThrowOnError extends bo
  *
  * Verify a user's email address.
  *
+ * A token issued for a change of address moves the account to that address.
+ *
  * Args:
  * email_verification_service: The email verification service dependency.
  * user_service: The user service dependency.
@@ -1634,7 +1636,8 @@ export const emailVerificationResendVerificationEmail = <ThrowOnError extends bo
  * A message indicating that the email was verified successfully.
  *
  * Raises:
- * HTTPException: If the token is invalid (400), expired (400), already used (400), or not found (404).
+ * HTTPException: If the token is invalid (400), expired (400), already used (400), not found (404),
+ * or another account holds the address the change would move to (409).
  */
 export const emailVerificationVerifyEmail = <ThrowOnError extends boolean = false>(options: Options<EmailVerificationVerifyEmailData, ThrowOnError>): RequestResult<EmailVerificationVerifyEmailResponses, EmailVerificationVerifyEmailErrors, ThrowOnError> => (options.client ?? client).post<EmailVerificationVerifyEmailResponses, EmailVerificationVerifyEmailErrors, ThrowOnError>({
     url: '/api/v1/email-verification/verify',
