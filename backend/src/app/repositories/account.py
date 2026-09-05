@@ -6,7 +6,7 @@ from sqlalchemy import case, union_all
 from sqlmodel import Session, col, func, select
 from sqlmodel.sql.expression import SelectOfScalar
 
-from app.models import Account, AccountType, Transaction, TransactionKind
+from app.models import Account, AccountType, Trade, TradeSide, Transaction, TransactionKind
 from app.repositories.base import HouseholdScopedRepository
 
 
@@ -177,6 +177,14 @@ class AccountRepository(HouseholdScopedRepository[Account]):
         picked up by a second leg over counter_account_id, and the two legs
         cancel out across the household exactly as they should.
 
+        A brokerage account has a third leg: its own trades. Buying takes cash
+        out of it and selling puts cash in, exactly as a broker's statement
+        shows, and neither is a transaction because neither moves money between
+        two accounts. Money reaching the broker in the first place is an
+        ordinary transfer from a bank account, recorded like any other, which is
+        why the balance here can hold cash between trades rather than being a
+        running total of what has passed through.
+
         Args:
             account_ids: The IDs of the accounts.
             household_id: The ID of the household that owns them.
@@ -199,6 +207,18 @@ class AccountRepository(HouseholdScopedRepository[Account]):
             col(Transaction.counter_account_id).in_(account_ids),
         )
 
-        legs = union_all(outgoing, incoming).subquery()
+        traded: Any = select(
+            col(Trade.brokerage_account_id).label("account_id"),
+            case(
+                (col(Trade.side) == TradeSide.SELL, col(Trade.cash_amount_minor)),
+                else_=-col(Trade.cash_amount_minor),
+            ).label("delta"),
+        ).where(
+            Trade.household_id == household_id,
+            col(Trade.brokerage_account_id).in_(account_ids),
+            col(Trade.cash_amount_minor).is_not(None),
+        )
+
+        legs = union_all(outgoing, incoming, traded).subquery()
 
         return select(legs.c.account_id, func.sum(legs.c.delta)).group_by(legs.c.account_id)  # type: ignore[return-value]
