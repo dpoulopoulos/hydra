@@ -342,6 +342,34 @@ class HouseholdService:
 
         return len(users)
 
+    def ensure_every_household_has_categories(self, category_service: CategorySeeder) -> int:
+        """Seed the default categories of every household that has none.
+
+        Run at startup, alongside `ensure_every_user_has_a_household`. Leaving
+        a household one is repaired by that routine, but a household created
+        before the replacement path seeded categories holds none at all, which
+        leaves it unable to record an expense or an income. Those are repaired
+        here rather than from a migration, so the categories come from the same
+        business logic that seeds them at signup.
+
+        Args:
+            category_service: The category service, used to seed the default categories.
+
+        Returns:
+            The number of households seeded.
+        """
+        household_ids = self.household_repository.list_ids_without_categories()
+
+        if not household_ids:
+            return 0
+
+        for household_id in household_ids:
+            category_service.seed_defaults(household_id=household_id)
+
+        self.session.commit()
+
+        return len(household_ids)
+
     def create_for_user(
         self,
         user: User,

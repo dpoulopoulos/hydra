@@ -554,6 +554,31 @@ class TestEnsureEveryUserHasAHousehold:
         mock_household_service.session.commit.assert_not_called()
 
 
+class TestEnsureEveryHouseholdHasCategories:
+    """Tests for ensure_every_household_has_categories."""
+
+    def test_seeds_each_household_without_categories(self, mock_household_service: HouseholdService) -> None:
+        household_ids = [uuid.uuid4(), uuid.uuid4()]
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.all.return_value = household_ids
+        category_service = MagicMock()
+
+        assert mock_household_service.ensure_every_household_has_categories(category_service=category_service) == 2
+
+        seeded = [call.kwargs["household_id"] for call in category_service.seed_defaults.call_args_list]
+        assert seeded == household_ids
+        mock_household_service.session.commit.assert_called_once()
+
+    def test_does_nothing_when_every_household_has_them(self, mock_household_service: HouseholdService) -> None:
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.all.return_value = []
+        category_service = MagicMock()
+
+        assert mock_household_service.ensure_every_household_has_categories(category_service=category_service) == 0
+        category_service.seed_defaults.assert_not_called()
+        mock_household_service.session.commit.assert_not_called()
+
+
 def make_invite(
     household_id: uuid.UUID,
     email: str = "partner@example.com",
