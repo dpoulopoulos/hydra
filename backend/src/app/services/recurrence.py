@@ -12,6 +12,11 @@ from app.models import RecurrenceFrequency
 
 DAYS_IN_WEEK = 7
 
+# Frequencies measured in days rather than in months. They are led by the date
+# they start from — a weekly rule keeps that weekday for ever — so a day of the
+# month means nothing to them and is ignored rather than refused.
+_DAY_LED_FREQUENCIES = (RecurrenceFrequency.DAILY, RecurrenceFrequency.WEEKLY)
+
 # How many occurrences one pass may create for a single rule. A rule whose
 # start date is decades in the past would otherwise insert thousands of rows
 # the first time anybody opened the app.
@@ -74,13 +79,14 @@ def first_occurrence(start_date: date, frequency: RecurrenceFrequency, day_of_mo
         start_date: The day the rule takes effect.
         frequency: How often the rule repeats.
         day_of_month: For a monthly or yearly rule, the day it falls on.
-            Ignored for a weekly rule, which keeps the weekday of the start date.
+            Ignored for a daily or weekly rule, which are led by the start date
+            itself: a weekly rule keeps its weekday, a daily one every day.
 
     Returns:
         The first date the rule falls due, never before the start date, or
         None if that date would fall past the end of the calendar.
     """
-    if day_of_month is None or frequency is RecurrenceFrequency.WEEKLY:
+    if day_of_month is None or frequency in _DAY_LED_FREQUENCIES:
         return start_date
 
     candidate = _on_day(start_date.year, start_date.month, day_of_month)
@@ -122,8 +128,8 @@ def advance(
 
     day = anchor_day or current.day
 
-    if frequency is RecurrenceFrequency.WEEKLY:
-        days = DAYS_IN_WEEK * interval
+    if frequency in _DAY_LED_FREQUENCIES:
+        days = interval * (DAYS_IN_WEEK if frequency is RecurrenceFrequency.WEEKLY else 1)
 
         return None if (date.max - current).days < days else current + timedelta(days=days)
 
