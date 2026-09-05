@@ -75,8 +75,10 @@ function SelectContent({
         <SelectPrimitive.Viewport
           data-position={position}
           className={cn(
-            'data-[position=popper]:h-(--radix-select-trigger-height) data-[position=popper]:w-full data-[position=popper]:min-w-(--radix-select-trigger-width)',
-            position === 'popper' && '',
+            // No fixed height here. Pinning the viewport to the trigger's own
+            // height leaves a popper-positioned list one row tall, however
+            // many options it has.
+            'data-[position=popper]:w-full data-[position=popper]:min-w-(--radix-select-trigger-width)',
           )}
         >
           {children}
