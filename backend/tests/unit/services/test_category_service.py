@@ -33,6 +33,7 @@ def make_category(
     kind: CategoryKind = CategoryKind.EXPENSE,
     is_system: bool = False,
     archived: bool = False,
+    archived_with_parent: bool = False,
 ) -> Category:
     """Build a category row for the tests."""
     category = Category(
@@ -42,6 +43,7 @@ def make_category(
         parent_id=parent_id,
         is_system=is_system,
         archived_at=datetime.now(UTC) if archived else None,
+        archived_with_parent=archived_with_parent,
     )
     return category
 
@@ -300,6 +302,82 @@ class TestUpdateCategory:
         )
 
         assert child.archived_at == parent.archived_at
+
+    def test_archiving_a_parent_marks_the_children_the_cascade_took_down(
+        self, mock_category_service: CategoryService, household_context: HouseholdContext
+    ) -> None:
+        """The mark is what lets a later restore put back this branch and nothing else."""
+        parent = make_category()
+        child = make_category(name="Groceries", parent_id=parent.id)
+        already_archived = make_category(name="Takeaway", parent_id=parent.id, archived=True)
+        mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.first.return_value = parent
+        mock_category_service.session.exec.return_value.all.return_value = [child, already_archived]
+
+        mock_category_service.update_category(
+            household=household_context,
+            category_id=parent.id,
+            category_update=CategoryUpdate(is_archived=True),
+        )
+
+        assert child.archived_with_parent is True
+        assert already_archived.archived_with_parent is False
+
+    def test_restoring_a_parent_restores_the_children_it_archived(
+        self, mock_category_service: CategoryService, household_context: HouseholdContext
+    ) -> None:
+        """Otherwise the parent comes back with nothing under it and is close to unusable."""
+        parent = make_category(archived=True)
+        child = make_category(name="Groceries", parent_id=parent.id, archived=True, archived_with_parent=True)
+        mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.first.return_value = parent
+        mock_category_service.session.exec.return_value.all.return_value = [child]
+
+        result = mock_category_service.update_category(
+            household=household_context,
+            category_id=parent.id,
+            category_update=CategoryUpdate(is_archived=False),
+        )
+
+        assert result.archived_at is None
+        assert child.archived_at is None
+        assert child.archived_with_parent is False
+
+    def test_restoring_a_parent_leaves_a_separately_archived_child_alone(
+        self, mock_category_service: CategoryService, household_context: HouseholdContext
+    ) -> None:
+        """Retiring that child was its own decision, so restoring the parent must not undo it."""
+        parent = make_category(archived=True)
+        child = make_category(name="Takeaway", parent_id=parent.id, archived=True)
+        archived_at = child.archived_at
+        mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.first.return_value = parent
+        mock_category_service.session.exec.return_value.all.return_value = [child]
+
+        mock_category_service.update_category(
+            household=household_context,
+            category_id=parent.id,
+            category_update=CategoryUpdate(is_archived=False),
+        )
+
+        assert child.archived_at == archived_at
+
+    def test_restoring_a_subcategory_clears_its_cascade_mark(
+        self, mock_category_service: CategoryService, household_context: HouseholdContext
+    ) -> None:
+        """A child brought back on its own must not be re-restored by the next cascade."""
+        child = make_category(name="Groceries", parent_id=uuid.uuid4(), archived=True, archived_with_parent=True)
+        mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.first.return_value = child
+
+        mock_category_service.update_category(
+            household=household_context,
+            category_id=child.id,
+            category_update=CategoryUpdate(is_archived=False),
+        )
+
+        assert child.archived_at is None
+        assert child.archived_with_parent is False
 
     def test_refuses_to_change_a_system_category(
         self, mock_category_service: CategoryService, household_context: HouseholdContext

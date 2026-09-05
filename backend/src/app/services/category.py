@@ -197,6 +197,12 @@ class CategoryService:
     ) -> CategoryPublic:
         """Rename, re-parent, archive or restore a category.
 
+        Archiving is a branch operation: archiving a top level category also
+        archives its subcategories, and restoring it puts back exactly the
+        subcategories that cascade archived. A subcategory that was archived on
+        its own is left alone in both directions, since retiring it was a
+        separate decision.
+
         Args:
             household: The household context.
             category_id: The ID of the category to update.
@@ -234,14 +240,22 @@ class CategoryService:
 
         if is_archived is not None:
             category.archived_at = datetime.now(UTC) if is_archived else None
+            # A category being archived in its own right, or coming back, is no
+            # longer whatever a past cascade left behind.
+            category.archived_with_parent = False
 
         self.category_repository.save(category)
 
         # Archiving a parent archives the whole branch. Leaving a subcategory
         # selectable under an archived parent would let new spending land in a
-        # category the user believes they have retired.
-        if is_archived and category.parent_id is None:
-            self._archive_children(household=household, category=category)
+        # category the user believes they have retired. Restoring the parent
+        # undoes exactly that, so the operation is invertible and the user is
+        # not left with a top level category that has nothing under it.
+        if is_archived is not None and category.parent_id is None:
+            if is_archived:
+                self._archive_children(household=household, category=category)
+            else:
+                self._restore_children(household=household, category=category)
 
         self.session.commit()
 
@@ -328,7 +342,12 @@ class CategoryService:
         return list(nodes.values())
 
     def _archive_children(self, household: HouseholdContext, category: Category) -> None:
-        """Archive every subcategory of a category.
+        """Archive every subcategory that is not already archived on its own.
+
+        A child that was archived before the cascade keeps its own date: its
+        retirement was a separate decision, and restoring the parent must not
+        undo it. Marking only the children this cascade took down records which
+        ones that is, which is what makes the restore possible.
 
         Args:
             household: The household context.
@@ -341,6 +360,26 @@ class CategoryService:
         for child in children:
             if child.archived_at is None:
                 child.archived_at = category.archived_at
+                child.archived_with_parent = True
+                self.category_repository.add(child)
+
+        self.category_repository.flush()
+
+    def _restore_children(self, household: HouseholdContext, category: Category) -> None:
+        """Restore the subcategories that were archived along with a category.
+
+        Args:
+            household: The household context.
+            category: The parent category being restored.
+        """
+        children = self.category_repository.list_for_household(
+            household_id=household.household_id, include_archived=True, parent_id=category.id
+        )
+
+        for child in children:
+            if child.archived_with_parent:
+                child.archived_at = None
+                child.archived_with_parent = False
                 self.category_repository.add(child)
 
         self.category_repository.flush()
