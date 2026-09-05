@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import get_current_user, get_db, get_household_context, get_transaction_service
 from app.exceptions import (
     AccountArchivedError,
+    AccountNotFoundError,
     CategoryNotFoundError,
     SameAccountTransferError,
     TransactionFromSessionError,
@@ -323,6 +324,17 @@ class TestListTransactions:
 
         response = client.get(
             "/api/v1/transactions/", headers=auth_headers, params={"category_id": str(uuid.uuid4())}
+        )
+
+        assert response.status_code == 404
+
+    def test_an_account_filter_from_another_household_is_not_found(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        wire.list_transactions.side_effect = AccountNotFoundError
+
+        response = client.get(
+            "/api/v1/transactions/", headers=auth_headers, params={"account_id": str(uuid.uuid4())}
         )
 
         assert response.status_code == 404

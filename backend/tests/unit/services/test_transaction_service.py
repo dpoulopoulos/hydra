@@ -389,6 +389,34 @@ class TestListTransactions:
                 household=household_context, filters=TransactionFilters(category_id=uuid.uuid4())
             )
 
+    def test_an_account_filter_from_another_household_is_not_found(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        """A foreign account reads as 404 rather than quietly returning an empty page."""
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.return_value = None
+
+        with pytest.raises(AccountNotFoundError):
+            mock_transaction_service.list_transactions(
+                household=household_context, filters=TransactionFilters(account_id=uuid.uuid4())
+            )
+
+    def test_an_archived_account_can_still_be_filtered_on(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        """Archiving an account hides it from new entries, not from its history."""
+        account_id = uuid.uuid4()
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.return_value = account_id
+        mock_transaction_service.session.exec.return_value.all.return_value = []
+        mock_transaction_service.session.exec.return_value.one.return_value = 0
+
+        result = mock_transaction_service.list_transactions(
+            household=household_context, filters=TransactionFilters(account_id=account_id)
+        )
+
+        assert result.count == 0
+
     def test_rejects_an_unknown_filter(self) -> None:
         """A mistyped filter must fail, not be ignored and return more data than asked for."""
         with pytest.raises(ValueError):

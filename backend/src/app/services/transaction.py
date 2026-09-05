@@ -101,11 +101,20 @@ class TransactionService:
             The matching transactions and the total number of matches.
 
         Raises:
+            AccountNotFoundError: If the account filter names an account
+                outside the household.
             CategoryNotFoundError: If the category filter names a category
                 outside the household.
         """
         if recurring_rule_service:
             recurring_rule_service.materialize_due(household=household)
+
+        if filters.account_id is not None:
+            # Resolved through the scoped repository, so filtering by another
+            # household's account is a 404 rather than an empty page. An
+            # archived account still passes: it is hidden from new entries,
+            # not from its own history.
+            self.reference_resolver.require_account(household=household, account_id=filters.account_id)
 
         category_ids = None
 

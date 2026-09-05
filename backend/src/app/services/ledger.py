@@ -194,6 +194,22 @@ class LedgerReferenceResolver:
 
         return category
 
+    def require_account(self, household: HouseholdContext, account_id: uuid.UUID) -> None:
+        """Check that an account filter names an account of the household.
+
+        Unlike `resolve_account` this accepts an archived account, because
+        reading the entries already filed against one is still allowed.
+
+        Args:
+            household: The household context.
+            account_id: The ID of the account.
+
+        Raises:
+            AccountNotFoundError: If the account does not exist in the household.
+        """
+        if not self.account_repository.exists_for_household(entity_id=account_id, household_id=household.household_id):
+            raise AccountNotFoundError from None
+
     def require_category(self, household: HouseholdContext, category_id: uuid.UUID) -> Category:
         """Load a category of the household, whatever kind it is.
 
