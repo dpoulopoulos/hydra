@@ -37,17 +37,15 @@ class TransactionRepository(HouseholdScopedRepository[Transaction]):
         Returns:
             Tuple of (transactions, total_count).
         """
-        conditions = self._conditions(household_id=household_id, filters=filters, category_ids=category_ids)
+        conditions = self._conditions(filters=filters, category_ids=category_ids)
 
-        count_statement = select(func.count()).select_from(Transaction).where(*conditions)
-        count = self.session.exec(count_statement).one()
-
-        statement = (
+        count = self.count_for_household(household_id, *conditions)
+        statement = self._paginate(
             select(Transaction)
-            .where(*conditions)
-            .order_by(*self._ordering(filters.sort))
-            .offset(filters.skip)
-            .limit(filters.limit)
+            .where(self.household_column == household_id, *conditions)
+            .order_by(*self._ordering(filters.sort)),
+            skip=filters.skip,
+            limit=filters.limit,
         )
 
         return self.session.exec(statement).all(), count
@@ -129,23 +127,17 @@ class TransactionRepository(HouseholdScopedRepository[Transaction]):
         statement = select(Category.id).where(Category.household_id == household_id, Category.parent_id == category_id)
         return [category_id, *self.session.exec(statement).all()]
 
-    def _conditions(
-        self,
-        household_id: uuid.UUID,
-        filters: TransactionFilters,
-        category_ids: Sequence[uuid.UUID] | None,
-    ) -> list[Any]:
+    def _conditions(self, filters: TransactionFilters, category_ids: Sequence[uuid.UUID] | None) -> list[Any]:
         """Build the WHERE clauses for a filtered listing.
 
         Args:
-            household_id: The ID of the household.
             filters: The filters to apply.
             category_ids: The categories the filter resolves to.
 
         Returns:
-            The conditions to apply to the query.
+            The conditions to apply, on top of the household scope.
         """
-        conditions: list[Any] = [Transaction.household_id == household_id]
+        conditions: list[Any] = []
 
         # Half-open on the upper bound is avoided here on purpose: occurred_on
         # is a date, so an inclusive range is what a caller means by "up to and
