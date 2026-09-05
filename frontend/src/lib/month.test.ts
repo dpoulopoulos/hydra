@@ -4,6 +4,7 @@ import {
   currentMonth,
   formatDate,
   formatDateTime,
+  formatInstantAsDate,
   formatMonth,
   isoDate,
   monthEnd,
@@ -15,12 +16,28 @@ import {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllEnvs()
 })
 
 /** Freeze the clock, so the helpers that read it can be asserted. */
 function nowIs(instant: string) {
   vi.useFakeTimers()
   vi.setSystemTime(new Date(instant))
+}
+
+// The suite formats in UTC, so a case about which day a value lands on has to
+// move the viewer off it. Node rereads TZ on every date it builds, so setting
+// it is enough.
+function viewerIn(timeZone: string) {
+  vi.stubEnv('TZ', timeZone)
+}
+
+/** The same options the formatters default to, rendered by the same locale. */
+function formatted(date: Date, options?: Intl.DateTimeFormatOptions) {
+  return new Intl.DateTimeFormat(
+    undefined,
+    options ?? { day: 'numeric', month: 'short', year: 'numeric' },
+  ).format(date)
 }
 
 describe('monthKey', () => {
@@ -128,6 +145,42 @@ describe('formatDate', () => {
     expect(formatDate('2026-03-04T23:30:00Z')).toBe(formatDate('2026-03-04'))
     expect(formatDate('2026-03-04T00:30:00+05:00')).toBe(formatDate('2026-03-04'))
   })
+
+  it('reads a plain date as a calendar date, not as UTC midnight', () => {
+    viewerIn('America/Los_Angeles')
+
+    expect(formatDate('2026-03-04')).toBe(formatted(new Date(2026, 2, 4)))
+  })
+
+  it('renders the same plain date east of Greenwich', () => {
+    viewerIn('Asia/Dubai')
+
+    expect(formatDate('2026-03-04')).toBe(formatted(new Date(2026, 2, 4)))
+  })
+})
+
+describe('formatInstantAsDate', () => {
+  it('converts an instant to the viewer day east of Greenwich', () => {
+    viewerIn('Asia/Dubai')
+
+    expect(formatInstantAsDate('2026-09-11T21:00:00Z')).toBe(formatted(new Date(2026, 8, 12)))
+  })
+
+  it('converts an instant to the viewer day west of Greenwich', () => {
+    viewerIn('America/Los_Angeles')
+
+    expect(formatInstantAsDate('2026-09-12T02:00:00Z')).toBe(formatted(new Date(2026, 8, 11)))
+  })
+
+  it('takes the same options as the other formatters', () => {
+    viewerIn('Asia/Dubai')
+
+    const options = { day: 'numeric', month: 'long' } as const
+
+    expect(formatInstantAsDate('2026-09-11T21:00:00Z', options)).toBe(
+      formatted(new Date(2026, 8, 12), options),
+    )
+  })
 })
 
 describe('formatDateTime', () => {
@@ -137,5 +190,19 @@ describe('formatDateTime', () => {
 
   it('carries the offset the timestamp was written with', () => {
     expect(formatDateTime('2026-03-04T14:30:00+02:00')).toBe('Mar 4, 2026, 12:30 PM')
+  })
+
+  it('converts an instant to the viewer timezone', () => {
+    viewerIn('Asia/Dubai')
+
+    expect(formatDateTime('2026-09-11T21:00:00Z')).toBe(
+      formatted(new Date(2026, 8, 12, 1, 0), {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    )
   })
 })
