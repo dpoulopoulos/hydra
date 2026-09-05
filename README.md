@@ -32,9 +32,34 @@ manage the same accounts, categories, budgets and transactions.
 | Budgets | One limit per category per month. A limit on a parent covers everything under it. Nothing rolls over. |
 | Recurring | Rent, subscriptions, standing transfers, recorded as each falls due. |
 | Reports | Spending by category, spending over time, money in against money out, and the running total kept. |
+| Investments | ETFs and shares, recorded as buys and sells. Prices come from EODHD on a free key; the portfolio is valued in the household's currency. |
 
-Money is entered by hand. There is no bank sync, no multi-currency, and no split
-transactions: leaving them out is what keeps the app small.
+Money is entered by hand. There is no bank sync and no split transactions:
+leaving them out is what keeps the app small. Accounts and budgets are in the
+household's one currency; investments are the exception, because a listing
+quotes in whatever its exchange says and restating that would be a lie about
+the market. Those are converted with the latest rate fetched, one per pair.
+
+Market data is the one part of the app that depends on somebody else, so it is
+built to be cheap and to fail quietly. Prices come from EODHD, which needs a
+free key and is the one free plan checked that quotes European listings as well
+as US ones. It bills one API call per holding rather than per request, and a
+free plan allows twenty a day, so a fetched price is reused for two hours
+(`MARKET_DATA_CACHE_HOURS`) before the provider is asked again. Exchange rates
+come from Frankfurter instead, which is free and needs no key, so rates never
+compete with prices for the same budget. When the provider cannot be reached,
+the last price fetched stays on the row and the page says how old it is: the
+figures go stale, never wrong and never absent. A price can also be typed in by
+hand, for a day the allowance runs out or a listing the provider does not carry;
+a typed price is used exactly like a fetched one and is labelled as typed, so
+the two are never confused. The rates behind every converted figure are listed
+on the page rather than left implicit. A trade can name the account it was
+bought through, and then it moves the cash: a buy takes it out of that
+brokerage account and a sell puts it back, exactly as a broker's statement
+shows. Getting money to the broker in the first place is an ordinary transfer
+from a bank account, recorded like any other, so the brokerage balance can hold
+cash between trades. Net worth adds the accounts and the holdings together and
+counts nothing twice: a euro is either still cash or already a holding.
 
 ## Quick start
 

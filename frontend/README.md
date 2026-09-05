@@ -109,7 +109,7 @@ re-sorting a chart never repaints it, and an eighth series folds into a neutral
 
 ## Pages
 
-Sixteen routes cover the whole API.
+Seventeen routes cover the whole API.
 
 | Route                                 | What it does                                             |
 | ------------------------------------- | -------------------------------------------------------- |
@@ -120,6 +120,7 @@ Sixteen routes cover the whole API.
 | `/`                                   | Dashboard: the month's figures, budgets, latest activity |
 | `/transactions`                       | The ledger, with the full filter set                     |
 | `/accounts`                           | Accounts and balances                                    |
+| `/investments`                        | Holdings, their value, and the trades behind them        |
 | `/categories`                         | The two-level category tree                              |
 | `/budgets`                            | Monthly limits, per category or a month at a time        |
 | `/recurring`                          | Recurring rules and what is still to come                |
