@@ -26,3 +26,26 @@ Element.prototype.hasPointerCapture ??= () => false
 Element.prototype.setPointerCapture ??= () => {}
 Element.prototype.releasePointerCapture ??= () => {}
 Element.prototype.scrollIntoView ??= () => {}
+
+// Intl falls back to the machine's locale when none is given, and the money and
+// date helpers never give one, so "€42.50" here is "42,50 €" on a German laptop
+// — in these tests and in the component tests that render through the same
+// helpers. Pin the fallback for the whole suite, so a formatting assertion
+// means the same thing everywhere it runs; a caller that passes a locale still
+// wins over it. The time zone is pinned alongside it, in vite.config.ts.
+function withDefaultLocale<T extends typeof Intl.NumberFormat | typeof Intl.DateTimeFormat>(
+  Format: T,
+): T {
+  return new Proxy(Format, {
+    construct: (target, [locales, options]: [Intl.LocalesArgument, object?]) =>
+      new (target as new (l: Intl.LocalesArgument, o?: object) => object)(
+        locales ?? 'en-US',
+        options,
+      ),
+    apply: (target, _thisArg, [locales, options]: [Intl.LocalesArgument, object?]) =>
+      (target as (l: Intl.LocalesArgument, o?: object) => object)(locales ?? 'en-US', options),
+  })
+}
+
+Intl.NumberFormat = withDefaultLocale(Intl.NumberFormat)
+Intl.DateTimeFormat = withDefaultLocale(Intl.DateTimeFormat)

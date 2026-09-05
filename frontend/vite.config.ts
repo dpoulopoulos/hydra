@@ -23,6 +23,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // The date helpers read the local calendar day, so without a fixed zone a
+    // test asserting a date passes in London and fails in Auckland.
+    env: { TZ: 'UTC' },
   },
   build: {
     // Vite calls this folder "assets" by default, but the API already serves
