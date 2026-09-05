@@ -96,8 +96,12 @@ def wire(mock_db_session: MagicMock, test_user: User) -> Generator[MagicMock]:
 
 
 @pytest.fixture
-def category_wire(wire: MagicMock) -> MagicMock:
+def category_wire(wire: MagicMock) -> MagicMock:  # noqa: ARG001
     """Override the category service the detaching routes have to pass on.
+
+    The `wire` argument is unused on purpose: naming it is how this fixture
+    asks pytest to set the household override up first and to tear both of
+    them down afterwards.
 
     Args:
         wire: The household service override, whose teardown clears this one.
