@@ -79,6 +79,11 @@ The application follows a clean, layered architecture:
    > re-resolve that ID through `get_for_household()` before using it. An ID belonging to another household is
    > reported as `404`, never `403`, so the API does not leak which IDs exist. Where the row itself is not
    > needed, `exists_for_household()` answers the same question without loading it.
+   >
+   > A read re-resolves its IDs too. A caller-supplied ID used as a filter goes through `get_for_household()` or
+   > `exists_for_household()` before it reaches the query. The scoping already keeps another household's rows out
+   > of the answer, so this is not what stops a leak; it is what stops an unknown ID from being reported as an
+   > empty result. On a finance app "you spent nothing here" and "that account is gone" must not look alike.
 
 4. **Models Layer** ([src/app/models/](src/app/models/))
    - SQLModel database models
