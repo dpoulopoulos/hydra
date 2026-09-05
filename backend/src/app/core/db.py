@@ -21,9 +21,10 @@ def init_db(user_service: UserService, household_service: HouseholdService, cate
             existing superuser and to create a new superuser if necessary.
         household_service: The household service. Every user needs a household to use the
             application, so this repairs any account that does not have one, including
-            accounts that existed before households did.
+            accounts that existed before households did, and reseeds any household whose
+            categories were never created.
         category_service: The category service, used to seed the default categories of
-            every household this creates.
+            every household this creates, and of any household left without them.
     """
     user = user_service.get_user_by_email(email=settings.FIRST_SUPERUSER)
 
@@ -41,3 +42,8 @@ def init_db(user_service: UserService, household_service: HouseholdService, cate
 
     if created:
         logger.info("Provisioned %d household(s) for users that had none", created)
+
+    seeded = household_service.ensure_every_household_has_categories(category_service=category_service)
+
+    if seeded:
+        logger.info("Seeded the default categories of %d household(s) that had none", seeded)

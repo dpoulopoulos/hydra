@@ -21,6 +21,7 @@ class TestInitDb:
         mock_user_service.get_user_by_email = MagicMock(return_value=test_superuser)
         mock_user_service.create_user = MagicMock()
         mock_household_service.ensure_every_user_has_a_household = MagicMock(return_value=0)
+        mock_household_service.ensure_every_household_has_categories = MagicMock(return_value=0)
 
         # Act: Call init_db
         init_db(
@@ -49,6 +50,7 @@ class TestInitDb:
         mock_user_service.get_user_by_email = MagicMock(return_value=None)
         mock_user_service.create_user = MagicMock(return_value=test_superuser)
         mock_household_service.ensure_every_user_has_a_household = MagicMock(return_value=0)
+        mock_household_service.ensure_every_household_has_categories = MagicMock(return_value=0)
 
         # Act: Call init_db
         init_db(
@@ -87,6 +89,7 @@ class TestInitDb:
         mock_user_service.get_user_by_email = MagicMock(return_value=test_superuser)
         mock_user_service.create_user = MagicMock()
         mock_household_service.ensure_every_user_has_a_household = MagicMock(return_value=2)
+        mock_household_service.ensure_every_household_has_categories = MagicMock(return_value=0)
 
         # Act: Call init_db
         init_db(
@@ -112,6 +115,7 @@ class TestInitDb:
         mock_user_service.get_user_by_email = MagicMock(return_value=None)
         mock_user_service.create_user = MagicMock(return_value=test_superuser)
         mock_household_service.ensure_every_user_has_a_household = MagicMock(return_value=0)
+        mock_household_service.ensure_every_household_has_categories = MagicMock(return_value=0)
 
         # Act: Call init_db
         init_db(
@@ -125,3 +129,29 @@ class TestInitDb:
         kwargs = mock_user_service.create_user.call_args.kwargs
         assert kwargs["household_service"] is mock_household_service
         assert kwargs["category_service"] is mock_category_service
+
+    def test_init_db_seeds_households_without_categories(
+        self,
+        mock_user_service: UserService,
+        mock_household_service: HouseholdService,
+        mock_category_service: CategoryService,
+        test_superuser: User,
+    ):
+        """Test that init_db repairs households that hold no categories."""
+        # Arrange: A superuser already exists, but some households were never seeded
+        mock_user_service.get_user_by_email = MagicMock(return_value=test_superuser)
+        mock_user_service.create_user = MagicMock()
+        mock_household_service.ensure_every_user_has_a_household = MagicMock(return_value=0)
+        mock_household_service.ensure_every_household_has_categories = MagicMock(return_value=3)
+
+        # Act: Call init_db
+        init_db(
+            user_service=mock_user_service,
+            household_service=mock_household_service,
+            category_service=mock_category_service,
+        )
+
+        # Assert: Verify the repair ran with the service that seeds the defaults
+        mock_household_service.ensure_every_household_has_categories.assert_called_once_with(
+            category_service=mock_category_service
+        )
