@@ -25,6 +25,7 @@ from app.api.routes.reports import report_exception_mappings
 from app.api.routes.transactions import transaction_exception_mappings
 from app.api.routes.users import user_exception_mappings
 from app.core.config import settings
+from app.core.email_dispatcher import email_dispatcher_lifespan
 from app.exceptions import ServiceError
 
 
@@ -75,6 +76,8 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     generate_unique_id_function=custom_generate_unique_id,
+    # Queued mail is retried by a task that lives as long as the application.
+    lifespan=email_dispatcher_lifespan,
 )
 
 # Set all CORS enabled origins

@@ -255,6 +255,8 @@ class Settings(BaseSettings):
     EMAIL_OUTBOX_RETRY_BASE_SECONDS: int = Field(default=60, ge=1)
     EMAIL_OUTBOX_RETRY_MAX_SECONDS: int = Field(default=3600, ge=1)  # 1 hour
     EMAIL_OUTBOX_BATCH_SIZE: int = Field(default=20, ge=1)
+    # How often the background dispatcher looks for messages that came due.
+    EMAIL_OUTBOX_POLL_SECONDS: int = Field(default=60, ge=1)
 
     EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 24  # 1 day
     EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 48  # 2 days
