@@ -1,7 +1,9 @@
 import {
   AccountType,
   CategoryKind,
+  IncomeSessionStatus,
   InstrumentKind,
+  PaymentStatus,
   RecurrenceFrequency,
   TradeSide,
   TransactionKind,
@@ -47,6 +49,7 @@ export const TRADE_SIDE_LABELS: Record<string, string> = {
 }
 
 export const FREQUENCY_LABELS: Record<string, string> = {
+  [RecurrenceFrequency.DAILY]: 'Daily',
   [RecurrenceFrequency.WEEKLY]: 'Weekly',
   [RecurrenceFrequency.MONTHLY]: 'Monthly',
   [RecurrenceFrequency.YEARLY]: 'Yearly',
@@ -70,4 +73,30 @@ export function describeSchedule(
 
   if (every === 'monthly' && dayOfMonth) return `${phrase} on day ${dayOfMonth}`
   return phrase
+}
+
+/**
+ * What happened to the hour.
+ *
+ * Kept apart from whether it was paid, because they are two different facts
+ * and a session can be any combination of them.
+ */
+export const SESSION_STATUS_LABELS: Record<string, string> = {
+  [IncomeSessionStatus.SCHEDULED]: 'Scheduled',
+  [IncomeSessionStatus.ATTENDED]: 'Attended',
+  [IncomeSessionStatus.MISSED]: 'Missed',
+  [IncomeSessionStatus.CANCELLED]: 'Cancelled',
+}
+
+/**
+ * Whether the money arrived.
+ *
+ * "Pending" is shown as "Unpaid": that is what it means to the person reading
+ * it, where "pending" sounds like something already in motion rather than
+ * something to chase.
+ */
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  [PaymentStatus.PENDING]: 'Unpaid',
+  [PaymentStatus.PAID]: 'Paid',
+  [PaymentStatus.WAIVED]: 'Not charged',
 }
