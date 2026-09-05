@@ -21,7 +21,8 @@ def init_db(user_service: UserService, household_service: HouseholdService, cate
             existing superuser and to create a new superuser if necessary.
         household_service: The household service. Every user needs a household to use the
             application, so this repairs any account that does not have one, including
-            accounts that existed before households did.
+            accounts that existed before households did. It also gives an owner back to
+            any household that was left without one, which nothing else can repair.
         category_service: The category service, used to seed the default categories of
             every household this creates.
     """
@@ -41,3 +42,8 @@ def init_db(user_service: UserService, household_service: HouseholdService, cate
 
     if created:
         logger.info("Provisioned %d household(s) for users that had none", created)
+
+    promoted = household_service.ensure_every_household_has_an_owner()
+
+    if promoted:
+        logger.info("Promoted a new owner in %d household(s) that had none", promoted)
