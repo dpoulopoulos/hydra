@@ -2698,6 +2698,767 @@
         }
       }
     },
+    "/api/v1/investments/instruments": {
+      "post": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Create Instrument",
+        "description": "Start tracking an instrument.\n\nThe symbol is priced once on the way in. That confirms the provider carries\nit, so a typo is caught here rather than becoming a position that is never\nworth anything, and it settles which currency the listing quotes in. Send a\ncurrency to skip the check and track something by hand.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    instrument_in: The instrument to track.\n\nReturns:\n    The instrument, priced if the provider knew it.\n\nRaises:\n    HTTPException: If the household already tracks that symbol (409), the\n        provider does not know it and no currency was given (400), market\n        data is switched off (503), or the provider is unreachable (502).",
+        "operationId": "investments-create_instrument",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstrumentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstrumentPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "List Instruments",
+        "description": "List the instruments the household tracks.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    skip: Number of records to skip.\n    limit: Maximum number of records to return.\n\nReturns:\n    The instruments, and how many there are in total.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
+        "operationId": "investments-list_instruments",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstrumentsPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/investments/symbols": {
+      "get": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Search Symbols",
+        "description": "Look up listings by name or partial ticker.\n\nMatches carry no currency: the provider's search index does not have one,\nand it is only certain once the listing is priced, which is what creating\nthe instrument does.\n\nArgs:\n    investment_service: The investment service dependency.\n    q: What the user typed.\n    limit: The most matches to return.\n\nReturns:\n    The matching listings.\n\nRaises:\n    HTTPException: If market data is switched off (503), or the provider is\n        unreachable (502).",
+        "operationId": "investments-search_symbols",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 25,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SymbolMatchesPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/investments/fx-rates": {
+      "get": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "List Fx Rates",
+        "description": "Show the exchange rates behind the household's converted figures.\n\nReads what is stored rather than fetching, so it never waits on the network\nand never spends an API call.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n\nReturns:\n    The rates converting into the household's currency, and any currency\n    held that has no rate.\n\nRaises:\n    HTTPException: If the household no longer exists (404).",
+        "operationId": "investments-list_fx_rates",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FxRatesPublic"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/investments/portfolio": {
+      "get": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Get Portfolio",
+        "description": "Value everything the household holds, in the household's currency.\n\nPrices come from what was last fetched rather than from the provider, so\nthis endpoint never waits on the network. Refresh them explicitly.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    include_closed: Whether to include positions sold down to nothing.\n\nReturns:\n    The positions and the totals over them.\n\nRaises:\n    HTTPException: If the household no longer exists (404).",
+        "operationId": "investments-get_portfolio",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "include_closed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Closed"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/investments/prices/refresh": {
+      "post": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Refresh Prices",
+        "description": "Fetch a fresh price for every instrument, and the rates to value them.\n\nA symbol the provider cannot answer for is reported rather than raised:\none delisted ticker must not stop the rest of the portfolio being priced.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n\nReturns:\n    What was updated, and what could not be.\n\nRaises:\n    HTTPException: If market data is switched off (503), or the provider is\n        unreachable (502).",
+        "operationId": "investments-refresh_prices",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceRefreshResult"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/investments/instruments/{instrument_id}": {
+      "get": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Get Instrument",
+        "description": "Get one instrument of the household.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    instrument_id: The ID of the instrument.\n\nReturns:\n    The instrument.\n\nRaises:\n    HTTPException: If it does not exist in the household (404).",
+        "operationId": "investments-get_instrument",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Instrument Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstrumentPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Update Instrument",
+        "description": "Rename or re-label an instrument.\n\nThe symbol and the currency cannot be changed. Both describe the listing\nthat every stored price and every recorded trade was measured against.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    instrument_id: The ID of the instrument to update.\n    instrument_in: The fields to update.\n\nReturns:\n    The updated instrument.\n\nRaises:\n    HTTPException: If it does not exist in the household (404).",
+        "operationId": "investments-update_instrument",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Instrument Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstrumentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstrumentPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Delete Instrument",
+        "description": "Stop tracking an instrument that has no trades.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    instrument_id: The ID of the instrument to delete.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If it does not exist in the household (404), or it still\n        has trades (409).",
+        "operationId": "investments-delete_instrument",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Instrument Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/investments/instruments/{instrument_id}/price": {
+      "put": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Set Instrument Price",
+        "description": "Record a price by hand, for when the provider cannot supply one.\n\nThe provider bills per holding out of a small daily allowance, and can also\nbe switched off or simply not carry a listing. This is the way round all\nthree. The price is stored and used exactly as a fetched one is; the row\nremembers that it was typed, and says so.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    instrument_id: The ID of the instrument to price.\n    price_in: The price, in the instrument's own currency.\n\nReturns:\n    The instrument, carrying the new price.\n\nRaises:\n    HTTPException: If it does not exist in the household (404).",
+        "operationId": "investments-set_instrument_price",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Instrument Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstrumentPriceUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstrumentPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/investments/trades": {
+      "post": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Create Trade",
+        "description": "Record a buy or a sell.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    current_user: The user recording it, for the audit trail.\n    trade_in: The trade to record.\n\nReturns:\n    The recorded trade.\n\nRaises:\n    HTTPException: If the instrument does not exist in the household (404),\n        or the trade would sell units the household does not hold (400).",
+        "operationId": "investments-create_trade",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradePublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "List Trades",
+        "description": "List the household's trades, newest first.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    instrument_id: An optional instrument to filter on.\n    skip: Number of records to skip.\n    limit: Maximum number of records to return.\n\nReturns:\n    The trades, and how many there are in total.\n\nRaises:\n    HTTPException: If the instrument does not exist in the household (404).",
+        "operationId": "investments-list_trades",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "instrument_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Instrument Id"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradesPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/investments/trades/{trade_id}": {
+      "get": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Get Trade",
+        "description": "Get one trade of the household.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    trade_id: The ID of the trade.\n\nReturns:\n    The trade.\n\nRaises:\n    HTTPException: If it does not exist in the household (404).",
+        "operationId": "investments-get_trade",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trade Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradePublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Update Trade",
+        "description": "Correct a recorded trade.\n\nThe instrument cannot be changed: moving a trade rewrites the history of\ntwo positions at once. Delete it and record it again.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    trade_id: The ID of the trade to correct.\n    trade_in: The fields to change.\n\nReturns:\n    The corrected trade.\n\nRaises:\n    HTTPException: If it does not exist in the household (404), or the\n        correction would leave the position holding fewer than zero units\n        at some point in its history (400).",
+        "operationId": "investments-update_trade",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trade Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradePublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "investments"
+        ],
+        "summary": "Delete Trade",
+        "description": "Remove a trade that should not have been recorded.\n\nArgs:\n    investment_service: The investment service dependency.\n    household: The current household context.\n    trade_id: The ID of the trade to remove.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If it does not exist in the household (404), or a later\n        sale depended on the units this trade brought in (400).",
+        "operationId": "investments-delete_trade",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trade Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reports/spend-by-category": {
       "get": {
         "tags": [
@@ -2990,7 +3751,7 @@
           "reports"
         ],
         "summary": "Month Summary",
-        "description": "Gather the dashboard figures for one month.\n\nOne request rather than several, so opening the app is a single round trip.\nAny recurring transactions that have fallen due are recorded first, so the\ndashboard is not out of date the moment it loads.\n\nArgs:\n    report_service: The report service dependency.\n    recurring_rule_service: The recurring rule service dependency, used to\n        bring the ledger up to date before reading it.\n    household: The current household context.\n    month: The month, in \"YYYY-MM\" form.\n\nReturns:\n    The month's income, spending and net, the current net worth, how much\n    was budgeted, how many categories went over, and the biggest categories.\n\nRaises:\n    HTTPException: If the month is not in \"YYYY-MM\" form (422).",
+        "description": "Gather the dashboard figures for one month.\n\nOne request rather than several, so opening the app is a single round trip.\nAny recurring transactions that have fallen due are recorded first, so the\ndashboard is not out of date the moment it loads.\n\nArgs:\n    report_service: The report service dependency.\n    recurring_rule_service: The recurring rule service dependency, used to\n        bring the ledger up to date before reading it.\n    investment_service: The investment service dependency, used to value\n        the holdings from their stored prices.\n    household: The current household context.\n    month: The month, in \"YYYY-MM\" form.\n\nReturns:\n    The month's income, spending and net, the current net worth, how much\n    was budgeted, how many categories went over, and the biggest categories.\n\nRaises:\n    HTTPException: If the month is not in \"YYYY-MM\" form (422).",
         "operationId": "reports-month_summary",
         "security": [
           {
@@ -3430,7 +4191,8 @@
           "cash",
           "current",
           "savings",
-          "credit_card"
+          "credit_card",
+          "brokerage"
         ],
         "title": "AccountType"
       },
@@ -4397,6 +5159,87 @@
         ],
         "title": "EmailVerificationRequest"
       },
+      "FxRatePublic": {
+        "properties": {
+          "base_code": {
+            "type": "string",
+            "title": "Base Code"
+          },
+          "quote_code": {
+            "type": "string",
+            "title": "Quote Code"
+          },
+          "rate_micro": {
+            "type": "integer",
+            "title": "Rate Micro"
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "title": "As Of"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          },
+          "in_use": {
+            "type": "boolean",
+            "title": "In Use",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "base_code",
+          "quote_code",
+          "rate_micro",
+          "as_of"
+        ],
+        "title": "FxRatePublic",
+        "description": "One exchange rate, and how it is being applied.\n\nReported so the conversion behind a portfolio total is inspectable rather\nthan implicit. A figure in the household's currency that came from a rate\nnobody can see is a figure nobody can check."
+      },
+      "FxRatesPublic": {
+        "properties": {
+          "quote_code": {
+            "type": "string",
+            "title": "Quote Code"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/FxRatePublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quote_code",
+          "data",
+          "count"
+        ],
+        "title": "FxRatesPublic",
+        "description": "The rates behind a household's converted figures."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4764,6 +5607,272 @@
         ],
         "title": "IncomeExpenseReport"
       },
+      "InstrumentCreate": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Symbol"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/InstrumentKind",
+            "default": "etf"
+          },
+          "exchange": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange"
+          },
+          "currency_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 3,
+                "minLength": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "name"
+        ],
+        "title": "InstrumentCreate"
+      },
+      "InstrumentKind": {
+        "type": "string",
+        "enum": [
+          "etf",
+          "stock",
+          "fund",
+          "bond",
+          "crypto",
+          "other"
+        ],
+        "title": "InstrumentKind"
+      },
+      "InstrumentPriceUpdate": {
+        "properties": {
+          "price_micro": {
+            "type": "integer",
+            "maximum": 1000000000000000.0,
+            "minimum": 0.0,
+            "title": "Price Micro"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "price_micro"
+        ],
+        "title": "InstrumentPriceUpdate",
+        "description": "A price typed in by hand.\n\nThe escape hatch for a provider that is rate limited, does not carry a\nlisting, or is switched off entirely. A portfolio should not be unusable\nbecause somebody else's server said no."
+      },
+      "InstrumentPublic": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Symbol"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/InstrumentKind",
+            "default": "etf"
+          },
+          "exchange": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Household Id"
+          },
+          "currency_code": {
+            "type": "string",
+            "title": "Currency Code"
+          },
+          "last_price_micro": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Price Micro"
+          },
+          "last_price_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Price At"
+          },
+          "last_priced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Priced At"
+          },
+          "last_price_is_manual": {
+            "type": "boolean",
+            "title": "Last Price Is Manual",
+            "default": false
+          },
+          "trade_count": {
+            "type": "integer",
+            "title": "Trade Count",
+            "default": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "id",
+          "household_id",
+          "currency_code",
+          "created_at"
+        ],
+        "title": "InstrumentPublic"
+      },
+      "InstrumentUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InstrumentKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exchange": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange"
+          }
+        },
+        "type": "object",
+        "title": "InstrumentUpdate"
+      },
+      "InstrumentsPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/InstrumentPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "InstrumentsPublic"
+      },
       "Message": {
         "properties": {
           "message": {
@@ -4794,9 +5903,29 @@
             "type": "integer",
             "title": "Net Minor"
           },
+          "bank_minor": {
+            "type": "integer",
+            "title": "Bank Minor",
+            "default": 0
+          },
+          "brokerage_minor": {
+            "type": "integer",
+            "title": "Brokerage Minor",
+            "default": 0
+          },
+          "assets_minor": {
+            "type": "integer",
+            "title": "Assets Minor",
+            "default": 0
+          },
           "net_worth_minor": {
             "type": "integer",
             "title": "Net Worth Minor"
+          },
+          "unpriced_asset_count": {
+            "type": "integer",
+            "title": "Unpriced Asset Count",
+            "default": 0
           },
           "budgeted_minor": {
             "type": "integer",
@@ -4946,6 +6075,258 @@
           "new_password"
         ],
         "title": "PasswordUpdate"
+      },
+      "PortfolioPublic": {
+        "properties": {
+          "currency_code": {
+            "type": "string",
+            "title": "Currency Code"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PositionPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "total_cost_basis_minor": {
+            "type": "integer",
+            "title": "Total Cost Basis Minor",
+            "default": 0
+          },
+          "total_market_value_minor": {
+            "type": "integer",
+            "title": "Total Market Value Minor",
+            "default": 0
+          },
+          "total_unrealised_gain_minor": {
+            "type": "integer",
+            "title": "Total Unrealised Gain Minor",
+            "default": 0
+          },
+          "total_realised_gain_minor": {
+            "type": "integer",
+            "title": "Total Realised Gain Minor",
+            "default": 0
+          },
+          "unpriced_count": {
+            "type": "integer",
+            "title": "Unpriced Count",
+            "default": 0
+          },
+          "priced_as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priced As Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency_code",
+          "data",
+          "count"
+        ],
+        "title": "PortfolioPublic",
+        "description": "The whole portfolio, valued in the household's currency."
+      },
+      "PositionPublic": {
+        "properties": {
+          "instrument_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Instrument Id"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/InstrumentKind"
+          },
+          "currency_code": {
+            "type": "string",
+            "title": "Currency Code"
+          },
+          "exchange": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange"
+          },
+          "quantity_micro": {
+            "type": "integer",
+            "title": "Quantity Micro",
+            "default": 0
+          },
+          "is_open": {
+            "type": "boolean",
+            "title": "Is Open",
+            "default": true
+          },
+          "last_price_micro": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Price Micro"
+          },
+          "last_price_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Price At"
+          },
+          "last_price_is_manual": {
+            "type": "boolean",
+            "title": "Last Price Is Manual",
+            "default": false
+          },
+          "fx_rate_micro": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fx Rate Micro"
+          },
+          "cost_basis_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Basis Minor"
+          },
+          "market_value_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Value Minor"
+          },
+          "unrealised_gain_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unrealised Gain Minor"
+          },
+          "realised_gain_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Realised Gain Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "instrument_id",
+          "symbol",
+          "name",
+          "kind",
+          "currency_code"
+        ],
+        "title": "PositionPublic",
+        "description": "What a household holds in one instrument, and what it is worth.\n\nEvery money figure here is in the household's own currency, so a portfolio\nof listings in three currencies still adds up. Conversion uses the one\nexchange rate the app keeps per pair, which is the latest one fetched: a\ncost basis paid years ago is therefore restated at today's rate, and the\ngain shown mixes the market's movement with the currency's. That is the\nprice of not storing a rate per trade date, and it is stated here rather\nthan hidden. `currency_code` and `last_price_micro` stay native, because a\nquote restated into another currency is no longer the quote."
+      },
+      "PriceRefreshResult": {
+        "properties": {
+          "updated_count": {
+            "type": "integer",
+            "title": "Updated Count",
+            "default": 0
+          },
+          "cached_count": {
+            "type": "integer",
+            "title": "Cached Count",
+            "default": 0
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteFailure"
+            },
+            "type": "array",
+            "title": "Failures"
+          },
+          "refreshed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Refreshed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "refreshed_at"
+        ],
+        "title": "PriceRefreshResult",
+        "description": "What a refresh managed to fetch."
+      },
+      "QuoteFailure": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "reason"
+        ],
+        "title": "QuoteFailure"
       },
       "RecurrenceFrequency": {
         "type": "string",
@@ -5528,6 +6909,72 @@
         ],
         "title": "SpendOverTimeReport"
       },
+      "SymbolMatch": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency Code"
+          },
+          "exchange": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/InstrumentKind",
+            "default": "other"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "name"
+        ],
+        "title": "SymbolMatch",
+        "description": "One candidate listing from the provider's symbol search."
+      },
+      "SymbolMatchesPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SymbolMatch"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "SymbolMatchesPublic"
+      },
       "TimeGranularity": {
         "type": "string",
         "enum": [
@@ -5578,6 +7025,338 @@
           "access_token"
         ],
         "title": "Token"
+      },
+      "TradeCreate": {
+        "properties": {
+          "side": {
+            "$ref": "#/components/schemas/TradeSide"
+          },
+          "traded_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Traded On"
+          },
+          "quantity_micro": {
+            "type": "integer",
+            "maximum": 1000000000000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity Micro"
+          },
+          "price_micro": {
+            "type": "integer",
+            "maximum": 1000000000000000.0,
+            "minimum": 0.0,
+            "title": "Price Micro"
+          },
+          "fee_minor": {
+            "type": "integer",
+            "maximum": 4.611686018427388e+18,
+            "minimum": 0.0,
+            "title": "Fee Minor",
+            "default": 0
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "instrument_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Instrument Id"
+          },
+          "brokerage_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brokerage Account Id"
+          },
+          "cash_amount_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4.611686018427388e+18,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Amount Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "side",
+          "traded_on",
+          "quantity_micro",
+          "price_micro",
+          "instrument_id"
+        ],
+        "title": "TradeCreate"
+      },
+      "TradePublic": {
+        "properties": {
+          "side": {
+            "$ref": "#/components/schemas/TradeSide"
+          },
+          "traded_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Traded On"
+          },
+          "quantity_micro": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity Micro"
+          },
+          "price_micro": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Price Micro"
+          },
+          "fee_minor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Fee Minor",
+            "default": 0
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Household Id"
+          },
+          "instrument_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Instrument Id"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "default": ""
+          },
+          "currency_code": {
+            "type": "string",
+            "title": "Currency Code",
+            "default": "EUR"
+          },
+          "brokerage_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brokerage Account Id"
+          },
+          "cash_amount_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Amount Minor"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "side",
+          "traded_on",
+          "quantity_micro",
+          "price_micro",
+          "id",
+          "household_id",
+          "instrument_id",
+          "created_at"
+        ],
+        "title": "TradePublic"
+      },
+      "TradeSide": {
+        "type": "string",
+        "enum": [
+          "buy",
+          "sell"
+        ],
+        "title": "TradeSide"
+      },
+      "TradeUpdate": {
+        "properties": {
+          "side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TradeSide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "traded_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traded On"
+          },
+          "quantity_micro": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000000000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity Micro"
+          },
+          "price_micro": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000000000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Micro"
+          },
+          "fee_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4.611686018427388e+18,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fee Minor"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "brokerage_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brokerage Account Id"
+          },
+          "cash_amount_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4.611686018427388e+18,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Amount Minor"
+          }
+        },
+        "type": "object",
+        "title": "TradeUpdate"
+      },
+      "TradesPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TradePublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "TradesPublic"
       },
       "TransactionCreate": {
         "properties": {

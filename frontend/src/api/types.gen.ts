@@ -85,7 +85,8 @@ export const AccountType = {
     CASH: 'cash',
     CURRENT: 'current',
     SAVINGS: 'savings',
-    CREDIT_CARD: 'credit_card'
+    CREDIT_CARD: 'credit_card',
+    BROKERAGE: 'brokerage'
 } as const;
 
 /**
@@ -643,6 +644,66 @@ export type EmailVerificationRequest = {
 };
 
 /**
+ * FxRatePublic
+ *
+ * One exchange rate, and how it is being applied.
+ *
+ * Reported so the conversion behind a portfolio total is inspectable rather
+ * than implicit. A figure in the household's currency that came from a rate
+ * nobody can see is a figure nobody can check.
+ */
+export type FxRatePublic = {
+    /**
+     * Base Code
+     */
+    base_code: string;
+    /**
+     * Quote Code
+     */
+    quote_code: string;
+    /**
+     * Rate Micro
+     */
+    rate_micro: number;
+    /**
+     * As Of
+     */
+    as_of: string;
+    /**
+     * Fetched At
+     */
+    fetched_at?: string | null;
+    /**
+     * In Use
+     */
+    in_use?: boolean;
+};
+
+/**
+ * FxRatesPublic
+ *
+ * The rates behind a household's converted figures.
+ */
+export type FxRatesPublic = {
+    /**
+     * Quote Code
+     */
+    quote_code: string;
+    /**
+     * Data
+     */
+    data: Array<FxRatePublic>;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Missing
+     */
+    missing?: Array<string>;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -889,6 +950,154 @@ export type IncomeExpenseReport = {
 };
 
 /**
+ * InstrumentCreate
+ */
+export type InstrumentCreate = {
+    /**
+     * Symbol
+     */
+    symbol: string;
+    /**
+     * Name
+     */
+    name: string;
+    kind?: InstrumentKind;
+    /**
+     * Exchange
+     */
+    exchange?: string | null;
+    /**
+     * Currency Code
+     */
+    currency_code?: string | null;
+};
+
+/**
+ * InstrumentKind
+ */
+export const InstrumentKind = {
+    ETF: 'etf',
+    STOCK: 'stock',
+    FUND: 'fund',
+    BOND: 'bond',
+    CRYPTO: 'crypto',
+    OTHER: 'other'
+} as const;
+
+/**
+ * InstrumentKind
+ */
+export type InstrumentKind = typeof InstrumentKind[keyof typeof InstrumentKind];
+
+/**
+ * InstrumentPriceUpdate
+ *
+ * A price typed in by hand.
+ *
+ * The escape hatch for a provider that is rate limited, does not carry a
+ * listing, or is switched off entirely. A portfolio should not be unusable
+ * because somebody else's server said no.
+ */
+export type InstrumentPriceUpdate = {
+    /**
+     * Price Micro
+     */
+    price_micro: number;
+    /**
+     * As Of
+     */
+    as_of?: string | null;
+};
+
+/**
+ * InstrumentPublic
+ */
+export type InstrumentPublic = {
+    /**
+     * Symbol
+     */
+    symbol: string;
+    /**
+     * Name
+     */
+    name: string;
+    kind?: InstrumentKind;
+    /**
+     * Exchange
+     */
+    exchange?: string | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Household Id
+     */
+    household_id: string;
+    /**
+     * Currency Code
+     */
+    currency_code: string;
+    /**
+     * Last Price Micro
+     */
+    last_price_micro?: number | null;
+    /**
+     * Last Price At
+     */
+    last_price_at?: string | null;
+    /**
+     * Last Priced At
+     */
+    last_priced_at?: string | null;
+    /**
+     * Last Price Is Manual
+     */
+    last_price_is_manual?: boolean;
+    /**
+     * Trade Count
+     */
+    trade_count?: number;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at?: string | null;
+};
+
+/**
+ * InstrumentUpdate
+ */
+export type InstrumentUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    kind?: InstrumentKind | null;
+    /**
+     * Exchange
+     */
+    exchange?: string | null;
+};
+
+/**
+ * InstrumentsPublic
+ */
+export type InstrumentsPublic = {
+    /**
+     * Data
+     */
+    data: Array<InstrumentPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * Message
  */
 export type Message = {
@@ -918,9 +1127,25 @@ export type MonthSummaryReport = {
      */
     net_minor: number;
     /**
+     * Bank Minor
+     */
+    bank_minor?: number;
+    /**
+     * Brokerage Minor
+     */
+    brokerage_minor?: number;
+    /**
+     * Assets Minor
+     */
+    assets_minor?: number;
+    /**
      * Net Worth Minor
      */
     net_worth_minor: number;
+    /**
+     * Unpriced Asset Count
+     */
+    unpriced_asset_count?: number;
     /**
      * Budgeted Minor
      */
@@ -1017,6 +1242,166 @@ export type PasswordUpdate = {
      * New Password
      */
     new_password: string;
+};
+
+/**
+ * PortfolioPublic
+ *
+ * The whole portfolio, valued in the household's currency.
+ */
+export type PortfolioPublic = {
+    /**
+     * Currency Code
+     */
+    currency_code: string;
+    /**
+     * Data
+     */
+    data: Array<PositionPublic>;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Total Cost Basis Minor
+     */
+    total_cost_basis_minor?: number;
+    /**
+     * Total Market Value Minor
+     */
+    total_market_value_minor?: number;
+    /**
+     * Total Unrealised Gain Minor
+     */
+    total_unrealised_gain_minor?: number;
+    /**
+     * Total Realised Gain Minor
+     */
+    total_realised_gain_minor?: number;
+    /**
+     * Unpriced Count
+     */
+    unpriced_count?: number;
+    /**
+     * Priced As Of
+     */
+    priced_as_of?: string | null;
+};
+
+/**
+ * PositionPublic
+ *
+ * What a household holds in one instrument, and what it is worth.
+ *
+ * Every money figure here is in the household's own currency, so a portfolio
+ * of listings in three currencies still adds up. Conversion uses the one
+ * exchange rate the app keeps per pair, which is the latest one fetched: a
+ * cost basis paid years ago is therefore restated at today's rate, and the
+ * gain shown mixes the market's movement with the currency's. That is the
+ * price of not storing a rate per trade date, and it is stated here rather
+ * than hidden. `currency_code` and `last_price_micro` stay native, because a
+ * quote restated into another currency is no longer the quote.
+ */
+export type PositionPublic = {
+    /**
+     * Instrument Id
+     */
+    instrument_id: string;
+    /**
+     * Symbol
+     */
+    symbol: string;
+    /**
+     * Name
+     */
+    name: string;
+    kind: InstrumentKind;
+    /**
+     * Currency Code
+     */
+    currency_code: string;
+    /**
+     * Exchange
+     */
+    exchange?: string | null;
+    /**
+     * Quantity Micro
+     */
+    quantity_micro?: number;
+    /**
+     * Is Open
+     */
+    is_open?: boolean;
+    /**
+     * Last Price Micro
+     */
+    last_price_micro?: number | null;
+    /**
+     * Last Price At
+     */
+    last_price_at?: string | null;
+    /**
+     * Last Price Is Manual
+     */
+    last_price_is_manual?: boolean;
+    /**
+     * Fx Rate Micro
+     */
+    fx_rate_micro?: number | null;
+    /**
+     * Cost Basis Minor
+     */
+    cost_basis_minor?: number | null;
+    /**
+     * Market Value Minor
+     */
+    market_value_minor?: number | null;
+    /**
+     * Unrealised Gain Minor
+     */
+    unrealised_gain_minor?: number | null;
+    /**
+     * Realised Gain Minor
+     */
+    realised_gain_minor?: number | null;
+};
+
+/**
+ * PriceRefreshResult
+ *
+ * What a refresh managed to fetch.
+ */
+export type PriceRefreshResult = {
+    /**
+     * Updated Count
+     */
+    updated_count?: number;
+    /**
+     * Cached Count
+     */
+    cached_count?: number;
+    /**
+     * Failures
+     */
+    failures?: Array<QuoteFailure>;
+    /**
+     * Refreshed At
+     */
+    refreshed_at: string;
+};
+
+/**
+ * QuoteFailure
+ */
+export type QuoteFailure = {
+    /**
+     * Symbol
+     */
+    symbol: string;
+    /**
+     * Reason
+     */
+    reason: string;
 };
 
 /**
@@ -1305,6 +1690,45 @@ export type SpendOverTimeReport = {
 };
 
 /**
+ * SymbolMatch
+ *
+ * One candidate listing from the provider's symbol search.
+ */
+export type SymbolMatch = {
+    /**
+     * Symbol
+     */
+    symbol: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Currency Code
+     */
+    currency_code?: string | null;
+    /**
+     * Exchange
+     */
+    exchange?: string | null;
+    kind?: InstrumentKind;
+};
+
+/**
+ * SymbolMatchesPublic
+ */
+export type SymbolMatchesPublic = {
+    /**
+     * Data
+     */
+    data: Array<SymbolMatch>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * TimeGranularity
  */
 export const TimeGranularity = { DAY: 'day', MONTH: 'month' } as const;
@@ -1346,6 +1770,167 @@ export type Token = {
      * Token Type
      */
     token_type?: string;
+};
+
+/**
+ * TradeCreate
+ */
+export type TradeCreate = {
+    side: TradeSide;
+    /**
+     * Traded On
+     */
+    traded_on: string;
+    /**
+     * Quantity Micro
+     */
+    quantity_micro: number;
+    /**
+     * Price Micro
+     */
+    price_micro: number;
+    /**
+     * Fee Minor
+     */
+    fee_minor?: number;
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Instrument Id
+     */
+    instrument_id: string;
+    /**
+     * Brokerage Account Id
+     */
+    brokerage_account_id?: string | null;
+    /**
+     * Cash Amount Minor
+     */
+    cash_amount_minor?: number | null;
+};
+
+/**
+ * TradePublic
+ */
+export type TradePublic = {
+    side: TradeSide;
+    /**
+     * Traded On
+     */
+    traded_on: string;
+    /**
+     * Quantity Micro
+     */
+    quantity_micro: number;
+    /**
+     * Price Micro
+     */
+    price_micro: number;
+    /**
+     * Fee Minor
+     */
+    fee_minor?: number;
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Household Id
+     */
+    household_id: string;
+    /**
+     * Instrument Id
+     */
+    instrument_id: string;
+    /**
+     * Symbol
+     */
+    symbol?: string;
+    /**
+     * Currency Code
+     */
+    currency_code?: string;
+    /**
+     * Brokerage Account Id
+     */
+    brokerage_account_id?: string | null;
+    /**
+     * Cash Amount Minor
+     */
+    cash_amount_minor?: number | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at?: string | null;
+};
+
+/**
+ * TradeSide
+ */
+export const TradeSide = { BUY: 'buy', SELL: 'sell' } as const;
+
+/**
+ * TradeSide
+ */
+export type TradeSide = typeof TradeSide[keyof typeof TradeSide];
+
+/**
+ * TradeUpdate
+ */
+export type TradeUpdate = {
+    side?: TradeSide | null;
+    /**
+     * Traded On
+     */
+    traded_on?: string | null;
+    /**
+     * Quantity Micro
+     */
+    quantity_micro?: number | null;
+    /**
+     * Price Micro
+     */
+    price_micro?: number | null;
+    /**
+     * Fee Minor
+     */
+    fee_minor?: number | null;
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Brokerage Account Id
+     */
+    brokerage_account_id?: string | null;
+    /**
+     * Cash Amount Minor
+     */
+    cash_amount_minor?: number | null;
+};
+
+/**
+ * TradesPublic
+ */
+export type TradesPublic = {
+    /**
+     * Data
+     */
+    data: Array<TradePublic>;
+    /**
+     * Count
+     */
+    count: number;
 };
 
 /**
@@ -3201,6 +3786,434 @@ export type RecurringRulesUpdateRecurringRuleResponses = {
 };
 
 export type RecurringRulesUpdateRecurringRuleResponse = RecurringRulesUpdateRecurringRuleResponses[keyof RecurringRulesUpdateRecurringRuleResponses];
+
+export type InvestmentsListInstrumentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/investments/instruments';
+};
+
+export type InvestmentsListInstrumentsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsListInstrumentsError = InvestmentsListInstrumentsErrors[keyof InvestmentsListInstrumentsErrors];
+
+export type InvestmentsListInstrumentsResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstrumentsPublic;
+};
+
+export type InvestmentsListInstrumentsResponse = InvestmentsListInstrumentsResponses[keyof InvestmentsListInstrumentsResponses];
+
+export type InvestmentsCreateInstrumentData = {
+    body: InstrumentCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/investments/instruments';
+};
+
+export type InvestmentsCreateInstrumentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsCreateInstrumentError = InvestmentsCreateInstrumentErrors[keyof InvestmentsCreateInstrumentErrors];
+
+export type InvestmentsCreateInstrumentResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstrumentPublic;
+};
+
+export type InvestmentsCreateInstrumentResponse = InvestmentsCreateInstrumentResponses[keyof InvestmentsCreateInstrumentResponses];
+
+export type InvestmentsSearchSymbolsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Q
+         */
+        q: string;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/investments/symbols';
+};
+
+export type InvestmentsSearchSymbolsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsSearchSymbolsError = InvestmentsSearchSymbolsErrors[keyof InvestmentsSearchSymbolsErrors];
+
+export type InvestmentsSearchSymbolsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SymbolMatchesPublic;
+};
+
+export type InvestmentsSearchSymbolsResponse = InvestmentsSearchSymbolsResponses[keyof InvestmentsSearchSymbolsResponses];
+
+export type InvestmentsListFxRatesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/investments/fx-rates';
+};
+
+export type InvestmentsListFxRatesResponses = {
+    /**
+     * Successful Response
+     */
+    200: FxRatesPublic;
+};
+
+export type InvestmentsListFxRatesResponse = InvestmentsListFxRatesResponses[keyof InvestmentsListFxRatesResponses];
+
+export type InvestmentsGetPortfolioData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Include Closed
+         */
+        include_closed?: boolean;
+    };
+    url: '/api/v1/investments/portfolio';
+};
+
+export type InvestmentsGetPortfolioErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsGetPortfolioError = InvestmentsGetPortfolioErrors[keyof InvestmentsGetPortfolioErrors];
+
+export type InvestmentsGetPortfolioResponses = {
+    /**
+     * Successful Response
+     */
+    200: PortfolioPublic;
+};
+
+export type InvestmentsGetPortfolioResponse = InvestmentsGetPortfolioResponses[keyof InvestmentsGetPortfolioResponses];
+
+export type InvestmentsRefreshPricesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/investments/prices/refresh';
+};
+
+export type InvestmentsRefreshPricesResponses = {
+    /**
+     * Successful Response
+     */
+    200: PriceRefreshResult;
+};
+
+export type InvestmentsRefreshPricesResponse = InvestmentsRefreshPricesResponses[keyof InvestmentsRefreshPricesResponses];
+
+export type InvestmentsDeleteInstrumentData = {
+    body?: never;
+    path: {
+        /**
+         * Instrument Id
+         */
+        instrument_id: string;
+    };
+    query?: never;
+    url: '/api/v1/investments/instruments/{instrument_id}';
+};
+
+export type InvestmentsDeleteInstrumentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsDeleteInstrumentError = InvestmentsDeleteInstrumentErrors[keyof InvestmentsDeleteInstrumentErrors];
+
+export type InvestmentsDeleteInstrumentResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type InvestmentsDeleteInstrumentResponse = InvestmentsDeleteInstrumentResponses[keyof InvestmentsDeleteInstrumentResponses];
+
+export type InvestmentsGetInstrumentData = {
+    body?: never;
+    path: {
+        /**
+         * Instrument Id
+         */
+        instrument_id: string;
+    };
+    query?: never;
+    url: '/api/v1/investments/instruments/{instrument_id}';
+};
+
+export type InvestmentsGetInstrumentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsGetInstrumentError = InvestmentsGetInstrumentErrors[keyof InvestmentsGetInstrumentErrors];
+
+export type InvestmentsGetInstrumentResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstrumentPublic;
+};
+
+export type InvestmentsGetInstrumentResponse = InvestmentsGetInstrumentResponses[keyof InvestmentsGetInstrumentResponses];
+
+export type InvestmentsUpdateInstrumentData = {
+    body: InstrumentUpdate;
+    path: {
+        /**
+         * Instrument Id
+         */
+        instrument_id: string;
+    };
+    query?: never;
+    url: '/api/v1/investments/instruments/{instrument_id}';
+};
+
+export type InvestmentsUpdateInstrumentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsUpdateInstrumentError = InvestmentsUpdateInstrumentErrors[keyof InvestmentsUpdateInstrumentErrors];
+
+export type InvestmentsUpdateInstrumentResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstrumentPublic;
+};
+
+export type InvestmentsUpdateInstrumentResponse = InvestmentsUpdateInstrumentResponses[keyof InvestmentsUpdateInstrumentResponses];
+
+export type InvestmentsSetInstrumentPriceData = {
+    body: InstrumentPriceUpdate;
+    path: {
+        /**
+         * Instrument Id
+         */
+        instrument_id: string;
+    };
+    query?: never;
+    url: '/api/v1/investments/instruments/{instrument_id}/price';
+};
+
+export type InvestmentsSetInstrumentPriceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsSetInstrumentPriceError = InvestmentsSetInstrumentPriceErrors[keyof InvestmentsSetInstrumentPriceErrors];
+
+export type InvestmentsSetInstrumentPriceResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstrumentPublic;
+};
+
+export type InvestmentsSetInstrumentPriceResponse = InvestmentsSetInstrumentPriceResponses[keyof InvestmentsSetInstrumentPriceResponses];
+
+export type InvestmentsListTradesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Instrument Id
+         */
+        instrument_id?: string | null;
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/investments/trades';
+};
+
+export type InvestmentsListTradesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsListTradesError = InvestmentsListTradesErrors[keyof InvestmentsListTradesErrors];
+
+export type InvestmentsListTradesResponses = {
+    /**
+     * Successful Response
+     */
+    200: TradesPublic;
+};
+
+export type InvestmentsListTradesResponse = InvestmentsListTradesResponses[keyof InvestmentsListTradesResponses];
+
+export type InvestmentsCreateTradeData = {
+    body: TradeCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/investments/trades';
+};
+
+export type InvestmentsCreateTradeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsCreateTradeError = InvestmentsCreateTradeErrors[keyof InvestmentsCreateTradeErrors];
+
+export type InvestmentsCreateTradeResponses = {
+    /**
+     * Successful Response
+     */
+    200: TradePublic;
+};
+
+export type InvestmentsCreateTradeResponse = InvestmentsCreateTradeResponses[keyof InvestmentsCreateTradeResponses];
+
+export type InvestmentsDeleteTradeData = {
+    body?: never;
+    path: {
+        /**
+         * Trade Id
+         */
+        trade_id: string;
+    };
+    query?: never;
+    url: '/api/v1/investments/trades/{trade_id}';
+};
+
+export type InvestmentsDeleteTradeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsDeleteTradeError = InvestmentsDeleteTradeErrors[keyof InvestmentsDeleteTradeErrors];
+
+export type InvestmentsDeleteTradeResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type InvestmentsDeleteTradeResponse = InvestmentsDeleteTradeResponses[keyof InvestmentsDeleteTradeResponses];
+
+export type InvestmentsGetTradeData = {
+    body?: never;
+    path: {
+        /**
+         * Trade Id
+         */
+        trade_id: string;
+    };
+    query?: never;
+    url: '/api/v1/investments/trades/{trade_id}';
+};
+
+export type InvestmentsGetTradeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsGetTradeError = InvestmentsGetTradeErrors[keyof InvestmentsGetTradeErrors];
+
+export type InvestmentsGetTradeResponses = {
+    /**
+     * Successful Response
+     */
+    200: TradePublic;
+};
+
+export type InvestmentsGetTradeResponse = InvestmentsGetTradeResponses[keyof InvestmentsGetTradeResponses];
+
+export type InvestmentsUpdateTradeData = {
+    body: TradeUpdate;
+    path: {
+        /**
+         * Trade Id
+         */
+        trade_id: string;
+    };
+    query?: never;
+    url: '/api/v1/investments/trades/{trade_id}';
+};
+
+export type InvestmentsUpdateTradeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InvestmentsUpdateTradeError = InvestmentsUpdateTradeErrors[keyof InvestmentsUpdateTradeErrors];
+
+export type InvestmentsUpdateTradeResponses = {
+    /**
+     * Successful Response
+     */
+    200: TradePublic;
+};
+
+export type InvestmentsUpdateTradeResponse = InvestmentsUpdateTradeResponses[keyof InvestmentsUpdateTradeResponses];
 
 export type ReportsSpendByCategoryData = {
     body?: never;
