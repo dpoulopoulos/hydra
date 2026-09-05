@@ -129,8 +129,27 @@ class MonthSummaryReport(SQLModel):
     income_minor: int
     expense_minor: int
     net_minor: int
-    # Across every account that is not archived.
+
+    # Net worth, split into where it is held. Reported apart as well as
+    # together because the three behave differently, and someone reading a
+    # single total cannot tell which part moved.
+    #
+    # Money in banks, wallets, savings and on credit cards.
+    bank_minor: int = 0
+    # Cash sitting with a broker: transferred in and not yet spent, plus what
+    # sales have returned and not yet been withdrawn.
+    brokerage_minor: int = 0
+    # What the holdings are worth at their last known price. The only one of
+    # the three that moves without anybody recording anything.
+    assets_minor: int = 0
+    # All three added together, and nothing is counted twice. Buying takes cash
+    # out of a brokerage account and turns it into a holding, so a euro is
+    # either still cash or already a holding, never both.
     net_worth_minor: int
+    # Open holdings with no price or no exchange rate. They contribute nothing
+    # to `assets_minor`, so a total with any of these is understated, and the
+    # page must be able to say so rather than quietly rounding them to zero.
+    unpriced_asset_count: int = 0
     budgeted_minor: int
     over_budget_category_count: int
     transaction_count: int

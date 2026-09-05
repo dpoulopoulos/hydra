@@ -6,6 +6,8 @@ import pytest
 
 from app.exceptions import CategoryNotFoundError, InvalidDateRangeError, ReportRangeTooLargeError
 from app.models import (
+    Account,
+    AccountType,
     Budget,
     Category,
     CategoryDepth,
@@ -447,17 +449,13 @@ class TestIncomeExpense:
         self, mock_report_service: ReportService, household_context: HouseholdContext
     ) -> None:
         with pytest.raises(InvalidDateRangeError):
-            mock_report_service.income_expense(
-                household=household_context, month_from="2026-06", month_to="2026-01"
-            )
+            mock_report_service.income_expense(household=household_context, month_from="2026-06", month_to="2026-01")
 
     def test_rejects_too_many_months(
         self, mock_report_service: ReportService, household_context: HouseholdContext
     ) -> None:
         with pytest.raises(ReportRangeTooLargeError):
-            mock_report_service.income_expense(
-                household=household_context, month_from="2000-01", month_to="2026-01"
-            )
+            mock_report_service.income_expense(household=household_context, month_from="2000-01", month_to="2026-01")
 
 
 def budget_pair(
@@ -669,9 +667,7 @@ class TestBudgetProgress:
         mock_report_service.session.exec = MagicMock()
         mock_report_service.session.exec.return_value.all.side_effect = [[], []]
         mock_report_service.session.execute = MagicMock()
-        mock_report_service.session.execute.return_value.all.return_value = [
-            spend_row(amount_minor=5_000)
-        ]
+        mock_report_service.session.execute.return_value.all.return_value = [spend_row(amount_minor=5_000)]
         mock_report_service.session.get = MagicMock(return_value=household)
 
         result = mock_report_service.budget_progress(household=household_context, month="2026-03")
@@ -679,3 +675,122 @@ class TestBudgetProgress:
         assert result.rows == []
         assert result.total_limit_minor == 0
         assert result.unbudgeted_spend_minor == 5_000
+
+
+class TestMonthSummaryNetWorth:
+    """Tests for splitting net worth into where it is held."""
+
+    @pytest.fixture
+    def wired(self, mock_report_service: ReportService, household: Household) -> ReportService:
+        """A report service with the ledger side stubbed out.
+
+        Only the net worth figures matter here, so the month's flows, budgets
+        and categories are all answered with nothing. The household holds
+        2,500.00 in a bank account and 400.00 sitting with a broker.
+        """
+        mock_report_service.household_repository.get_by_id = MagicMock(return_value=household)
+        mock_report_service.report_repository.totals_by_kind = MagicMock(return_value=[])
+        mock_report_service.report_repository.spend_by_category = MagicMock(return_value=[])
+        mock_report_service.budget_repository.list_for_month = MagicMock(return_value=([], 0))
+        mock_report_service.category_repository.list_for_household = MagicMock(return_value=[])
+        bank = Account(
+            household_id=HOUSEHOLD_ID,
+            name="Alpha Bank Current",
+            type=AccountType.CURRENT,
+            currency_code="EUR",
+            opening_balance_minor=0,
+            opening_balance_date=date(2025, 1, 1),
+        )
+        bank.id = uuid.UUID("66666666-6666-6666-6666-666666666666")
+        broker = Account(
+            household_id=HOUSEHOLD_ID,
+            name="Degiro",
+            type=AccountType.BROKERAGE,
+            currency_code="EUR",
+            opening_balance_minor=0,
+            opening_balance_date=date(2025, 1, 1),
+        )
+        broker.id = uuid.UUID("77777777-7777-7777-7777-777777777777")
+
+        mock_report_service.account_repository.list_for_household = MagicMock(return_value=([bank, broker], 2))
+        mock_report_service.account_repository.balances_of = MagicMock(
+            return_value={bank.id: 250_000, broker.id: 40_000}
+        )
+        return mock_report_service
+
+    def test_it_reports_bank_broker_and_holdings_apart_as_well_as_together(
+        self, wired: ReportService, household_context: HouseholdContext
+    ) -> None:
+        """Test that the split is reported, not just the total.
+
+        The three behave differently, and someone reading a single total
+        cannot tell which part moved: the ledger knows bank and broker cash
+        exactly, while holdings move with nobody recording anything.
+        """
+        # Arrange: Set up 2,500.00 in accounts and 1,000.00 of holdings
+        investments = MagicMock()
+        investments.get_portfolio.return_value = MagicMock(total_market_value_minor=100_000, unpriced_count=0)
+
+        # Act: Build the summary
+        result = wired.month_summary(household=household_context, month="2026-03", investment_service=investments)
+
+        # Assert: Verify all three figures are present and add up
+        assert result.bank_minor == 250_000
+        assert result.brokerage_minor == 40_000
+        assert result.assets_minor == 100_000
+        assert result.net_worth_minor == 390_000
+
+    def test_it_says_how_many_holdings_are_missing_from_the_total(
+        self, wired: ReportService, household_context: HouseholdContext
+    ) -> None:
+        """Test that unpriced holdings are counted rather than silently dropped.
+
+        A holding with no price contributes nothing, so the total understates
+        net worth. Reporting the count is what lets the page admit that.
+        """
+        # Arrange: Set up a portfolio with two holdings it cannot value
+        investments = MagicMock()
+        investments.get_portfolio.return_value = MagicMock(total_market_value_minor=100_000, unpriced_count=2)
+
+        # Act: Build the summary
+        result = wired.month_summary(household=household_context, month="2026-03", investment_service=investments)
+
+        # Assert: Verify the gap is reported
+        assert result.unpriced_asset_count == 2
+
+    def test_without_investments_net_worth_is_the_accounts_alone(
+        self, wired: ReportService, household_context: HouseholdContext
+    ) -> None:
+        """Test that a deployment with the feature off behaves as it did before.
+
+        Net worth meant the accounts before there were any investments, and
+        that has to keep being true rather than becoming zero plus cash.
+        """
+        # Act: Build the summary with no investment service at all
+        result = wired.month_summary(household=household_context, month="2026-03")
+
+        # Assert: Verify nothing changed for that case
+        assert result.bank_minor == 250_000
+        assert result.brokerage_minor == 40_000
+        assert result.assets_minor == 0
+        assert result.net_worth_minor == 290_000
+        assert result.unpriced_asset_count == 0
+
+    def test_the_dashboard_never_fetches_a_price_to_load(
+        self, wired: ReportService, household_context: HouseholdContext
+    ) -> None:
+        """Test that opening the dashboard spends no API call.
+
+        The provider bills per holding out of a small daily allowance. A screen
+        that priced the portfolio on every load would empty it by lunchtime.
+        """
+        # Arrange: Set up an investment service that records what is called
+        investments = MagicMock()
+        investments.get_portfolio.return_value = MagicMock(total_market_value_minor=0, unpriced_count=0)
+
+        # Act: Build the summary
+        wired.month_summary(household=household_context, month="2026-03", investment_service=investments)
+
+        # Assert: Verify it read stored prices and asked the provider for nothing
+        investments.get_portfolio.assert_called_once()
+        investments.refresh_prices.assert_not_called()
