@@ -31,7 +31,7 @@ class TestCreateUser:
     ) -> None:
         """Test successfully creating a new user as a superuser."""
         # Arrange: Set up dependency overrides and mock user creation
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -75,7 +75,7 @@ class TestCreateUser:
     ) -> None:
         """Test creating a user with an email that already exists."""
         # Arrange: Set up dependency overrides and mock UserExistsError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -110,7 +110,7 @@ class TestCreateUser:
     ) -> None:
         """Test creating a user as a non-superuser (should fail)."""
         # Arrange: Set up dependency overrides with regular user that raises UserNotAuthorizedError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -152,7 +152,7 @@ class TestRegisterUser:
     ) -> None:
         """Test successfully registering a new user."""
         # Arrange: Set up database dependency override and mock user creation
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -192,7 +192,7 @@ class TestRegisterUser:
     ) -> None:
         """Test registering with an email that already exists."""
         # Arrange: Set up database dependency override and mock UserExistsError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -230,7 +230,7 @@ class TestGetUserMe:
     ) -> None:
         """Test successfully retrieving current user information."""
         # Arrange: Set up dependency overrides with authenticated user
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -262,7 +262,7 @@ class TestGetUserMe:
     ) -> None:
         """Test retrieving user info with inactive user token."""
         # Arrange: Set up dependency overrides that raise UserNotAuthorizedError for inactive user
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -301,7 +301,7 @@ class TestGetUserById:
     ) -> None:
         """Test retrieving own user information by ID."""
         # Arrange: Set up dependency overrides and mock get_user_by_id
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -333,7 +333,7 @@ class TestGetUserById:
     ) -> None:
         """Test superuser retrieving another user's information."""
         # Arrange: Set up dependency overrides with superuser and mock get_user_by_id
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -365,7 +365,7 @@ class TestGetUserById:
     ) -> None:
         """Test regular user trying to retrieve another user's information (should fail)."""
         # Arrange: Set up dependency overrides and mock UserNotAuthorizedError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -392,7 +392,7 @@ class TestGetUserById:
     ) -> None:
         """Test retrieving a non-existent user."""
         # Arrange: Set up dependency overrides and mock UserNotFoundError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -427,7 +427,7 @@ class TestGetUsers:
     ) -> None:
         """Test successfully retrieving list of users as superuser."""
         # Arrange: Set up dependency overrides and mock get_users
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -468,7 +468,7 @@ class TestGetUsers:
     ) -> None:
         """Test retrieving users with pagination parameters."""
         # Arrange: Set up dependency overrides and mock get_users with pagination
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -503,7 +503,7 @@ class TestGetUsers:
     ) -> None:
         """A negative limit reaches Postgres as a negative LIMIT: a 500 where a 422 belongs."""
         # Arrange: Set up dependency overrides for a superuser
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -532,7 +532,7 @@ class TestGetUsers:
     ) -> None:
         """Test retrieving users as non-superuser (should fail)."""
         # Arrange: Set up dependency overrides with regular user that raises UserNotAuthorizedError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -567,7 +567,7 @@ class TestUpdateUserMe:
     ) -> None:
         """Test successfully updating current user's information."""
         # Arrange: Set up dependency overrides and mock update_user_me
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -611,7 +611,7 @@ class TestUpdateUserMe:
     ) -> None:
         """Test updating email to one that already exists."""
         # Arrange: Set up dependency overrides and mock UserExistsError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -646,7 +646,7 @@ class TestUpdateUser:
     ) -> None:
         """Test superuser successfully updating a user."""
         # Arrange: Set up dependency overrides and mock update_user
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -689,7 +689,7 @@ class TestUpdateUser:
     ) -> None:
         """Test updating a non-existent user."""
         # Arrange: Set up dependency overrides and mock UserNotFoundError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -723,7 +723,7 @@ class TestUpdateUser:
     ) -> None:
         """Test regular user trying to update another user (should fail)."""
         # Arrange: Set up dependency overrides with regular user that raises UserNotAuthorizedError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -761,7 +761,7 @@ class TestUpdatePasswordMe:
     ) -> None:
         """Test successfully updating password."""
         # Arrange: Set up dependency overrides and mock update_password
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -795,7 +795,7 @@ class TestUpdatePasswordMe:
     ) -> None:
         """Test updating password with incorrect current password."""
         # Arrange: Set up dependency overrides and mock PasswordIsWrongError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -825,7 +825,7 @@ class TestUpdatePasswordMe:
     ) -> None:
         """Test updating password to the same as current password."""
         # Arrange: Set up dependency overrides and mock PasswordUnmodifiedError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -859,7 +859,7 @@ class TestDeleteUserMe:
     ) -> None:
         """Test successfully deleting current user."""
         # Arrange: Set up dependency overrides and mock delete_user_me
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -890,7 +890,7 @@ class TestDeleteUserMe:
     ) -> None:
         """Without it the user's household would be left behind."""
         # Arrange: Set up dependency overrides and mock delete_user_me
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -919,7 +919,7 @@ class TestDeleteUserMe:
     ) -> None:
         """Test superuser trying to delete their own account (should fail)."""
         # Arrange: Set up dependency overrides and mock DeleteSuperUserError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -951,7 +951,7 @@ class TestDeleteUser:
     ) -> None:
         """Test superuser successfully deleting another user."""
         # Arrange: Set up dependency overrides and mock delete_user
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -984,7 +984,7 @@ class TestDeleteUser:
     ) -> None:
         """A superuser deleting somebody must not leave their household either."""
         # Arrange: Set up dependency overrides and mock delete_user
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -1014,7 +1014,7 @@ class TestDeleteUser:
     ) -> None:
         """Test deleting a non-existent user."""
         # Arrange: Set up dependency overrides and mock UserNotFoundError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -1044,7 +1044,7 @@ class TestDeleteUser:
     ) -> None:
         """Test superuser trying to delete their own account (should fail)."""
         # Arrange: Set up dependency overrides and mock DeleteSuperUserError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -1073,7 +1073,7 @@ class TestDeleteUser:
     ) -> None:
         """Test regular user trying to delete another user (should fail)."""
         # Arrange: Set up dependency overrides with regular user that raises UserNotAuthorizedError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:

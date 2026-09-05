@@ -7,9 +7,9 @@ from app.models import ForecastBasis
 from app.services.income_forecast import (
     CONFIDENCE_PERCENT,
     DEVIATIONS,
+    MAX_LIFETIME_MONTHS,
     SHRINKAGE_SESSIONS,
     SINGLE_MONTH_SPREAD_PERCENT,
-    MAX_LIFETIME_MONTHS,
     Trial,
     expected_lifetime_months,
     history_band,
