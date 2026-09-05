@@ -77,7 +77,8 @@ The application follows a clean, layered architecture:
    > **Convention:** if a repository extends `HouseholdScopedRepository`, its service calls `get_for_household()` and
    > never the inherited `get_by_id()`, which is unscoped. A write that references another entity by ID must
    > re-resolve that ID through `get_for_household()` before using it. An ID belonging to another household is
-   > reported as `404`, never `403`, so the API does not leak which IDs exist.
+   > reported as `404`, never `403`, so the API does not leak which IDs exist. Where the row itself is not
+   > needed, `exists_for_household()` answers the same question without loading it.
 
 4. **Models Layer** ([src/app/models/](src/app/models/))
    - SQLModel database models
