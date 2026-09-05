@@ -201,23 +201,24 @@ counts nothing twice: a euro is either still cash or already a holding.
 
 Run these from the repository root.
 
-| Command              | What it does                                                        |
-| -------------------- | ------------------------------------------------------------------- |
-| `make dev`           | Build and start everything, reloading on changes                    |
-| `make stop`          | Stop the stack                                                      |
-| `make clean`         | Stop the stack and remove containers, networks, volumes, and images |
-| `make logs`          | Follow the backend logs                                             |
-| `make logs-web`      | Follow the frontend logs                                            |
-| `make format`        | Format the Python code                                              |
-| `make lint`          | Check types and lint the Python code                                |
-| `make test-unit`     | Run the unit tests and show coverage                                |
-| `make web`           | Run the web app on the host instead of in Docker                    |
-| `make web-build`     | Type check and build the web app                                    |
-| `make web-format`    | Format the frontend code                                            |
-| `make web-lint`      | Type check and lint the frontend code                               |
-| `make web-test-unit` | Run the frontend unit tests                                         |
-| `make web-api`       | Regenerate the API client from the backend's schema                 |
-| `make web-api-check` | Fail if the committed API client is out of date                     |
+| Command                 | What it does                                                        |
+| ----------------------- | ------------------------------------------------------------------- |
+| `make dev`              | Build and start everything, reloading on changes                    |
+| `make stop`             | Stop the stack                                                      |
+| `make clean`            | Stop the stack and remove containers, networks, volumes, and images |
+| `make logs`             | Follow the backend logs                                             |
+| `make logs-web`         | Follow the frontend logs                                            |
+| `make format`           | Format the Python code                                              |
+| `make lint`             | Check types and lint the Python code                                |
+| `make test-unit`        | Run the unit tests and show coverage                                |
+| `make test-integration` | Run the integration tests against a real Postgres                   |
+| `make web`              | Run the web app on the host instead of in Docker                    |
+| `make web-build`        | Type check and build the web app                                    |
+| `make web-format`       | Format the frontend code                                            |
+| `make web-lint`         | Type check and lint the frontend code                               |
+| `make web-test-unit`    | Run the frontend unit tests                                         |
+| `make web-api`          | Regenerate the API client from the backend's schema                 |
+| `make web-api-check`    | Fail if the committed API client is out of date                     |
 
 ## Deploying to Railway
 

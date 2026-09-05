@@ -212,12 +212,14 @@ The API will be available at:
 ### Development Scripts
 
 ```bash
-./scripts/format.sh   # Format and autofix
-./scripts/lint.sh     # mypy and ruff
-./scripts/test.sh     # Tests with coverage
+./scripts/format.sh           # Format and autofix
+./scripts/lint.sh             # mypy and ruff
+./scripts/test.sh             # Unit tests with coverage
+./scripts/test-integration.sh # Integration tests, against a real Postgres
 ```
 
-These are also available as `make format`, `make lint` and `make test-unit` from the repository root.
+These are also available as `make format`, `make lint`, `make test-unit` and `make test-integration` from the
+repository root.
 
 ### Running in Docker
 
@@ -242,7 +244,8 @@ make clean       # Stop and remove containers, networks, volumes and images
 make logs        # Follow the backend logs
 make format      # Format Python files
 make lint        # mypy and ruff
-make test-unit   # Tests with coverage
+make test-unit   # Unit tests with coverage
+make test-integration # Integration tests, against the stack's Postgres
 ```
 
 Services and ports:
@@ -456,22 +459,23 @@ def get_stats() -> dict:
 
 ## Testing
 
-### Running Tests
+The suite has two tiers, and they answer different questions.
+
+### Unit tests
+
+[tests/unit/](tests/unit/) mocks the database session, so no Postgres instance is required and no SQL is executed.
+This is the fast tier and where most tests belong.
 
 ```bash
-# Run all tests with coverage
+# Run the unit tests with coverage
 ./scripts/test.sh
 
-# Run specific test file
+# Run a specific test file
 uv run pytest tests/unit/api/routes/test_users.py
 
 # Run with verbose output
-uv run pytest -v
+uv run pytest tests/unit -v
 ```
-
-Tests are unit tests: the database session is mocked, so no Postgres instance is required.
-
-### Writing Tests
 
 Use the fixtures in [tests/conftest.py](tests/conftest.py) for common setup:
 
@@ -479,6 +483,39 @@ Use the fixtures in [tests/conftest.py](tests/conftest.py) for common setup:
 def test_get_user_me(client: TestClient, auth_headers: dict[str, str]) -> None:
     response = client.get("/api/v1/users/me", headers=auth_headers)
     assert response.status_code == 200
+```
+
+### Integration tests
+
+A mock enforces no constraint and runs no query, so anything that lives in SQL is invisible to the tier above it:
+household scoping, the `CHECK`, `RESTRICT` and `UNIQUE` constraints, and the money arithmetic the reports and the
+computed balances are built from. [tests/integration/](tests/integration/) covers those against a real server.
+
+```bash
+# Needs a Postgres. `make dev` from the repository root is enough.
+./scripts/test-integration.sh
+```
+
+The tests connect to the server the `POSTGRES_*` settings point at and create a database of their own next to it,
+named after `POSTGRES_DB` with `_integration` appended, so running them never touches the rows of a local stack.
+The schema is created from the model metadata rather than by migrating, which the migrations workflow already
+proves equivalent. Each test runs inside a transaction that is rolled back afterwards, so the tests do not have to
+clean up after one another.
+
+Use the fixtures in [tests/integration/conftest.py](tests/integration/conftest.py), which give you a session, two
+seeded households and every service wired to the real session:
+
+```python
+def test_a_foreign_account_is_not_found(
+    db_session: Session,
+    account_service: AccountService,
+    household_a: HouseholdContext,
+    household_b: HouseholdContext,
+) -> None:
+    foreign = make_account(db_session, household_id=household_b.household_id)
+
+    with pytest.raises(AccountNotFoundError):
+        account_service.get_account(household=household_a, account_id=foreign.id)
 ```
 
 ## Code Quality

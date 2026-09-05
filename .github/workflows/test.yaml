@@ -1,4 +1,4 @@
-name: Unit tests
+name: Tests
 
 on:
   pull_request:
@@ -46,6 +46,52 @@ jobs:
       # The unit tests mock the database session, so no server is needed.
       - name: Run tests
         run: bash scripts/test.sh
+
+  # The tier the unit tests cannot cover: household scoping, the CHECK,
+  # RESTRICT and UNIQUE constraints, and the money arithmetic that lives in
+  # SQL. It needs a server, so it gets one.
+  test-integration:
+    name: pytest (integration)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: app
+          # Must match the POSTGRES_PASSWORD set at the workflow level.
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned exactly: setup-uv publishes no floating tag above v7.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Create .env
+        run: cp .env.example .env
+        working-directory: .
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Run tests
+        run: bash scripts/test-integration.sh
 
   test-frontend:
     name: vitest

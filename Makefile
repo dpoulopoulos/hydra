@@ -9,6 +9,7 @@ help:
 	@echo "  make format        - Format Python files"
 	@echo "  make lint          - Scan Python files for linting errors"
 	@echo "  make test-unit     - Run unit tests and report coverage"
+	@echo "  make test-integration - Run the integration tests against a real Postgres"
 	@echo ""
 	@echo "  make web           - Start the frontend outside Docker (make dev runs it inside)"
 	@echo "  make web-install   - Install frontend dependencies"
@@ -67,6 +68,13 @@ lint:
 .PHONY: test-unit
 test-unit:
 	bash ./backend/scripts/test.sh
+
+# Needs a Postgres to talk to: `make dev`, or anything else serving the
+# POSTGRES_* settings in .env. The tests use a database of their own on that
+# server, so they never touch the rows of a running stack.
+.PHONY: test-integration
+test-integration:
+	bash ./backend/scripts/test-integration.sh
 
 # --- frontend outside Docker -----------------------------------------------
 # `make dev` already runs the web app in a container. These targets are for
