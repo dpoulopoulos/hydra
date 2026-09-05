@@ -38,6 +38,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCategoryTree, useInvalidateCategories } from '@/hooks/use-categories'
 import { errorMessage } from '@/lib/api'
+import { archiveMessage } from '@/lib/categories'
 
 export function Component() {
   const [kind, setKind] = useState<CategoryKind>(CategoryKind.EXPENSE)
@@ -62,9 +63,7 @@ export function Component() {
     onSuccess: ({ category, archived }) => {
       invalidate()
       toast.success(
-        archived
-          ? `${category.name} archived${category.parent_id ? '' : ', along with anything under it'}`
-          : `${category.name} restored`,
+        archiveMessage({ name: category.name, parentId: category.parent_id ?? null, archived }),
       )
     },
     onError: (error) => toast.error(errorMessage(error)),
