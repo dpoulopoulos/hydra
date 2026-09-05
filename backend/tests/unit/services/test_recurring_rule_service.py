@@ -251,9 +251,7 @@ class TestCreateRule:
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
     ) -> None:
         mock_recurring_rule_service.session.exec = MagicMock()
-        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account(
-            archived=True
-        )
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account(archived=True)
 
         with pytest.raises(AccountArchivedError):
             mock_recurring_rule_service.create_rule(
@@ -369,9 +367,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
-        result = mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 3, 15)
-        )
+        result = mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 3, 15))
 
         assert result.created_count == 3
         assert result.rules_advanced == 1
@@ -390,9 +386,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
-        mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 1, 15)
-        )
+        mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 1, 15))
 
         created = [
             call.args[0]
@@ -411,9 +405,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
-        mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 3, 15)
-        )
+        mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 3, 15))
 
         assert rule.last_generated_on == date(2026, 3, 1)
         assert rule.next_occurrence_on == date(2026, 4, 1)
@@ -426,9 +418,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
-        result = mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 3, 15)
-        )
+        result = mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 3, 15))
 
         assert result.created_count == 0
 
@@ -440,9 +430,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
-        result = mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 6, 1)
-        )
+        result = mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 6, 1))
 
         assert result.created_count == 0
         assert rule.next_occurrence_on is None
@@ -455,9 +443,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
-        result = mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 6, 1)
-        )
+        result = mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 6, 1))
 
         assert result.created_count == 2
         assert rule.next_occurrence_on is None
@@ -476,9 +462,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
-        result = mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 1, 1)
-        )
+        result = mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 1, 1))
 
         assert result.created_count == 500
 
@@ -493,9 +477,7 @@ class TestMaterializeDue:
         ]
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
-        mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 3, 15)
-        )
+        mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 3, 15))
 
         mock_recurring_rule_service.session.commit.assert_called_once()
 
@@ -507,20 +489,15 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.all.return_value = []
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
-        mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 3, 15)
-        )
+        mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 3, 15))
 
         # Compiled against the Postgres dialect, since SKIP LOCKED is not
         # rendered by the generic one.
         statement = str(
-            mock_recurring_rule_service.session.exec.call_args.args[0].compile(
-                dialect=postgresql.dialect()
-            )
+            mock_recurring_rule_service.session.exec.call_args.args[0].compile(dialect=postgresql.dialect())
         )
         assert "FOR UPDATE" in statement
         assert "SKIP LOCKED" in statement
-
 
     def test_does_not_generate_into_an_archived_account(
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
@@ -531,9 +508,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account(archived=True)
 
-        result = mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 3, 15)
-        )
+        result = mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 3, 15))
 
         assert created_transactions(mock_recurring_rule_service) == []
         assert result.created_count == 0
@@ -548,9 +523,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account(archived=True)
 
-        result = mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 3, 15)
-        )
+        result = mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 3, 15))
 
         assert rule.next_occurrence_on == date(2026, 1, 1)
         assert rule.last_generated_on is None
@@ -565,9 +538,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
         mock_recurring_rule_service.session.exec.return_value.first.return_value = None
 
-        result = mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 3, 15)
-        )
+        result = mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 3, 15))
 
         assert created_transactions(mock_recurring_rule_service) == []
         assert result.created_count == 0
@@ -589,9 +560,7 @@ class TestMaterializeDue:
             make_account(name="Savings", archived=True),
         ]
 
-        result = mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 3, 15)
-        )
+        result = mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 3, 15))
 
         assert created_transactions(mock_recurring_rule_service) == []
         assert result.created_count == 0
@@ -609,14 +578,11 @@ class TestMaterializeDue:
             make_account(),
         ]
 
-        result = mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 3, 15)
-        )
+        result = mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 3, 15))
 
         assert result.created_count == 3
         assert result.skipped_count == 3
         assert result.rules_advanced == 1
-
 
     def test_an_occurrence_another_request_already_wrote_is_skipped(
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
@@ -628,9 +594,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
         mock_recurring_rule_service.session.flush.side_effect = flush_failing_on(2, unique_violation())
 
-        result = mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 3, 15)
-        )
+        result = mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 3, 15))
 
         assert result.created_count == 2
         assert result.skipped_count == 1
@@ -645,9 +609,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
         mock_recurring_rule_service.session.flush.side_effect = flush_failing_on(1, unique_violation())
 
-        mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 1, 15)
-        )
+        mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 1, 15))
 
         mock_recurring_rule_service.session.begin_nested.return_value.rollback.assert_called_once()
         mock_recurring_rule_service.session.commit.assert_called_once()
@@ -662,9 +624,7 @@ class TestMaterializeDue:
         mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
         mock_recurring_rule_service.session.flush.side_effect = flush_failing_on(1, unique_violation())
 
-        mock_recurring_rule_service.materialize_due(
-            household=household_context, until=date(2026, 1, 15)
-        )
+        mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 1, 15))
 
         assert rule.next_occurrence_on == date(2026, 2, 1)
 
@@ -681,9 +641,7 @@ class TestMaterializeDue:
         )
 
         with pytest.raises(IntegrityError):
-            mock_recurring_rule_service.materialize_due(
-                household=household_context, until=date(2026, 1, 15)
-            )
+            mock_recurring_rule_service.materialize_due(household=household_context, until=date(2026, 1, 15))
 
 
 class TestListUpcoming:
@@ -696,9 +654,7 @@ class TestListUpcoming:
         mock_recurring_rule_service.session.exec = MagicMock()
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
 
-        result = mock_recurring_rule_service.list_upcoming(
-            household=household_context, until=date(2026, 6, 15)
-        )
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 6, 15))
 
         assert [occurrence.occurs_on for occurrence in result.data] == [
             date(2026, 4, 1),
@@ -713,13 +669,9 @@ class TestListUpcoming:
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
     ) -> None:
         mock_recurring_rule_service.session.exec = MagicMock()
-        mock_recurring_rule_service.session.exec.return_value.all.return_value = [
-            make_rule(next_occurrence_on=None)
-        ]
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [make_rule(next_occurrence_on=None)]
 
-        result = mock_recurring_rule_service.list_upcoming(
-            household=household_context, until=date(2026, 6, 15)
-        )
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 6, 15))
 
         assert result.count == 0
 
@@ -745,9 +697,7 @@ class TestSchedulesPastTheCalendar:
         mock_recurring_rule_service.session.exec = MagicMock()
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
 
-        result = mock_recurring_rule_service.list_upcoming(
-            household=household_context, until=date(9999, 12, 31)
-        )
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(9999, 12, 31))
 
         assert result.count > 0
         assert all(occurrence.occurs_on <= date(9999, 12, 31) for occurrence in result.data)
@@ -756,15 +706,11 @@ class TestSchedulesPastTheCalendar:
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
     ) -> None:
         """Nothing clamps a rule saved before the cap, so a read must survive one."""
-        rule = make_rule(
-            frequency=RecurrenceFrequency.YEARLY, interval=100_000, next_occurrence_on=date(2026, 4, 1)
-        )
+        rule = make_rule(frequency=RecurrenceFrequency.YEARLY, interval=100_000, next_occurrence_on=date(2026, 4, 1))
         mock_recurring_rule_service.session.exec = MagicMock()
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
 
-        result = mock_recurring_rule_service.list_upcoming(
-            household=household_context, until=date(2026, 6, 15)
-        )
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 6, 15))
 
         assert [occurrence.occurs_on for occurrence in result.data] == [date(2026, 4, 1)]
 

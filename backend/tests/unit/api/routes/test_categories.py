@@ -43,9 +43,7 @@ def make_public(name: str = "Food & Drink", parent_id: uuid.UUID | None = None) 
 
 
 @pytest.fixture
-def wire(
-    mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext
-) -> Generator[MagicMock]:
+def wire(mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext) -> Generator[MagicMock]:
     """Override the database, the current user, the household scope and the service.
 
     Yields:
@@ -69,9 +67,7 @@ def wire(
 class TestCreateCategory:
     """Tests for POST /categories/."""
 
-    def test_creates_a_category(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_creates_a_category(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.create_category.return_value = make_public(name="Boats")
 
         response = client.post("/api/v1/categories/", headers=auth_headers, json={"name": "Boats"})
@@ -101,7 +97,6 @@ class TestCreateCategory:
 
         assert response.status_code == 400
 
-
     @pytest.mark.parametrize("sort_order", [MAX_SORT_ORDER + 1, -1])
     def test_rejects_an_order_outside_the_range(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str], sort_order: int
@@ -119,9 +114,7 @@ class TestCreateCategory:
 class TestListCategories:
     """Tests for GET /categories/."""
 
-    def test_returns_the_categories(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_categories(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.list_categories.return_value = CategoriesPublic(data=[make_public()], count=1)
 
         response = client.get("/api/v1/categories/", headers=auth_headers)
@@ -152,15 +145,11 @@ class TestListCategories:
     ) -> None:
         wire.list_categories.side_effect = CategoryNotFoundError
 
-        response = client.get(
-            "/api/v1/categories/", headers=auth_headers, params={"parent_id": str(uuid.uuid4())}
-        )
+        response = client.get("/api/v1/categories/", headers=auth_headers, params={"parent_id": str(uuid.uuid4())})
 
         assert response.status_code == 404
 
-    def test_rejects_an_unknown_kind(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_rejects_an_unknown_kind(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.get("/api/v1/categories/", headers=auth_headers, params={"kind": "nonsense"})
 
         assert response.status_code == 422
@@ -169,15 +158,9 @@ class TestListCategories:
 class TestGetCategoryTree:
     """Tests for GET /categories/tree."""
 
-    def test_returns_the_tree(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_tree(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.get_category_tree.return_value = CategoryTreePublic(
-            data=[
-                CategoryTreeNode.model_validate(
-                    make_public(), update={"children": [make_public(name="Groceries")]}
-                )
-            ],
+            data=[CategoryTreeNode.model_validate(make_public(), update={"children": [make_public(name="Groceries")]})],
             count=2,
         )
 
@@ -201,9 +184,7 @@ class TestGetCategoryTree:
 class TestGetCategory:
     """Tests for GET /categories/{category_id}."""
 
-    def test_returns_the_category(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_category(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.get_category.return_value = make_public()
 
         response = client.get(f"/api/v1/categories/{CATEGORY_ID}", headers=auth_headers)
@@ -224,14 +205,10 @@ class TestGetCategory:
 class TestUpdateCategory:
     """Tests for PATCH /categories/{category_id}."""
 
-    def test_updates_the_category(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_updates_the_category(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.update_category.return_value = make_public(name="Eating")
 
-        response = client.patch(
-            f"/api/v1/categories/{CATEGORY_ID}", headers=auth_headers, json={"name": "Eating"}
-        )
+        response = client.patch(f"/api/v1/categories/{CATEGORY_ID}", headers=auth_headers, json={"name": "Eating"})
 
         assert response.status_code == 200
         assert wire.update_category.call_args.kwargs["category_update"].name == "Eating"
@@ -241,9 +218,7 @@ class TestUpdateCategory:
     ) -> None:
         wire.update_category.return_value = make_public()
 
-        response = client.patch(
-            f"/api/v1/categories/{CATEGORY_ID}", headers=auth_headers, json={"is_archived": True}
-        )
+        response = client.patch(f"/api/v1/categories/{CATEGORY_ID}", headers=auth_headers, json={"is_archived": True})
 
         assert response.status_code == 200
         assert wire.update_category.call_args.kwargs["category_update"].is_archived is True
@@ -253,12 +228,9 @@ class TestUpdateCategory:
     ) -> None:
         wire.update_category.side_effect = SystemCategoryError
 
-        response = client.patch(
-            f"/api/v1/categories/{CATEGORY_ID}", headers=auth_headers, json={"name": "Misc"}
-        )
+        response = client.patch(f"/api/v1/categories/{CATEGORY_ID}", headers=auth_headers, json={"name": "Misc"})
 
         assert response.status_code == 400
-
 
     def test_rejects_an_order_beyond_the_range(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
@@ -275,9 +247,7 @@ class TestUpdateCategory:
 class TestDeleteCategory:
     """Tests for DELETE /categories/{category_id}."""
 
-    def test_deletes_the_category(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_deletes_the_category(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.delete_category.return_value = Message(message="Category deleted.")
 
         response = client.delete(f"/api/v1/categories/{CATEGORY_ID}", headers=auth_headers)

@@ -30,9 +30,7 @@ class TestInitDb:
         )
 
         # Assert: Verify get_user_by_email was called with the correct email
-        mock_user_service.get_user_by_email.assert_called_once_with(
-            email=settings.FIRST_SUPERUSER
-        )
+        mock_user_service.get_user_by_email.assert_called_once_with(email=settings.FIRST_SUPERUSER)
 
         # Assert: Verify create_user was NOT called since superuser exists
         mock_user_service.create_user.assert_not_called()
@@ -58,9 +56,7 @@ class TestInitDb:
         )
 
         # Assert: Verify get_user_by_email was called with the correct email
-        mock_user_service.get_user_by_email.assert_called_once_with(
-            email=settings.FIRST_SUPERUSER
-        )
+        mock_user_service.get_user_by_email.assert_called_once_with(email=settings.FIRST_SUPERUSER)
 
         # Assert: Verify create_user was called with the correct parameters
         mock_user_service.create_user.assert_called_once()

@@ -386,9 +386,7 @@ class TestRemoveHouseholdMember:
         use_context(owner_context)
         wire.remove_member.return_value = Message(message="Member removed from the household.")
 
-        response = client.delete(
-            f"/api/v1/households/me/members/{another_test_user.id}", headers=auth_headers
-        )
+        response = client.delete(f"/api/v1/households/me/members/{another_test_user.id}", headers=auth_headers)
 
         assert response.status_code == 200
 
@@ -419,9 +417,7 @@ class TestRemoveHouseholdMember:
     ) -> None:
         use_context(member_context)
 
-        response = client.delete(
-            f"/api/v1/households/me/members/{another_test_user.id}", headers=auth_headers
-        )
+        response = client.delete(f"/api/v1/households/me/members/{another_test_user.id}", headers=auth_headers)
 
         assert response.status_code == 403
         wire.remove_member.assert_not_called()
@@ -524,9 +520,7 @@ class TestCreateHouseholdInvite:
     ) -> None:
         use_context(owner_context)
 
-        response = client.post(
-            "/api/v1/households/me/invites", headers=auth_headers, json={"email": "not-an-email"}
-        )
+        response = client.post("/api/v1/households/me/invites", headers=auth_headers, json={"email": "not-an-email"})
 
         assert response.status_code == 422
 
@@ -559,9 +553,7 @@ class TestListHouseholdInvites:
         use_context(member_context)
         wire.list_invites.return_value = HouseholdInvitesPublic(data=[], count=0)
 
-        client.get(
-            "/api/v1/households/me/invites", headers=auth_headers, params={"status": "accepted"}
-        )
+        client.get("/api/v1/households/me/invites", headers=auth_headers, params={"status": "accepted"})
 
         assert wire.list_invites.call_args.kwargs["status"] is HouseholdInviteStatus.ACCEPTED
 
@@ -579,9 +571,7 @@ class TestRevokeHouseholdInvite:
         use_context(owner_context)
         wire.revoke_invite.return_value = Message(message="Invitation withdrawn.")
 
-        response = client.delete(
-            f"/api/v1/households/me/invites/{INVITE_ID}", headers=auth_headers
-        )
+        response = client.delete(f"/api/v1/households/me/invites/{INVITE_ID}", headers=auth_headers)
 
         assert response.status_code == 200
 
@@ -594,9 +584,7 @@ class TestRevokeHouseholdInvite:
     ) -> None:
         use_context(member_context)
 
-        response = client.delete(
-            f"/api/v1/households/me/invites/{INVITE_ID}", headers=auth_headers
-        )
+        response = client.delete(f"/api/v1/households/me/invites/{INVITE_ID}", headers=auth_headers)
 
         assert response.status_code == 403
 
@@ -610,9 +598,7 @@ class TestRevokeHouseholdInvite:
         use_context(owner_context)
         wire.revoke_invite.side_effect = HouseholdInviteUsedError
 
-        response = client.delete(
-            f"/api/v1/households/me/invites/{INVITE_ID}", headers=auth_headers
-        )
+        response = client.delete(f"/api/v1/households/me/invites/{INVITE_ID}", headers=auth_headers)
 
         assert response.status_code == 400
 
@@ -643,9 +629,7 @@ class TestPreviewHouseholdInvite:
 
         assert response.status_code == 404
 
-    def test_an_expired_invite_is_a_bad_request(
-        self, client: TestClient, wire: MagicMock
-    ) -> None:
+    def test_an_expired_invite_is_a_bad_request(self, client: TestClient, wire: MagicMock) -> None:
         wire.preview_invite.side_effect = HouseholdInviteExpiredError
 
         response = client.get("/api/v1/households/invites/a-token")
@@ -665,9 +649,7 @@ class TestAcceptHouseholdInvite:
     ) -> None:
         wire.accept_invite.return_value = household_public
 
-        response = client.post(
-            "/api/v1/households/invites/accept", headers=auth_headers, json={"token": "a-token"}
-        )
+        response = client.post("/api/v1/households/invites/accept", headers=auth_headers, json={"token": "a-token"})
 
         assert response.status_code == 200
         assert response.json()["name"] == "Test household"
@@ -682,9 +664,7 @@ class TestAcceptHouseholdInvite:
         """The literal "accept" path must win over the {token} path."""
         wire.accept_invite.return_value = household_public
 
-        response = client.post(
-            "/api/v1/households/invites/accept", headers=auth_headers, json={"token": "a-token"}
-        )
+        response = client.post("/api/v1/households/invites/accept", headers=auth_headers, json={"token": "a-token"})
 
         assert response.status_code == 200
         wire.preview_invite.assert_not_called()
@@ -694,9 +674,7 @@ class TestAcceptHouseholdInvite:
     ) -> None:
         wire.accept_invite.side_effect = HouseholdInviteEmailMismatchError
 
-        response = client.post(
-            "/api/v1/households/invites/accept", headers=auth_headers, json={"token": "a-token"}
-        )
+        response = client.post("/api/v1/households/invites/accept", headers=auth_headers, json={"token": "a-token"})
 
         assert response.status_code == 403
 
@@ -705,9 +683,7 @@ class TestAcceptHouseholdInvite:
     ) -> None:
         wire.accept_invite.side_effect = HouseholdInviteUnclaimedError
 
-        response = client.post(
-            "/api/v1/households/invites/accept", headers=auth_headers, json={"token": "a-token"}
-        )
+        response = client.post("/api/v1/households/invites/accept", headers=auth_headers, json={"token": "a-token"})
 
         assert response.status_code == 403
         assert "waiting for its address to be confirmed" in response.json()["detail"]
@@ -717,9 +693,7 @@ class TestAcceptHouseholdInvite:
     ) -> None:
         wire.accept_invite.side_effect = HouseholdNotEmptyError
 
-        response = client.post(
-            "/api/v1/households/invites/accept", headers=auth_headers, json={"token": "a-token"}
-        )
+        response = client.post("/api/v1/households/invites/accept", headers=auth_headers, json={"token": "a-token"})
 
         assert response.status_code == 409
         assert "accounts or transactions" in response.json()["detail"]

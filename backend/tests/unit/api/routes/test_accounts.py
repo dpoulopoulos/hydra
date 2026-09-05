@@ -42,9 +42,7 @@ def make_public(
 
 
 @pytest.fixture
-def wire(
-    mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext
-) -> Generator[MagicMock]:
+def wire(mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext) -> Generator[MagicMock]:
     """Override the database, the current user, the household scope and the service.
 
     Yields:
@@ -68,9 +66,7 @@ def wire(
 class TestCreateAccount:
     """Tests for POST /accounts/."""
 
-    def test_creates_an_account(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_creates_an_account(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.create_account.return_value = make_public()
 
         response = client.post(
@@ -90,16 +86,12 @@ class TestCreateAccount:
     def test_requires_an_opening_balance_date(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
-        response = client.post(
-            "/api/v1/accounts/", headers=auth_headers, json={"name": "Cash", "type": "cash"}
-        )
+        response = client.post("/api/v1/accounts/", headers=auth_headers, json={"name": "Cash", "type": "cash"})
 
         assert response.status_code == 422
 
-    def test_rejects_an_unknown_type(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
-        """"checking" is the US term and is deliberately not accepted."""
+    def test_rejects_an_unknown_type(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
+        """ "checking" is the US term and is deliberately not accepted."""
         response = client.post(
             "/api/v1/accounts/",
             headers=auth_headers,
@@ -108,9 +100,7 @@ class TestCreateAccount:
 
         assert response.status_code == 422
 
-    @pytest.mark.parametrize(
-        "opening_balance_minor", [MAX_AMOUNT_MINOR + 1, -MAX_AMOUNT_MINOR - 1]
-    )
+    @pytest.mark.parametrize("opening_balance_minor", [MAX_AMOUNT_MINOR + 1, -MAX_AMOUNT_MINOR - 1])
     def test_rejects_an_opening_balance_beyond_the_cap(
         self,
         client: TestClient,
@@ -152,9 +142,7 @@ class TestListAccounts:
     def test_returns_the_accounts_and_the_total(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
-        wire.list_accounts.return_value = AccountsPublic(
-            data=[make_public()], count=1, total_balance_minor=100_000
-        )
+        wire.list_accounts.return_value = AccountsPublic(data=[make_public()], count=1, total_balance_minor=100_000)
 
         response = client.get("/api/v1/accounts/", headers=auth_headers)
 
@@ -179,9 +167,7 @@ class TestListAccounts:
         assert kwargs["skip"] == 5
         assert kwargs["limit"] == 10
 
-    def test_caps_the_page_size(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_caps_the_page_size(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.get("/api/v1/accounts/", headers=auth_headers, params={"limit": 5000})
 
         assert response.status_code == 422
@@ -190,9 +176,7 @@ class TestListAccounts:
 class TestGetAccount:
     """Tests for GET /accounts/{account_id}."""
 
-    def test_returns_the_account(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_account(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.get_account.return_value = make_public()
 
         response = client.get(f"/api/v1/accounts/{ACCOUNT_ID}", headers=auth_headers)
@@ -213,14 +197,10 @@ class TestGetAccount:
 class TestUpdateAccount:
     """Tests for PATCH /accounts/{account_id}."""
 
-    def test_renames_the_account(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_renames_the_account(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.update_account.return_value = make_public(name="Main")
 
-        response = client.patch(
-            f"/api/v1/accounts/{ACCOUNT_ID}", headers=auth_headers, json={"name": "Main"}
-        )
+        response = client.patch(f"/api/v1/accounts/{ACCOUNT_ID}", headers=auth_headers, json={"name": "Main"})
 
         assert response.status_code == 200
         assert wire.update_account.call_args.kwargs["account_update"].name == "Main"
@@ -244,9 +224,7 @@ class TestUpdateAccount:
 class TestDeleteAccount:
     """Tests for DELETE /accounts/{account_id}."""
 
-    def test_deletes_the_account(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_deletes_the_account(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.delete_account.return_value = Message(message="Account deleted.")
 
         response = client.delete(f"/api/v1/accounts/{ACCOUNT_ID}", headers=auth_headers)

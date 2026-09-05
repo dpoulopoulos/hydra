@@ -14,9 +14,7 @@ def repository(mock_db_session: MagicMock) -> AccountRepository:
     return AccountRepository(session=mock_db_session)
 
 
-def test_lists_a_page_and_counts_the_whole_match(
-    repository: AccountRepository, mock_db_session: MagicMock
-) -> None:
+def test_lists_a_page_and_counts_the_whole_match(repository: AccountRepository, mock_db_session: MagicMock) -> None:
     account = Account(household_id=HOUSEHOLD_ID, name="Current", type=AccountType.CURRENT)
     mock_db_session.exec.return_value.one.return_value = 7
     mock_db_session.exec.return_value.all.return_value = [account]
@@ -57,9 +55,7 @@ def test_the_count_carries_the_same_filters_as_the_page(
     assert "account.type = " in count_statement
 
 
-def test_archived_accounts_are_included_on_request(
-    repository: AccountRepository, mock_db_session: MagicMock
-) -> None:
+def test_archived_accounts_are_included_on_request(repository: AccountRepository, mock_db_session: MagicMock) -> None:
     repository.list_for_household(household_id=HOUSEHOLD_ID, include_archived=True)
 
     count_statement = str(mock_db_session.exec.call_args_list[0].args[0])

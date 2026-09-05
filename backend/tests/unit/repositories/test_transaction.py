@@ -14,15 +14,11 @@ def repository(mock_db_session: MagicMock) -> TransactionRepository:
     return TransactionRepository(session=mock_db_session)
 
 
-def test_lists_a_page_and_counts_the_whole_match(
-    repository: TransactionRepository, mock_db_session: MagicMock
-) -> None:
+def test_lists_a_page_and_counts_the_whole_match(repository: TransactionRepository, mock_db_session: MagicMock) -> None:
     mock_db_session.exec.return_value.one.return_value = 7
     mock_db_session.exec.return_value.all.return_value = []
 
-    page, count = repository.list_for_household(
-        household_id=HOUSEHOLD_ID, filters=TransactionFilters(skip=10, limit=5)
-    )
+    page, count = repository.list_for_household(household_id=HOUSEHOLD_ID, filters=TransactionFilters(skip=10, limit=5))
 
     assert list(page) == []
     assert count == 7

@@ -21,9 +21,7 @@ from app.services import PasswordResetService
 class TestMarkPasswordReset:
     """Tests for the _mark_password_reset method."""
 
-    def test_mark_password_reset_success(
-        self, mock_password_reset_service: PasswordResetService
-    ) -> None:
+    def test_mark_password_reset_success(self, mock_password_reset_service: PasswordResetService) -> None:
         """Test successfully marking a password reset."""
         # Arrange: Create a mock password reset
         password_reset_id = uuid.UUID("44444444-4444-4444-4444-444444444444")
@@ -31,9 +29,7 @@ class TestMarkPasswordReset:
         mock_password_reset.id = password_reset_id
         mock_password_reset.status = PasswordResetStatus.PENDING
 
-        mock_password_reset_service.session.get = MagicMock(
-            return_value=mock_password_reset
-        )
+        mock_password_reset_service.session.get = MagicMock(return_value=mock_password_reset)
         mock_password_reset_service.session.add = MagicMock()
         mock_password_reset_service.session.commit = MagicMock()
         mock_password_reset_service.session.refresh = MagicMock()
@@ -45,20 +41,12 @@ class TestMarkPasswordReset:
 
         # Assert: Verify status was updated and database operations were called
         assert mock_password_reset.status == PasswordResetStatus.USED
-        mock_password_reset_service.session.get.assert_called_once_with(
-            PasswordReset, password_reset_id
-        )
-        mock_password_reset_service.session.add.assert_called_once_with(
-            mock_password_reset
-        )
+        mock_password_reset_service.session.get.assert_called_once_with(PasswordReset, password_reset_id)
+        mock_password_reset_service.session.add.assert_called_once_with(mock_password_reset)
         mock_password_reset_service.session.commit.assert_called_once()
-        mock_password_reset_service.session.refresh.assert_called_once_with(
-            mock_password_reset
-        )
+        mock_password_reset_service.session.refresh.assert_called_once_with(mock_password_reset)
 
-    def test_mark_password_reset_not_found(
-        self, mock_password_reset_service: PasswordResetService
-    ) -> None:
+    def test_mark_password_reset_not_found(self, mock_password_reset_service: PasswordResetService) -> None:
         """Test marking password reset when not found."""
         # Arrange: Mock database to return None
         password_reset_id = uuid.UUID("44444444-4444-4444-4444-444444444444")
@@ -123,9 +111,7 @@ class TestRequestPasswordReset:
         existing_reset.status = PasswordResetStatus.PENDING
 
         mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = (
-            existing_reset
-        )
+        mock_password_reset_service.session.exec.return_value.first.return_value = existing_reset
 
         # Mock _mark_password_reset
         mock_password_reset_service._mark_password_reset = MagicMock()
@@ -239,7 +225,6 @@ class TestRequestPasswordReset:
         assert test_user.email in caplog.text
         assert "ConnectTimeout" in caplog.text
 
-
     def test_request_password_reset_expiry_is_relative_to_request_time(
         self,
         mock_password_reset_service: PasswordResetService,
@@ -276,6 +261,7 @@ class TestRequestPasswordReset:
         password_reset = mock_password_reset_service.session.add.call_args[0][0]
         assert password_reset.expires_at == request_time + timedelta(hours=expire_hours)
 
+
 class TestInvalidatePendingForUser:
     """Tests for the invalidate_pending_for_user method."""
 
@@ -290,9 +276,7 @@ class TestInvalidatePendingForUser:
         mock_password_reset.status = PasswordResetStatus.PENDING
 
         mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = (
-            mock_password_reset
-        )
+        mock_password_reset_service.session.exec.return_value.first.return_value = mock_password_reset
         mock_password_reset_service._mark_password_reset = MagicMock()
 
         # Act
@@ -326,9 +310,7 @@ class TestInvalidatePendingForUser:
 class TestVerifyTokenMethod:
     """Tests for the verify_token method."""
 
-    def test_verify_token_success(
-        self, mock_password_reset_service: PasswordResetService, test_user: User
-    ) -> None:
+    def test_verify_token_success(self, mock_password_reset_service: PasswordResetService, test_user: User) -> None:
         """Test successfully verifying a password reset token."""
         # Arrange: Create a valid token and mock password reset
         email = test_user.email
@@ -341,9 +323,7 @@ class TestVerifyTokenMethod:
         mock_password_reset.token = token
 
         mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = (
-            mock_password_reset
-        )
+        mock_password_reset_service.session.exec.return_value.first.return_value = mock_password_reset
 
         # Act: Verify the token
         result = mock_password_reset_service.verify_token(token=token)
@@ -352,9 +332,7 @@ class TestVerifyTokenMethod:
         assert isinstance(result, Message)
         assert result.message == "Token is valid."
 
-    def test_verify_token_not_found(
-        self, mock_password_reset_service: PasswordResetService
-    ) -> None:
+    def test_verify_token_not_found(self, mock_password_reset_service: PasswordResetService) -> None:
         """Test verifying token when password reset not found."""
         # Arrange: Create a valid token but mock no password reset in DB
         token = create_password_reset_token(subject="test@example.com")
@@ -366,9 +344,7 @@ class TestVerifyTokenMethod:
         with pytest.raises(PasswordResetNotFoundError):
             mock_password_reset_service.verify_token(token=token)
 
-    def test_verify_token_used(
-        self, mock_password_reset_service: PasswordResetService
-    ) -> None:
+    def test_verify_token_used(self, mock_password_reset_service: PasswordResetService) -> None:
         """Test verifying a token that has already been used."""
         # Arrange: Create token and mock used password reset
         token = create_password_reset_token(subject="test@example.com")
@@ -377,17 +353,13 @@ class TestVerifyTokenMethod:
         mock_password_reset.status = PasswordResetStatus.USED
 
         mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = (
-            mock_password_reset
-        )
+        mock_password_reset_service.session.exec.return_value.first.return_value = mock_password_reset
 
         # Act & Assert: Verify PasswordResetUsedError is raised
         with pytest.raises(PasswordResetUsedError):
             mock_password_reset_service.verify_token(token=token)
 
-    def test_verify_token_expired_status(
-        self, mock_password_reset_service: PasswordResetService
-    ) -> None:
+    def test_verify_token_expired_status(self, mock_password_reset_service: PasswordResetService) -> None:
         """Test verifying a token with expired status."""
         # Arrange: Create token and mock expired password reset
         token = create_password_reset_token(subject="test@example.com")
@@ -396,17 +368,13 @@ class TestVerifyTokenMethod:
         mock_password_reset.status = PasswordResetStatus.EXPIRED
 
         mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = (
-            mock_password_reset
-        )
+        mock_password_reset_service.session.exec.return_value.first.return_value = mock_password_reset
 
         # Act & Assert: Verify PasswordResetExpiredError is raised
         with pytest.raises(PasswordResetExpiredError):
             mock_password_reset_service.verify_token(token=token)
 
-    def test_verify_token_expired_by_time(
-        self, mock_password_reset_service: PasswordResetService
-    ) -> None:
+    def test_verify_token_expired_by_time(self, mock_password_reset_service: PasswordResetService) -> None:
         """Test verifying a token that has expired by time."""
         # Arrange: Create token and mock password reset with past expiration
         token = create_password_reset_token(subject="test@example.com")
@@ -418,9 +386,7 @@ class TestVerifyTokenMethod:
         mock_password_reset.expires_at = datetime.now(UTC) - timedelta(hours=1)
 
         mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = (
-            mock_password_reset
-        )
+        mock_password_reset_service.session.exec.return_value.first.return_value = mock_password_reset
 
         # Mock _mark_password_reset
         mock_password_reset_service._mark_password_reset = MagicMock()
@@ -449,9 +415,7 @@ class TestVerifyTokenMethod:
         mock_password_reset.expires_at = datetime.now() + timedelta(hours=1)
 
         mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = (
-            mock_password_reset
-        )
+        mock_password_reset_service.session.exec.return_value.first.return_value = mock_password_reset
 
         # Act: Verify the token succeeds with naive datetime conversion
         result = mock_password_reset_service.verify_token(token=token)
@@ -460,9 +424,7 @@ class TestVerifyTokenMethod:
         assert isinstance(result, Message)
         assert result.message == "Token is valid."
 
-    def test_verify_token_invalid_token_format(
-        self, mock_password_reset_service: PasswordResetService
-    ) -> None:
+    def test_verify_token_invalid_token_format(self, mock_password_reset_service: PasswordResetService) -> None:
         """Test verifying an invalid token format."""
         # Arrange: Use invalid token
         invalid_token = "invalid_token"
@@ -495,14 +457,10 @@ class TestResetPassword:
         mock_password_reset.token = token
 
         # Mock verify_token to succeed
-        mock_password_reset_service.verify_token = MagicMock(
-            return_value=Message(message="Token is valid.")
-        )
+        mock_password_reset_service.verify_token = MagicMock(return_value=Message(message="Token is valid."))
 
         mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = (
-            mock_password_reset
-        )
+        mock_password_reset_service.session.exec.return_value.first.return_value = mock_password_reset
 
         mock_user_service.user_repository.get_by_id = MagicMock(return_value=test_user)
 
@@ -547,13 +505,9 @@ class TestResetPassword:
         mock_password_reset.expires_at = datetime.now(UTC) + timedelta(hours=1)
         mock_password_reset.token = token
 
-        mock_password_reset_service.verify_token = MagicMock(
-            return_value=Message(message="Token is valid.")
-        )
+        mock_password_reset_service.verify_token = MagicMock(return_value=Message(message="Token is valid."))
         mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = (
-            mock_password_reset
-        )
+        mock_password_reset_service.session.exec.return_value.first.return_value = mock_password_reset
         mock_password_reset_service._mark_password_reset = MagicMock()
 
         get_by_id = MagicMock(return_value=test_user)
@@ -589,13 +543,9 @@ class TestResetPassword:
         mock_password_reset.token = token
         mock_password_reset.user_id = None
 
-        mock_password_reset_service.verify_token = MagicMock(
-            return_value=Message(message="Token is valid.")
-        )
+        mock_password_reset_service.verify_token = MagicMock(return_value=Message(message="Token is valid."))
         mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = (
-            mock_password_reset
-        )
+        mock_password_reset_service.session.exec.return_value.first.return_value = mock_password_reset
         mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
 
         # Act & Assert
@@ -620,14 +570,10 @@ class TestResetPassword:
         mock_password_reset.token = token
         mock_password_reset.user_id = uuid.UUID("99999999-9999-9999-9999-999999999999")
 
-        mock_password_reset_service.verify_token = MagicMock(
-            return_value=Message(message="Token is valid.")
-        )
+        mock_password_reset_service.verify_token = MagicMock(return_value=Message(message="Token is valid."))
 
         mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = (
-            mock_password_reset
-        )
+        mock_password_reset_service.session.exec.return_value.first.return_value = mock_password_reset
 
         mock_user_service.user_repository.get_by_id = MagicMock(return_value=None)
 
@@ -648,9 +594,7 @@ class TestResetPassword:
         # Arrange: Use invalid token
         invalid_token = "invalid_token"
 
-        mock_password_reset_service.verify_token = MagicMock(
-            side_effect=PasswordResetTokenNotValidError
-        )
+        mock_password_reset_service.verify_token = MagicMock(side_effect=PasswordResetTokenNotValidError)
 
         # Act & Assert: Verify PasswordResetTokenNotValidError is raised
         with pytest.raises(PasswordResetTokenNotValidError):
@@ -669,9 +613,7 @@ class TestResetPassword:
         # Arrange: Create expired token
         token = create_password_reset_token(subject="test@example.com")
 
-        mock_password_reset_service.verify_token = MagicMock(
-            side_effect=PasswordResetExpiredError
-        )
+        mock_password_reset_service.verify_token = MagicMock(side_effect=PasswordResetExpiredError)
 
         # Act & Assert: Verify PasswordResetExpiredError is raised
         with pytest.raises(PasswordResetExpiredError):
@@ -690,9 +632,7 @@ class TestResetPassword:
         # Arrange: Create used token
         token = create_password_reset_token(subject="test@example.com")
 
-        mock_password_reset_service.verify_token = MagicMock(
-            side_effect=PasswordResetUsedError
-        )
+        mock_password_reset_service.verify_token = MagicMock(side_effect=PasswordResetUsedError)
 
         # Act & Assert: Verify PasswordResetUsedError is raised
         with pytest.raises(PasswordResetUsedError):

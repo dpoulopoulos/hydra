@@ -306,18 +306,14 @@ class TestCreatePasswordResetToken:
 
         # Verify expiration is set correctly (8 hours by default)
         exp_timestamp = decoded["exp"]
-        expected_exp = before_creation + timedelta(
-            hours=settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS
-        )
+        expected_exp = before_creation + timedelta(hours=settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS)
         actual_exp = datetime.fromtimestamp(exp_timestamp, tz=UTC)
 
         # Allow for a few seconds of drift
         assert (
             expected_exp - timedelta(seconds=5)
             <= actual_exp
-            <= after_creation
-            + timedelta(hours=settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS)
-            + timedelta(seconds=5)
+            <= after_creation + timedelta(hours=settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS) + timedelta(seconds=5)
         )
 
         # Verify nbf (not before) is set
@@ -363,18 +359,14 @@ class TestCreateEmailVerificationToken:
 
         # Verify expiration is set correctly (8 hours by default)
         exp_timestamp = decoded["exp"]
-        expected_exp = before_creation + timedelta(
-            hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS
-        )
+        expected_exp = before_creation + timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
         actual_exp = datetime.fromtimestamp(exp_timestamp, tz=UTC)
 
         # Allow for a few seconds of drift
         assert (
             expected_exp - timedelta(seconds=5)
             <= actual_exp
-            <= after_creation
-            + timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
-            + timedelta(seconds=5)
+            <= after_creation + timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS) + timedelta(seconds=5)
         )
 
         # Verify nbf (not before) is set
@@ -421,6 +413,7 @@ class TestVerifyTypedToken:
 
     def test_verify_typed_token_maps_invalid_token_to_custom_exception(self):
         """Test that InvalidTokenError is mapped to custom exception."""
+
         # Arrange: Create a custom exception class
         class CustomTokenError(Exception):
             pass
@@ -431,6 +424,7 @@ class TestVerifyTypedToken:
 
     def test_verify_typed_token_preserves_exception_chain(self):
         """Test that exception chain is preserved (from exc)."""
+
         # Arrange: Create a custom exception class
         class CustomTokenError(Exception):
             pass

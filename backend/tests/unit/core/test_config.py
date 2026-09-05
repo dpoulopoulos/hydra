@@ -34,9 +34,7 @@ class TestSettings:
         expected_uri = "postgresql+psycopg://test_user:secure_password@localhost:5432/test_db"
         assert str(settings.SQLALCHEMY_DATABASE_URI) == expected_uri
 
-    def test_default_secret_warning_in_local_environment(
-        self, base_settings_env, monkeypatch
-    ):
+    def test_default_secret_warning_in_local_environment(self, base_settings_env, monkeypatch):
         """Test that a warning is issued for default secrets in local environment."""
         # Arrange: Set up environment with default secret key
         monkeypatch.setenv("SECRET_KEY", "changethis")
@@ -50,9 +48,7 @@ class TestSettings:
             assert len(w) >= 1
             assert any("SECRET_KEY" in str(warning.message) for warning in w)
 
-    def test_default_secret_error_in_staging_environment(
-        self, base_settings_env, monkeypatch
-    ):
+    def test_default_secret_error_in_staging_environment(self, base_settings_env, monkeypatch):
         """Test that an error is raised for default secrets in staging environment."""
         # Arrange: Set up staging environment with default secret key
         monkeypatch.setenv("SECRET_KEY", "changethis")
@@ -65,9 +61,7 @@ class TestSettings:
         assert "SECRET_KEY" in str(exc_info.value)
         assert "changethis" in str(exc_info.value)
 
-    def test_default_secret_error_in_production_environment(
-        self, base_settings_env, monkeypatch
-    ):
+    def test_default_secret_error_in_production_environment(self, base_settings_env, monkeypatch):
         """Test that an error is raised for default secrets in production environment."""
         # Arrange: Set up production environment with default secret key
         monkeypatch.setenv("SECRET_KEY", "changethis")

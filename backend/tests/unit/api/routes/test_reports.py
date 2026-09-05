@@ -39,9 +39,7 @@ def period() -> ReportPeriod:
 
 
 @pytest.fixture
-def wire(
-    mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext
-) -> Generator[MagicMock]:
+def wire(mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext) -> Generator[MagicMock]:
     """Override the database, the current user, the household scope and the service.
 
     Yields:
@@ -65,9 +63,7 @@ def wire(
 class TestSpendByCategory:
     """Tests for GET /reports/spend-by-category."""
 
-    def test_returns_the_slices(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_slices(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.spend_by_category.return_value = SpendByCategoryReport(
             period=period(),
             kind=TransactionKind.EXPENSE,
@@ -84,16 +80,12 @@ class TestSpendByCategory:
             ],
         )
 
-        response = client.get(
-            "/api/v1/reports/spend-by-category", headers=auth_headers, params={"month": "2026-03"}
-        )
+        response = client.get("/api/v1/reports/spend-by-category", headers=auth_headers, params={"month": "2026-03"})
 
         assert response.status_code == 200
         assert response.json()["slices"][0]["share"] == 0.5
 
-    def test_requires_a_month(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_requires_a_month(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.get("/api/v1/reports/spend-by-category", headers=auth_headers)
 
         assert response.status_code == 422
@@ -101,9 +93,7 @@ class TestSpendByCategory:
     def test_rejects_a_month_that_is_not_a_month(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
-        response = client.get(
-            "/api/v1/reports/spend-by-category", headers=auth_headers, params={"month": "2026-13"}
-        )
+        response = client.get("/api/v1/reports/spend-by-category", headers=auth_headers, params={"month": "2026-13"})
 
         assert response.status_code == 422
 
@@ -118,9 +108,7 @@ class TestSpendByCategory:
             slices=[],
         )
 
-        client.get(
-            "/api/v1/reports/spend-by-category", headers=auth_headers, params={"month": "2026-03"}
-        )
+        client.get("/api/v1/reports/spend-by-category", headers=auth_headers, params={"month": "2026-03"})
 
         kwargs = wire.spend_by_category.call_args.kwargs
         assert kwargs["kind"] is TransactionKind.EXPENSE
@@ -149,9 +137,7 @@ class TestSpendByCategory:
 class TestSpendOverTime:
     """Tests for GET /reports/spend-over-time."""
 
-    def test_returns_the_points(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_points(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.spend_over_time.return_value = SpendOverTimeReport(
             period=period(),
             granularity=TimeGranularity.DAY,
@@ -170,9 +156,7 @@ class TestSpendOverTime:
         assert response.status_code == 200
         assert response.json()["points"][0]["amount_minor"] == 1000
 
-    def test_requires_both_bounds(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_requires_both_bounds(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.get(
             "/api/v1/reports/spend-over-time", headers=auth_headers, params={"date_from": "2026-03-01"}
         )
@@ -303,21 +287,15 @@ class TestIncomeExpense:
         assert response.status_code == 200
         assert response.json()["months"][0]["cumulative_net_minor"] == 150000
 
-    def test_requires_both_months(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
-        response = client.get(
-            "/api/v1/reports/income-expense", headers=auth_headers, params={"month_from": "2026-03"}
-        )
+    def test_requires_both_months(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
+        response = client.get("/api/v1/reports/income-expense", headers=auth_headers, params={"month_from": "2026-03"})
 
         assert response.status_code == 422
 
     def test_reports_too_long_a_range_as_unprocessable(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
-        wire.income_expense.side_effect = ReportRangeTooLargeError(
-            limit="ten years of monthly figures"
-        )
+        wire.income_expense.side_effect = ReportRangeTooLargeError(limit="ten years of monthly figures")
 
         response = client.get(
             "/api/v1/reports/income-expense",
@@ -331,9 +309,7 @@ class TestIncomeExpense:
 class TestBudgetProgress:
     """Tests for GET /reports/budget-progress."""
 
-    def test_returns_the_rows(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_rows(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.budget_progress.return_value = BudgetProgressReport(
             period=period(),
             total_limit_minor=9_000,
@@ -355,9 +331,7 @@ class TestBudgetProgress:
             unbudgeted_spend_minor=5_000,
         )
 
-        response = client.get(
-            "/api/v1/reports/budget-progress", headers=auth_headers, params={"month": "2026-03"}
-        )
+        response = client.get("/api/v1/reports/budget-progress", headers=auth_headers, params={"month": "2026-03"})
 
         assert response.status_code == 200
         row = response.json()["rows"][0]
@@ -366,9 +340,7 @@ class TestBudgetProgress:
         assert row["remaining_minor"] == -1000
         assert response.json()["unbudgeted_spend_minor"] == 5000
 
-    def test_requires_a_month(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_requires_a_month(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.get("/api/v1/reports/budget-progress", headers=auth_headers)
 
         assert response.status_code == 422
@@ -400,9 +372,7 @@ class TestMonthSummary:
             ],
         )
 
-        response = client.get(
-            "/api/v1/reports/summary", headers=auth_headers, params={"month": "2026-03"}
-        )
+        response = client.get("/api/v1/reports/summary", headers=auth_headers, params={"month": "2026-03"})
 
         assert response.status_code == 200
         body = response.json()
@@ -413,8 +383,6 @@ class TestMonthSummary:
     def test_rejects_a_month_that_is_not_a_month(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
-        response = client.get(
-            "/api/v1/reports/summary", headers=auth_headers, params={"month": "2026-00"}
-        )
+        response = client.get("/api/v1/reports/summary", headers=auth_headers, params={"month": "2026-00"})
 
         assert response.status_code == 422

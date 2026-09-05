@@ -330,9 +330,7 @@ class TestListTransactions:
         mock_transaction_service.session.exec.return_value.one.return_value = 7
         mock_transaction_service.session.exec.return_value.all.return_value = [make_transaction()]
 
-        result = mock_transaction_service.list_transactions(
-            household=household_context, filters=TransactionFilters()
-        )
+        result = mock_transaction_service.list_transactions(household=household_context, filters=TransactionFilters())
 
         assert result.count == 7
         assert len(result.data) == 1
@@ -434,9 +432,7 @@ class TestGetTransaction:
         mock_transaction_service.session.exec.return_value.first.return_value = transaction
 
         assert (
-            mock_transaction_service.get_transaction(
-                household=household_context, transaction_id=transaction.id
-            ).id
+            mock_transaction_service.get_transaction(household=household_context, transaction_id=transaction.id).id
             == transaction.id
         )
 
@@ -447,9 +443,7 @@ class TestGetTransaction:
         mock_transaction_service.session.exec.return_value.first.return_value = None
 
         with pytest.raises(TransactionNotFoundError):
-            mock_transaction_service.get_transaction(
-                household=household_context, transaction_id=uuid.uuid4()
-            )
+            mock_transaction_service.get_transaction(household=household_context, transaction_id=uuid.uuid4())
 
 
 class TestUpdateTransaction:
@@ -489,9 +483,7 @@ class TestUpdateTransaction:
         result = mock_transaction_service.update_transaction(
             household=household_context,
             transaction_id=transaction.id,
-            transaction_update=TransactionUpdate(
-                kind=TransactionKind.TRANSFER, counter_account_id=destination.id
-            ),
+            transaction_update=TransactionUpdate(kind=TransactionKind.TRANSFER, counter_account_id=destination.id),
         )
 
         assert result.kind is TransactionKind.TRANSFER
@@ -560,9 +552,7 @@ class TestDeleteTransaction:
         mock_transaction_service.session.exec = MagicMock()
         mock_transaction_service.session.exec.return_value.first.return_value = transaction
 
-        result = mock_transaction_service.delete_transaction(
-            household=household_context, transaction_id=transaction.id
-        )
+        result = mock_transaction_service.delete_transaction(household=household_context, transaction_id=transaction.id)
 
         assert isinstance(result, Message)
         mock_transaction_service.session.delete.assert_called_once_with(transaction)
@@ -574,11 +564,7 @@ class TestDeleteTransaction:
         mock_transaction_service.session.exec.return_value.first.return_value = None
 
         with pytest.raises(TransactionNotFoundError):
-            mock_transaction_service.delete_transaction(
-                household=household_context, transaction_id=uuid.uuid4()
-            )
-
-
+            mock_transaction_service.delete_transaction(household=household_context, transaction_id=uuid.uuid4())
 
 
 class TestSessionGeneratedTransactions:

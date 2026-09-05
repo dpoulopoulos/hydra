@@ -22,6 +22,7 @@ class TestLoginAccessToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test successfully logging in with valid credentials."""
+
         # Arrange: Set up database dependency override and mock authentication
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -57,6 +58,7 @@ class TestLoginAccessToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test login with non-existent user email."""
+
         # Arrange: Set up database dependency override and mock InvalidEmailOrPasswordError
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -94,6 +96,7 @@ class TestLoginAccessToken:
         The status code and the body are both compared: either one differing would let anyone read off
         which addresses have an account here, one request per address.
         """
+
         # Arrange: Set up database dependency override
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -129,6 +132,7 @@ class TestLoginAccessToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test login with incorrect password."""
+
         # Arrange: Set up database dependency override and mock InvalidEmailOrPasswordError
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -162,6 +166,7 @@ class TestLoginAccessToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test login with inactive user account."""
+
         # Arrange: Set up database dependency override and mock UserNotActiveError
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -194,6 +199,7 @@ class TestLoginAccessToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test login with missing username field."""
+
         # Arrange: Set up database dependency override
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -222,6 +228,7 @@ class TestLoginAccessToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test login with missing password field."""
+
         # Arrange: Set up database dependency override
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -249,6 +256,7 @@ class TestLoginAccessToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test login with empty username and password."""
+
         # Arrange: Set up database dependency override and fail if authentication is reached
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session

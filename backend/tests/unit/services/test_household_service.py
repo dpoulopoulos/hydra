@@ -735,9 +735,7 @@ class TestCreateInvite:
     ) -> None:
         mock_household_service.session.get = MagicMock(return_value=household)
         mock_household_service.session.exec = MagicMock()
-        mock_household_service.session.exec.return_value.first.return_value = make_invite(
-            household_id=household.id
-        )
+        mock_household_service.session.exec.return_value.first.return_value = make_invite(household_id=household.id)
 
         with pytest.raises(HouseholdInviteExistsError):
             mock_household_service.create_invite(
@@ -783,9 +781,7 @@ class TestRevokeInvite:
     def test_refuses_to_revoke_an_accepted_invite(
         self, mock_household_service: HouseholdService, context: HouseholdContext
     ) -> None:
-        invite = make_invite(
-            household_id=context.household_id, status=HouseholdInviteStatus.ACCEPTED
-        )
+        invite = make_invite(household_id=context.household_id, status=HouseholdInviteStatus.ACCEPTED)
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.return_value = invite
 
@@ -826,9 +822,7 @@ class TestPreviewInvite:
         assert result.masked_email == "p*****@example.com"
         assert "partner@example.com" not in result.model_dump_json()
 
-    def test_an_unknown_token_is_not_found(
-        self, mock_household_service: HouseholdService
-    ) -> None:
+    def test_an_unknown_token_is_not_found(self, mock_household_service: HouseholdService) -> None:
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.return_value = None
 
@@ -905,10 +899,7 @@ class TestAcceptInvite:
         assert result.id == household.id
         assert invite.status is HouseholdInviteStatus.ACCEPTED
         added = [call.args[0] for call in mock_household_service.session.add.call_args_list]
-        assert any(
-            isinstance(entity, HouseholdMember) and entity.household_id == household.id
-            for entity in added
-        )
+        assert any(isinstance(entity, HouseholdMember) and entity.household_id == household.id for entity in added)
 
     def test_gives_the_role_the_invite_named(
         self,
@@ -944,9 +935,7 @@ class TestAcceptInvite:
         another_test_user: User,
     ) -> None:
         """Otherwise a leaked link would hand a stranger the household's finances."""
-        invite = make_invite(
-            household_id=household.id, email=test_user.email, invited_user_id=test_user.id
-        )
+        invite = make_invite(household_id=household.id, email=test_user.email, invited_user_id=test_user.id)
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.return_value = invite
 
@@ -1032,9 +1021,7 @@ class TestAcceptInvite:
         old_membership = HouseholdMember(
             household_id=old_household.id, user_id=another_test_user.id, role=HouseholdRole.OWNER
         )
-        successor = HouseholdMember(
-            household_id=old_household.id, user_id=test_user.id, role=HouseholdRole.MEMBER
-        )
+        successor = HouseholdMember(household_id=old_household.id, user_id=test_user.id, role=HouseholdRole.MEMBER)
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.side_effect = [
             invite,
@@ -1048,9 +1035,7 @@ class TestAcceptInvite:
         mock_household_service.accept_invite(user=another_test_user, token="a-token")
 
         assert successor.role is HouseholdRole.OWNER
-        assert old_household not in [
-            call.args[0] for call in mock_household_service.session.delete.call_args_list
-        ]
+        assert old_household not in [call.args[0] for call in mock_household_service.session.delete.call_args_list]
 
     def test_locks_the_household_the_user_is_leaving(
         self,
@@ -1111,9 +1096,7 @@ class TestAcceptInvite:
         invite = make_invite(
             household_id=household.id, email=another_test_user.email, invited_user_id=another_test_user.id
         )
-        existing = HouseholdMember(
-            household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER
-        )
+        existing = HouseholdMember(household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER)
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.side_effect = [invite, existing]
         mock_household_service.session.get = MagicMock(return_value=household)

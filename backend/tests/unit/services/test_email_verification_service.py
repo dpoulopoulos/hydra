@@ -118,9 +118,7 @@ class TestMarkEmailVerification:
 
         # Act & Assert
         with pytest.raises(EmailVerificationNotFoundError):
-            mock_email_verification_service._mark_email_verification(
-                verification_id, EmailVerificationStatus.VERIFIED
-            )
+            mock_email_verification_service._mark_email_verification(verification_id, EmailVerificationStatus.VERIFIED)
 
 
 class TestGetPendingVerificationByUserId:
@@ -261,7 +259,7 @@ class TestSendVerificationEmail:
         mock_email_verification_service: EmailVerificationService,
         mock_user_service: UserService,
         test_user: User,
-        monkeypatch
+        monkeypatch,
     ) -> None:
         """Test sending verification email with emails disabled."""
         # Arrange
@@ -351,7 +349,6 @@ class TestSendVerificationEmail:
                     user_service=mock_user_service, user_email="nonexistent@example.com"
                 )
 
-
     def test_send_verification_email_expiry_is_relative_to_request_time(
         self,
         mock_email_verification_service: EmailVerificationService,
@@ -380,6 +377,7 @@ class TestSendVerificationEmail:
         email_verification = mock_email_verification_service.session.add.call_args[0][0]
         expected = request_time + timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
         assert email_verification.expires_at == expected
+
 
 class TestSendEmailChangeVerification:
     """Tests for the send_email_change_verification method."""
@@ -426,7 +424,9 @@ class TestSendEmailChangeVerification:
         # Assert: The token names the new address, and the mail goes there
         # rather than to the address the account still holds
         email_verification = mock_email_verification_service.session.add.call_args[0][0]
-        decoded = jwt.decode(email_verification.token, settings.SECRET_KEY, algorithms=[ALGORITHM], audience=JWT.AUDIENCE)
+        decoded = jwt.decode(
+            email_verification.token, settings.SECRET_KEY, algorithms=[ALGORITHM], audience=JWT.AUDIENCE
+        )
         assert decoded["sub"] == "moving-to@example.com"
         assert mock_send_email.call_args.kwargs["email_to"] == "moving-to@example.com"
 

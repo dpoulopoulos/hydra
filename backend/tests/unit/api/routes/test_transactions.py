@@ -51,9 +51,7 @@ def make_public(
 
 
 @pytest.fixture
-def wire(
-    mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext
-) -> Generator[MagicMock]:
+def wire(mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext) -> Generator[MagicMock]:
     """Override the database, the current user, the household scope and the service.
 
     Yields:
@@ -77,9 +75,7 @@ def wire(
 class TestCreateTransaction:
     """Tests for POST /transactions/."""
 
-    def test_records_an_expense(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_records_an_expense(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.create_transaction.return_value = make_public()
 
         response = client.post(
@@ -96,9 +92,7 @@ class TestCreateTransaction:
         assert response.status_code == 200
         assert response.json()["amount_minor"] == 4250
 
-    def test_records_a_transfer(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_records_a_transfer(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         """A transfer is an ordinary transaction, so it needs no separate endpoint."""
         destination = uuid.uuid4()
         wire.create_transaction.return_value = make_public(
@@ -120,9 +114,7 @@ class TestCreateTransaction:
         assert response.status_code == 200
         assert response.json()["counter_account_id"] == str(destination)
 
-    def test_rejects_a_zero_amount(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_rejects_a_zero_amount(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.post(
             "/api/v1/transactions/",
             headers=auth_headers,
@@ -136,9 +128,7 @@ class TestCreateTransaction:
 
         assert response.status_code == 422
 
-    def test_rejects_a_negative_amount(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_rejects_a_negative_amount(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         """The sign lives in the kind, so a negative magnitude is meaningless."""
         response = client.post(
             "/api/v1/transactions/",
@@ -229,9 +219,7 @@ class TestCreateTransaction:
 class TestListTransactions:
     """Tests for GET /transactions/."""
 
-    def test_returns_the_transactions(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_transactions(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.list_transactions.return_value = TransactionsPublic(data=[make_public()], count=1)
 
         response = client.get("/api/v1/transactions/", headers=auth_headers)
@@ -279,27 +267,19 @@ class TestListTransactions:
         assert filters.limit == 25
         assert filters.sort is TransactionSort.AMOUNT_ASC
 
-    def test_rejects_a_mistyped_filter(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_rejects_a_mistyped_filter(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         """A silently dropped filter would return more data than the caller asked for."""
-        response = client.get(
-            "/api/v1/transactions/", headers=auth_headers, params={"catgory_id": str(uuid.uuid4())}
-        )
+        response = client.get("/api/v1/transactions/", headers=auth_headers, params={"catgory_id": str(uuid.uuid4())})
 
         assert response.status_code == 422
         wire.list_transactions.assert_not_called()
 
-    def test_caps_the_page_size(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_caps_the_page_size(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.get("/api/v1/transactions/", headers=auth_headers, params={"limit": 5000})
 
         assert response.status_code == 422
 
-    def test_caps_an_amount_filter(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_caps_an_amount_filter(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.get(
             "/api/v1/transactions/",
             headers=auth_headers,
@@ -308,9 +288,7 @@ class TestListTransactions:
 
         assert response.status_code == 422
 
-    def test_defaults_to_newest_first(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_defaults_to_newest_first(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.list_transactions.return_value = TransactionsPublic(data=[], count=0)
 
         client.get("/api/v1/transactions/", headers=auth_headers)
@@ -322,9 +300,7 @@ class TestListTransactions:
     ) -> None:
         wire.list_transactions.side_effect = CategoryNotFoundError
 
-        response = client.get(
-            "/api/v1/transactions/", headers=auth_headers, params={"category_id": str(uuid.uuid4())}
-        )
+        response = client.get("/api/v1/transactions/", headers=auth_headers, params={"category_id": str(uuid.uuid4())})
 
         assert response.status_code == 404
 
@@ -333,9 +309,7 @@ class TestListTransactions:
     ) -> None:
         wire.list_transactions.side_effect = AccountNotFoundError
 
-        response = client.get(
-            "/api/v1/transactions/", headers=auth_headers, params={"account_id": str(uuid.uuid4())}
-        )
+        response = client.get("/api/v1/transactions/", headers=auth_headers, params={"account_id": str(uuid.uuid4())})
 
         assert response.status_code == 404
 
@@ -343,9 +317,7 @@ class TestListTransactions:
 class TestGetTransaction:
     """Tests for GET /transactions/{transaction_id}."""
 
-    def test_returns_the_transaction(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_transaction(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.get_transaction.return_value = make_public()
 
         response = client.get(f"/api/v1/transactions/{TRANSACTION_ID}", headers=auth_headers)
@@ -366,9 +338,7 @@ class TestGetTransaction:
 class TestUpdateTransaction:
     """Tests for PATCH /transactions/{transaction_id}."""
 
-    def test_updates_the_transaction(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_updates_the_transaction(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.update_transaction.return_value = make_public(amount_minor=5000)
 
         response = client.patch(
@@ -378,15 +348,12 @@ class TestUpdateTransaction:
         assert response.status_code == 200
         assert wire.update_transaction.call_args.kwargs["transaction_update"].amount_minor == 5000
 
-    def test_rejects_a_zero_amount(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_rejects_a_zero_amount(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.patch(
             f"/api/v1/transactions/{TRANSACTION_ID}", headers=auth_headers, json={"amount_minor": 0}
         )
 
         assert response.status_code == 422
-
 
     def test_rejects_an_amount_beyond_the_cap(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
@@ -403,9 +370,7 @@ class TestUpdateTransaction:
 class TestDeleteTransaction:
     """Tests for DELETE /transactions/{transaction_id}."""
 
-    def test_deletes_the_transaction(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_deletes_the_transaction(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.delete_transaction.return_value = Message(message="Transaction deleted.")
 
         response = client.delete(f"/api/v1/transactions/{TRANSACTION_ID}", headers=auth_headers)
@@ -420,8 +385,6 @@ class TestDeleteTransaction:
         response = client.delete(f"/api/v1/transactions/{uuid.uuid4()}", headers=auth_headers)
 
         assert response.status_code == 404
-
-
 
 
 class TestSessionGeneratedTransactions:

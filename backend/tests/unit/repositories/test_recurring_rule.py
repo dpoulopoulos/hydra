@@ -25,9 +25,7 @@ def test_lists_a_page_and_counts_the_whole_match(
     assert count == 7
 
 
-def test_counts_without_loading_the_rows(
-    repository: RecurringRuleRepository, mock_db_session: MagicMock
-) -> None:
+def test_counts_without_loading_the_rows(repository: RecurringRuleRepository, mock_db_session: MagicMock) -> None:
     repository.list_for_household(household_id=HOUSEHOLD_ID)
 
     count_statement = str(mock_db_session.exec.call_args_list[0].args[0])
@@ -36,9 +34,7 @@ def test_counts_without_loading_the_rows(
     assert "LIMIT" not in count_statement
 
 
-def test_the_page_is_ordered_and_paged(
-    repository: RecurringRuleRepository, mock_db_session: MagicMock
-) -> None:
+def test_the_page_is_ordered_and_paged(repository: RecurringRuleRepository, mock_db_session: MagicMock) -> None:
     repository.list_for_household(household_id=HOUSEHOLD_ID, skip=10, limit=5)
 
     page_statement = str(mock_db_session.exec.call_args_list[1].args[0])
