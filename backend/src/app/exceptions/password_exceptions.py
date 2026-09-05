@@ -66,6 +66,7 @@ class PasswordResetNotFoundError(NotFoundError):
         """Initialize a PasswordResetNotFoundError.
 
         Args:
+            message: An optional error message.
             exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
         """
         super().__init__("Password reset request", message, exc)
