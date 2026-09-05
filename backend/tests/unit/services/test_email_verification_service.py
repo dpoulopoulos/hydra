@@ -223,7 +223,7 @@ class TestSendVerificationEmail:
 
         # Assert
         assert isinstance(result, Message)
-        assert result.message == "Verification email sent successfully."
+        assert result.message == "Verification email sent."
         mock_outbox.for_session.return_value.deliver_or_queue.assert_called_once()
 
     def test_send_verification_email_survives_a_delivery_failure(
@@ -249,8 +249,9 @@ class TestSendVerificationEmail:
                         user_service=mock_user_service, user_email=test_user.email
                     )
 
-        # Assert: Verify the caller is not handed a failure and the log has the reason
+        # Assert: Verify the caller is told the truth and the log has the reason
         assert isinstance(result, Message)
+        assert result.message == "Verification email queued for delivery."
         assert test_user.email in caplog.text
         assert "HTTPStatusError" in caplog.text
 
@@ -277,7 +278,7 @@ class TestSendVerificationEmail:
 
         # Assert
         assert isinstance(result, Message)
-        assert result.message == "Verification email sent successfully."
+        assert result.message == "Email delivery is not configured, so no verification email was sent."
         mock_outbox.for_session.return_value.deliver_or_queue.assert_not_called()
 
     def test_send_verification_email_with_existing_pending_verification(
