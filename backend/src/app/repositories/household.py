@@ -213,6 +213,22 @@ class HouseholdMemberRepository(BaseRepository[HouseholdMember]):
         )
         return self.session.exec(statement).all()
 
+    def list_ownerless_household_ids(self) -> Sequence[uuid.UUID]:
+        """List the households that have members but nobody holding OWNER.
+
+        Used by the startup routine to repair households that lost their last
+        owner before the promotion existed. Nothing they can do puts an owner
+        back, so the rows have to be found and fixed here.
+
+        Returns:
+            The IDs of the households with at least one member and no owner.
+        """
+        owned = select(col(HouseholdMember.household_id)).where(HouseholdMember.role == HouseholdRole.OWNER)
+        statement = (
+            select(col(HouseholdMember.household_id)).distinct().where(col(HouseholdMember.household_id).not_in(owned))
+        )
+        return self.session.exec(statement).all()
+
 
 class HouseholdInviteRepository(HouseholdScopedRepository[HouseholdInvite]):
     """Repository for HouseholdInvite database operations."""
