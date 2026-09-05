@@ -313,7 +313,11 @@ export function Component() {
             <CardContent>
               {recent.isPending ? (
                 <LoadingRows rows={3} />
-              ) : recent.data && recent.data.count > 0 ? (
+              ) : recent.isError ? (
+                // "Nothing recorded yet" is a claim about the household's
+                // books, not about the request that failed to read them.
+                <ErrorState error={recent.error} title="Recent activity did not load" />
+              ) : recent.data.count > 0 ? (
                 <ul className="divide-y text-sm">
                   {recent.data.data.map((transaction) => {
                     const isTransfer = transaction.kind === TransactionKind.TRANSFER
