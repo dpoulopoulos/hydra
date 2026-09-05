@@ -9,7 +9,7 @@ import {
   Trash2,
   UserMinus,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -99,16 +99,32 @@ export function Component() {
 
   const renameForm = useForm<z.infer<typeof renameSchema>>({
     resolver: zodResolver(renameSchema),
-    values: household.data ? { name: household.data.name } : undefined,
     defaultValues: { name: '' },
   })
+
+  // The household is cached for the session and fetched again on window focus,
+  // so its name can arrive at any moment. Fill the field in from an effect
+  // with `keepDirtyValues`, so an answer landing mid-rename leaves what is
+  // being typed alone: handing the form to the query would quietly submit the
+  // old name the field had stopped showing.
+  const { reset: resetRenameForm } = renameForm
+  const householdName = household.data?.name
+  useEffect(() => {
+    if (householdName !== undefined) {
+      resetRenameForm({ name: householdName }, { keepDirtyValues: true })
+    }
+  }, [householdName, resetRenameForm])
 
   const rename = useMutation({
     mutationFn: async (values: z.infer<typeof renameSchema>) => {
       const { error } = await householdsUpdateHouseholdMe({ body: { name: values.name } })
       if (error) throw error
     },
-    onSuccess: () => {
+    onSuccess: (_data, values) => {
+      // The name that was saved is the new baseline. Without this the field
+      // stays marked as edited and would ignore every later answer about the
+      // household, including a rename made from another device.
+      renameForm.resetField('name', { defaultValue: values.name })
       void queryClient.invalidateQueries({ queryKey: ['household'] })
       toast.success('Household renamed')
     },
