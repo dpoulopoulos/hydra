@@ -16,6 +16,7 @@ help:
 	@echo "  make web-format    - Format frontend files"
 	@echo "  make web-lint      - Scan frontend files for linting errors"
 	@echo "  make web-test      - Check the production server config against a real Caddy"
+	@echo "  make web-test-dev  - Check the dev image runs the web app unprivileged"
 	@echo "  make web-test-unit - Run the frontend unit tests"
 	@echo "  make web-api       - Regenerate the API client from the backend schema"
 	@echo "  make web-api-check - Check the committed API client is up to date"
@@ -101,6 +102,12 @@ web-test:
 	bash ./frontend/scripts/test-caddyfile.sh
 
 # Runs the frontend unit tests in jsdom. No Docker and no backend needed.
+# Builds the dev image and checks who it runs as, and that the dev server still
+# serves what compose syncs into it. Needs Docker; the backend is not involved.
+.PHONY: web-test-dev
+web-test-dev:
+	bash ./frontend/scripts/test-dev-image.sh
+
 .PHONY: web-test-unit
 web-test-unit: web-install
 	cd frontend && pnpm test
