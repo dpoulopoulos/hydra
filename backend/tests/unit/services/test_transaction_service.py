@@ -10,6 +10,7 @@ from app.exceptions import (
     CategoryNotFoundError,
     SameAccountTransferError,
     TransactionCategoryKindError,
+    TransactionFromSessionError,
     TransactionNotFoundError,
     TransferShapeError,
 )
@@ -546,3 +547,54 @@ class TestDeleteTransaction:
             mock_transaction_service.delete_transaction(
                 household=household_context, transaction_id=uuid.uuid4()
             )
+
+
+
+
+class TestSessionGeneratedTransactions:
+    """Tests that a session's income cannot be edited from the ledger.
+
+    The session holds the fee and the Income page reads it from there. If this
+    row could be changed here the two would drift apart, and nothing afterwards
+    could say which figure was the real one.
+    """
+
+    def test_a_session_transaction_cannot_be_edited(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        transaction = make_transaction(kind=TransactionKind.INCOME)
+        transaction.income_session_id = uuid.uuid4()
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.return_value = transaction
+
+        with pytest.raises(TransactionFromSessionError):
+            mock_transaction_service.update_transaction(
+                household=household_context,
+                transaction_id=transaction.id,
+                transaction_update=TransactionUpdate(amount_minor=9999),
+            )
+
+    def test_a_session_transaction_cannot_be_deleted(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        transaction = make_transaction(kind=TransactionKind.INCOME)
+        transaction.income_session_id = uuid.uuid4()
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.return_value = transaction
+
+        with pytest.raises(TransactionFromSessionError):
+            mock_transaction_service.delete_transaction(household=household_context, transaction_id=transaction.id)
+
+    def test_ordinary_income_is_left_alone(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        """The guard must not catch income somebody typed in by hand."""
+        transaction = make_transaction(kind=TransactionKind.INCOME)
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.return_value = transaction
+
+        message = mock_transaction_service.delete_transaction(
+            household=household_context, transaction_id=transaction.id
+        )
+
+        assert message.message == "Transaction deleted."
