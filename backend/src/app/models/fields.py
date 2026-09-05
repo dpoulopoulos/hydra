@@ -1,5 +1,5 @@
 import re
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated
 
 from pydantic import AfterValidator, StringConstraints
@@ -156,6 +156,23 @@ def next_month_start(month: str) -> date:
     """
     start = month_start(month)
     return date(start.year + 1, 1, 1) if start.month == 12 else date(start.year, start.month + 1, 1)
+
+
+def month_bounds(month: str) -> tuple[date, date]:
+    """Get the first and the last day of a month.
+
+    Reports state their period inclusively, so the last day of the month is
+    derived here rather than at each call site: "the day before the first of
+    next month" is easy to write off by one, and easier still to write off by
+    one in only some of the places it appears.
+
+    Args:
+        month: A month in "YYYY-MM" form.
+
+    Returns:
+        The first day of the month and its last day, both inclusive.
+    """
+    return month_start(month), next_month_start(month) - timedelta(days=1)
 
 
 def month_key_of(value: date) -> str:
