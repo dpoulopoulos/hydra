@@ -1,4 +1,4 @@
-import { LogOut, User as UserIcon, Users } from 'lucide-react'
+import { House, LogOut, User as UserIcon } from 'lucide-react'
 import { useNavigate } from 'react-router'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -51,7 +51,7 @@ export function UserMenu() {
           Your profile
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/settings/household')}>
-          <Users className="size-4" />
+          <House className="size-4" />
           Household
         </DropdownMenuItem>
         <DropdownMenuSeparator />
