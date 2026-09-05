@@ -4,6 +4,7 @@ import {
   formatAmount,
   formatCompactAmount,
   formatMoney,
+  formatPercent,
   formatSignedMoney,
   toMajor,
   toMinor,
@@ -24,6 +25,10 @@ describe('toMajor', () => {
   it('divides a three-decimal currency by a thousand', () => {
     expect(toMajor(4250, 'BHD')).toBe(4.25)
   })
+
+  it('keeps the sign of a negative balance', () => {
+    expect(toMajor(-4250, 'EUR')).toBe(-42.5)
+  })
 })
 
 describe('toMinor', () => {
@@ -38,6 +43,32 @@ describe('toMinor', () => {
   it('multiplies a three-decimal currency by a thousand', () => {
     expect(toMinor(4.25, 'BHD')).toBe(4250)
   })
+
+  it.each([
+    [42.494, 4249],
+    [42.495, 4250],
+    [42.499, 4250],
+  ])('rounds %d to the nearest minor unit', (major, expected) => {
+    expect(toMinor(major, 'EUR')).toBe(expected)
+  })
+
+  it('rounds away the fraction a zero-decimal currency cannot hold', () => {
+    expect(toMinor(4250.6, 'JPY')).toBe(4251)
+  })
+
+  it('returns an integer for an amount binary floating point cannot hold', () => {
+    expect(toMinor(1.1 + 2.2, 'EUR')).toBe(330)
+  })
+})
+
+// A minor amount has to survive the trip out to a form field and back, or
+// editing a record without touching the amount would change it.
+describe('toMinor and toMajor', () => {
+  it.each(['EUR', 'JPY', 'BHD'])('round trip through %s', (currency) => {
+    for (const minor of [0, 1, 7, 999, 123456, -4250]) {
+      expect(toMinor(toMajor(minor, currency), currency)).toBe(minor)
+    }
+  })
 })
 
 describe('formatMoney', () => {
@@ -46,6 +77,11 @@ describe('formatMoney', () => {
     expect(formatMoney(4250, 'JPY')).toContain('4,250')
     expect(formatMoney(4250, 'BHD')).toContain('4.250')
   })
+
+  it('renders a negative amount with a minus sign', () => {
+    expect(formatMoney(-4250, 'EUR')).toContain('-')
+    expect(formatMoney(-4250, 'EUR')).toContain('42.50')
+  })
 })
 
 describe('formatSignedMoney', () => {
@@ -53,6 +89,17 @@ describe('formatSignedMoney', () => {
     expect(formatSignedMoney(4250, 'EUR')).toContain('+')
     expect(formatSignedMoney(4250, 'EUR')).toContain('42.50')
     expect(formatSignedMoney(4250, 'JPY')).toContain('4,250')
+  })
+
+  it('signs a negative figure', () => {
+    expect(formatSignedMoney(-4250, 'EUR')).toContain('-')
+  })
+
+  // signDisplay: 'exceptZero', so a month that netted nothing reads as a
+  // figure rather than as a direction.
+  it('leaves zero unsigned', () => {
+    expect(formatSignedMoney(0, 'EUR')).not.toContain('+')
+    expect(formatSignedMoney(0, 'EUR')).not.toContain('-')
   })
 })
 
@@ -79,6 +126,17 @@ describe('formatCompactAmount', () => {
 
   it('divides a three-decimal currency by its own exponent', () => {
     expect(formatCompactAmount(12_000_000, 'BHD')).toBe('12K')
+  })
+})
+
+describe('formatPercent', () => {
+  it.each([
+    [0, '0%'],
+    [0.8, '80%'],
+    [1, '100%'],
+    [1.256, '126%'],
+  ])('renders %d as a whole percentage', (ratio, expected) => {
+    expect(formatPercent(ratio)).toBe(expected)
   })
 })
 
