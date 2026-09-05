@@ -8,6 +8,11 @@ from app.repositories.household import (
     HouseholdMemberRepository,
     HouseholdRepository,
 )
+from app.repositories.income import (
+    IncomeClientRepository,
+    IncomeSessionRepository,
+    IncomeVaultRepository,
+)
 from app.repositories.investment import (
     FxRateRepository,
     InstrumentRepository,
@@ -20,6 +25,9 @@ from app.repositories.transaction import TransactionRepository
 from app.repositories.user import UserRepository
 
 __all__ = [
+    "IncomeClientRepository",
+    "IncomeSessionRepository",
+    "IncomeVaultRepository",
     "AccountRepository",
     "BaseRepository",
     "BudgetRepository",

@@ -52,6 +52,27 @@ class TransactionRepository(HouseholdScopedRepository[Transaction]):
 
         return self.session.exec(statement).all(), count
 
+    def get_for_income_session(self, session_id: uuid.UUID, household_id: uuid.UUID) -> Transaction | None:
+        """Get the transaction a session generated, if it has one.
+
+        A session holds no reference to its transaction: the reference points
+        the other way, so that deleting an income row from the ledger is a
+        message rather than a foreign key error. Finding it is therefore a
+        query, which the partial unique index on the column makes cheap.
+
+        Args:
+            session_id: The ID of the session.
+            household_id: The ID of the household that must own the transaction.
+
+        Returns:
+            The generated transaction, or None when the session is not paid.
+        """
+        statement = select(Transaction).where(
+            Transaction.household_id == household_id,
+            Transaction.income_session_id == session_id,
+        )
+        return self.session.exec(statement).first()
+
     def count_for_account(self, account_id: uuid.UUID, household_id: uuid.UUID) -> int:
         """Count the transactions that reference an account, on either side.
 
