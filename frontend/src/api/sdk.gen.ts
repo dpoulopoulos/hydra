@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { AccountsCreateAccountData, AccountsCreateAccountErrors, AccountsCreateAccountResponses, AccountsDeleteAccountData, AccountsDeleteAccountErrors, AccountsDeleteAccountResponses, AccountsGetAccountData, AccountsGetAccountErrors, AccountsGetAccountResponses, AccountsListAccountsData, AccountsListAccountsErrors, AccountsListAccountsResponses, AccountsUpdateAccountData, AccountsUpdateAccountErrors, AccountsUpdateAccountResponses, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsErrors, BudgetsBulkUpsertBudgetsResponses, BudgetsCopyBudgetsData, BudgetsCopyBudgetsErrors, BudgetsCopyBudgetsResponses, BudgetsCreateBudgetData, BudgetsCreateBudgetErrors, BudgetsCreateBudgetResponses, BudgetsDeleteBudgetData, BudgetsDeleteBudgetErrors, BudgetsDeleteBudgetResponses, BudgetsGetBudgetData, BudgetsGetBudgetErrors, BudgetsGetBudgetResponses, BudgetsListBudgetsData, BudgetsListBudgetsErrors, BudgetsListBudgetsResponses, BudgetsUpdateBudgetData, BudgetsUpdateBudgetErrors, BudgetsUpdateBudgetResponses, CategoriesCreateCategoryData, CategoriesCreateCategoryErrors, CategoriesCreateCategoryResponses, CategoriesDeleteCategoryData, CategoriesDeleteCategoryErrors, CategoriesDeleteCategoryResponses, CategoriesGetCategoryData, CategoriesGetCategoryErrors, CategoriesGetCategoryResponses, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeErrors, CategoriesGetCategoryTreeResponses, CategoriesListCategoriesData, CategoriesListCategoriesErrors, CategoriesListCategoriesResponses, CategoriesUpdateCategoryData, CategoriesUpdateCategoryErrors, CategoriesUpdateCategoryResponses, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailErrors, EmailVerificationResendVerificationEmailResponses, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailErrors, EmailVerificationVerifyEmailResponses, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteErrors, HouseholdsAcceptHouseholdInviteResponses, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteErrors, HouseholdsCreateHouseholdInviteResponses, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponses, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponses, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesErrors, HouseholdsListHouseholdInvitesResponses, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponses, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteErrors, HouseholdsPreviewHouseholdInviteResponses, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberErrors, HouseholdsRemoveHouseholdMemberResponses, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteErrors, HouseholdsRevokeHouseholdInviteResponses, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeErrors, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberErrors, HouseholdsUpdateHouseholdMemberResponses, HouseholdsUpdateHouseholdMeResponses, LoginLoginAccessTokenData, LoginLoginAccessTokenErrors, LoginLoginAccessTokenResponses, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetErrors, PasswordResetConfirmPasswordResetResponses, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetErrors, PasswordResetRequestPasswordResetResponses, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenErrors, PasswordResetVerifyPasswordResetTokenResponses, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleErrors, RecurringRulesCreateRecurringRuleResponses, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleErrors, RecurringRulesDeleteRecurringRuleResponses, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleErrors, RecurringRulesGetRecurringRuleResponses, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesErrors, RecurringRulesListRecurringRulesResponses, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesErrors, RecurringRulesListUpcomingOccurrencesResponses, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesErrors, RecurringRulesRunRecurringRulesResponses, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleErrors, RecurringRulesUpdateRecurringRuleResponses, ReportsBudgetProgressData, ReportsBudgetProgressErrors, ReportsBudgetProgressResponses, ReportsIncomeExpenseData, ReportsIncomeExpenseErrors, ReportsIncomeExpenseResponses, ReportsMonthSummaryData, ReportsMonthSummaryErrors, ReportsMonthSummaryResponses, ReportsSpendByCategoryData, ReportsSpendByCategoryErrors, ReportsSpendByCategoryResponses, ReportsSpendOverTimeData, ReportsSpendOverTimeErrors, ReportsSpendOverTimeResponses, TransactionsCreateTransactionData, TransactionsCreateTransactionErrors, TransactionsCreateTransactionResponses, TransactionsDeleteTransactionData, TransactionsDeleteTransactionErrors, TransactionsDeleteTransactionResponses, TransactionsGetTransactionData, TransactionsGetTransactionErrors, TransactionsGetTransactionResponses, TransactionsListTransactionsData, TransactionsListTransactionsErrors, TransactionsListTransactionsResponses, TransactionsUpdateTransactionData, TransactionsUpdateTransactionErrors, TransactionsUpdateTransactionResponses, UsersCreateUserData, UsersCreateUserErrors, UsersCreateUserResponses, UsersDeleteUserData, UsersDeleteUserErrors, UsersDeleteUserMeData, UsersDeleteUserMeResponses, UsersDeleteUserResponses, UsersGetUserByIdData, UsersGetUserByIdErrors, UsersGetUserByIdResponses, UsersGetUserMeData, UsersGetUserMeResponses, UsersGetUsersData, UsersGetUsersErrors, UsersGetUsersResponses, UsersRegisterUserData, UsersRegisterUserErrors, UsersRegisterUserResponses, UsersUpdatePasswordMeData, UsersUpdatePasswordMeErrors, UsersUpdatePasswordMeResponses, UsersUpdateUserData, UsersUpdateUserErrors, UsersUpdateUserMeData, UsersUpdateUserMeErrors, UsersUpdateUserMeResponses, UsersUpdateUserResponses } from './types.gen';
+import type { AccountsCreateAccountData, AccountsCreateAccountErrors, AccountsCreateAccountResponses, AccountsDeleteAccountData, AccountsDeleteAccountErrors, AccountsDeleteAccountResponses, AccountsGetAccountData, AccountsGetAccountErrors, AccountsGetAccountResponses, AccountsListAccountsData, AccountsListAccountsErrors, AccountsListAccountsResponses, AccountsUpdateAccountData, AccountsUpdateAccountErrors, AccountsUpdateAccountResponses, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsErrors, BudgetsBulkUpsertBudgetsResponses, BudgetsCopyBudgetsData, BudgetsCopyBudgetsErrors, BudgetsCopyBudgetsResponses, BudgetsCreateBudgetData, BudgetsCreateBudgetErrors, BudgetsCreateBudgetResponses, BudgetsDeleteBudgetData, BudgetsDeleteBudgetErrors, BudgetsDeleteBudgetResponses, BudgetsGetBudgetData, BudgetsGetBudgetErrors, BudgetsGetBudgetResponses, BudgetsListBudgetsData, BudgetsListBudgetsErrors, BudgetsListBudgetsResponses, BudgetsUpdateBudgetData, BudgetsUpdateBudgetErrors, BudgetsUpdateBudgetResponses, CategoriesCreateCategoryData, CategoriesCreateCategoryErrors, CategoriesCreateCategoryResponses, CategoriesDeleteCategoryData, CategoriesDeleteCategoryErrors, CategoriesDeleteCategoryResponses, CategoriesGetCategoryData, CategoriesGetCategoryErrors, CategoriesGetCategoryResponses, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeErrors, CategoriesGetCategoryTreeResponses, CategoriesListCategoriesData, CategoriesListCategoriesErrors, CategoriesListCategoriesResponses, CategoriesUpdateCategoryData, CategoriesUpdateCategoryErrors, CategoriesUpdateCategoryResponses, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailErrors, EmailVerificationResendVerificationEmailResponses, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailErrors, EmailVerificationVerifyEmailResponses, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteErrors, HouseholdsAcceptHouseholdInviteResponses, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteErrors, HouseholdsCreateHouseholdInviteResponses, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponses, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponses, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesErrors, HouseholdsListHouseholdInvitesResponses, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponses, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteErrors, HouseholdsPreviewHouseholdInviteResponses, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberErrors, HouseholdsRemoveHouseholdMemberResponses, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteErrors, HouseholdsRevokeHouseholdInviteResponses, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeErrors, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberErrors, HouseholdsUpdateHouseholdMemberResponses, HouseholdsUpdateHouseholdMeResponses, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentErrors, InvestmentsCreateInstrumentResponses, InvestmentsCreateTradeData, InvestmentsCreateTradeErrors, InvestmentsCreateTradeResponses, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentErrors, InvestmentsDeleteInstrumentResponses, InvestmentsDeleteTradeData, InvestmentsDeleteTradeErrors, InvestmentsDeleteTradeResponses, InvestmentsGetInstrumentData, InvestmentsGetInstrumentErrors, InvestmentsGetInstrumentResponses, InvestmentsGetPortfolioData, InvestmentsGetPortfolioErrors, InvestmentsGetPortfolioResponses, InvestmentsGetTradeData, InvestmentsGetTradeErrors, InvestmentsGetTradeResponses, InvestmentsListFxRatesData, InvestmentsListFxRatesResponses, InvestmentsListInstrumentsData, InvestmentsListInstrumentsErrors, InvestmentsListInstrumentsResponses, InvestmentsListTradesData, InvestmentsListTradesErrors, InvestmentsListTradesResponses, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponses, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsErrors, InvestmentsSearchSymbolsResponses, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceErrors, InvestmentsSetInstrumentPriceResponses, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentErrors, InvestmentsUpdateInstrumentResponses, InvestmentsUpdateTradeData, InvestmentsUpdateTradeErrors, InvestmentsUpdateTradeResponses, LoginLoginAccessTokenData, LoginLoginAccessTokenErrors, LoginLoginAccessTokenResponses, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetErrors, PasswordResetConfirmPasswordResetResponses, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetErrors, PasswordResetRequestPasswordResetResponses, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenErrors, PasswordResetVerifyPasswordResetTokenResponses, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleErrors, RecurringRulesCreateRecurringRuleResponses, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleErrors, RecurringRulesDeleteRecurringRuleResponses, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleErrors, RecurringRulesGetRecurringRuleResponses, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesErrors, RecurringRulesListRecurringRulesResponses, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesErrors, RecurringRulesListUpcomingOccurrencesResponses, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesErrors, RecurringRulesRunRecurringRulesResponses, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleErrors, RecurringRulesUpdateRecurringRuleResponses, ReportsBudgetProgressData, ReportsBudgetProgressErrors, ReportsBudgetProgressResponses, ReportsIncomeExpenseData, ReportsIncomeExpenseErrors, ReportsIncomeExpenseResponses, ReportsMonthSummaryData, ReportsMonthSummaryErrors, ReportsMonthSummaryResponses, ReportsSpendByCategoryData, ReportsSpendByCategoryErrors, ReportsSpendByCategoryResponses, ReportsSpendOverTimeData, ReportsSpendOverTimeErrors, ReportsSpendOverTimeResponses, TransactionsCreateTransactionData, TransactionsCreateTransactionErrors, TransactionsCreateTransactionResponses, TransactionsDeleteTransactionData, TransactionsDeleteTransactionErrors, TransactionsDeleteTransactionResponses, TransactionsGetTransactionData, TransactionsGetTransactionErrors, TransactionsGetTransactionResponses, TransactionsListTransactionsData, TransactionsListTransactionsErrors, TransactionsListTransactionsResponses, TransactionsUpdateTransactionData, TransactionsUpdateTransactionErrors, TransactionsUpdateTransactionResponses, UsersCreateUserData, UsersCreateUserErrors, UsersCreateUserResponses, UsersDeleteUserData, UsersDeleteUserErrors, UsersDeleteUserMeData, UsersDeleteUserMeResponses, UsersDeleteUserResponses, UsersGetUserByIdData, UsersGetUserByIdErrors, UsersGetUserByIdResponses, UsersGetUserMeData, UsersGetUserMeResponses, UsersGetUsersData, UsersGetUsersErrors, UsersGetUsersResponses, UsersRegisterUserData, UsersRegisterUserErrors, UsersRegisterUserResponses, UsersUpdatePasswordMeData, UsersUpdatePasswordMeErrors, UsersUpdatePasswordMeResponses, UsersUpdateUserData, UsersUpdateUserErrors, UsersUpdateUserMeData, UsersUpdateUserMeErrors, UsersUpdateUserMeResponses, UsersUpdateUserResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -1350,6 +1350,400 @@ export const recurringRulesUpdateRecurringRule = <ThrowOnError extends boolean =
 });
 
 /**
+ * List Instruments
+ *
+ * List the instruments the household tracks.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * skip: Number of records to skip.
+ * limit: Maximum number of records to return.
+ *
+ * Returns:
+ * The instruments, and how many there are in total.
+ *
+ * Raises:
+ * HTTPException: If the user belongs to no household (404).
+ */
+export const investmentsListInstruments = <ThrowOnError extends boolean = false>(options?: Options<InvestmentsListInstrumentsData, ThrowOnError>): RequestResult<InvestmentsListInstrumentsResponses, InvestmentsListInstrumentsErrors, ThrowOnError> => (options?.client ?? client).get<InvestmentsListInstrumentsResponses, InvestmentsListInstrumentsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/instruments',
+    ...options
+});
+
+/**
+ * Create Instrument
+ *
+ * Start tracking an instrument.
+ *
+ * The symbol is priced once on the way in. That confirms the provider carries
+ * it, so a typo is caught here rather than becoming a position that is never
+ * worth anything, and it settles which currency the listing quotes in. Send a
+ * currency to skip the check and track something by hand.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_in: The instrument to track.
+ *
+ * Returns:
+ * The instrument, priced if the provider knew it.
+ *
+ * Raises:
+ * HTTPException: If the household already tracks that symbol (409), the
+ * provider does not know it and no currency was given (400), market
+ * data is switched off (503), or the provider is unreachable (502).
+ */
+export const investmentsCreateInstrument = <ThrowOnError extends boolean = false>(options: Options<InvestmentsCreateInstrumentData, ThrowOnError>): RequestResult<InvestmentsCreateInstrumentResponses, InvestmentsCreateInstrumentErrors, ThrowOnError> => (options.client ?? client).post<InvestmentsCreateInstrumentResponses, InvestmentsCreateInstrumentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/instruments',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Search Symbols
+ *
+ * Look up listings by name or partial ticker.
+ *
+ * Matches carry no currency: the provider's search index does not have one,
+ * and it is only certain once the listing is priced, which is what creating
+ * the instrument does.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * q: What the user typed.
+ * limit: The most matches to return.
+ *
+ * Returns:
+ * The matching listings.
+ *
+ * Raises:
+ * HTTPException: If market data is switched off (503), or the provider is
+ * unreachable (502).
+ */
+export const investmentsSearchSymbols = <ThrowOnError extends boolean = false>(options: Options<InvestmentsSearchSymbolsData, ThrowOnError>): RequestResult<InvestmentsSearchSymbolsResponses, InvestmentsSearchSymbolsErrors, ThrowOnError> => (options.client ?? client).get<InvestmentsSearchSymbolsResponses, InvestmentsSearchSymbolsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/symbols',
+    ...options
+});
+
+/**
+ * List Fx Rates
+ *
+ * Show the exchange rates behind the household's converted figures.
+ *
+ * Reads what is stored rather than fetching, so it never waits on the network
+ * and never spends an API call.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ *
+ * Returns:
+ * The rates converting into the household's currency, and any currency
+ * held that has no rate.
+ *
+ * Raises:
+ * HTTPException: If the household no longer exists (404).
+ */
+export const investmentsListFxRates = <ThrowOnError extends boolean = false>(options?: Options<InvestmentsListFxRatesData, ThrowOnError>): RequestResult<InvestmentsListFxRatesResponses, unknown, ThrowOnError> => (options?.client ?? client).get<InvestmentsListFxRatesResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/fx-rates',
+    ...options
+});
+
+/**
+ * Get Portfolio
+ *
+ * Value everything the household holds, in the household's currency.
+ *
+ * Prices come from what was last fetched rather than from the provider, so
+ * this endpoint never waits on the network. Refresh them explicitly.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * include_closed: Whether to include positions sold down to nothing.
+ *
+ * Returns:
+ * The positions and the totals over them.
+ *
+ * Raises:
+ * HTTPException: If the household no longer exists (404).
+ */
+export const investmentsGetPortfolio = <ThrowOnError extends boolean = false>(options?: Options<InvestmentsGetPortfolioData, ThrowOnError>): RequestResult<InvestmentsGetPortfolioResponses, InvestmentsGetPortfolioErrors, ThrowOnError> => (options?.client ?? client).get<InvestmentsGetPortfolioResponses, InvestmentsGetPortfolioErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/portfolio',
+    ...options
+});
+
+/**
+ * Refresh Prices
+ *
+ * Fetch a fresh price for every instrument, and the rates to value them.
+ *
+ * A symbol the provider cannot answer for is reported rather than raised:
+ * one delisted ticker must not stop the rest of the portfolio being priced.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ *
+ * Returns:
+ * What was updated, and what could not be.
+ *
+ * Raises:
+ * HTTPException: If market data is switched off (503), or the provider is
+ * unreachable (502).
+ */
+export const investmentsRefreshPrices = <ThrowOnError extends boolean = false>(options?: Options<InvestmentsRefreshPricesData, ThrowOnError>): RequestResult<InvestmentsRefreshPricesResponses, unknown, ThrowOnError> => (options?.client ?? client).post<InvestmentsRefreshPricesResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/prices/refresh',
+    ...options
+});
+
+/**
+ * Delete Instrument
+ *
+ * Stop tracking an instrument that has no trades.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_id: The ID of the instrument to delete.
+ *
+ * Returns:
+ * A confirmation message.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404), or it still
+ * has trades (409).
+ */
+export const investmentsDeleteInstrument = <ThrowOnError extends boolean = false>(options: Options<InvestmentsDeleteInstrumentData, ThrowOnError>): RequestResult<InvestmentsDeleteInstrumentResponses, InvestmentsDeleteInstrumentErrors, ThrowOnError> => (options.client ?? client).delete<InvestmentsDeleteInstrumentResponses, InvestmentsDeleteInstrumentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/instruments/{instrument_id}',
+    ...options
+});
+
+/**
+ * Get Instrument
+ *
+ * Get one instrument of the household.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_id: The ID of the instrument.
+ *
+ * Returns:
+ * The instrument.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404).
+ */
+export const investmentsGetInstrument = <ThrowOnError extends boolean = false>(options: Options<InvestmentsGetInstrumentData, ThrowOnError>): RequestResult<InvestmentsGetInstrumentResponses, InvestmentsGetInstrumentErrors, ThrowOnError> => (options.client ?? client).get<InvestmentsGetInstrumentResponses, InvestmentsGetInstrumentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/instruments/{instrument_id}',
+    ...options
+});
+
+/**
+ * Update Instrument
+ *
+ * Rename or re-label an instrument.
+ *
+ * The symbol and the currency cannot be changed. Both describe the listing
+ * that every stored price and every recorded trade was measured against.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_id: The ID of the instrument to update.
+ * instrument_in: The fields to update.
+ *
+ * Returns:
+ * The updated instrument.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404).
+ */
+export const investmentsUpdateInstrument = <ThrowOnError extends boolean = false>(options: Options<InvestmentsUpdateInstrumentData, ThrowOnError>): RequestResult<InvestmentsUpdateInstrumentResponses, InvestmentsUpdateInstrumentErrors, ThrowOnError> => (options.client ?? client).patch<InvestmentsUpdateInstrumentResponses, InvestmentsUpdateInstrumentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/instruments/{instrument_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Set Instrument Price
+ *
+ * Record a price by hand, for when the provider cannot supply one.
+ *
+ * The provider bills per holding out of a small daily allowance, and can also
+ * be switched off or simply not carry a listing. This is the way round all
+ * three. The price is stored and used exactly as a fetched one is; the row
+ * remembers that it was typed, and says so.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_id: The ID of the instrument to price.
+ * price_in: The price, in the instrument's own currency.
+ *
+ * Returns:
+ * The instrument, carrying the new price.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404).
+ */
+export const investmentsSetInstrumentPrice = <ThrowOnError extends boolean = false>(options: Options<InvestmentsSetInstrumentPriceData, ThrowOnError>): RequestResult<InvestmentsSetInstrumentPriceResponses, InvestmentsSetInstrumentPriceErrors, ThrowOnError> => (options.client ?? client).put<InvestmentsSetInstrumentPriceResponses, InvestmentsSetInstrumentPriceErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/instruments/{instrument_id}/price',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Trades
+ *
+ * List the household's trades, newest first.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_id: An optional instrument to filter on.
+ * skip: Number of records to skip.
+ * limit: Maximum number of records to return.
+ *
+ * Returns:
+ * The trades, and how many there are in total.
+ *
+ * Raises:
+ * HTTPException: If the instrument does not exist in the household (404).
+ */
+export const investmentsListTrades = <ThrowOnError extends boolean = false>(options?: Options<InvestmentsListTradesData, ThrowOnError>): RequestResult<InvestmentsListTradesResponses, InvestmentsListTradesErrors, ThrowOnError> => (options?.client ?? client).get<InvestmentsListTradesResponses, InvestmentsListTradesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/trades',
+    ...options
+});
+
+/**
+ * Create Trade
+ *
+ * Record a buy or a sell.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * current_user: The user recording it, for the audit trail.
+ * trade_in: The trade to record.
+ *
+ * Returns:
+ * The recorded trade.
+ *
+ * Raises:
+ * HTTPException: If the instrument does not exist in the household (404),
+ * or the trade would sell units the household does not hold (400).
+ */
+export const investmentsCreateTrade = <ThrowOnError extends boolean = false>(options: Options<InvestmentsCreateTradeData, ThrowOnError>): RequestResult<InvestmentsCreateTradeResponses, InvestmentsCreateTradeErrors, ThrowOnError> => (options.client ?? client).post<InvestmentsCreateTradeResponses, InvestmentsCreateTradeErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/trades',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Trade
+ *
+ * Remove a trade that should not have been recorded.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * trade_id: The ID of the trade to remove.
+ *
+ * Returns:
+ * A confirmation message.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404), or a later
+ * sale depended on the units this trade brought in (400).
+ */
+export const investmentsDeleteTrade = <ThrowOnError extends boolean = false>(options: Options<InvestmentsDeleteTradeData, ThrowOnError>): RequestResult<InvestmentsDeleteTradeResponses, InvestmentsDeleteTradeErrors, ThrowOnError> => (options.client ?? client).delete<InvestmentsDeleteTradeResponses, InvestmentsDeleteTradeErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/trades/{trade_id}',
+    ...options
+});
+
+/**
+ * Get Trade
+ *
+ * Get one trade of the household.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * trade_id: The ID of the trade.
+ *
+ * Returns:
+ * The trade.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404).
+ */
+export const investmentsGetTrade = <ThrowOnError extends boolean = false>(options: Options<InvestmentsGetTradeData, ThrowOnError>): RequestResult<InvestmentsGetTradeResponses, InvestmentsGetTradeErrors, ThrowOnError> => (options.client ?? client).get<InvestmentsGetTradeResponses, InvestmentsGetTradeErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/trades/{trade_id}',
+    ...options
+});
+
+/**
+ * Update Trade
+ *
+ * Correct a recorded trade.
+ *
+ * The instrument cannot be changed: moving a trade rewrites the history of
+ * two positions at once. Delete it and record it again.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * trade_id: The ID of the trade to correct.
+ * trade_in: The fields to change.
+ *
+ * Returns:
+ * The corrected trade.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404), or the
+ * correction would leave the position holding fewer than zero units
+ * at some point in its history (400).
+ */
+export const investmentsUpdateTrade = <ThrowOnError extends boolean = false>(options: Options<InvestmentsUpdateTradeData, ThrowOnError>): RequestResult<InvestmentsUpdateTradeResponses, InvestmentsUpdateTradeErrors, ThrowOnError> => (options.client ?? client).patch<InvestmentsUpdateTradeResponses, InvestmentsUpdateTradeErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/investments/trades/{trade_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Spend By Category
  *
  * Break a month's spending down by category.
@@ -1476,6 +1870,8 @@ export const reportsBudgetProgress = <ThrowOnError extends boolean = false>(opti
  * report_service: The report service dependency.
  * recurring_rule_service: The recurring rule service dependency, used to
  * bring the ledger up to date before reading it.
+ * investment_service: The investment service dependency, used to value
+ * the holdings from their stored prices.
  * household: The current household context.
  * month: The month, in "YYYY-MM" form.
  *

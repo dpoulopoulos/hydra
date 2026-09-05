@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { accountsCreateAccount, accountsDeleteAccount, accountsGetAccount, accountsListAccounts, accountsUpdateAccount, budgetsBulkUpsertBudgets, budgetsCopyBudgets, budgetsCreateBudget, budgetsDeleteBudget, budgetsGetBudget, budgetsListBudgets, budgetsUpdateBudget, categoriesCreateCategory, categoriesDeleteCategory, categoriesGetCategory, categoriesGetCategoryTree, categoriesListCategories, categoriesUpdateCategory, emailVerificationResendVerificationEmail, emailVerificationVerifyEmail, householdsAcceptHouseholdInvite, householdsCreateHouseholdInvite, householdsGetHouseholdMe, householdsLeaveHousehold, householdsListHouseholdInvites, householdsListHouseholdMembers, householdsPreviewHouseholdInvite, householdsRemoveHouseholdMember, householdsRevokeHouseholdInvite, householdsUpdateHouseholdMe, householdsUpdateHouseholdMember, loginLoginAccessToken, type Options, passwordResetConfirmPasswordReset, passwordResetRequestPasswordReset, passwordResetVerifyPasswordResetToken, recurringRulesCreateRecurringRule, recurringRulesDeleteRecurringRule, recurringRulesGetRecurringRule, recurringRulesListRecurringRules, recurringRulesListUpcomingOccurrences, recurringRulesRunRecurringRules, recurringRulesUpdateRecurringRule, reportsBudgetProgress, reportsIncomeExpense, reportsMonthSummary, reportsSpendByCategory, reportsSpendOverTime, transactionsCreateTransaction, transactionsDeleteTransaction, transactionsGetTransaction, transactionsListTransactions, transactionsUpdateTransaction, usersCreateUser, usersDeleteUser, usersDeleteUserMe, usersGetUserById, usersGetUserMe, usersGetUsers, usersRegisterUser, usersUpdatePasswordMe, usersUpdateUser, usersUpdateUserMe } from '../sdk.gen';
-import type { AccountsCreateAccountData, AccountsCreateAccountError, AccountsCreateAccountResponse, AccountsDeleteAccountData, AccountsDeleteAccountError, AccountsDeleteAccountResponse, AccountsGetAccountData, AccountsGetAccountError, AccountsGetAccountResponse, AccountsListAccountsData, AccountsListAccountsError, AccountsListAccountsResponse, AccountsUpdateAccountData, AccountsUpdateAccountError, AccountsUpdateAccountResponse, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsError, BudgetsBulkUpsertBudgetsResponse, BudgetsCopyBudgetsData, BudgetsCopyBudgetsError, BudgetsCopyBudgetsResponse, BudgetsCreateBudgetData, BudgetsCreateBudgetError, BudgetsCreateBudgetResponse, BudgetsDeleteBudgetData, BudgetsDeleteBudgetError, BudgetsDeleteBudgetResponse, BudgetsGetBudgetData, BudgetsGetBudgetError, BudgetsGetBudgetResponse, BudgetsListBudgetsData, BudgetsListBudgetsError, BudgetsListBudgetsResponse, BudgetsUpdateBudgetData, BudgetsUpdateBudgetError, BudgetsUpdateBudgetResponse, CategoriesCreateCategoryData, CategoriesCreateCategoryError, CategoriesCreateCategoryResponse, CategoriesDeleteCategoryData, CategoriesDeleteCategoryError, CategoriesDeleteCategoryResponse, CategoriesGetCategoryData, CategoriesGetCategoryError, CategoriesGetCategoryResponse, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeError, CategoriesGetCategoryTreeResponse, CategoriesListCategoriesData, CategoriesListCategoriesError, CategoriesListCategoriesResponse, CategoriesUpdateCategoryData, CategoriesUpdateCategoryError, CategoriesUpdateCategoryResponse, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailError, EmailVerificationResendVerificationEmailResponse, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailError, EmailVerificationVerifyEmailResponse, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteError, HouseholdsAcceptHouseholdInviteResponse, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteError, HouseholdsCreateHouseholdInviteResponse, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponse, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponse, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesError, HouseholdsListHouseholdInvitesResponse, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponse, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteError, HouseholdsPreviewHouseholdInviteResponse, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberError, HouseholdsRemoveHouseholdMemberResponse, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteError, HouseholdsRevokeHouseholdInviteResponse, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeError, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberError, HouseholdsUpdateHouseholdMemberResponse, HouseholdsUpdateHouseholdMeResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenError, LoginLoginAccessTokenResponse, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetError, PasswordResetConfirmPasswordResetResponse, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetError, PasswordResetRequestPasswordResetResponse, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenError, PasswordResetVerifyPasswordResetTokenResponse, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleError, RecurringRulesCreateRecurringRuleResponse, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleError, RecurringRulesDeleteRecurringRuleResponse, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleError, RecurringRulesGetRecurringRuleResponse, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesError, RecurringRulesListRecurringRulesResponse, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesError, RecurringRulesListUpcomingOccurrencesResponse, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesError, RecurringRulesRunRecurringRulesResponse, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleError, RecurringRulesUpdateRecurringRuleResponse, ReportsBudgetProgressData, ReportsBudgetProgressError, ReportsBudgetProgressResponse, ReportsIncomeExpenseData, ReportsIncomeExpenseError, ReportsIncomeExpenseResponse, ReportsMonthSummaryData, ReportsMonthSummaryError, ReportsMonthSummaryResponse, ReportsSpendByCategoryData, ReportsSpendByCategoryError, ReportsSpendByCategoryResponse, ReportsSpendOverTimeData, ReportsSpendOverTimeError, ReportsSpendOverTimeResponse, TransactionsCreateTransactionData, TransactionsCreateTransactionError, TransactionsCreateTransactionResponse, TransactionsDeleteTransactionData, TransactionsDeleteTransactionError, TransactionsDeleteTransactionResponse, TransactionsGetTransactionData, TransactionsGetTransactionError, TransactionsGetTransactionResponse, TransactionsListTransactionsData, TransactionsListTransactionsError, TransactionsListTransactionsResponse, TransactionsUpdateTransactionData, TransactionsUpdateTransactionError, TransactionsUpdateTransactionResponse, UsersCreateUserData, UsersCreateUserError, UsersCreateUserResponse, UsersDeleteUserData, UsersDeleteUserError, UsersDeleteUserMeData, UsersDeleteUserMeResponse, UsersDeleteUserResponse, UsersGetUserByIdData, UsersGetUserByIdError, UsersGetUserByIdResponse, UsersGetUserMeData, UsersGetUserMeResponse, UsersGetUsersData, UsersGetUsersError, UsersGetUsersResponse, UsersRegisterUserData, UsersRegisterUserError, UsersRegisterUserResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeError, UsersUpdatePasswordMeResponse, UsersUpdateUserData, UsersUpdateUserError, UsersUpdateUserMeData, UsersUpdateUserMeError, UsersUpdateUserMeResponse, UsersUpdateUserResponse } from '../types.gen';
+import { accountsCreateAccount, accountsDeleteAccount, accountsGetAccount, accountsListAccounts, accountsUpdateAccount, budgetsBulkUpsertBudgets, budgetsCopyBudgets, budgetsCreateBudget, budgetsDeleteBudget, budgetsGetBudget, budgetsListBudgets, budgetsUpdateBudget, categoriesCreateCategory, categoriesDeleteCategory, categoriesGetCategory, categoriesGetCategoryTree, categoriesListCategories, categoriesUpdateCategory, emailVerificationResendVerificationEmail, emailVerificationVerifyEmail, householdsAcceptHouseholdInvite, householdsCreateHouseholdInvite, householdsGetHouseholdMe, householdsLeaveHousehold, householdsListHouseholdInvites, householdsListHouseholdMembers, householdsPreviewHouseholdInvite, householdsRemoveHouseholdMember, householdsRevokeHouseholdInvite, householdsUpdateHouseholdMe, householdsUpdateHouseholdMember, investmentsCreateInstrument, investmentsCreateTrade, investmentsDeleteInstrument, investmentsDeleteTrade, investmentsGetInstrument, investmentsGetPortfolio, investmentsGetTrade, investmentsListFxRates, investmentsListInstruments, investmentsListTrades, investmentsRefreshPrices, investmentsSearchSymbols, investmentsSetInstrumentPrice, investmentsUpdateInstrument, investmentsUpdateTrade, loginLoginAccessToken, type Options, passwordResetConfirmPasswordReset, passwordResetRequestPasswordReset, passwordResetVerifyPasswordResetToken, recurringRulesCreateRecurringRule, recurringRulesDeleteRecurringRule, recurringRulesGetRecurringRule, recurringRulesListRecurringRules, recurringRulesListUpcomingOccurrences, recurringRulesRunRecurringRules, recurringRulesUpdateRecurringRule, reportsBudgetProgress, reportsIncomeExpense, reportsMonthSummary, reportsSpendByCategory, reportsSpendOverTime, transactionsCreateTransaction, transactionsDeleteTransaction, transactionsGetTransaction, transactionsListTransactions, transactionsUpdateTransaction, usersCreateUser, usersDeleteUser, usersDeleteUserMe, usersGetUserById, usersGetUserMe, usersGetUsers, usersRegisterUser, usersUpdatePasswordMe, usersUpdateUser, usersUpdateUserMe } from '../sdk.gen';
+import type { AccountsCreateAccountData, AccountsCreateAccountError, AccountsCreateAccountResponse, AccountsDeleteAccountData, AccountsDeleteAccountError, AccountsDeleteAccountResponse, AccountsGetAccountData, AccountsGetAccountError, AccountsGetAccountResponse, AccountsListAccountsData, AccountsListAccountsError, AccountsListAccountsResponse, AccountsUpdateAccountData, AccountsUpdateAccountError, AccountsUpdateAccountResponse, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsError, BudgetsBulkUpsertBudgetsResponse, BudgetsCopyBudgetsData, BudgetsCopyBudgetsError, BudgetsCopyBudgetsResponse, BudgetsCreateBudgetData, BudgetsCreateBudgetError, BudgetsCreateBudgetResponse, BudgetsDeleteBudgetData, BudgetsDeleteBudgetError, BudgetsDeleteBudgetResponse, BudgetsGetBudgetData, BudgetsGetBudgetError, BudgetsGetBudgetResponse, BudgetsListBudgetsData, BudgetsListBudgetsError, BudgetsListBudgetsResponse, BudgetsUpdateBudgetData, BudgetsUpdateBudgetError, BudgetsUpdateBudgetResponse, CategoriesCreateCategoryData, CategoriesCreateCategoryError, CategoriesCreateCategoryResponse, CategoriesDeleteCategoryData, CategoriesDeleteCategoryError, CategoriesDeleteCategoryResponse, CategoriesGetCategoryData, CategoriesGetCategoryError, CategoriesGetCategoryResponse, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeError, CategoriesGetCategoryTreeResponse, CategoriesListCategoriesData, CategoriesListCategoriesError, CategoriesListCategoriesResponse, CategoriesUpdateCategoryData, CategoriesUpdateCategoryError, CategoriesUpdateCategoryResponse, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailError, EmailVerificationResendVerificationEmailResponse, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailError, EmailVerificationVerifyEmailResponse, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteError, HouseholdsAcceptHouseholdInviteResponse, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteError, HouseholdsCreateHouseholdInviteResponse, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponse, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponse, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesError, HouseholdsListHouseholdInvitesResponse, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponse, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteError, HouseholdsPreviewHouseholdInviteResponse, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberError, HouseholdsRemoveHouseholdMemberResponse, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteError, HouseholdsRevokeHouseholdInviteResponse, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeError, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberError, HouseholdsUpdateHouseholdMemberResponse, HouseholdsUpdateHouseholdMeResponse, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentError, InvestmentsCreateInstrumentResponse, InvestmentsCreateTradeData, InvestmentsCreateTradeError, InvestmentsCreateTradeResponse, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentError, InvestmentsDeleteInstrumentResponse, InvestmentsDeleteTradeData, InvestmentsDeleteTradeError, InvestmentsDeleteTradeResponse, InvestmentsGetInstrumentData, InvestmentsGetInstrumentError, InvestmentsGetInstrumentResponse, InvestmentsGetPortfolioData, InvestmentsGetPortfolioError, InvestmentsGetPortfolioResponse, InvestmentsGetTradeData, InvestmentsGetTradeError, InvestmentsGetTradeResponse, InvestmentsListFxRatesData, InvestmentsListFxRatesResponse, InvestmentsListInstrumentsData, InvestmentsListInstrumentsError, InvestmentsListInstrumentsResponse, InvestmentsListTradesData, InvestmentsListTradesError, InvestmentsListTradesResponse, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponse, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsError, InvestmentsSearchSymbolsResponse, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceError, InvestmentsSetInstrumentPriceResponse, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentError, InvestmentsUpdateInstrumentResponse, InvestmentsUpdateTradeData, InvestmentsUpdateTradeError, InvestmentsUpdateTradeResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenError, LoginLoginAccessTokenResponse, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetError, PasswordResetConfirmPasswordResetResponse, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetError, PasswordResetRequestPasswordResetResponse, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenError, PasswordResetVerifyPasswordResetTokenResponse, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleError, RecurringRulesCreateRecurringRuleResponse, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleError, RecurringRulesDeleteRecurringRuleResponse, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleError, RecurringRulesGetRecurringRuleResponse, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesError, RecurringRulesListRecurringRulesResponse, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesError, RecurringRulesListUpcomingOccurrencesResponse, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesError, RecurringRulesRunRecurringRulesResponse, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleError, RecurringRulesUpdateRecurringRuleResponse, ReportsBudgetProgressData, ReportsBudgetProgressError, ReportsBudgetProgressResponse, ReportsIncomeExpenseData, ReportsIncomeExpenseError, ReportsIncomeExpenseResponse, ReportsMonthSummaryData, ReportsMonthSummaryError, ReportsMonthSummaryResponse, ReportsSpendByCategoryData, ReportsSpendByCategoryError, ReportsSpendByCategoryResponse, ReportsSpendOverTimeData, ReportsSpendOverTimeError, ReportsSpendOverTimeResponse, TransactionsCreateTransactionData, TransactionsCreateTransactionError, TransactionsCreateTransactionResponse, TransactionsDeleteTransactionData, TransactionsDeleteTransactionError, TransactionsDeleteTransactionResponse, TransactionsGetTransactionData, TransactionsGetTransactionError, TransactionsGetTransactionResponse, TransactionsListTransactionsData, TransactionsListTransactionsError, TransactionsListTransactionsResponse, TransactionsUpdateTransactionData, TransactionsUpdateTransactionError, TransactionsUpdateTransactionResponse, UsersCreateUserData, UsersCreateUserError, UsersCreateUserResponse, UsersDeleteUserData, UsersDeleteUserError, UsersDeleteUserMeData, UsersDeleteUserMeResponse, UsersDeleteUserResponse, UsersGetUserByIdData, UsersGetUserByIdError, UsersGetUserByIdResponse, UsersGetUserMeData, UsersGetUserMeResponse, UsersGetUsersData, UsersGetUsersError, UsersGetUsersResponse, UsersRegisterUserData, UsersRegisterUserError, UsersRegisterUserResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeError, UsersUpdatePasswordMeResponse, UsersUpdateUserData, UsersUpdateUserError, UsersUpdateUserMeData, UsersUpdateUserMeError, UsersUpdateUserMeResponse, UsersUpdateUserResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -1718,6 +1718,507 @@ export const recurringRulesUpdateRecurringRuleMutation = (options?: Partial<Opti
     return mutationOptions;
 };
 
+export const investmentsListInstrumentsQueryKey = (options?: Options<InvestmentsListInstrumentsData>) => createQueryKey('investmentsListInstruments', options);
+
+/**
+ * List Instruments
+ *
+ * List the instruments the household tracks.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * skip: Number of records to skip.
+ * limit: Maximum number of records to return.
+ *
+ * Returns:
+ * The instruments, and how many there are in total.
+ *
+ * Raises:
+ * HTTPException: If the user belongs to no household (404).
+ */
+export const investmentsListInstrumentsOptions = (options?: Options<InvestmentsListInstrumentsData>) => queryOptions<InvestmentsListInstrumentsResponse, InvestmentsListInstrumentsError, InvestmentsListInstrumentsResponse, ReturnType<typeof investmentsListInstrumentsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await investmentsListInstruments({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: investmentsListInstrumentsQueryKey(options)
+});
+
+/**
+ * Create Instrument
+ *
+ * Start tracking an instrument.
+ *
+ * The symbol is priced once on the way in. That confirms the provider carries
+ * it, so a typo is caught here rather than becoming a position that is never
+ * worth anything, and it settles which currency the listing quotes in. Send a
+ * currency to skip the check and track something by hand.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_in: The instrument to track.
+ *
+ * Returns:
+ * The instrument, priced if the provider knew it.
+ *
+ * Raises:
+ * HTTPException: If the household already tracks that symbol (409), the
+ * provider does not know it and no currency was given (400), market
+ * data is switched off (503), or the provider is unreachable (502).
+ */
+export const investmentsCreateInstrumentMutation = (options?: Partial<Options<InvestmentsCreateInstrumentData>>): UseMutationOptions<InvestmentsCreateInstrumentResponse, InvestmentsCreateInstrumentError, Options<InvestmentsCreateInstrumentData>> => {
+    const mutationOptions: UseMutationOptions<InvestmentsCreateInstrumentResponse, InvestmentsCreateInstrumentError, Options<InvestmentsCreateInstrumentData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await investmentsCreateInstrument({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const investmentsSearchSymbolsQueryKey = (options: Options<InvestmentsSearchSymbolsData>) => createQueryKey('investmentsSearchSymbols', options);
+
+/**
+ * Search Symbols
+ *
+ * Look up listings by name or partial ticker.
+ *
+ * Matches carry no currency: the provider's search index does not have one,
+ * and it is only certain once the listing is priced, which is what creating
+ * the instrument does.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * q: What the user typed.
+ * limit: The most matches to return.
+ *
+ * Returns:
+ * The matching listings.
+ *
+ * Raises:
+ * HTTPException: If market data is switched off (503), or the provider is
+ * unreachable (502).
+ */
+export const investmentsSearchSymbolsOptions = (options: Options<InvestmentsSearchSymbolsData>) => queryOptions<InvestmentsSearchSymbolsResponse, InvestmentsSearchSymbolsError, InvestmentsSearchSymbolsResponse, ReturnType<typeof investmentsSearchSymbolsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await investmentsSearchSymbols({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: investmentsSearchSymbolsQueryKey(options)
+});
+
+export const investmentsListFxRatesQueryKey = (options?: Options<InvestmentsListFxRatesData>) => createQueryKey('investmentsListFxRates', options);
+
+/**
+ * List Fx Rates
+ *
+ * Show the exchange rates behind the household's converted figures.
+ *
+ * Reads what is stored rather than fetching, so it never waits on the network
+ * and never spends an API call.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ *
+ * Returns:
+ * The rates converting into the household's currency, and any currency
+ * held that has no rate.
+ *
+ * Raises:
+ * HTTPException: If the household no longer exists (404).
+ */
+export const investmentsListFxRatesOptions = (options?: Options<InvestmentsListFxRatesData>) => queryOptions<InvestmentsListFxRatesResponse, DefaultError, InvestmentsListFxRatesResponse, ReturnType<typeof investmentsListFxRatesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await investmentsListFxRates({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: investmentsListFxRatesQueryKey(options)
+});
+
+export const investmentsGetPortfolioQueryKey = (options?: Options<InvestmentsGetPortfolioData>) => createQueryKey('investmentsGetPortfolio', options);
+
+/**
+ * Get Portfolio
+ *
+ * Value everything the household holds, in the household's currency.
+ *
+ * Prices come from what was last fetched rather than from the provider, so
+ * this endpoint never waits on the network. Refresh them explicitly.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * include_closed: Whether to include positions sold down to nothing.
+ *
+ * Returns:
+ * The positions and the totals over them.
+ *
+ * Raises:
+ * HTTPException: If the household no longer exists (404).
+ */
+export const investmentsGetPortfolioOptions = (options?: Options<InvestmentsGetPortfolioData>) => queryOptions<InvestmentsGetPortfolioResponse, InvestmentsGetPortfolioError, InvestmentsGetPortfolioResponse, ReturnType<typeof investmentsGetPortfolioQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await investmentsGetPortfolio({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: investmentsGetPortfolioQueryKey(options)
+});
+
+/**
+ * Refresh Prices
+ *
+ * Fetch a fresh price for every instrument, and the rates to value them.
+ *
+ * A symbol the provider cannot answer for is reported rather than raised:
+ * one delisted ticker must not stop the rest of the portfolio being priced.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ *
+ * Returns:
+ * What was updated, and what could not be.
+ *
+ * Raises:
+ * HTTPException: If market data is switched off (503), or the provider is
+ * unreachable (502).
+ */
+export const investmentsRefreshPricesMutation = (options?: Partial<Options<InvestmentsRefreshPricesData>>): UseMutationOptions<InvestmentsRefreshPricesResponse, DefaultError, Options<InvestmentsRefreshPricesData>> => {
+    const mutationOptions: UseMutationOptions<InvestmentsRefreshPricesResponse, DefaultError, Options<InvestmentsRefreshPricesData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await investmentsRefreshPrices({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete Instrument
+ *
+ * Stop tracking an instrument that has no trades.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_id: The ID of the instrument to delete.
+ *
+ * Returns:
+ * A confirmation message.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404), or it still
+ * has trades (409).
+ */
+export const investmentsDeleteInstrumentMutation = (options?: Partial<Options<InvestmentsDeleteInstrumentData>>): UseMutationOptions<InvestmentsDeleteInstrumentResponse, InvestmentsDeleteInstrumentError, Options<InvestmentsDeleteInstrumentData>> => {
+    const mutationOptions: UseMutationOptions<InvestmentsDeleteInstrumentResponse, InvestmentsDeleteInstrumentError, Options<InvestmentsDeleteInstrumentData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await investmentsDeleteInstrument({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const investmentsGetInstrumentQueryKey = (options: Options<InvestmentsGetInstrumentData>) => createQueryKey('investmentsGetInstrument', options);
+
+/**
+ * Get Instrument
+ *
+ * Get one instrument of the household.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_id: The ID of the instrument.
+ *
+ * Returns:
+ * The instrument.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404).
+ */
+export const investmentsGetInstrumentOptions = (options: Options<InvestmentsGetInstrumentData>) => queryOptions<InvestmentsGetInstrumentResponse, InvestmentsGetInstrumentError, InvestmentsGetInstrumentResponse, ReturnType<typeof investmentsGetInstrumentQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await investmentsGetInstrument({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: investmentsGetInstrumentQueryKey(options)
+});
+
+/**
+ * Update Instrument
+ *
+ * Rename or re-label an instrument.
+ *
+ * The symbol and the currency cannot be changed. Both describe the listing
+ * that every stored price and every recorded trade was measured against.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_id: The ID of the instrument to update.
+ * instrument_in: The fields to update.
+ *
+ * Returns:
+ * The updated instrument.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404).
+ */
+export const investmentsUpdateInstrumentMutation = (options?: Partial<Options<InvestmentsUpdateInstrumentData>>): UseMutationOptions<InvestmentsUpdateInstrumentResponse, InvestmentsUpdateInstrumentError, Options<InvestmentsUpdateInstrumentData>> => {
+    const mutationOptions: UseMutationOptions<InvestmentsUpdateInstrumentResponse, InvestmentsUpdateInstrumentError, Options<InvestmentsUpdateInstrumentData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await investmentsUpdateInstrument({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Set Instrument Price
+ *
+ * Record a price by hand, for when the provider cannot supply one.
+ *
+ * The provider bills per holding out of a small daily allowance, and can also
+ * be switched off or simply not carry a listing. This is the way round all
+ * three. The price is stored and used exactly as a fetched one is; the row
+ * remembers that it was typed, and says so.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_id: The ID of the instrument to price.
+ * price_in: The price, in the instrument's own currency.
+ *
+ * Returns:
+ * The instrument, carrying the new price.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404).
+ */
+export const investmentsSetInstrumentPriceMutation = (options?: Partial<Options<InvestmentsSetInstrumentPriceData>>): UseMutationOptions<InvestmentsSetInstrumentPriceResponse, InvestmentsSetInstrumentPriceError, Options<InvestmentsSetInstrumentPriceData>> => {
+    const mutationOptions: UseMutationOptions<InvestmentsSetInstrumentPriceResponse, InvestmentsSetInstrumentPriceError, Options<InvestmentsSetInstrumentPriceData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await investmentsSetInstrumentPrice({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const investmentsListTradesQueryKey = (options?: Options<InvestmentsListTradesData>) => createQueryKey('investmentsListTrades', options);
+
+/**
+ * List Trades
+ *
+ * List the household's trades, newest first.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * instrument_id: An optional instrument to filter on.
+ * skip: Number of records to skip.
+ * limit: Maximum number of records to return.
+ *
+ * Returns:
+ * The trades, and how many there are in total.
+ *
+ * Raises:
+ * HTTPException: If the instrument does not exist in the household (404).
+ */
+export const investmentsListTradesOptions = (options?: Options<InvestmentsListTradesData>) => queryOptions<InvestmentsListTradesResponse, InvestmentsListTradesError, InvestmentsListTradesResponse, ReturnType<typeof investmentsListTradesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await investmentsListTrades({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: investmentsListTradesQueryKey(options)
+});
+
+/**
+ * Create Trade
+ *
+ * Record a buy or a sell.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * current_user: The user recording it, for the audit trail.
+ * trade_in: The trade to record.
+ *
+ * Returns:
+ * The recorded trade.
+ *
+ * Raises:
+ * HTTPException: If the instrument does not exist in the household (404),
+ * or the trade would sell units the household does not hold (400).
+ */
+export const investmentsCreateTradeMutation = (options?: Partial<Options<InvestmentsCreateTradeData>>): UseMutationOptions<InvestmentsCreateTradeResponse, InvestmentsCreateTradeError, Options<InvestmentsCreateTradeData>> => {
+    const mutationOptions: UseMutationOptions<InvestmentsCreateTradeResponse, InvestmentsCreateTradeError, Options<InvestmentsCreateTradeData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await investmentsCreateTrade({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete Trade
+ *
+ * Remove a trade that should not have been recorded.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * trade_id: The ID of the trade to remove.
+ *
+ * Returns:
+ * A confirmation message.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404), or a later
+ * sale depended on the units this trade brought in (400).
+ */
+export const investmentsDeleteTradeMutation = (options?: Partial<Options<InvestmentsDeleteTradeData>>): UseMutationOptions<InvestmentsDeleteTradeResponse, InvestmentsDeleteTradeError, Options<InvestmentsDeleteTradeData>> => {
+    const mutationOptions: UseMutationOptions<InvestmentsDeleteTradeResponse, InvestmentsDeleteTradeError, Options<InvestmentsDeleteTradeData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await investmentsDeleteTrade({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const investmentsGetTradeQueryKey = (options: Options<InvestmentsGetTradeData>) => createQueryKey('investmentsGetTrade', options);
+
+/**
+ * Get Trade
+ *
+ * Get one trade of the household.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * trade_id: The ID of the trade.
+ *
+ * Returns:
+ * The trade.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404).
+ */
+export const investmentsGetTradeOptions = (options: Options<InvestmentsGetTradeData>) => queryOptions<InvestmentsGetTradeResponse, InvestmentsGetTradeError, InvestmentsGetTradeResponse, ReturnType<typeof investmentsGetTradeQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await investmentsGetTrade({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: investmentsGetTradeQueryKey(options)
+});
+
+/**
+ * Update Trade
+ *
+ * Correct a recorded trade.
+ *
+ * The instrument cannot be changed: moving a trade rewrites the history of
+ * two positions at once. Delete it and record it again.
+ *
+ * Args:
+ * investment_service: The investment service dependency.
+ * household: The current household context.
+ * trade_id: The ID of the trade to correct.
+ * trade_in: The fields to change.
+ *
+ * Returns:
+ * The corrected trade.
+ *
+ * Raises:
+ * HTTPException: If it does not exist in the household (404), or the
+ * correction would leave the position holding fewer than zero units
+ * at some point in its history (400).
+ */
+export const investmentsUpdateTradeMutation = (options?: Partial<Options<InvestmentsUpdateTradeData>>): UseMutationOptions<InvestmentsUpdateTradeResponse, InvestmentsUpdateTradeError, Options<InvestmentsUpdateTradeData>> => {
+    const mutationOptions: UseMutationOptions<InvestmentsUpdateTradeResponse, InvestmentsUpdateTradeError, Options<InvestmentsUpdateTradeData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await investmentsUpdateTrade({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const reportsSpendByCategoryQueryKey = (options: Options<ReportsSpendByCategoryData>) => createQueryKey('reportsSpendByCategory', options);
 
 /**
@@ -1883,6 +2384,8 @@ export const reportsMonthSummaryQueryKey = (options: Options<ReportsMonthSummary
  * report_service: The report service dependency.
  * recurring_rule_service: The recurring rule service dependency, used to
  * bring the ledger up to date before reading it.
+ * investment_service: The investment service dependency, used to value
+ * the holdings from their stored prices.
  * household: The current household context.
  * month: The month, in "YYYY-MM" form.
  *
