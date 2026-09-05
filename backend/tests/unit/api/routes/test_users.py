@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import get_current_active_superuser, get_current_user, get_db
 from app.exceptions import (
     DeleteSuperUserError,
+    HouseholdInviteNotFoundError,
     PasswordUnmodifiedError,
     UserExistsError,
     UserNotAuthorizedError,
@@ -17,6 +18,7 @@ from app.exceptions.password_exceptions import PasswordIsWrongError
 from app.main import app
 from app.models import Message, User, UserPublic, UsersPublic
 from app.services import HouseholdService, UserService
+from app.services.user import SIGNUP_MESSAGE
 
 
 class TestCreateUser:
@@ -163,8 +165,11 @@ class TestRegisterUser:
 
         try:
             with (
-                patch.object(UserService, "create_user", return_value=test_user),
-                patch("app.services.email_verification.EmailVerificationService.send_verification_email"),
+                patch.object(UserService, "get_user_by_email", return_value=None),
+                patch.object(UserService, "create_user", return_value=test_user) as mock_create_user,
+                patch(
+                    "app.services.email_verification.EmailVerificationService.send_verification_email"
+                ) as mock_send_verification_email,
             ):
                 # Act: Post signup data
                 response = client.post(
@@ -176,49 +181,112 @@ class TestRegisterUser:
                     },
                 )
 
-                # Assert: Verify user was registered successfully
+                # Assert: Verify the account was created and told to verify itself
                 data = response.json()
 
                 assert response.status_code == 200
-                assert data["email"] == test_user.email
-                assert data["full_name"] == test_user.full_name
-                assert data["is_active"] is True
-                assert data["is_superuser"] is False
+                assert data["message"] == SIGNUP_MESSAGE
+                assert "email" not in data
+                mock_create_user.assert_called_once()
+                mock_send_verification_email.assert_called_once()
         finally:
             # Cleanup
             app.dependency_overrides.clear()
 
-    def test_register_user_already_exists(
+    def test_register_user_does_not_disclose_registered_addresses(
         self,
         client: TestClient,
         test_user: User,
         mock_db_session: MagicMock,
     ) -> None:
-        """Test registering with an email that already exists."""
+        """Test that a free address and a taken one answer identically.
 
-        # Arrange: Set up database dependency override and mock UserExistsError
+        The status code and the body are both compared: either one differing would let anyone read
+        off which addresses have an account here, one request per address.
+        """
+
+        # Arrange: Set up database dependency override
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
 
+        payload = {"email": test_user.email, "password": "password123", "full_name": "Test User"}
+
         try:
-            with patch.object(UserService, "create_user", side_effect=UserExistsError(user=test_user)):
-                # Act: Post signup data with existing email
-                response = client.post(
-                    "/api/v1/users/signup",
-                    json={
-                        "email": "test@example.com",
-                        "password": "password123",
-                        "full_name": "Test User",
-                    },
-                )
+            # Act: Post the same signup against an unregistered and a registered address
+            with (
+                patch.object(UserService, "get_user_by_email", return_value=None),
+                patch.object(UserService, "create_user", return_value=test_user),
+                patch("app.services.email_verification.EmailVerificationService.send_verification_email"),
+            ):
+                unknown = client.post("/api/v1/users/signup", json=payload)
 
-                # Assert: Verify 409 conflict error response
-                data = response.json()
+            with (
+                patch.object(UserService, "get_user_by_email", return_value=test_user),
+                patch.object(UserService, "create_user") as mock_create_user,
+            ):
+                registered = client.post("/api/v1/users/signup", json=payload)
 
-                assert response.status_code == 409
-                assert data["detail"] == f"Conflict: User with unique identifier '{test_user.email}' already exists."
+            # Assert: Both answers are the same 200, byte for byte, and no second account was made
+            assert unknown.status_code == 200
+            assert unknown.status_code == registered.status_code
+            assert unknown.content == registered.content
+            mock_create_user.assert_not_called()
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+    def test_register_user_does_not_disclose_addresses_through_an_invite_token(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test that a signup carrying a bogus invite token answers the same either way.
+
+        Only a free address gets as far as reading the token, so an invite error raised out of the
+        endpoint would answer 404 for a free address and 200 for a taken one — the same disclosure,
+        asked with a token nobody has to own.
+        """
+
+        # Arrange: Set up database dependency override
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        payload = {
+            "email": test_user.email,
+            "password": "password123",
+            "full_name": "Test User",
+            "invite_token": "bogus-token",
+        }
+
+        try:
+            # Act: Post the same invited signup against an unregistered and a registered address
+            with (
+                patch.object(
+                    HouseholdService, "check_signup_invite", side_effect=HouseholdInviteNotFoundError()
+                ) as mock_check_signup_invite,
+                patch.object(UserService, "get_user_by_email", return_value=None),
+                patch.object(UserService, "create_user", return_value=test_user) as mock_create_user,
+                patch("app.services.email_verification.EmailVerificationService.send_verification_email"),
+            ):
+                unknown = client.post("/api/v1/users/signup", json=payload)
+
+            with (
+                patch.object(UserService, "get_user_by_email", return_value=test_user),
+                patch.object(UserService, "create_user"),
+            ):
+                registered = client.post("/api/v1/users/signup", json=payload)
+
+            # Assert: Both answers are the same 200, and the invitation was dropped without a retry
+            assert unknown.status_code == 200
+            assert unknown.status_code == registered.status_code
+            assert unknown.content == registered.content
+            mock_check_signup_invite.assert_called_once()
+            mock_create_user.assert_called_once()
         finally:
             # Cleanup
             app.dependency_overrides.clear()

@@ -3116,7 +3116,7 @@ export type UsersRegisterUserResponses = {
     /**
      * Successful Response
      */
-    200: UserPublic;
+    200: Message;
 };
 
 export type UsersRegisterUserResponse = UsersRegisterUserResponses[keyof UsersRegisterUserResponses];

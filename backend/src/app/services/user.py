@@ -1,6 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session
 
 from app.core.config import settings
@@ -15,6 +16,7 @@ from app.exceptions import (
     UserNotAuthorizedError,
     UserNotFoundError,
 )
+from app.logging import get_logger
 from app.models import (
     Message,
     PasswordUpdate,
@@ -30,7 +32,14 @@ from app.models import (
 )
 from app.repositories.user import UserRepository
 from app.services.email_outbox import EmailOutboxService
-from app.utils import generate_new_account_email
+from app.services.household import INVITE_UNUSABLE_ERRORS
+from app.utils import generate_new_account_email, generate_signup_attempt_email
+
+logger = get_logger(__name__)
+
+# What signup answers with, for an address that is free and for one that is taken alike. It has to
+# read the same in both cases, so it promises mail rather than an account.
+SIGNUP_MESSAGE = "Check your email. We sent a message to that address with what to do next."
 
 if TYPE_CHECKING:
     from app.services.email_verification import EmailVerificationService
@@ -97,6 +106,7 @@ class UserService:
         user_create: UserCreate | UserRegister,
         category_service: "CategorySeeder",
         household_service: "HouseholdService | None" = None,
+        hashed_password: str | None = None,
     ) -> UserPublic:
         """Create a new user.
 
@@ -108,12 +118,17 @@ class UserService:
             household_service: Optional household service. When given, a
                 household is provisioned for the user in the same transaction,
                 so a user is never observable without one.
+            hashed_password: Optional hash of the submitted password, for a
+                caller that has already paid for it. When given it is stored as
+                it is, so the password is never hashed twice for one request.
 
         Note:
-            When the registration carries an invite token, the token is checked
-            but not redeemed: the user still gets a household of their own. A
+            An invitation the registration came through is neither read nor
+            redeemed here: the user gets a household of their own either way. A
             registration is a claim on an address, not a proof of it, so the
-            invitation is attributed only once the address is verified.
+            invitation is attributed only once the address is verified. Whether
+            it could be applied at all is settled by `register_user`, before
+            anything is written.
 
         Returns:
             The created user.
@@ -125,7 +140,10 @@ class UserService:
         if existing_user:
             raise UserExistsError(user=existing_user) from None
 
-        extra_data: dict[str, Any] = {"hashed_password": get_password_hash(user_create.password)}
+        if hashed_password is None:
+            hashed_password = get_password_hash(user_create.password)
+
+        extra_data: dict[str, Any] = {"hashed_password": hashed_password}
 
         # Set is_active=False for public signup (UserRegister), True for admin-created users (UserCreate)
         if isinstance(user_create, UserRegister):
@@ -136,10 +154,7 @@ class UserService:
         user = self.user_repository.save(user)
 
         if household_service:
-            # Only a public registration can carry an invitation. A superuser
-            # creating an account has no link to follow.
-            invite_token = user_create.invite_token if isinstance(user_create, UserRegister) else None
-            household_service.create_for_user(user=user, category_service=category_service, invite_token=invite_token)
+            household_service.create_for_user(user=user, category_service=category_service)
 
         self.session.commit()
 
@@ -156,6 +171,157 @@ class UserService:
             )
 
         return UserPublic.model_validate(user)
+
+    def register_user(
+        self,
+        user_register: UserRegister,
+        category_service: "CategorySeeder",
+        household_service: "HouseholdService",
+        email_verification_service: "EmailVerificationService",
+    ) -> Message:
+        """Register a user through the public signup flow.
+
+        The reply says the same thing whether or not the address already has an account, so the
+        endpoint cannot be used to find out which addresses are registered. What happened is told
+        to the address itself instead: a verification email for a new one, a notice that someone
+        tried to sign up for one that is taken.
+
+        An invitation that cannot be applied is dropped rather than reported, for the same reason:
+        only a free address ever gets as far as reading the token, so an error about it would say
+        which addresses are registered. The invitation is settled before anything is written, so
+        dropping one costs a signup no writes it would not have done anyway. The verification email
+        says the invitation was not applied, so that every signup sends exactly one message: a
+        second send would cost another blocking HTTPS call to the mail provider and make the two
+        paths tell themselves apart by the clock.
+
+        The password is hashed once, here, before anything is looked up, and that one hash is used
+        by whichever path follows. Every signup therefore pays exactly one bcrypt hash — the
+        dominant cost of the request — so the clock says no more than the reply does. Hashing
+        inside each path instead would charge a dropped invitation two hashes and a taken address
+        one, and the difference would answer the question the shared reply refuses.
+
+        Args:
+            user_register: The registration data.
+            category_service: The category service, used to seed the default categories of the
+                new household.
+            household_service: The household service, used to provision the household of the new
+                user in the same transaction.
+            email_verification_service: The email verification service, used to ask a new address
+                to verify itself.
+
+        Returns:
+            The same message either way.
+        """
+        # Pay for the hash before the answer is known, so that no path can be told apart by how
+        # much bcrypt work it did. Nothing stores it when the address turns out to be taken.
+        hashed_password = get_password_hash(user_register.password)
+
+        existing_user = self.get_user_by_email(email=user_register.email)
+
+        if existing_user:
+            self._handle_taken_address(user_register=user_register)
+            return Message(message=SIGNUP_MESSAGE)
+
+        invite_unusable = self._invitation_is_unusable(user_register=user_register, household_service=household_service)
+
+        try:
+            user = self.create_user(
+                user_create=user_register,
+                category_service=category_service,
+                household_service=household_service,
+                hashed_password=hashed_password,
+            )
+        except (UserExistsError, IntegrityError):
+            # Two signups for the same free address can both get past the lookup above; whichever
+            # one loses lands here, either on the check inside create_user or on the unique index.
+            # It is told what any other attempt on a taken address is told, rather than the 409 that
+            # would answer the question the shared reply exists to refuse.
+            self.session.rollback()
+
+            if not self.get_user_by_email(email=user_register.email):
+                # The address is still free, so the write failed for some other reason: a constraint
+                # on the household, the membership or the seeded categories. Reporting that as a
+                # taken address would mail "you already have an account" to somebody who has none,
+                # and would hide a real failure behind a 200.
+                logger.exception("Signup failed for a reason other than the address being taken")
+                raise
+
+            self._handle_taken_address(user_register=user_register)
+            return Message(message=SIGNUP_MESSAGE)
+
+        # One message per signup, whatever happened. Each send blocks on an HTTPS call to the mail
+        # provider, which costs far more than the single bcrypt hash above, so a second message for
+        # the dropped invitation would make a free address measurably slower than a taken one and
+        # the clock would answer the question the shared reply refuses. The verification email
+        # carries the news about the invitation instead.
+        email_verification_service.send_verification_email(
+            user_service=self, user_email=user.email, invite_unusable=invite_unusable
+        )
+
+        return Message(message=SIGNUP_MESSAGE)
+
+    def _invitation_is_unusable(
+        self,
+        user_register: UserRegister,
+        household_service: "HouseholdService",
+    ) -> bool:
+        """Say whether the invitation a signup came through has to be dropped.
+
+        An invitation is only ever read for an address that is free: one that is taken answers
+        before the token is looked at. So letting an unusable token raise out of a signup would
+        answer 404, 400 or 403 for a free address and the shared 200 for a taken one, and anyone
+        posting a bogus token could read off which addresses are registered — the disclosure the
+        shared reply exists to refuse. The token is settled here instead, before the account is
+        written, and an unusable one only decides what the verification email says.
+
+        Checking first rather than letting the write fail also means a dropped invitation writes
+        the user, the household and the seeded categories exactly once, like every other signup,
+        so the two paths cannot be told apart by how long the request took either.
+
+        Args:
+            user_register: The registration data.
+            household_service: The household service, which owns the invitations.
+
+        Returns:
+            Whether the signup carried an invitation that could not be applied.
+        """
+        if not user_register.invite_token:
+            return False
+
+        try:
+            household_service.check_signup_invite(email=user_register.email, token=user_register.invite_token)
+        except INVITE_UNUSABLE_ERRORS:
+            logger.info("Signup carried an invitation that could not be applied; creating the account without it")
+            return True
+
+        return False
+
+    def _handle_taken_address(self, user_register: UserRegister) -> None:
+        """Answer a signup for an address that already has an account.
+
+        Nothing is created and nothing is said back to the caller. The address itself is told about
+        the attempt by email, so the holder of the account learns of it and nobody else does.
+
+        The password was already hashed by the caller, before the address was looked up, so this
+        path has paid the same bcrypt cost as one that goes on to create an account even though
+        nothing here will store the result.
+
+        Args:
+            user_register: The registration data for the address that is already taken.
+        """
+        # The address, and only the address, is told that it is taken. The notice carries no token,
+        # so it says nothing to whoever typed the address that they did not already know. When the
+        # attempt came from an invitation, it says so too: the invitation cannot be accepted by an
+        # unauthenticated caller, so the holder is told it is still waiting for them.
+        if settings.emails_enabled:
+            email_data = generate_signup_attempt_email(
+                email=user_register.email, invited=user_register.invite_token is not None
+            )
+            EmailOutboxService.for_session(self.session).deliver_or_queue(
+                email_to=user_register.email,
+                subject=email_data.subject,
+                html_content=email_data.html_content,
+            )
 
     def get_authenticated_user(self, token_data: TokenPayload) -> User:
         """Get the authenticated user from a token.

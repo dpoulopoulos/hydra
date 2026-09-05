@@ -159,10 +159,11 @@ class TestGenerateEmailVerificationEmailWithUnusableInvite:
 
     def test_verification_email_says_the_invitation_was_not_applied(self) -> None:
         """The verification email carries the news about a dropped invitation itself."""
+        # Arrange: Set up test data
+        email = "invited@example.com"
+
         # Act: Generate the message a signup with an unusable invitation gets
-        result = generate_email_verification_email(
-            email="invited@example.com", token="verification-token", invite_unusable=True
-        )
+        result = generate_email_verification_email(email=email, token="verification-token", invite_unusable=True)
 
         # Assert: Verify it still verifies the address and mentions the invitation as well
         assert isinstance(result, EmailData)
@@ -172,10 +173,11 @@ class TestGenerateEmailVerificationEmailWithUnusableInvite:
 
     def test_verification_email_does_not_say_which_reason_applied(self) -> None:
         """The invitation paragraph lists the possible reasons instead of naming one."""
+        # Arrange: Set up test data
+        email = "invited@example.com"
+
         # Act: Generate the message a signup with an unusable invitation gets
-        result = generate_email_verification_email(
-            email="invited@example.com", token="verification-token", invite_unusable=True
-        )
+        result = generate_email_verification_email(email=email, token="verification-token", invite_unusable=True)
 
         # Assert: Verify every possibility is offered, so the message tells the sender nothing
         assert "may have expired" in result.html_content
@@ -184,8 +186,11 @@ class TestGenerateEmailVerificationEmailWithUnusableInvite:
 
     def test_verification_email_omits_the_invitation_paragraph_by_default(self) -> None:
         """An ordinary signup gets the verification email with nothing about an invitation."""
+        # Arrange: Set up test data
+        email = "newuser@example.com"
+
         # Act: Generate the message an ordinary signup gets
-        result = generate_email_verification_email(email="newuser@example.com", token="verification-token")
+        result = generate_email_verification_email(email=email, token="verification-token")
 
         # Assert: Verify the invitation is not mentioned at all
         assert "invitation" not in result.html_content

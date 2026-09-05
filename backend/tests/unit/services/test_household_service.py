@@ -40,7 +40,7 @@ from app.models import (
     User,
 )
 from app.services import HouseholdService
-from app.services.household import default_household_name
+from app.services.household import INVITE_UNUSABLE_ERRORS, default_household_name
 
 
 @pytest.fixture
@@ -1110,8 +1110,8 @@ class TestAcceptInvite:
             mock_household_service.accept_invite(user=another_test_user, token="a-token")
 
 
-class TestCreateForUserWithInvite:
-    """Tests for create_for_user when a registration carries an invite token."""
+class TestCreateForUser:
+    """Tests for create_for_user when a registration came through an invitation."""
 
     def test_does_not_join_the_inviting_household(
         self,
@@ -1130,9 +1130,7 @@ class TestCreateForUserWithInvite:
         mock_household_service.session.exec.return_value.first.return_value = invite
         mock_household_service.session.get = MagicMock(return_value=household)
 
-        result = mock_household_service.create_for_user(
-            user=another_test_user, invite_token="a-token", category_service=MagicMock()
-        )
+        result = mock_household_service.create_for_user(user=another_test_user, category_service=MagicMock())
 
         assert result.id != household.id
         added = [call.args[0] for call in mock_household_service.session.add.call_args_list]
@@ -1154,11 +1152,31 @@ class TestCreateForUserWithInvite:
         mock_household_service.session.exec.return_value.first.return_value = invite
         mock_household_service.session.get = MagicMock(return_value=household)
 
-        mock_household_service.create_for_user(
-            user=another_test_user, invite_token="a-token", category_service=MagicMock()
-        )
+        mock_household_service.create_for_user(user=another_test_user, category_service=MagicMock())
 
         mock_household_service.session.commit.assert_not_called()
+
+
+class TestCheckSignupInvite:
+    """Tests for check_signup_invite, which settles a signup's invitation before anything is written."""
+
+    def test_accepts_a_token_addressed_to_the_registering_address(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        another_test_user: User,
+    ) -> None:
+        """An invitation the address could redeem raises nothing and consumes nothing."""
+        # Arrange: Make the lookup find a pending invitation for the address registering
+        invite = make_invite(household_id=household.id, email=another_test_user.email)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = invite
+
+        # Act: Check the token the registration came through
+        mock_household_service.check_signup_invite(email=another_test_user.email, token="a-token")
+
+        # Assert: Verify the invitation is left for the recipient to redeem once they have verified
+        assert invite.status is HouseholdInviteStatus.PENDING
 
     def test_refuses_a_token_sent_to_a_different_address(
         self,
@@ -1166,11 +1184,58 @@ class TestCreateForUserWithInvite:
         household: Household,
         another_test_user: User,
     ) -> None:
+        """The form asks the recipient to type the invited address, so a mismatch is refused."""
+        # Arrange: Make the lookup find an invitation addressed to somebody else
         invite = make_invite(household_id=household.id, email="someone.else@example.com")
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.return_value = invite
 
+        # Act & Assert: Verify the mismatch is refused
         with pytest.raises(HouseholdInviteEmailMismatchError):
-            mock_household_service.create_for_user(
-                user=another_test_user, invite_token="a-token", category_service=MagicMock()
-            )
+            mock_household_service.check_signup_invite(email=another_test_user.email, token="a-token")
+
+    @pytest.mark.parametrize(
+        ("invite_kwargs", "email", "expected"),
+        [
+            ({"status": HouseholdInviteStatus.ACCEPTED}, "partner@example.com", HouseholdInviteUsedError),
+            ({"expires_in_hours": -1}, "partner@example.com", HouseholdInviteExpiredError),
+            ({}, "someone.else@example.com", HouseholdInviteEmailMismatchError),
+        ],
+        ids=["used", "expired", "email_mismatch"],
+    )
+    def test_every_refusal_is_one_signup_may_not_report(
+        self,
+        mock_household_service: HouseholdService,
+        household: Household,
+        invite_kwargs: dict[str, object],
+        email: str,
+        expected: type[Exception],
+    ) -> None:
+        """Test that everything this raises is in INVITE_UNUSABLE_ERRORS.
+
+        Signup catches that tuple to keep an invite error from saying which addresses are
+        registered, so a refusal added here that is missing from it would open the disclosure
+        again. Pinning the two together is what keeps them from drifting apart.
+        """
+        # Arrange: Make the lookup find an invitation that cannot be applied
+        invite = make_invite(household_id=household.id, **invite_kwargs)  # type: ignore[arg-type]
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = invite
+
+        # Act & Assert: Verify the refusal is one signup knows not to report
+        with pytest.raises(INVITE_UNUSABLE_ERRORS) as raised:
+            mock_household_service.check_signup_invite(email=email, token="a-token")
+
+        assert isinstance(raised.value, expected)
+
+    def test_an_unknown_token_is_one_signup_may_not_report(self, mock_household_service: HouseholdService) -> None:
+        """A token nobody recognises is refused with an error signup knows not to report."""
+        # Arrange: Make the lookup find nothing
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = None
+
+        # Act & Assert: Verify the refusal is one signup knows not to report
+        with pytest.raises(INVITE_UNUSABLE_ERRORS) as raised:
+            mock_household_service.check_signup_invite(email="partner@example.com", token="no-such-token")
+
+        assert isinstance(raised.value, HouseholdInviteNotFoundError)
