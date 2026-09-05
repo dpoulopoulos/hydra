@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import Table
@@ -165,14 +165,21 @@ class HouseholdScopedRepository[T: SQLModel](BaseRepository[T]):
         statement = select(self.id_column).where(self.id_column == entity_id, self.household_column == household_id)
         return self.session.exec(statement).first() is not None
 
-    def count_for_household(self, household_id: UUID) -> int:
+    def count_for_household(self, household_id: UUID, *conditions: Any) -> int:
         """Count the entities owned by a household.
+
+        Counting in SQL rather than by loading the rows, so a listing pays for
+        its page and nothing more.
 
         Args:
             household_id: The ID of the household.
+            conditions: Extra ``WHERE`` clauses, so a filtered listing can
+                count exactly the rows it is about to page over.
 
         Returns:
-            The number of entities the household owns.
+            The number of matching entities the household owns.
         """
-        statement = select(func.count()).select_from(self.model_class).where(self.household_column == household_id)
+        statement = (
+            select(func.count()).select_from(self.model_class).where(self.household_column == household_id, *conditions)
+        )
         return self.session.exec(statement).one()

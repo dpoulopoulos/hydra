@@ -78,6 +78,18 @@ def test_count_for_household_scopes_the_count(
     assert "scopedthing.household_id = " in str(mock_db_session.exec.call_args.args[0])
 
 
+def test_count_for_household_applies_extra_conditions(
+    repository: ScopedThingRepository, mock_db_session: MagicMock, household_id: uuid.UUID
+) -> None:
+    mock_db_session.exec.return_value.one.return_value = 1
+
+    assert repository.count_for_household(household_id, ScopedThing.name == "thing") == 1
+
+    compiled = str(mock_db_session.exec.call_args.args[0])
+    assert "scopedthing.household_id = " in compiled
+    assert "scopedthing.name = " in compiled
+
+
 def test_exists_for_household(
     repository: ScopedThingRepository, mock_db_session: MagicMock, household_id: uuid.UUID
 ) -> None:
