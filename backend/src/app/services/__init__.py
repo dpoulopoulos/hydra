@@ -5,6 +5,7 @@ from .email_verification import EmailVerificationService
 from .household import HouseholdService
 from .income import IncomeService
 from .investment import InvestmentService
+from .ledger import LedgerReferenceResolver
 from .password_reset import PasswordResetService
 from .recurring_rule import RecurringRuleService
 from .report import ReportService
@@ -19,6 +20,7 @@ __all__ = [
     "HouseholdService",
     "IncomeService",
     "InvestmentService",
+    "LedgerReferenceResolver",
     "PasswordResetService",
     "RecurringRuleService",
     "ReportService",
