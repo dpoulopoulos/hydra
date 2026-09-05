@@ -325,9 +325,13 @@ export function Component() {
                     ))}
                   </SelectContent>
                 </Select>
+                {/* The net the window leaves the household with, signed the
+                    way each month below it is: an unsigned figure next to the
+                    horizon picker reads as an amount owed. */}
                 <Money
-                  minor={upcoming.data?.total_minor ?? 0}
+                  minor={upcoming.data?.net_minor ?? 0}
                   currency={currency}
+                  signed
                   className="text-xl whitespace-nowrap"
                 />
               </div>

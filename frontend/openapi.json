@@ -9958,9 +9958,9 @@
             "type": "integer",
             "title": "Count"
           },
-          "total_minor": {
+          "net_minor": {
             "type": "integer",
-            "title": "Total Minor",
+            "title": "Net Minor",
             "default": 0
           }
         },

@@ -233,13 +233,13 @@ class TestListUpcoming:
                 )
             ],
             count=1,
-            total_minor=120_000,
+            net_minor=-120_000,
         )
 
         response = client.get("/api/v1/recurring-rules/upcoming", headers=auth_headers)
 
         assert response.status_code == 200
-        assert response.json()["total_minor"] == 120000
+        assert response.json()["net_minor"] == -120000
 
     def test_upcoming_is_not_parsed_as_a_rule_id(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
