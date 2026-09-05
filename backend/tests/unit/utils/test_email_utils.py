@@ -9,6 +9,7 @@ from app.utils.email_utils import (
     generate_email_verification_email,
     generate_new_account_email,
     generate_password_reset_email,
+    generate_signup_attempt_email,
     mask_email,
     send_email,
 )
@@ -108,6 +109,86 @@ class TestGenerateEmailVerificationEmail:
 
         # Assert: Verify assets base URL is included
         assert settings.assets_base_url in result.html_content
+
+
+class TestGenerateSignupAttemptEmail:
+    """Test the generate_signup_attempt_email function."""
+
+    def test_generate_signup_attempt_email_returns_email_data(self) -> None:
+        """Generate signup attempt email returns EmailData with correct content."""
+        # Arrange: Set up test data
+        email = "existing@example.com"
+
+        # Act: Generate the notice sent to an address that already has an account
+        result = generate_signup_attempt_email(email=email)
+
+        # Assert: Verify email data is correct
+        assert isinstance(result, EmailData)
+        assert result.subject == f"Your Account - {settings.PROJECT_NAME}"
+        assert email in result.html_content
+        assert f"{settings.FRONTEND_HOST}/login" in result.html_content
+        assert f"{settings.FRONTEND_HOST}/forgot-password" in result.html_content
+        assert settings.PROJECT_NAME in result.html_content
+
+    def test_generate_signup_attempt_email_mentions_a_waiting_invitation(self) -> None:
+        """Generate signup attempt email says the invitation is still waiting when there was one."""
+        # Arrange: Set up test data
+        email = "existing@example.com"
+
+        # Act: Generate the notice for an attempt that followed an invitation link
+        result = generate_signup_attempt_email(email=email, invited=True)
+
+        # Assert: Verify the invitation is mentioned, and is left out when there was none
+        assert "invitation" in result.html_content
+        assert "invitation" not in generate_signup_attempt_email(email=email).html_content
+
+    def test_generate_signup_attempt_email_includes_assets_base_url(self) -> None:
+        """Generate signup attempt email includes assets base URL in content."""
+        # Arrange: Set up test data
+        email = "existing@example.com"
+
+        # Act: Generate the notice sent to an address that already has an account
+        result = generate_signup_attempt_email(email=email)
+
+        # Assert: Verify assets base URL is included
+        assert settings.assets_base_url in result.html_content
+
+
+class TestGenerateEmailVerificationEmailWithUnusableInvite:
+    """Test the invitation paragraph of the email verification email."""
+
+    def test_verification_email_says_the_invitation_was_not_applied(self) -> None:
+        """The verification email carries the news about a dropped invitation itself."""
+        # Act: Generate the message a signup with an unusable invitation gets
+        result = generate_email_verification_email(
+            email="invited@example.com", token="verification-token", invite_unusable=True
+        )
+
+        # Assert: Verify it still verifies the address and mentions the invitation as well
+        assert isinstance(result, EmailData)
+        assert result.subject == f"Verify Your Email - {settings.PROJECT_NAME}"
+        assert "verification-token" in result.html_content
+        assert "invitation" in result.html_content
+
+    def test_verification_email_does_not_say_which_reason_applied(self) -> None:
+        """The invitation paragraph lists the possible reasons instead of naming one."""
+        # Act: Generate the message a signup with an unusable invitation gets
+        result = generate_email_verification_email(
+            email="invited@example.com", token="verification-token", invite_unusable=True
+        )
+
+        # Assert: Verify every possibility is offered, so the message tells the sender nothing
+        assert "may have expired" in result.html_content
+        assert "may already have been used" in result.html_content
+        assert "sent to a different address" in result.html_content
+
+    def test_verification_email_omits_the_invitation_paragraph_by_default(self) -> None:
+        """An ordinary signup gets the verification email with nothing about an invitation."""
+        # Act: Generate the message an ordinary signup gets
+        result = generate_email_verification_email(email="newuser@example.com", token="verification-token")
+
+        # Assert: Verify the invitation is not mentioned at all
+        assert "invitation" not in result.html_content
 
 
 class TestSendEmail:
