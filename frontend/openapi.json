@@ -1167,7 +1167,7 @@
           "categories"
         ],
         "summary": "Update Category",
-        "description": "Rename, re-parent, archive or restore a category.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    category_id: The ID of the category to update.\n    category_in: The fields to update.\n\nReturns:\n    The updated category.\n\nRaises:\n    HTTPException: If the category or the new parent does not exist in the\n        household (404), a sibling already has the new name (409), or the\n        change is not allowed (400).",
+        "description": "Rename, re-parent, archive or restore a category.\n\nArchiving a top level category also archives its subcategories, and\nrestoring it restores the ones that archive took down. A subcategory\narchived on its own is left alone by both.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    category_id: The ID of the category to update.\n    category_in: The fields to update.\n\nReturns:\n    The updated category.\n\nRaises:\n    HTTPException: If the category or the new parent does not exist in the\n        household (404), a sibling already has the new name (409), or the\n        change is not allowed (400).",
         "operationId": "categories-update_category",
         "security": [
           {

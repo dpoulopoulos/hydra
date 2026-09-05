@@ -149,6 +149,10 @@ def update_category(
 ) -> CategoryPublic:
     """Rename, re-parent, archive or restore a category.
 
+    Archiving a top level category also archives its subcategories, and
+    restoring it restores the ones that archive took down. A subcategory
+    archived on its own is left alone by both.
+
     Args:
         category_service: The category service dependency.
         household: The current household context.
