@@ -349,6 +349,7 @@ categories, budgets and transactions.
 | Transactions | `/api/v1/transactions` | Expenses, income and transfers. A transfer is one row, not two. |
 | Budgets | `/api/v1/budgets` | One limit per category per month. No rollover. |
 | Recurring rules | `/api/v1/recurring-rules` | Materialize real transactions; run from the read paths. |
+| Income | `/api/v1/income` | Clients and sessions for work paid by the hour. A session reaches the ledger only once it is paid. Client names are stored encrypted under a per-user key and are opaque here; a client can only be edited by the member who added them. |
 | Reports | `/api/v1/reports` | Spend by category, spend over time, budget vs actual, income vs expense, dashboard summary. |
 
 Deleting an account deletes the household it leaves empty. A household is only reachable through its

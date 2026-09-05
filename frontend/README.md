@@ -109,25 +109,26 @@ re-sorting a chart never repaints it, and an eighth series folds into a neutral
 
 ## Pages
 
-Seventeen routes cover the whole API.
+Eighteen routes cover the whole API.
 
-| Route                                 | What it does                                             |
-| ------------------------------------- | -------------------------------------------------------- |
-| `/login`, `/signup`                   | Sign in; sign up, optionally from an invitation link     |
-| `/forgot-password`, `/reset-password` | Request and use a reset link                             |
-| `/verify-email`                       | Verify on arrival, or ask for a fresh link               |
-| `/join-household`                     | Preview and accept an invitation                         |
-| `/`                                   | Dashboard: the month's figures, budgets, latest activity |
-| `/transactions`                       | The ledger, with the full filter set                     |
-| `/accounts`                           | Accounts and balances                                    |
-| `/investments`                        | Holdings, their value, and the trades behind them        |
-| `/categories`                         | The two-level category tree                              |
-| `/budgets`                            | Monthly limits, per category or a month at a time        |
-| `/recurring`                          | Recurring rules and what is still to come                |
-| `/reports`                            | The four charts, with a table view                       |
-| `/settings/household`                 | Household, members, invitations                          |
-| `/settings/profile`                   | Your details, password, account deletion                 |
-| `/settings/users`                     | Every account, for a superuser                           |
+| Route                                 | What it does                                                             |
+| ------------------------------------- | ------------------------------------------------------------------------ |
+| `/login`, `/signup`                   | Sign in; sign up, optionally from an invitation link                     |
+| `/forgot-password`, `/reset-password` | Request and use a reset link                                             |
+| `/verify-email`                       | Verify on arrival, or ask for a fresh link                               |
+| `/join-household`                     | Preview and accept an invitation                                         |
+| `/`                                   | Dashboard: the month's figures, budgets, latest activity                 |
+| `/transactions`                       | The ledger, with the full filter set                                     |
+| `/accounts`                           | Accounts and balances                                                    |
+| `/investments`                        | Holdings, their value, and the trades behind them                        |
+| `/income`                             | Clients, sessions, what is owed, and where this month and next will land |
+| `/categories`                         | The two-level category tree                                              |
+| `/budgets`                            | Monthly limits, per category or a month at a time                        |
+| `/recurring`                          | Recurring rules and what is still to come                                |
+| `/reports`                            | The four charts, with a table view                                       |
+| `/settings/household`                 | Household, members, invitations                                          |
+| `/settings/profile`                   | Your details, password, account deletion                                 |
+| `/settings/users`                     | Every account, for a superuser                                           |
 
 ## Running in the container
 
