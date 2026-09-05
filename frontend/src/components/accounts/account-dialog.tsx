@@ -34,6 +34,7 @@ import {
 import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
+import { compactIban, formatIban, isValidIban } from '@/lib/iban'
 import { ACCOUNT_TYPE_LABELS } from '@/lib/labels'
 import { toMajor } from '@/lib/money'
 import { today } from '@/lib/month'
@@ -42,6 +43,14 @@ const schema = z.object({
   name: z.string().trim().min(1, 'Give the account a name.').max(255),
   type: z.enum(AccountType),
   institution: z.string().trim().max(255).optional(),
+  iban: z
+    .string()
+    .trim()
+    .transform(compactIban)
+    .refine((value) => value === '' || isValidIban(value), {
+      message: 'Check the IBAN: that is not a valid one.',
+    })
+    .optional(),
   opening_balance: amountSchema({ allowZero: true }),
   opening_balance_date: z.string().min(1, 'Pick the date this balance was true.'),
 })
@@ -69,6 +78,7 @@ export function AccountDialog({
       name: '',
       type: AccountType.CURRENT,
       institution: '',
+      iban: '',
       opening_balance: '0',
       opening_balance_date: today(),
     },
@@ -82,6 +92,7 @@ export function AccountDialog({
             name: account.name,
             type: account.type,
             institution: account.institution ?? '',
+            iban: account.iban ? formatIban(account.iban) : '',
             opening_balance: String(toMajor(account.opening_balance_minor, account.currency_code)),
             opening_balance_date: account.opening_balance_date,
           }
@@ -89,6 +100,7 @@ export function AccountDialog({
             name: '',
             type: AccountType.CURRENT,
             institution: '',
+            iban: '',
             opening_balance: '0',
             opening_balance_date: today(),
           },
@@ -106,6 +118,7 @@ export function AccountDialog({
             name: parsed.name,
             type: parsed.type,
             institution: parsed.institution || null,
+            iban: parsed.iban || null,
           },
         })
         if (error) throw error
@@ -117,6 +130,7 @@ export function AccountDialog({
           name: parsed.name,
           type: parsed.type,
           institution: parsed.institution || null,
+          iban: parsed.iban || null,
           opening_balance_minor: parsed.opening_balance,
           opening_balance_date: parsed.opening_balance_date,
         },
@@ -190,6 +204,23 @@ export function AccountDialog({
           >
             {(props) => (
               <Input {...props} {...form.register('institution')} placeholder="Optional" />
+            )}
+          </Field>
+
+          <Field
+            id="iban"
+            label="IBAN"
+            hint="Optional. Listed with a copy button, for when someone has to pay in."
+            error={form.formState.errors.iban?.message}
+          >
+            {(props) => (
+              <Input
+                {...props}
+                {...form.register('iban')}
+                placeholder="Optional"
+                autoComplete="off"
+                spellCheck={false}
+              />
             )}
           </Field>
 
