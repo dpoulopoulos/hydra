@@ -834,6 +834,23 @@ class TestUpdateRule:
 
         assert result.is_active is False
 
+    def test_rejects_a_category_on_a_transfer_rule(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """The stored rule already says what kind it is, so the category cannot be judged on its own."""
+        rule = make_rule(kind=TransactionKind.TRANSFER, counter_account_id=uuid.uuid4())
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = rule
+
+        with pytest.raises(TransferShapeError):
+            mock_recurring_rule_service.update_rule(
+                household=household_context,
+                rule_id=rule.id,
+                rule_update=RecurringRuleUpdate(category_id=uuid.uuid4()),
+            )
+
+        mock_recurring_rule_service.session.commit.assert_not_called()
+
     def test_changing_the_schedule_does_not_move_the_cursor_backwards(
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
     ) -> None:
