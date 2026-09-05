@@ -2,7 +2,38 @@ import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import path from 'node:path'
-import { defineConfig } from 'vitest/config'
+import { defineConfig, type Plugin } from 'vitest/config'
+
+// sonner ships its stylesheet inside its JavaScript and appends it to the head
+// as a <style> element when the module is first imported. The production policy
+// forbids that: `style-src-elem 'self'` honours no inline stylesheet, this one
+// or an injected one (see Caddyfile), so the toasts would arrive unstyled.
+//
+// The same stylesheet is published as sonner/dist/styles.css, which main.tsx
+// imports and the bundler folds into the app's own CSS file. This drops the
+// injection, so the stylesheet is not also carried in the bundle and applied
+// twice. It fails the build rather than the page if sonner stops injecting the
+// same way, since the alternative is a policy violation nobody would see until
+// production.
+function withoutSonnerStyleInjection(): Plugin {
+  const injector = 'function __insertCSS(code) {'
+
+  return {
+    name: 'sonner-without-style-injection',
+    transform(code, id) {
+      if (!id.includes('/sonner/dist/')) return null
+      if (!code.includes(injector)) {
+        if (!code.includes('__insertCSS')) return null
+        this.error(
+          'sonner injects its stylesheet in a way this plugin no longer recognises. ' +
+            'Check how it does it now, and whether the app still needs to import ' +
+            'sonner/dist/styles.css.',
+        )
+      }
+      return { code: code.replace(injector, `${injector} return;`), map: null }
+    },
+  }
+}
 
 // Set by the compose stack. Inside a container the dev server has to listen on
 // every interface, and file changes arrive as writes from outside the process,
@@ -11,7 +42,12 @@ const inContainer = process.env.VITE_IN_CONTAINER === 'true'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
+  plugins: [
+    react(),
+    babel({ presets: [reactCompilerPreset()] }),
+    tailwindcss(),
+    withoutSonnerStyleInjection(),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
