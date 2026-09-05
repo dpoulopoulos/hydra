@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session
 
 from app.exceptions import (
@@ -9,6 +10,7 @@ from app.exceptions import (
     AccountNotFoundError,
     HouseholdNotFoundError,
 )
+from app.logging import get_logger
 from app.models import (
     Account,
     AccountCreate,
@@ -21,6 +23,10 @@ from app.models import (
 )
 from app.repositories.account import AccountRepository
 from app.repositories.household import HouseholdRepository
+from app.repositories.recurring_rule import RecurringRuleRepository
+from app.repositories.transaction import TransactionRepository
+
+logger = get_logger(__name__)
 
 
 class AccountService:
@@ -31,6 +37,8 @@ class AccountService:
         session: Session,
         account_repository: AccountRepository,
         household_repository: HouseholdRepository,
+        transaction_repository: TransactionRepository,
+        recurring_rule_repository: RecurringRuleRepository,
     ) -> None:
         """Initialize the account service.
 
@@ -39,10 +47,16 @@ class AccountService:
             account_repository: The account repository instance.
             household_repository: The household repository instance, used to read
                 the household currency a new account inherits.
+            transaction_repository: The transaction repository instance, used to see
+                what still references an account being deleted.
+            recurring_rule_repository: The recurring rule repository instance, used to
+                see what still references an account being deleted.
         """
         self.session = session
         self.account_repository = account_repository
         self.household_repository = household_repository
+        self.transaction_repository = transaction_repository
+        self.recurring_rule_repository = recurring_rule_repository
 
     def create_account(self, household: HouseholdContext, account_create: AccountCreate) -> AccountPublic:
         """Create an account.
@@ -189,23 +203,53 @@ class AccountService:
 
         Raises:
             AccountNotFoundError: If the account does not exist in the household.
-            AccountInUseError: If the account still has transactions.
+            AccountInUseError: If a transaction or a recurring rule still references the account.
         """
         account = self.require_account(household=household, account_id=account_id)
 
-        # The foreign keys from the ledger are RESTRICT, so the database refuses
-        # the delete if any transaction still points here. Translate that into
-        # advice rather than a 500.
+        self._require_nothing_references(household=household, account=account)
+
+        # The checks above run in the same transaction as the delete, but a
+        # concurrent request can still file a transaction against the account
+        # between them. Translate that constraint violation into the same
+        # advice, and let anything else surface as a 500 with a traceback.
         try:
             self.account_repository.delete(account)
             self.account_repository.flush()
-        except Exception as exc:
+        except IntegrityError as exc:
             self.session.rollback()
+            logger.warning("Delete of account %s refused by the database: %s", account.id, exc)
             raise AccountInUseError(name=account.name, exc=exc) from exc
 
         self.session.commit()
 
         return Message(message="Account deleted.")
+
+    def _require_nothing_references(self, household: HouseholdContext, account: Account) -> None:
+        """Check that an account can be deleted without breaking a reference to it.
+
+        Three foreign keys point at account and every one of them is RESTRICT,
+        yet only one is about transactions. Ask for each reference up front, in
+        the order the user is likeliest to be able to act on, so the refusal
+        names what is actually holding the account.
+
+        Args:
+            household: The household context.
+            account: The account about to be deleted.
+
+        Raises:
+            AccountInUseError: If anything still references the account.
+        """
+        household_id = household.household_id
+
+        if self.transaction_repository.count_for_account(account_id=account.id, household_id=household_id):
+            raise AccountInUseError(name=account.name, reason="still has transactions") from None
+
+        if self.recurring_rule_repository.count_for_account(account_id=account.id, household_id=household_id):
+            raise AccountInUseError(name=account.name, reason="still has recurring rules paid from it") from None
+
+        if self.recurring_rule_repository.count_for_counter_account(account_id=account.id, household_id=household_id):
+            raise AccountInUseError(name=account.name, reason="is the destination of a recurring transfer") from None
 
     def require_account(self, household: HouseholdContext, account_id: uuid.UUID) -> Account:
         """Load an account of the household.

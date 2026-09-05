@@ -157,6 +157,6 @@ def delete_account(
 
     Raises:
         HTTPException: If the account does not exist in the household (404), or
-            it still has transactions (409).
+            a transaction or recurring rule still references it (409).
     """
     return account_service.delete_account(household=household, account_id=account_id)

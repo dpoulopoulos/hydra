@@ -1510,7 +1510,7 @@
           "accounts"
         ],
         "summary": "Delete Account",
-        "description": "Delete an account that has no history.\n\nArgs:\n    account_service: The account service dependency.\n    household: The current household context.\n    account_id: The ID of the account to delete.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the account does not exist in the household (404), or\n        it still has transactions (409).",
+        "description": "Delete an account that has no history.\n\nArgs:\n    account_service: The account service dependency.\n    household: The current household context.\n    account_id: The ID of the account to delete.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the account does not exist in the household (404), or\n        a transaction or recurring rule still references it (409).",
         "operationId": "accounts-delete_account",
         "security": [
           {

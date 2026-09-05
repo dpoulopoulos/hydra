@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime
 from unittest.mock import MagicMock
 
 import pytest
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.exceptions import (
     AccountExistsError,
@@ -338,22 +339,67 @@ class TestDeleteAccount:
         account = make_account()
         mock_account_service.session.exec = MagicMock()
         mock_account_service.session.exec.return_value.first.return_value = account
+        mock_account_service.session.exec.return_value.one.return_value = 0
 
         result = mock_account_service.delete_account(household=household_context, account_id=account.id)
 
         assert isinstance(result, Message)
         mock_account_service.session.delete.assert_called_once_with(account)
 
-    def test_reports_an_account_with_history_as_in_use(
+    @pytest.mark.parametrize(
+        ("counts", "blocker"),
+        [
+            ([1, 0, 0], "still has transactions"),
+            ([0, 1, 0], "recurring rules paid from it"),
+            ([0, 0, 1], "destination of a recurring transfer"),
+        ],
+        ids=["transactions", "recurring rules", "recurring transfers"],
+    )
+    def test_refuses_to_delete_an_account_something_references(
+        self,
+        mock_account_service: AccountService,
+        household_context: HouseholdContext,
+        counts: list[int],
+        blocker: str,
+    ) -> None:
+        """The foreign keys onto account are RESTRICT, so an unchecked delete is a 500."""
+        account = make_account(name="Savings")
+        mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.first.return_value = account
+        mock_account_service.session.exec.return_value.one.side_effect = counts
+
+        with pytest.raises(AccountInUseError) as excinfo:
+            mock_account_service.delete_account(household=household_context, account_id=account.id)
+
+        assert blocker in str(excinfo.value)
+        mock_account_service.session.delete.assert_not_called()
+
+    def test_reports_a_constraint_violation_as_in_use(
         self, mock_account_service: AccountService, household_context: HouseholdContext
     ) -> None:
-        """The ledger foreign keys are RESTRICT, so the database refuses the delete."""
+        """A reference created between the check and the delete still has to be translated."""
         account = make_account()
         mock_account_service.session.exec = MagicMock()
         mock_account_service.session.exec.return_value.first.return_value = account
-        mock_account_service.session.flush = MagicMock(side_effect=RuntimeError("violates foreign key"))
+        mock_account_service.session.exec.return_value.one.return_value = 0
+        mock_account_service.session.flush = MagicMock(
+            side_effect=IntegrityError("DELETE", None, Exception("violates foreign key"))
+        )
 
         with pytest.raises(AccountInUseError):
             mock_account_service.delete_account(household=household_context, account_id=account.id)
 
         mock_account_service.session.rollback.assert_called_once()
+
+    def test_lets_an_unrelated_failure_surface(
+        self, mock_account_service: AccountService, household_context: HouseholdContext
+    ) -> None:
+        """A dropped connection is not a statement about the user's transactions."""
+        account = make_account()
+        mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.first.return_value = account
+        mock_account_service.session.exec.return_value.one.return_value = 0
+        mock_account_service.session.flush = MagicMock(side_effect=OperationalError("DELETE", None, Exception("gone")))
+
+        with pytest.raises(OperationalError):
+            mock_account_service.delete_account(household=household_context, account_id=account.id)

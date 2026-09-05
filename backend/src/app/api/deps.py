@@ -287,31 +287,6 @@ def get_household_member_repository(session: SessionDep) -> HouseholdMemberRepos
 HouseholdMemberRepositoryDep = Annotated[HouseholdMemberRepository, Depends(get_household_member_repository)]
 
 
-def get_account_service(
-    session: SessionDep,
-    account_repository: AccountRepositoryDep,
-    household_repository: HouseholdRepositoryDep,
-) -> AccountService:
-    """Get an account service instance.
-
-    Args:
-        session: The database session.
-        account_repository: The account repository instance.
-        household_repository: The household repository instance.
-
-    Returns:
-        An account service instance.
-    """
-    return AccountService(
-        session=session,
-        account_repository=account_repository,
-        household_repository=household_repository,
-    )
-
-
-AccountServiceDep = Annotated[AccountService, Depends(get_account_service)]
-
-
 def get_household_invite_repository(session: SessionDep) -> HouseholdInviteRepository:
     """Get a household invite repository instance.
 
@@ -474,6 +449,37 @@ def get_recurring_rule_repository(session: SessionDep) -> RecurringRuleRepositor
 
 
 RecurringRuleRepositoryDep = Annotated[RecurringRuleRepository, Depends(get_recurring_rule_repository)]
+
+
+def get_account_service(
+    session: SessionDep,
+    account_repository: AccountRepositoryDep,
+    household_repository: HouseholdRepositoryDep,
+    transaction_repository: TransactionRepositoryDep,
+    recurring_rule_repository: RecurringRuleRepositoryDep,
+) -> AccountService:
+    """Get an account service instance.
+
+    Args:
+        session: The database session.
+        account_repository: The account repository instance.
+        household_repository: The household repository instance.
+        transaction_repository: The transaction repository instance.
+        recurring_rule_repository: The recurring rule repository instance.
+
+    Returns:
+        An account service instance.
+    """
+    return AccountService(
+        session=session,
+        account_repository=account_repository,
+        household_repository=household_repository,
+        transaction_repository=transaction_repository,
+        recurring_rule_repository=recurring_rule_repository,
+    )
+
+
+AccountServiceDep = Annotated[AccountService, Depends(get_account_service)]
 
 
 def get_category_service(
