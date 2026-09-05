@@ -16,6 +16,12 @@ class AccountType(StrEnum):
     CURRENT = "current"
     SAVINGS = "savings"
     CREDIT_CARD = "credit_card"
+    # An account held with a broker. Its balance is the cash sitting there:
+    # what has been transferred in and not yet spent, plus what sales have
+    # returned and not yet been withdrawn. Buying takes cash out of it and
+    # turns it into a holding, so this and the holdings never describe the same
+    # money, and net worth adds both.
+    BROKERAGE = "brokerage"
 
 
 class AccountBase(SQLModel):
