@@ -7,7 +7,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
-import { formatMoney, toMajor } from '@/lib/money'
+import { formatCompactAmount, formatMoney } from '@/lib/money'
 import { formatDate, formatMonth } from '@/lib/month'
 
 /**
@@ -32,7 +32,7 @@ export function SpendOverTimeChart({
     label: isMonthly
       ? formatMonth(point.bucket.slice(0, 7), { month: 'short', year: '2-digit' })
       : formatDate(point.bucket, { day: 'numeric', month: 'short' }),
-    amount: toMajor(point.amount_minor, currency),
+    amount: point.amount_minor,
   }))
 
   const config: ChartConfig = {
@@ -64,15 +64,13 @@ export function SpendOverTimeChart({
           width={56}
           tick={{ fontSize: 12 }}
           className="fill-muted-foreground"
-          tickFormatter={(value: number) =>
-            new Intl.NumberFormat(undefined, { notation: 'compact' }).format(value)
-          }
+          tickFormatter={(value: number) => formatCompactAmount(value, currency)}
         />
         <ChartTooltip
           content={
             <ChartTooltipContent
               labelKey="label"
-              formatter={(value) => formatMoney(Math.round(Number(value) * 100), currency)}
+              formatter={(value) => formatMoney(Number(value), currency)}
             />
           }
         />
