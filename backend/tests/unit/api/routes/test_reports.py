@@ -7,7 +7,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_current_user, get_db, get_household_context, get_report_service
-from app.exceptions import CategoryNotFoundError, InvalidDateRangeError, ReportRangeTooLargeError
+from app.exceptions import (
+    AccountNotFoundError,
+    CategoryNotFoundError,
+    InvalidDateRangeError,
+    ReportRangeTooLargeError,
+)
 from app.main import app
 from app.models import (
     BudgetProgressReport,
@@ -212,6 +217,23 @@ class TestSpendOverTime:
                 "date_from": "2026-03-01",
                 "date_to": "2026-03-31",
                 "category_id": str(uuid.uuid4()),
+            },
+        )
+
+        assert response.status_code == 404
+
+    def test_an_account_from_another_household_is_not_found(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        wire.spend_over_time.side_effect = AccountNotFoundError
+
+        response = client.get(
+            "/api/v1/reports/spend-over-time",
+            headers=auth_headers,
+            params={
+                "date_from": "2026-03-01",
+                "date_to": "2026-03-31",
+                "account_id": str(uuid.uuid4()),
             },
         )
 

@@ -5,7 +5,12 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session
 
-from app.exceptions import CategoryNotFoundError, InvalidDateRangeError, ReportRangeTooLargeError
+from app.exceptions import (
+    AccountNotFoundError,
+    CategoryNotFoundError,
+    InvalidDateRangeError,
+    ReportRangeTooLargeError,
+)
 from app.models import (
     AccountType,
     BudgetProgressReport,
@@ -159,6 +164,7 @@ class ReportService:
             ReportRangeTooLargeError: If more than two years of daily buckets, or more than ten
                 years of monthly ones, are asked for.
             CategoryNotFoundError: If the category does not exist in the household.
+            AccountNotFoundError: If the account does not exist in the household.
         """
         self._check_range(date_from=date_from, date_to=date_to)
 
@@ -170,6 +176,9 @@ class ReportService:
             and self._month_count(date_from=date_from, date_to=date_to) > MAX_FLOW_RANGE_MONTHS
         ):
             raise ReportRangeTooLargeError(limit="ten years of monthly figures") from None
+
+        if account_id is not None:
+            self._require_account(household=household, account_id=account_id)
 
         category_ids = None
 
@@ -368,6 +377,22 @@ class ReportService:
             bucket = next_month_start(month_key_of(bucket))
 
         return buckets
+
+    def _require_account(self, household: HouseholdContext, account_id: uuid.UUID) -> None:
+        """Check that an account filter names an account of the household.
+
+        Resolved through the scoped repository, so filtering by another
+        household's account is a 404 rather than a report of nothing but zeros.
+
+        Args:
+            household: The household context.
+            account_id: The ID of the account.
+
+        Raises:
+            AccountNotFoundError: If the account does not exist in the household.
+        """
+        if not self.account_repository.exists_for_household(entity_id=account_id, household_id=household.household_id):
+            raise AccountNotFoundError from None
 
     def _expand_category(self, household: HouseholdContext, category_id: uuid.UUID) -> list[uuid.UUID]:
         """Resolve a category filter to itself and its subcategories.
