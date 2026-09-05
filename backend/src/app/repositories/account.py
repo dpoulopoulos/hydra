@@ -99,10 +99,7 @@ class AccountRepository(HouseholdScopedRepository[Account]):
         Returns:
             The conditions to apply, on top of the household scope.
         """
-        conditions: list[Any] = []
-
-        if not include_archived:
-            conditions.append(col(Account.archived_at).is_(None))
+        conditions: list[Any] = self._archived_conditions(include_archived)
 
         if account_type is not None:
             conditions.append(Account.type == account_type)
