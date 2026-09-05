@@ -558,6 +558,31 @@ class TestEnsureEveryUserHasAHousehold:
         mock_household_service.session.commit.assert_not_called()
 
 
+class TestEnsureEveryHouseholdHasAnOwner:
+    """Tests for ensure_every_household_has_an_owner."""
+
+    def test_promotes_a_member_in_each_household_that_lost_its_owner(
+        self, mock_household_service: HouseholdService, household: Household, another_test_user: User
+    ) -> None:
+        """A household whose owner was deleted before the promotion existed is still stuck."""
+        successor = HouseholdMember(household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.all.return_value = [household.id]
+        mock_household_service.session.exec.return_value.one.return_value = 0
+        mock_household_service.session.exec.return_value.first.return_value = successor
+
+        assert mock_household_service.ensure_every_household_has_an_owner() == 1
+        assert successor.role is HouseholdRole.OWNER
+        mock_household_service.session.commit.assert_called_once()
+
+    def test_does_nothing_when_every_household_has_an_owner(self, mock_household_service: HouseholdService) -> None:
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.all.return_value = []
+
+        assert mock_household_service.ensure_every_household_has_an_owner() == 0
+        mock_household_service.session.commit.assert_not_called()
+
+
 def make_invite(
     household_id: uuid.UUID,
     email: str = "partner@example.com",

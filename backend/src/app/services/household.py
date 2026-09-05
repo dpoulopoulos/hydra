@@ -363,6 +363,29 @@ class HouseholdService:
 
         return len(users)
 
+    def ensure_every_household_has_an_owner(self) -> int:
+        """Give an owner back to every household that has members but none.
+
+        Run at startup, next to the household repair. A household that lost
+        its last owner before the deletion path promoted a successor is stuck
+        for good: renaming it, inviting, promoting and removing members are
+        all owner-only, so no request its members can make repairs it.
+
+        Returns:
+            The number of households given an owner.
+        """
+        household_ids = self.household_member_repository.list_ownerless_household_ids()
+
+        if not household_ids:
+            return 0
+
+        for household_id in household_ids:
+            self._ensure_an_owner(household_id=household_id)
+
+        self.session.commit()
+
+        return len(household_ids)
+
     def create_for_user(
         self,
         user: User,
