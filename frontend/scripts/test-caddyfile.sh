@@ -25,7 +25,12 @@ trap cleanup EXIT
 # A stand-in for the built app: an entry page, a bundle where Vite puts one,
 # and nothing else.
 mkdir -p "$srv/static"
-echo '<!doctype html><title>hydra</title>' > "$srv/index.html"
+# The entry page carries the nonce placeholder the real one does, so the
+# templates directive has something to render.
+cat > "$srv/index.html" <<'HTML'
+<!doctype html><title>hydra</title>
+<meta property="csp-nonce" nonce="{{placeholder `http.request.uuid`}}" />
+HTML
 echo 'export const answer = 42' > "$srv/static/app.js"
 
 # Deliberately not --rm: a Caddyfile it cannot parse makes Caddy exit at once,
@@ -96,11 +101,39 @@ check "a bundle under /static is served" 200 "$(status /static/app.js)"
 # Client side routing: an unknown path is a page of the app, not a 404.
 check "an app route falls back to the entry page" 200 "$(status /budgets)"
 
-csp="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+# The whole policy, given the nonce a particular response was served with.
+# Every response carries a fresh one, so a check reads the value out of the
+# header it is looking at and asserts everything around it.
+policy() {
+  echo "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'nonce-$1'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+}
+
+# The nonce a policy names, or the empty string if it names none.
+nonce_of() {
+  echo "$1" | sed -n "s/.*'nonce-\([^']*\)'.*/\1/p"
+}
+
+# The entry page's header and body have to come from one response: another
+# request would be served another nonce.
+entry_headers=$srv/entry-headers
+entry_body=$srv/entry-body
+curl --silent --dump-header "$entry_headers" --output "$entry_body" "$base/"
+entry_csp=$(tr -d '\r' < "$entry_headers" | grep --ignore-case '^content-security-policy:' | sed 's/^[^:]*: *//')
+entry_nonce=$(nonce_of "$entry_csp")
 
 # The session token lives in localStorage, so the browser's script execution
 # controls are what stands between an injected script and the token.
-check "the entry page carries a content security policy" "$csp" "$(header content-security-policy /)"
+check "the entry page carries a content security policy" "$(policy "$entry_nonce")" "$entry_csp"
+# Radix and next-themes build a stylesheet as they run, and style-src-elem
+# takes one only with this nonce, which the app reads out of the page.
+check "the entry page names a nonce" "a uuid" \
+  "$(expr "$entry_nonce" : '^[0-9a-f]\{8\}-[0-9a-f]\{4\}-[0-9a-f]\{4\}-[0-9a-f]\{4\}-[0-9a-f]\{12\}$' >/dev/null && echo "a uuid" || echo "'$entry_nonce'")"
+check "the entry page is rendered with the nonce the policy names" \
+  "nonce=\"$entry_nonce\"" "$(grep --only-matching "nonce=\"[^\"]*\"" "$entry_body")"
+# A nonce that repeated would be no better than 'unsafe-inline': whoever
+# injected the stylesheet could read it out of the page they injected it into.
+check "the next response names a different nonce" "different" \
+  "$([ "$(nonce_of "$(header content-security-policy /)")" != "$entry_nonce" ] && echo different || echo "the same")"
 check "the entry page forbids MIME sniffing" "nosniff" "$(header x-content-type-options /)"
 # Reset, verification and invite links carry a single use token in the query
 # string, which must not leak to another origin in a Referer header.
@@ -111,8 +144,10 @@ check "the server does not name itself" "" "$(header server /)"
 
 # The headers belong to every response, not only to the entry page: a bundle
 # and an app route are served by different handlers.
-check "a bundle carries the policy too" "$csp" "$(header content-security-policy /static/app.js)"
-check "an app route carries the policy too" "$csp" "$(header content-security-policy /budgets)"
+bundle_csp=$(header content-security-policy /static/app.js)
+route_csp=$(header content-security-policy /budgets)
+check "a bundle carries the policy too" "$(policy "$(nonce_of "$bundle_csp")")" "$bundle_csp"
+check "an app route carries the policy too" "$(policy "$(nonce_of "$route_csp")")" "$route_csp"
 
 if [ "$failures" -ne 0 ]; then
   echo "$failures check(s) failed"

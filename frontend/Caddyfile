@@ -36,10 +36,21 @@
 	#
 	# Everything the app loads is served from this origin: the bundles and the
 	# fonts under /static, the API under /api. The policy is therefore almost
-	# entirely 'self'. Inline styles are the one exception, because the UI
-	# components set style attributes as they render.
+	# entirely 'self'.
+	#
+	# Styles are the one exception, and only half of one. The UI components set
+	# style attributes as they render, with values computed at render time, so
+	# style-src-attr has to allow them. A whole <style> element is a different
+	# thing, and style-src-elem takes only this origin and the nonce below, so
+	# an injected stylesheet is refused. The plain style-src is the fallback
+	# for browsers that implement neither of the two, and says what it used to.
+	#
+	# The nonce is this request's id, which is a random UUID, and the same
+	# value is rendered into the meta tag in index.html by the templates
+	# directive further down. A component that builds a stylesheet as it runs
+	# reads it from there; see src/lib/csp-nonce.ts.
 	header {
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'nonce-{http.request.uuid}'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 		X-Content-Type-Options "nosniff"
 		# Password reset, email verification and household invite links all put
 		# a single use token in the query string. Sending no referrer keeps
@@ -67,10 +78,10 @@
 	handle {
 		root * /srv
 		encode gzip
-		# The entry page is the only template: it carries this request's
-		# nonce, which a component that builds a stylesheet as it runs reads
-		# out of the page. Nothing else served here holds a placeholder, and
-		# the bundles are not HTML, so nothing else is rendered.
+		# The entry page is the only template: it carries this request's nonce,
+		# which the policy above names. Nothing else served here holds a
+		# placeholder, and the bundles are not HTML, so nothing else is
+		# rendered.
 		templates
 		# Client side routing: a path that is not a file on disk is still a
 		# page of the app, so the app itself has to answer for it.
