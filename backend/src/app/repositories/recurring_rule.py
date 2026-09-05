@@ -97,6 +97,43 @@ class RecurringRuleRepository(HouseholdScopedRepository[RecurringRule]):
         )
         return self.session.exec(statement).all()
 
+    def count_for_account(self, account_id: uuid.UUID, household_id: uuid.UUID) -> int:
+        """Count the recurring rules paid from an account.
+
+        Args:
+            account_id: The ID of the account.
+            household_id: The ID of the household.
+
+        Returns:
+            The number of rules whose money moves out of the account.
+        """
+        statement = (
+            select(func.count())
+            .select_from(RecurringRule)
+            .where(RecurringRule.household_id == household_id, RecurringRule.account_id == account_id)
+        )
+        return self.session.exec(statement).one()
+
+    def count_for_counter_account(self, account_id: uuid.UUID, household_id: uuid.UUID) -> int:
+        """Count the recurring transfer rules that move money into an account.
+
+        Only transfer rules carry a counter account, so this is the reference
+        the source account count does not see.
+
+        Args:
+            account_id: The ID of the account.
+            household_id: The ID of the household.
+
+        Returns:
+            The number of rules that name the account as their destination.
+        """
+        statement = (
+            select(func.count())
+            .select_from(RecurringRule)
+            .where(RecurringRule.household_id == household_id, RecurringRule.counter_account_id == account_id)
+        )
+        return self.session.exec(statement).one()
+
     def count_for_category(self, category_id: uuid.UUID, household_id: uuid.UUID) -> int:
         """Count the recurring rules filed under a category.
 
