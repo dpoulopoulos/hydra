@@ -161,6 +161,53 @@ class Settings(BaseSettings):
     def assets_base_url(self) -> str:
         return f"{str(self.BACKEND_HOST).rstrip('/')}/assets"
 
+    # Where the investments section gets prices.
+    #
+    # "eodhd" is the default and needs a key, free from eodhd.com. It is the
+    # one checked source that quotes European listings on a free plan, which
+    # is what this feature is mostly for.
+    #
+    # "yahoo" needs no key and quotes nearly everything, but its endpoints are
+    # unofficial and rate limit hard: a handful of requests from one address
+    # earns a ban across every endpoint at once, the token handshake included.
+    # It is kept as an escape hatch rather than recommended.
+    #
+    # "none" switches market data off. Instruments and trades are still
+    # recorded, and a position is simply not valued.
+    MARKET_DATA_PROVIDER: Literal["eodhd", "yahoo", "none"] = "eodhd"
+
+    # EODHD counts one API call per ticker, not per request, so a five-holding
+    # refresh spends five of a free plan's twenty daily calls. That budget is
+    # what MARKET_DATA_CACHE_HOURS exists to protect.
+    EODHD_API_KEY: str = ""
+    EODHD_BASE_URL: str = "https://eodhd.com/api"
+
+    # Exchange rates come from Frankfurter rather than from whoever supplies
+    # prices. It is free, needs no key, publishes the European Central Bank's
+    # daily rates, and asks for one request per base currency however many
+    # pairs are wanted. Keeping rates off the metered provider means the whole
+    # quote budget goes to quotes.
+    FRANKFURTER_BASE_URL: str = "https://api.frankfurter.dev/v1"
+
+    # How long a fetched price or rate is reused before the provider is asked
+    # again. The cache is the stored price itself: an instrument records when
+    # it was last priced, and a refresh inside this window is answered from the
+    # database without spending an API call. Raise it if the daily budget runs
+    # out; lower it only on a plan that can afford it.
+    MARKET_DATA_CACHE_HOURS: float = 2.0
+
+    YAHOO_FINANCE_BASE_URL: str = "https://query1.finance.yahoo.com"
+    YAHOO_FINANCE_SEARCH_URL: str = "https://query2.finance.yahoo.com/v1/finance/search"
+    # Short on purpose. A slow provider must not hold a request open: the page
+    # has a cached price to fall back on, and a timeout is what makes it use it.
+    MARKET_DATA_TIMEOUT_SECONDS: float = 10.0
+    # Yahoo refuses the default User-Agent an HTTP library sends, so this is a
+    # requirement rather than politeness.
+    MARKET_DATA_USER_AGENT: str = (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    )
+
     EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 24  # 1 day
     EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 48  # 2 days
     HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS: int = 168  # 7 days
