@@ -3,8 +3,9 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AuthContext, type AuthValue } from '@/lib/auth-context'
+import { AuthContext } from '@/lib/auth-context'
 import { Component as HouseholdSettings } from '@/pages/settings/household'
+import { session } from '@/test/auth'
 
 // The screen talks to the generated client directly, so the tests stand in for
 // the endpoints: what matters here is what an owner is told about their
@@ -23,13 +24,10 @@ const api = await import('@/api')
 
 const OWNER = 'u-owner'
 
-const auth: AuthValue = {
+const auth = session({
   user: { id: OWNER, email: 'owner@example.com', full_name: 'Ada', is_active: true } as never,
-  isLoading: false,
   isAuthenticated: true,
-  signIn: async () => {},
-  signOut: () => {},
-}
+})
 
 function renderSettings() {
   const client = new QueryClient({
