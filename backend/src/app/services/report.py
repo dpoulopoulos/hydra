@@ -23,7 +23,7 @@ from app.models import (
     TimeSeriesPoint,
     TransactionKind,
 )
-from app.models.fields import month_key_of, month_start, next_month_start
+from app.models.fields import month_bounds, month_key_of, next_month_start
 from app.repositories.account import AccountRepository
 from app.repositories.budget import BudgetRepository
 from app.repositories.category import CategoryRepository
@@ -94,8 +94,7 @@ class ReportService:
         Returns:
             One slice per category, largest first, with each share of the total.
         """
-        date_from = month_start(month)
-        date_to = next_month_start(month) - datetime.timedelta(days=1)
+        date_from, date_to = month_bounds(month)
 
         rows = self.report_repository.spend_by_category(
             household_id=household.household_id,
@@ -217,8 +216,8 @@ class ReportService:
             InvalidDateRangeError: If the range starts after it ends.
             ReportRangeTooLargeError: If more than ten years are asked for.
         """
-        date_from = month_start(month_from)
-        date_to = next_month_start(month_to) - datetime.timedelta(days=1)
+        date_from, _ = month_bounds(month_from)
+        _, date_to = month_bounds(month_to)
 
         self._check_range(date_from=date_from, date_to=date_to)
 
@@ -443,8 +442,7 @@ class ReportService:
         Returns:
             One row per budget, plus the spending that had no limit at all.
         """
-        date_from = month_start(month)
-        date_to = next_month_start(month) - datetime.timedelta(days=1)
+        date_from, date_to = month_bounds(month)
 
         budgets = self.budget_repository.list_with_categories(
             household_id=household.household_id, period_month=date_from
@@ -528,8 +526,7 @@ class ReportService:
         if recurring_rule_service:
             recurring_rule_service.materialize_due(household=household)
 
-        date_from = month_start(month)
-        date_to = next_month_start(month) - datetime.timedelta(days=1)
+        date_from, date_to = month_bounds(month)
 
         totals = {
             row.kind: row

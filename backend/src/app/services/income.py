@@ -50,7 +50,7 @@ from app.models import (
     Transaction,
     TransactionKind,
 )
-from app.models.fields import month_key_of, month_start, next_month_start
+from app.models.fields import month_bounds, month_key_of, month_start, next_month_start
 from app.repositories.account import AccountRepository
 from app.repositories.category import CategoryRepository
 from app.repositories.household import HouseholdRepository
@@ -1089,8 +1089,7 @@ class IncomeService:
         }
 
         today = datetime.date.today()
-        first_day = month_start(target_month)
-        last_day = next_month_start(target_month) - datetime.timedelta(days=1)
+        first_day, last_day = month_bounds(target_month)
         # Today itself is still ahead: an appointment this afternoon has not
         # been missed yet.
         window_from = max(first_day, today)
