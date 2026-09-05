@@ -1,15 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { TransactionPublic } from '@/api'
 import { TransactionDialog } from '@/components/transactions/transaction-dialog'
 import { useAccounts } from '@/hooks/use-accounts'
 
 // The dialog reads its pickers through the generated client, so the tests stand
 // in for the endpoints: what matters here is what the form holds after the
-// account list comes back again, which it does on every window focus.
+// account list comes back again, which it does on every window focus, and the
+// amount that reaches the API, which the household's currency decides.
 vi.mock('@/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api')>()
   return {
@@ -17,6 +19,7 @@ vi.mock('@/api', async (importOriginal) => {
     accountsListAccounts: vi.fn(),
     categoriesGetCategoryTree: vi.fn(),
     householdsGetHouseholdMe: vi.fn(),
+    transactionsUpdateTransaction: vi.fn(),
   }
 })
 
@@ -46,6 +49,35 @@ function accountsAre(...accounts: ReturnType<typeof account>[]) {
   } as never)
 }
 
+/** The household the dialog reads its currency from. */
+function householdSpends(currency: string) {
+  vi.mocked(api.householdsGetHouseholdMe).mockResolvedValue({
+    data: { id: 'h', name: 'Home', currency_code: currency },
+  } as never)
+}
+
+function transaction(amountMinor: number): TransactionPublic {
+  return {
+    id: 'transaction',
+    household_id: 'h',
+    account_id: CURRENT,
+    counter_account_id: null,
+    category_id: null,
+    kind: 'expense',
+    amount_minor: amountMinor,
+    occurred_on: '2026-03-04',
+    merchant: null,
+    note: null,
+    created_at: '2026-03-04T00:00:00Z',
+  } as TransactionPublic
+}
+
+/** The amount the last save sent to the API. */
+function sentAmountMinor() {
+  const call = vi.mocked(api.transactionsUpdateTransaction).mock.calls.at(-1)
+  return (call?.[0] as { body: { amount_minor: number } }).body.amount_minor
+}
+
 /**
  * The balance the account list currently holds, painted next to the dialog.
  *
@@ -69,16 +101,21 @@ function Harness() {
   )
 }
 
-function renderDialog() {
+function withClient(ui: React.ReactNode) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
-  render(
-    <QueryClientProvider client={client}>
-      <Harness />
-    </QueryClientProvider>,
-  )
+  render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
   return client
+}
+
+function renderDialog() {
+  return withClient(<Harness />)
+}
+
+/** The dialog opened on a transaction that already exists. */
+function renderEditDialog(existing: TransactionPublic) {
+  return withClient(<TransactionDialog open transaction={existing} onOpenChange={() => {}} />)
 }
 
 /** A refetch of the account list, the way returning to the tab triggers one. */
@@ -101,9 +138,8 @@ beforeEach(() => {
   vi.mocked(api.categoriesGetCategoryTree).mockResolvedValue({
     data: { data: [], count: 0 },
   } as never)
-  vi.mocked(api.householdsGetHouseholdMe).mockResolvedValue({
-    data: { id: 'h', name: 'Home', currency_code: 'EUR' },
-  } as never)
+  vi.mocked(api.transactionsUpdateTransaction).mockResolvedValue({ data: {} } as never)
+  householdSpends('EUR')
 })
 
 describe('a background account refetch', () => {
@@ -191,5 +227,27 @@ describe('seeding the form', () => {
 
     expect(await screen.findByLabelText('Merchant')).toHaveValue('')
     await vi.waitFor(() => expect(chosenAccount()).toBe('Current'))
+  })
+})
+
+describe('editing an amount', () => {
+  it('sends back what a two-decimal amount was opened with', async () => {
+    householdSpends('EUR')
+    renderEditDialog(transaction(4250))
+
+    await waitFor(() => expect(screen.getByLabelText('Amount')).toHaveValue('42.5'))
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => expect(sentAmountMinor()).toBe(4250))
+  })
+
+  it('sends back what a zero-decimal amount was opened with', async () => {
+    householdSpends('JPY')
+    renderEditDialog(transaction(1000))
+
+    await waitFor(() => expect(screen.getByLabelText('Amount')).toHaveValue('1000'))
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => expect(sentAmountMinor()).toBe(1000))
   })
 })

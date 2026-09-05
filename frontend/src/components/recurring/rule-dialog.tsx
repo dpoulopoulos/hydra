@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -50,48 +50,57 @@ import { cn } from '@/lib/utils'
 
 const NO_CATEGORY = 'none'
 
-const schema = z
-  .object({
-    name: z.string().trim().min(1, 'Name the rule, such as Rent or Netflix.').max(255),
-    kind: z.enum(TransactionKind),
-    amount: amountSchema(),
-    frequency: z.enum(RecurrenceFrequency),
-    interval: z.coerce.number().int().min(1, 'Repeat at least every one period.').max(60),
-    day_of_month: z.string(),
-    start_date: z.string().min(1, 'Pick when it starts.'),
-    end_date: z.string(),
-    account_id: z.string().min(1, 'Choose an account.'),
-    counter_account_id: z.string(),
-    category_id: z.string(),
-    merchant: z.string().trim().max(255).optional(),
-  })
-  .superRefine((values, ctx) => {
-    if (values.kind === TransactionKind.TRANSFER) {
-      if (!values.counter_account_id) {
+/**
+ * The form's rules.
+ *
+ * A function of the currency, because how many minor units a typed amount
+ * stands for is a property of the currency the household keeps its books in.
+ */
+function buildSchema(currency: string) {
+  return z
+    .object({
+      name: z.string().trim().min(1, 'Name the rule, such as Rent or Netflix.').max(255),
+      kind: z.enum(TransactionKind),
+      amount: amountSchema({ currency }),
+      frequency: z.enum(RecurrenceFrequency),
+      interval: z.coerce.number().int().min(1, 'Repeat at least every one period.').max(60),
+      day_of_month: z.string(),
+      start_date: z.string().min(1, 'Pick when it starts.'),
+      end_date: z.string(),
+      account_id: z.string().min(1, 'Choose an account.'),
+      counter_account_id: z.string(),
+      category_id: z.string(),
+      merchant: z.string().trim().max(255).optional(),
+    })
+    .superRefine((values, ctx) => {
+      if (values.kind === TransactionKind.TRANSFER) {
+        if (!values.counter_account_id) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['counter_account_id'],
+            message: 'Choose where the money goes.',
+          })
+        } else if (values.counter_account_id === values.account_id) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['counter_account_id'],
+            message: 'A transfer needs two different accounts.',
+          })
+        }
+      }
+      if (values.end_date && values.end_date < values.start_date) {
         ctx.addIssue({
           code: 'custom',
-          path: ['counter_account_id'],
-          message: 'Choose where the money goes.',
-        })
-      } else if (values.counter_account_id === values.account_id) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['counter_account_id'],
-          message: 'A transfer needs two different accounts.',
+          path: ['end_date'],
+          message: 'It cannot end before it starts.',
         })
       }
-    }
-    if (values.end_date && values.end_date < values.start_date) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['end_date'],
-        message: 'It cannot end before it starts.',
-      })
-    }
-  })
+    })
+}
 
-type Values = z.input<typeof schema>
-type Parsed = z.output<typeof schema>
+type Schema = ReturnType<typeof buildSchema>
+type Values = z.input<Schema>
+type Parsed = z.output<Schema>
 
 /**
  * What the rule will do, in a sentence.
@@ -154,6 +163,7 @@ export function RuleDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const currency = useCurrency()
+  const schema = useMemo(() => buildSchema(currency), [currency])
   const queryClient = useQueryClient()
   const isEdit = rule !== null
   const { data: accounts } = useAccounts()

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -44,39 +44,48 @@ import { today } from '@/lib/month'
 
 const NO_CATEGORY = 'none'
 
-const schema = z
-  .object({
-    kind: z.enum(TransactionKind),
-    amount: amountSchema(),
-    occurred_on: z.string().min(1, 'Pick a date.'),
-    account_id: z.string().min(1, 'Choose an account.'),
-    counter_account_id: z.string(),
-    category_id: z.string(),
-    merchant: z.string().trim().max(255).optional(),
-    note: z.string().trim().max(1024).optional(),
-  })
-  .superRefine((values, ctx) => {
-    // The same shape rules the API enforces, checked here so the reason is
-    // shown next to the field rather than as a rejected request.
-    if (values.kind === TransactionKind.TRANSFER) {
-      if (!values.counter_account_id) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['counter_account_id'],
-          message: 'Choose where the money goes.',
-        })
-      } else if (values.counter_account_id === values.account_id) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['counter_account_id'],
-          message: 'A transfer needs two different accounts.',
-        })
+/**
+ * The form's rules.
+ *
+ * A function of the currency, because how many minor units a typed amount
+ * stands for is a property of the currency the household keeps its books in.
+ */
+function buildSchema(currency: string) {
+  return z
+    .object({
+      kind: z.enum(TransactionKind),
+      amount: amountSchema({ currency }),
+      occurred_on: z.string().min(1, 'Pick a date.'),
+      account_id: z.string().min(1, 'Choose an account.'),
+      counter_account_id: z.string(),
+      category_id: z.string(),
+      merchant: z.string().trim().max(255).optional(),
+      note: z.string().trim().max(1024).optional(),
+    })
+    .superRefine((values, ctx) => {
+      // The same shape rules the API enforces, checked here so the reason is
+      // shown next to the field rather than as a rejected request.
+      if (values.kind === TransactionKind.TRANSFER) {
+        if (!values.counter_account_id) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['counter_account_id'],
+            message: 'Choose where the money goes.',
+          })
+        } else if (values.counter_account_id === values.account_id) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['counter_account_id'],
+            message: 'A transfer needs two different accounts.',
+          })
+        }
       }
-    }
-  })
+    })
+}
 
-type Values = z.input<typeof schema>
-type Parsed = z.output<typeof schema>
+type Schema = ReturnType<typeof buildSchema>
+type Values = z.input<Schema>
+type Parsed = z.output<Schema>
 
 export function TransactionDialog({
   open,
@@ -89,6 +98,7 @@ export function TransactionDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const currency = useCurrency()
+  const schema = useMemo(() => buildSchema(currency), [currency])
   const queryClient = useQueryClient()
   const isEdit = transaction !== null
   const { data: accounts } = useAccounts()
