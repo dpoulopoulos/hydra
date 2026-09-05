@@ -32,6 +32,24 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    def _report_insecure_secret(self, message: str) -> None:
+        """Report a secret that is not fit for a deployment.
+
+        Local development is expected to run on placeholders, so there the finding is a warning.
+        Anywhere else it stops the process, because a deployment that boots on a placeholder gives
+        no other sign that it did.
+
+        Args:
+            message: What is wrong with the secret, and what to do about it.
+
+        Raises:
+            ValueError: If the environment is not "local".
+        """
+        if self.ENVIRONMENT == "local":
+            warnings.warn(message, stacklevel=1)
+        else:
+            raise ValueError(message)
+
     def _check_unset_secret(self, var_name: str) -> None:
         """Check that a secret with a generated default was supplied explicitly.
 
@@ -49,14 +67,10 @@ class Settings(BaseSettings):
         if var_name in self.model_fields_set:
             return
 
-        message = (
+        self._report_insecure_secret(
             f"{var_name} is not set, so a random one was generated for this process only. "
             "Set it explicitly, at least for deployments."
         )
-        if self.ENVIRONMENT == "local":
-            warnings.warn(message, stacklevel=1)
-        else:
-            raise ValueError(message)
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         """Check for default secret values.
@@ -69,13 +83,9 @@ class Settings(BaseSettings):
             ValueError: If the value is "changethis" and the environment is not "local".
         """
         if value == "changethis":
-            message = (
+            self._report_insecure_secret(
                 f'The value of {var_name} is "changethis", for security, please change it, at least for deployments.'
             )
-            if self.ENVIRONMENT == "local":
-                warnings.warn(message, stacklevel=1)
-            else:
-                raise ValueError(message)
 
     PROJECT_NAME: str
     PROJECT_ID: str
