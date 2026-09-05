@@ -49,6 +49,16 @@ from app.repositories.user import UserRepository
 from app.services.email_outbox import EmailOutboxService
 from app.utils import generate_household_invite_email, mask_email
 
+# Every way an invitation offered at signup can turn out to be unusable. Kept next to
+# `HouseholdService.check_signup_invite`, which is the only thing that raises them, so a refusal
+# added there cannot go missing from the callers that must not report it back.
+INVITE_UNUSABLE_ERRORS = (
+    HouseholdInviteNotFoundError,
+    HouseholdInviteUsedError,
+    HouseholdInviteExpiredError,
+    HouseholdInviteEmailMismatchError,
+)
+
 
 class CategorySeeder(Protocol):
     """The part of the category service that household provisioning depends on.
@@ -358,7 +368,6 @@ class HouseholdService:
         user: User,
         category_service: CategorySeeder,
         name: str | None = None,
-        invite_token: str | None = None,
     ) -> Household:
         """Give a user a household, without committing.
 
@@ -366,12 +375,12 @@ class HouseholdService:
         household and its categories together. A user is therefore never
         observable without a household.
 
-        An invite token does not put the user in the household that invited
-        them. Signing up proves nothing about the address it was signed up
-        with, so the token is only checked here, to refuse a registration the
-        invitation could never be redeemed by. The invitation stays pending and
-        is attributed when the address is verified, which is the moment the
-        mailbox stops being a claim.
+        A user who registered through an invitation gets a household of their
+        own here like anybody else. Signing up proves nothing about the address
+        it was signed up with, so the invitation stays pending and is
+        attributed when the address is verified, which is the moment the
+        mailbox stops being a claim. Whether the invitation could be applied at
+        all is settled by `check_signup_invite`, before anything is written.
 
         Args:
             user: The user to give a household to.
@@ -379,20 +388,10 @@ class HouseholdService:
                 categories. Required, so a household cannot be created without
                 them by forgetting an argument.
             name: An optional household name. Defaults to a name based on the user.
-            invite_token: An optional invite the registration came through.
 
         Returns:
             The household the user now belongs to.
-
-        Raises:
-            HouseholdInviteNotFoundError: If the token is not recognised.
-            HouseholdInviteUsedError: If the invite was already used or withdrawn.
-            HouseholdInviteExpiredError: If the invite has expired.
-            HouseholdInviteEmailMismatchError: If the invite was sent to a different address.
         """
-        if invite_token:
-            self._check_invite_is_addressed_to(user=user, token=invite_token)
-
         household = Household(name=name or default_household_name(user))
         self.household_repository.save(household)
 
@@ -787,7 +786,7 @@ class HouseholdService:
 
         return self._to_public(household=entity, member_count=self.household_repository.count_members(entity.id))
 
-    def _check_invite_is_addressed_to(self, user: User, token: str) -> None:
+    def check_signup_invite(self, email: str, token: str) -> None:
         """Refuse a registration the invitation it came through could never be redeemed by.
 
         Nothing is joined and nothing is consumed here. A registration is a
@@ -804,9 +803,13 @@ class HouseholdService:
         attributed only when the address is verified, and redeemed only by the
         account it was attributed to.
 
+        No account is created here, so a signup can settle the invitation before it writes
+        anything and never has to undo a write to drop one it cannot apply. An invitation found
+        past its expiry is marked as such, in the caller's transaction, as it always was.
+
         Args:
-            user: The user registering.
-            token: The invite token their registration came through.
+            email: The address registering.
+            token: The invite token the registration came through.
 
         Raises:
             HouseholdInviteNotFoundError: If the token is not recognised.
@@ -816,7 +819,7 @@ class HouseholdService:
         """
         invite = self._require_pending_invite(token)
 
-        if invite.email.lower() != user.email.lower():
+        if invite.email.lower() != email.lower():
             raise HouseholdInviteEmailMismatchError from None
 
     def _require_pending_invite(self, token: str) -> HouseholdInvite:

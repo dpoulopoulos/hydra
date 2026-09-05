@@ -118,7 +118,7 @@
           "users"
         ],
         "summary": "Register User",
-        "description": "Register a new user.\n\nThis endpoint allows users to register without being authenticated.\nThe user will be created with is_active=False and must verify their email\nbefore they can log in.\n\nArgs:\n    user_service: The user service dependency.\n    email_verification_service: The email verification service dependency.\n    household_service: The household service dependency, used to provision\n        the user's household in the same transaction.\n    category_service: The category service dependency, used to seed the\n        household's default categories.\n    user_in: The user registration data.\n\nReturns:\n    The newly created user.\n\nRaises:\n    HTTPException: If a user with the same email already exists (409).",
+        "description": "Register a new user.\n\nThis endpoint allows users to register without being authenticated.\nThe user will be created with is_active=False and must verify their email\nbefore they can log in.\n\nThe reply is the same whether or not the address already has an account, so the endpoint cannot\nbe used to find out which addresses are registered. What happened is told to the address itself,\nby email.\n\nArgs:\n    user_service: The user service dependency.\n    email_verification_service: The email verification service dependency.\n    household_service: The household service dependency, used to provision\n        the user's household in the same transaction.\n    category_service: The category service dependency, used to seed the\n        household's default categories.\n    user_in: The user registration data.\n\nReturns:\n    A message asking the caller to check their email.",
         "operationId": "users-register_user",
         "requestBody": {
           "content": {
@@ -136,7 +136,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserPublic"
+                  "$ref": "#/components/schemas/Message"
                 }
               }
             }

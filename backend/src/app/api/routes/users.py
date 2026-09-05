@@ -82,7 +82,7 @@ def create_user(
     )
 
 
-@router.post("/signup", response_model=UserPublic)
+@router.post("/signup", response_model=Message)
 def register_user(
     *,
     user_service: UserServiceDep,
@@ -90,12 +90,16 @@ def register_user(
     household_service: HouseholdServiceDep,
     category_service: CategoryServiceDep,
     user_in: UserRegister,
-) -> UserPublic:
+) -> Message:
     """Register a new user.
 
     This endpoint allows users to register without being authenticated.
     The user will be created with is_active=False and must verify their email
     before they can log in.
+
+    The reply is the same whether or not the address already has an account, so the endpoint cannot
+    be used to find out which addresses are registered. What happened is told to the address itself,
+    by email.
 
     Args:
         user_service: The user service dependency.
@@ -107,16 +111,14 @@ def register_user(
         user_in: The user registration data.
 
     Returns:
-        The newly created user.
-
-    Raises:
-        HTTPException: If a user with the same email already exists (409).
+        A message asking the caller to check their email.
     """
-    user = user_service.create_user(
-        user_create=user_in, household_service=household_service, category_service=category_service
+    return user_service.register_user(
+        user_register=user_in,
+        category_service=category_service,
+        household_service=household_service,
+        email_verification_service=email_verification_service,
     )
-    email_verification_service.send_verification_email(user_service=user_service, user_email=user.email)
-    return user
 
 
 @router.get("/me", response_model=UserPublic)

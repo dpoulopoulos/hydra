@@ -81,6 +81,10 @@ export const usersCreateUser = <ThrowOnError extends boolean = false>(options: O
  * The user will be created with is_active=False and must verify their email
  * before they can log in.
  *
+ * The reply is the same whether or not the address already has an account, so the endpoint cannot
+ * be used to find out which addresses are registered. What happened is told to the address itself,
+ * by email.
+ *
  * Args:
  * user_service: The user service dependency.
  * email_verification_service: The email verification service dependency.
@@ -91,10 +95,7 @@ export const usersCreateUser = <ThrowOnError extends boolean = false>(options: O
  * user_in: The user registration data.
  *
  * Returns:
- * The newly created user.
- *
- * Raises:
- * HTTPException: If a user with the same email already exists (409).
+ * A message asking the caller to check their email.
  */
 export const usersRegisterUser = <ThrowOnError extends boolean = false>(options: Options<UsersRegisterUserData, ThrowOnError>): RequestResult<UsersRegisterUserResponses, UsersRegisterUserErrors, ThrowOnError> => (options.client ?? client).post<UsersRegisterUserResponses, UsersRegisterUserErrors, ThrowOnError>({
     url: '/api/v1/users/signup',

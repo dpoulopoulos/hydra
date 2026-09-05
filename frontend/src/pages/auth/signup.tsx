@@ -34,7 +34,7 @@ export function Component() {
   const [searchParams] = useSearchParams()
   const inviteToken = searchParams.get('token')
   const [formError, setFormError] = useState<string | null>(null)
-  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null)
 
   // When they arrived from an invitation link, say whose household they are
   // joining, so the page is not a bare sign-up form out of context.
@@ -73,23 +73,30 @@ export function Component() {
       if (error) throw error
       return data
     },
-    onSuccess: (user) => setRegisteredEmail(user?.email ?? null),
+    // The reply says the same thing whether or not the address already has an
+    // account, on purpose, so the address to confirm comes from the form rather
+    // than from the response.
+    onSuccess: (_data, values) => setSubmittedEmail(values.email),
     onError: (error) => setFormError(errorMessage(error, 'Could not create the account.')),
   })
 
-  if (registeredEmail) {
+  if (submittedEmail) {
     return (
       <AuthLayout title="Check your email" description="One step left.">
         <Alert>
           <MailCheck className="size-4" />
-          <AlertTitle>Verification sent to {registeredEmail}</AlertTitle>
+          <AlertTitle>Message sent to {submittedEmail}</AlertTitle>
           <AlertDescription>
             {/* The invitation is not taken at sign-up: registering with an
                 address does not prove the mailbox is yours. Verifying it does,
-                and that is when the invitation becomes theirs to accept. */}
+                and that is when the invitation becomes theirs to accept.
+
+                Neither wording says whether the address is registered: the
+                message is the same either way, and it is the email, not this
+                page, that tells the holder which one they got. */}
             {invite
-              ? `Open the link in that email to activate your account. Then open the invitation again to join ${invite.household_name}.`
-              : 'Open the link in that email to activate your account. You can close this page.'}
+              ? `Open the link in that email to activate your account. Then open the invitation again to join ${invite.household_name}. If that address already has an account, the message links you to sign in instead.`
+              : 'Open the link in that email to activate your account. If that address already has an account, the message links you to sign in instead. You can close this page.'}
           </AlertDescription>
         </Alert>
         <Link

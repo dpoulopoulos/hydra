@@ -4,11 +4,16 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.core.security import dummy_password_hash
 from app.exceptions import (
     DeleteSuperUserError,
+    HouseholdInviteEmailMismatchError,
+    HouseholdInviteExpiredError,
+    HouseholdInviteNotFoundError,
+    HouseholdInviteUsedError,
     InvalidEmailOrPasswordError,
     PasswordIsWrongError,
     PasswordUnmodifiedError,
@@ -32,6 +37,19 @@ from app.models import (
     UserUpdateMe,
 )
 from app.services import EmailVerificationService, UserService
+from app.services.user import SIGNUP_MESSAGE
+
+
+def outbox_sends(mock_outbox: MagicMock) -> MagicMock:
+    """The outbox call a service makes to put a message out.
+
+    Args:
+        mock_outbox: The stand-in for EmailOutboxService the test patched in.
+
+    Returns:
+        The mock that records every message handed to the outbox.
+    """
+    return mock_outbox.for_session.return_value.deliver_or_queue
 
 
 class TestAuthenticate:
@@ -274,6 +292,27 @@ class TestCreateUser:
         mock_user_service.session.commit.assert_called()
         mock_user_service.session.refresh.assert_called()
 
+    def test_create_user_stores_a_hash_it_is_given(self, mock_user_service: UserService) -> None:
+        """Test that a caller who already paid for the hash is not charged for it twice."""
+        # Arrange: Mock database operations and UserRegister data
+        mock_user_service.session.exec = MagicMock()
+        mock_user_service.session.exec.return_value.first.return_value = None
+        mock_user_service.session.add = MagicMock()
+        mock_user_service.session.commit = MagicMock()
+        mock_user_service.session.refresh = MagicMock()
+
+        user_register = UserRegister(email="newuser@example.com", password="password123")
+
+        # Act: Create the user with a hash the caller computed
+        with patch("app.services.user.get_password_hash") as mock_hash:
+            mock_user_service.create_user(
+                user_create=user_register, category_service=MagicMock(), hashed_password="already_hashed"
+            )
+
+        # Assert: Verify the given hash was stored and nothing was hashed again
+        mock_hash.assert_not_called()
+        assert mock_user_service.session.add.call_args.args[0].hashed_password == "already_hashed"
+
     def test_create_user_already_exists(self, mock_user_service: UserService, test_user: User) -> None:
         """Test creating user when email already exists."""
         # Arrange: Mock database query to return existing user
@@ -289,6 +328,451 @@ class TestCreateUser:
         # Act & Assert: Verify UserExistsError is raised
         with pytest.raises(UserExistsError):
             mock_user_service.create_user(user_create=user_create, category_service=MagicMock())
+
+
+class TestRegisterUser:
+    """Tests for the register_user method."""
+
+    def test_register_user_creates_an_unregistered_address(self, mock_user_service: UserService) -> None:
+        """Test that a new address gets an account and a verification email."""
+        # Arrange: Mock the lookup to find nobody and stand in for the verification service
+        mock_user_service.get_user_by_email = MagicMock(return_value=None)
+        mock_user_service.create_user = MagicMock(return_value=MagicMock(email="newuser@example.com"))
+        email_verification_service = MagicMock()
+
+        user_register = UserRegister(email="newuser@example.com", password="password123", full_name="New User")
+
+        # Act: Register the address
+        result = mock_user_service.register_user(
+            user_register=user_register,
+            category_service=MagicMock(),
+            household_service=MagicMock(),
+            email_verification_service=email_verification_service,
+        )
+
+        # Assert: Verify the account was created and asked to verify itself
+        assert isinstance(result, Message)
+        mock_user_service.create_user.assert_called_once()
+        email_verification_service.send_verification_email.assert_called_once_with(
+            user_service=mock_user_service, user_email="newuser@example.com", invite_unusable=False
+        )
+
+    def test_register_user_notifies_a_registered_address(
+        self, mock_user_service: UserService, test_user: User, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that a registered address is told about the attempt instead of getting a second account."""
+        # Arrange: Mock the lookup to find the account and turn mail on
+        mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
+        mock_user_service.create_user = MagicMock()
+        email_verification_service = MagicMock()
+
+        monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        user_register = UserRegister(email=test_user.email, password="password123", full_name="Test User")
+
+        # Act: Register an address that already has an account
+        with patch("app.services.user.EmailOutboxService") as mock_outbox:
+            result = mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=MagicMock(),
+                email_verification_service=email_verification_service,
+            )
+
+        # Assert: Verify nothing was created and the address itself was told
+        assert isinstance(result, Message)
+        mock_user_service.create_user.assert_not_called()
+        email_verification_service.send_verification_email.assert_not_called()
+        outbox_sends(mock_outbox).assert_called_once()
+        assert outbox_sends(mock_outbox).call_args.kwargs["email_to"] == test_user.email
+
+    def test_register_user_answers_both_addresses_alike(self, mock_user_service: UserService, test_user: User) -> None:
+        """Test that the reply says the same thing whether or not the address is registered."""
+        # Arrange: Stand in for the services the new-address path needs
+        mock_user_service.create_user = MagicMock(return_value=MagicMock(email="newuser@example.com"))
+        user_register = UserRegister(email="newuser@example.com", password="password123")
+
+        # Act: Register an unregistered and a registered address
+        mock_user_service.get_user_by_email = MagicMock(return_value=None)
+        unknown = mock_user_service.register_user(
+            user_register=user_register,
+            category_service=MagicMock(),
+            household_service=MagicMock(),
+            email_verification_service=MagicMock(),
+        )
+
+        mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
+        registered = mock_user_service.register_user(
+            user_register=user_register,
+            category_service=MagicMock(),
+            household_service=MagicMock(),
+            email_verification_service=MagicMock(),
+        )
+
+        # Assert: Verify the two messages are the same
+        assert unknown == registered
+
+    def test_register_user_hashes_the_password_of_a_registered_address(
+        self, mock_user_service: UserService, test_user: User
+    ) -> None:
+        """Test that a registered address pays for the same hashing a new one does.
+
+        Skipping it would answer sooner for an address that already has an account, which is the
+        same disclosure the shared reply avoids, told by the clock instead.
+        """
+        # Arrange: Mock the lookup to find the account
+        mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
+        mock_user_service.create_user = MagicMock()
+
+        user_register = UserRegister(email=test_user.email, password="password123")
+
+        # Act: Register an address that already has an account
+        with patch("app.services.user.get_password_hash") as mock_hash:
+            mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=MagicMock(),
+                email_verification_service=MagicMock(),
+            )
+
+        # Assert: Verify the password was hashed anyway
+        mock_hash.assert_called_once_with("password123")
+
+    def test_register_user_hashes_the_password_of_a_free_address_once(self, mock_user_service: UserService) -> None:
+        """Test that a free address pays for one hash, and that the account stores it."""
+        # Arrange: Let the lookup find nobody
+        mock_user_service.get_user_by_email = MagicMock(return_value=None)
+        mock_user_service.create_user = MagicMock(return_value=MagicMock(email="newuser@example.com"))
+
+        user_register = UserRegister(email="newuser@example.com", password="password123")
+
+        # Act: Register a free address
+        with patch("app.services.user.get_password_hash") as mock_hash:
+            mock_hash.return_value = "hashed_password"
+            mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=MagicMock(),
+                email_verification_service=MagicMock(),
+            )
+
+        # Assert: Verify the one hash was handed to the creation rather than paid for again
+        mock_hash.assert_called_once_with("password123")
+        assert mock_user_service.create_user.call_args.kwargs["hashed_password"] == "hashed_password"
+
+    def test_register_user_writes_once_for_a_dropped_invitation(self, mock_user_service: UserService) -> None:
+        """Test that dropping an invitation costs one hash and one write, like any other signup.
+
+        Bcrypt and the account write are the cost of the request, so a signup that hashed or wrote
+        twice would answer a free address measurably slower than a taken one — the disclosure the
+        shared reply exists to refuse, told by the clock.
+        """
+        # Arrange: Let the invitation fail its check and the account be created without it
+        mock_user_service.get_user_by_email = MagicMock(return_value=None)
+        mock_user_service.create_user = MagicMock(return_value=MagicMock(email="invited@example.com"))
+        mock_user_service.session = MagicMock()
+
+        household_service = MagicMock()
+        household_service.check_signup_invite.side_effect = HouseholdInviteNotFoundError()
+
+        user_register = UserRegister(email="invited@example.com", password="password123", invite_token="bogus-token")
+
+        # Act: Register a free address with an invitation that cannot be applied
+        with patch("app.services.user.EmailOutboxService"), patch("app.services.user.get_password_hash") as mock_hash:
+            mock_hash.return_value = "hashed_password"
+            mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=household_service,
+                email_verification_service=MagicMock(),
+            )
+
+        # Assert: Verify one hash, one creation, and nothing rolled back
+        mock_hash.assert_called_once_with("password123")
+        mock_user_service.create_user.assert_called_once()
+        assert mock_user_service.create_user.call_args.kwargs["hashed_password"] == "hashed_password"
+        mock_user_service.session.rollback.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "error",
+        [UserExistsError(user=MagicMock()), IntegrityError("insert", {}, Exception("duplicate key"))],
+        ids=["check_inside_create_user", "unique_index"],
+    )
+    def test_register_user_answers_a_racing_signup_alike(
+        self, mock_user_service: UserService, test_user: User, error: Exception
+    ) -> None:
+        """Test that a signup that loses a race is answered like any other taken address.
+
+        Two signups for the same free address can both get past the lookup; the loser must not be
+        told the 409 that the shared reply exists to refuse.
+        """
+        # Arrange: Let the first lookup find nobody and the one after the rollback find the winner
+        mock_user_service.get_user_by_email = MagicMock(side_effect=[None, test_user])
+        mock_user_service.create_user = MagicMock(side_effect=error)
+        mock_user_service.session = MagicMock()
+        email_verification_service = MagicMock()
+
+        user_register = UserRegister(email="racer@example.com", password="password123")
+
+        # Act: Register the address that was taken in the meantime
+        with patch("app.services.user.EmailOutboxService"):
+            result = mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=MagicMock(),
+                email_verification_service=email_verification_service,
+            )
+
+        # Assert: Verify the shared message came back, nothing was verified and the write was undone
+        assert result == Message(message=SIGNUP_MESSAGE)
+        mock_user_service.session.rollback.assert_called_once()
+        email_verification_service.send_verification_email.assert_not_called()
+
+    def test_register_user_tells_a_registered_address_about_a_dropped_invitation(
+        self, mock_user_service: UserService, test_user: User, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that a signup carrying an invitation says so in the notice to a registered address.
+
+        An unauthenticated signup cannot accept an invitation for an account that already exists, so
+        the holder is told the invitation is still waiting rather than left with nothing.
+        """
+        # Arrange: Mock the lookup to find the account and turn mail on
+        mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
+        mock_user_service.create_user = MagicMock()
+
+        monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        user_register = UserRegister(email=test_user.email, password="password123", invite_token="invite-token")
+
+        # Act: Register a taken address from an invitation link
+        with patch("app.services.user.EmailOutboxService") as mock_outbox:
+            mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=MagicMock(),
+                email_verification_service=MagicMock(),
+            )
+
+        # Assert: Verify the notice mentions the invitation and does not repeat its token
+        html_content = outbox_sends(mock_outbox).call_args.kwargs["html_content"]
+        assert "invitation" in html_content
+        assert "invite-token" not in html_content
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            HouseholdInviteNotFoundError(),
+            HouseholdInviteUsedError(),
+            HouseholdInviteExpiredError(),
+            HouseholdInviteEmailMismatchError(),
+        ],
+        ids=["not_found", "used", "expired", "email_mismatch"],
+    )
+    def test_register_user_answers_an_unusable_invitation_alike(
+        self, mock_user_service: UserService, error: Exception
+    ) -> None:
+        """Test that an invitation that cannot be applied still answers the shared message.
+
+        Only a free address ever gets as far as reading the token, so an error about it would say
+        which addresses are registered — one bogus token per address.
+        """
+        # Arrange: Let the lookup find nobody and the invitation fail its check
+        mock_user_service.get_user_by_email = MagicMock(return_value=None)
+        mock_user_service.create_user = MagicMock(return_value=MagicMock(email="invited@example.com"))
+        mock_user_service.session = MagicMock()
+        email_verification_service = MagicMock()
+
+        household_service = MagicMock()
+        household_service.check_signup_invite.side_effect = error
+
+        user_register = UserRegister(email="invited@example.com", password="password123", invite_token="bogus-token")
+
+        # Act: Register a free address with an invitation that cannot be applied
+        with patch("app.services.user.EmailOutboxService"):
+            result = mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=household_service,
+                email_verification_service=email_verification_service,
+            )
+
+        # Assert: Verify the shared message came back and the account was made without the invitation
+        assert result == Message(message=SIGNUP_MESSAGE)
+        mock_user_service.create_user.assert_called_once()
+        email_verification_service.send_verification_email.assert_called_once_with(
+            user_service=mock_user_service, user_email="invited@example.com", invite_unusable=True
+        )
+
+    def test_register_user_keeps_an_invitation_that_can_be_applied(self, mock_user_service: UserService) -> None:
+        """Test that a genuine invitation is not reported as dropped."""
+        # Arrange: Let the lookup find nobody and the invitation pass its check
+        mock_user_service.get_user_by_email = MagicMock(return_value=None)
+        mock_user_service.create_user = MagicMock(return_value=MagicMock(email="invited@example.com"))
+        email_verification_service = MagicMock()
+
+        household_service = MagicMock()
+        user_register = UserRegister(email="invited@example.com", password="password123", invite_token="a-token")
+
+        # Act: Register a free address with an invitation that checks out
+        mock_user_service.register_user(
+            user_register=user_register,
+            category_service=MagicMock(),
+            household_service=household_service,
+            email_verification_service=email_verification_service,
+        )
+
+        # Assert: Verify the invitation was checked and the verification email says nothing about it
+        household_service.check_signup_invite.assert_called_once_with(email="invited@example.com", token="a-token")
+        email_verification_service.send_verification_email.assert_called_once_with(
+            user_service=mock_user_service, user_email="invited@example.com", invite_unusable=False
+        )
+
+    def test_register_user_answers_an_unusable_invitation_like_a_taken_address(
+        self, mock_user_service: UserService, test_user: User
+    ) -> None:
+        """Test that a bogus invitation reads the same for a free address and for a taken one."""
+        # Arrange: Fail the invitation the way an unknown token does
+        mock_user_service.session = MagicMock()
+        household_service = MagicMock()
+        household_service.check_signup_invite.side_effect = HouseholdInviteNotFoundError()
+
+        user_register = UserRegister(email="invited@example.com", password="password123", invite_token="bogus-token")
+
+        # Act: Register the same payload against a free address and a registered one
+        with patch("app.services.user.EmailOutboxService"):
+            mock_user_service.get_user_by_email = MagicMock(return_value=None)
+            mock_user_service.create_user = MagicMock(return_value=MagicMock(email="invited@example.com"))
+            free = mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=household_service,
+                email_verification_service=MagicMock(),
+            )
+
+            mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
+            mock_user_service.create_user = MagicMock()
+            taken = mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=household_service,
+                email_verification_service=MagicMock(),
+            )
+
+        # Assert: Verify the two replies are the same
+        assert free == taken
+
+    def test_register_user_sends_one_email_for_an_unusable_invitation(
+        self, mock_user_service: UserService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that a dropped invitation is told in the verification email rather than a second one.
+
+        Each send blocks on an HTTPS call to the mail provider, which costs far more than the one
+        bcrypt hash the fix equalises, so a signup that posted two messages would be measurably
+        slower than one that posted one — and the clock would say which addresses are registered.
+        """
+        # Arrange: Fail the invitation on its expiry and turn mail on
+        mock_user_service.get_user_by_email = MagicMock(return_value=None)
+        mock_user_service.create_user = MagicMock(return_value=MagicMock(email="invited@example.com"))
+        mock_user_service.session = MagicMock()
+        email_verification_service = MagicMock()
+
+        household_service = MagicMock()
+        household_service.check_signup_invite.side_effect = HouseholdInviteExpiredError()
+
+        monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        user_register = UserRegister(email="invited@example.com", password="password123", invite_token="bogus-token")
+
+        # Act: Register a free address with an expired invitation
+        with patch("app.services.user.EmailOutboxService") as mock_outbox:
+            mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=household_service,
+                email_verification_service=email_verification_service,
+            )
+
+        # Assert: Verify the only message is the verification email, and it says so itself
+        outbox_sends(mock_outbox).assert_not_called()
+        email_verification_service.send_verification_email.assert_called_once_with(
+            user_service=mock_user_service, user_email="invited@example.com", invite_unusable=True
+        )
+
+    def test_register_user_sends_as_many_emails_for_a_free_address_as_for_a_taken_one(
+        self, mock_user_service: UserService, test_user: User, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that the same bogus token costs one send whether the address is free or taken."""
+        # Arrange: Turn mail on so that both paths really reach the provider
+        monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        mock_user_service.session = MagicMock()
+        household_service = MagicMock()
+        household_service.check_signup_invite.side_effect = HouseholdInviteNotFoundError()
+
+        user_register = UserRegister(email="invited@example.com", password="password123", invite_token="bogus-token")
+
+        # Act: Count the sends on the free path, where the verification service does the sending
+        free_verification_service = MagicMock()
+        with patch("app.services.user.EmailOutboxService") as free_outbox:
+            mock_user_service.get_user_by_email = MagicMock(return_value=None)
+            mock_user_service.create_user = MagicMock(return_value=MagicMock(email="invited@example.com"))
+            mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=household_service,
+                email_verification_service=free_verification_service,
+            )
+
+        # Act: Count the sends on the taken path, where the service sends the notice itself
+        with patch("app.services.user.EmailOutboxService") as taken_outbox:
+            mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
+            mock_user_service.create_user = MagicMock()
+            mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=household_service,
+                email_verification_service=MagicMock(),
+            )
+
+        # Assert: Verify one message either way
+        free_total = outbox_sends(free_outbox).call_count + free_verification_service.send_verification_email.call_count
+        assert free_total == 1
+        assert outbox_sends(taken_outbox).call_count == 1
+
+    def test_register_user_reraises_a_failure_that_is_not_a_taken_address(self, mock_user_service: UserService) -> None:
+        """Test that an IntegrityError on something other than the address is not reported as success.
+
+        A constraint failure while writing the household, the membership or the seeded categories
+        must not answer 200 and mail "you already have an account" to somebody who has none.
+        """
+        # Arrange: Let both lookups find nobody and the creation fail on an unrelated constraint
+        error = IntegrityError("insert", {}, Exception("null value in column violates not-null constraint"))
+        mock_user_service.get_user_by_email = MagicMock(return_value=None)
+        mock_user_service.create_user = MagicMock(side_effect=error)
+        mock_user_service.session = MagicMock()
+
+        user_register = UserRegister(email="newuser@example.com", password="password123")
+
+        # Act: Register a free address whose write fails on an unrelated constraint
+        with patch("app.services.user.EmailOutboxService") as mock_outbox, pytest.raises(IntegrityError):
+            mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=MagicMock(),
+                email_verification_service=MagicMock(),
+            )
+
+        # Assert: Verify the write was undone and nothing was mailed about an account
+        mock_user_service.session.rollback.assert_called_once()
+        outbox_sends(mock_outbox).assert_not_called()
 
 
 class TestGetAuthenticatedUser:

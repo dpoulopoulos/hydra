@@ -115,6 +115,10 @@ export const usersCreateUserMutation = (options?: Partial<Options<UsersCreateUse
  * The user will be created with is_active=False and must verify their email
  * before they can log in.
  *
+ * The reply is the same whether or not the address already has an account, so the endpoint cannot
+ * be used to find out which addresses are registered. What happened is told to the address itself,
+ * by email.
+ *
  * Args:
  * user_service: The user service dependency.
  * email_verification_service: The email verification service dependency.
@@ -125,10 +129,7 @@ export const usersCreateUserMutation = (options?: Partial<Options<UsersCreateUse
  * user_in: The user registration data.
  *
  * Returns:
- * The newly created user.
- *
- * Raises:
- * HTTPException: If a user with the same email already exists (409).
+ * A message asking the caller to check their email.
  */
 export const usersRegisterUserMutation = (options?: Partial<Options<UsersRegisterUserData>>): UseMutationOptions<UsersRegisterUserResponse, UsersRegisterUserError, Options<UsersRegisterUserData>> => {
     const mutationOptions: UseMutationOptions<UsersRegisterUserResponse, UsersRegisterUserError, Options<UsersRegisterUserData>> = {
