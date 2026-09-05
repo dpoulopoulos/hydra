@@ -15,6 +15,7 @@ import { ErrorState, LoadingRows } from '@/components/data-state'
 import { PageHeader } from '@/components/layout/page-header'
 import { Money } from '@/components/money'
 import { MonthPicker } from '@/components/month-picker'
+import { NetWorthToggle, type NetWorthPart } from '@/components/net-worth-toggle'
 import { PeriodToggle, type Period } from '@/components/period-toggle'
 import { StatTile } from '@/components/stat-tile'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -39,11 +40,34 @@ function greeting(name: string | null | undefined): string {
   return first ? `${part}, ${first}` : part
 }
 
+/** What the Net worth tile is called, per part. */
+const NET_WORTH_LABELS: Record<NetWorthPart, string> = {
+  bank: 'In your accounts',
+  brokerage: 'With your brokers',
+  assets: 'Your holdings',
+  total: 'Net worth',
+}
+
+/**
+ * What each part actually counts.
+ *
+ * Said in one line each, because the three are easy to confuse and the
+ * difference between "cash at a broker" and "what the holdings are worth" is
+ * exactly the one people get wrong.
+ */
+const NET_WORTH_HINTS: Record<NetWorthPart, string> = {
+  bank: 'Banks, savings, cash and credit cards.',
+  brokerage: 'Cash with a broker that has not been spent on a holding yet.',
+  assets: 'What the holdings are worth at their last known price.',
+  total: 'Accounts and holdings together. Nothing is counted twice.',
+}
+
 export function Component() {
   const currency = useCurrency()
   const { user } = useAuth()
   const [month, setMonth] = useState(currentMonth)
   const [savedSpan, setSavedSpan] = useState<Period>('month')
+  const [worthPart, setWorthPart] = useState<NetWorthPart>('total')
   const year = month.slice(0, 4)
 
   // The summary is one request on purpose, and it also brings any recurring
@@ -148,10 +172,32 @@ export function Component() {
               }
             />
             <StatTile
-              label="Net worth"
-              minor={summary.data.net_worth_minor}
+              label={NET_WORTH_LABELS[worthPart]}
+              minor={
+                {
+                  bank: summary.data.bank_minor ?? 0,
+                  brokerage: summary.data.brokerage_minor ?? 0,
+                  assets: summary.data.assets_minor ?? 0,
+                  total: summary.data.net_worth_minor,
+                }[worthPart]
+              }
               currency={currency}
-              hint="Across every account you have not archived"
+              action={<NetWorthToggle value={worthPart} onChange={setWorthPart} />}
+              hint={
+                <span className="space-y-1">
+                  <span className="block">{NET_WORTH_HINTS[worthPart]}</span>
+                  {/* Only where it changes the reading. A missing price makes
+                      the holdings understated, and the total with them. */}
+                  {(summary.data.unpriced_asset_count ?? 0) > 0 &&
+                  (worthPart === 'assets' || worthPart === 'total') ? (
+                    <span className="text-negative block">
+                      {summary.data.unpriced_asset_count === 1
+                        ? '1 holding has no price, so this is understated.'
+                        : `${summary.data.unpriced_asset_count} holdings have no price, so this is understated.`}
+                    </span>
+                  ) : null}
+                </span>
+              }
             />
           </div>
 
