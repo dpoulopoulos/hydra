@@ -27,6 +27,11 @@ class HouseholdBase(SQLModel):
     # ISO 4217. Single currency per household in this version; the column exists
     # so adding a second one later does not have to restructure the ledger.
     currency_code: str = Field(default="EUR", min_length=3, max_length=3)
+    # What a paid session is called on the Transactions page. The client's name
+    # cannot go there: it is encrypted by the browser, and writing it into the
+    # ledger would undo that. One label for the whole household, never one per
+    # client, because a per-client label is the name again under another field.
+    session_merchant_label: str = Field(default="Session", min_length=1, max_length=255)
 
 
 class HouseholdCreate(HouseholdBase):
@@ -35,6 +40,7 @@ class HouseholdCreate(HouseholdBase):
 
 class HouseholdUpdate(SQLModel):
     name: str | None = Field(default=None, max_length=255)
+    session_merchant_label: str | None = Field(default=None, min_length=1, max_length=255)
 
 
 class HouseholdPublic(HouseholdBase):

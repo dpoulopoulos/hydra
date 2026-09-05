@@ -41,6 +41,16 @@ from .household_exceptions import (
     HouseholdRoleRequiredError,
     LastHouseholdOwnerError,
 )
+from .income_exceptions import (
+    ClientCadenceError,
+    IncomeClientInUseError,
+    IncomeClientNotFoundError,
+    IncomeClientNotOwnedError,
+    IncomeSessionNotFoundError,
+    IncomeVaultExistsError,
+    IncomeVaultNotFoundError,
+    SessionPaymentDateError,
+)
 from .investment_exceptions import (
     InstrumentExistsError,
     InstrumentInUseError,
@@ -68,6 +78,7 @@ from .report_exceptions import InvalidDateRangeError, ReportRangeTooLargeError
 from .transaction_exceptions import (
     SameAccountTransferError,
     TransactionCategoryKindError,
+    TransactionFromSessionError,
     TransactionNotFoundError,
     TransferShapeError,
 )
@@ -80,6 +91,15 @@ from .user_exceptions import (
 )
 
 __all__ = [
+    "ClientCadenceError",
+    "TransactionFromSessionError",
+    "IncomeClientInUseError",
+    "IncomeClientNotFoundError",
+    "IncomeClientNotOwnedError",
+    "IncomeSessionNotFoundError",
+    "IncomeVaultExistsError",
+    "IncomeVaultNotFoundError",
+    "SessionPaymentDateError",
     "AccountArchivedError",
     "AccountExistsError",
     "AccountInUseError",
