@@ -30,7 +30,7 @@ from app.models import (
     UserUpdate,
     UserUpdateMe,
 )
-from app.services import EmailVerificationService, PasswordResetService, UserService
+from app.services import EmailVerificationService, UserService
 
 
 class TestAuthenticate:
@@ -540,7 +540,6 @@ class TestUpdateUserMe:
         self,
         mock_user_service: UserService,
         test_user: User,
-        mock_password_reset_service: PasswordResetService,
         mock_email_verification_service: EmailVerificationService,
     ) -> None:
         """Test successfully updating current user."""
@@ -557,7 +556,6 @@ class TestUpdateUserMe:
         result = mock_user_service.update_user_me(
             current_user=test_user,
             user_update=user_update,
-            password_reset_service=mock_password_reset_service,
             email_verification_service=mock_email_verification_service,
         )
 
@@ -568,46 +566,67 @@ class TestUpdateUserMe:
         mock_user_service.session.commit.assert_called_once()
         mock_user_service.session.refresh.assert_called_once()
 
-    def test_update_user_me_email_change(
+    def test_update_user_me_email_change_is_held_until_it_is_verified(
         self,
         mock_user_service: UserService,
         test_user: User,
-        mock_password_reset_service: PasswordResetService,
         mock_email_verification_service: EmailVerificationService,
     ) -> None:
-        """Test updating current user's email."""
-        # Arrange: Mock database operations and new email
+        """Test a new address is sent a verification instead of being written."""
+        # Arrange: Nothing else holds the new address
         mock_user_service.session.exec = MagicMock()
         mock_user_service.session.exec.return_value.first.return_value = None
-        mock_user_service.session.add = MagicMock()
-        mock_user_service.session.commit = MagicMock()
-        mock_user_service.session.refresh = MagicMock()
-        mock_password_reset_service.invalidate_pending_for_user = MagicMock()
-        mock_email_verification_service.invalidate_pending_for_user = MagicMock()
+        mock_email_verification_service.send_email_change_verification = MagicMock()
 
+        current_email = test_user.email
         user_update = UserUpdateMe(email="newemail@example.com")
 
-        # Act: Update current user's email
+        # Act: Ask for a new address
         result = mock_user_service.update_user_me(
             current_user=test_user,
             user_update=user_update,
-            password_reset_service=mock_password_reset_service,
             email_verification_service=mock_email_verification_service,
         )
 
-        # Assert: Verify email was updated successfully
+        # Assert: The account keeps the address it has proven, and the new one
+        # is only asked about
         assert isinstance(result, UserPublic)
-        assert result.email == user_update.email
-        mock_user_service.session.add.assert_called_once()
-        mock_user_service.session.commit.assert_called_once()
-        mock_user_service.session.refresh.assert_called_once()
+        assert result.email == current_email
+        assert test_user.email == current_email
+        mock_email_verification_service.send_email_change_verification.assert_called_once_with(
+            user=test_user, new_email="newemail@example.com"
+        )
+
+    def test_update_user_me_saves_the_rest_of_a_pending_email_change(
+        self,
+        mock_user_service: UserService,
+        test_user: User,
+        mock_email_verification_service: EmailVerificationService,
+    ) -> None:
+        """Test the fields that need no proof are saved alongside a pending address."""
+        # Arrange: One request carries both a name and a new address
+        mock_user_service.session.exec = MagicMock()
+        mock_user_service.session.exec.return_value.first.return_value = None
+        mock_email_verification_service.send_email_change_verification = MagicMock()
+
+        user_update = UserUpdateMe(full_name="Updated Name", email="newemail@example.com")
+
+        # Act
+        result = mock_user_service.update_user_me(
+            current_user=test_user,
+            user_update=user_update,
+            email_verification_service=mock_email_verification_service,
+        )
+
+        # Assert
+        assert result.full_name == "Updated Name"
+        assert result.email != "newemail@example.com"
 
     def test_update_user_me_email_exists(
         self,
         mock_user_service: UserService,
         test_user: User,
         another_test_user: User,
-        mock_password_reset_service: PasswordResetService,
         mock_email_verification_service: EmailVerificationService,
     ) -> None:
         """Test updating email to one that already exists."""
@@ -616,6 +635,7 @@ class TestUpdateUserMe:
         mock_user_service.session.exec.return_value.first.return_value = (
             another_test_user
         )
+        mock_email_verification_service.send_email_change_verification = MagicMock()
 
         user_update = UserUpdateMe(email=another_test_user.email)
 
@@ -624,56 +644,22 @@ class TestUpdateUserMe:
             mock_user_service.update_user_me(
                 current_user=test_user,
                 user_update=user_update,
-                password_reset_service=mock_password_reset_service,
                 email_verification_service=mock_email_verification_service,
             )
 
-    def test_update_user_me_email_change_retires_pending_email_flows(
+        mock_email_verification_service.send_email_change_verification.assert_not_called()
+
+    def test_update_user_me_asks_nothing_of_an_unchanged_address(
         self,
         mock_user_service: UserService,
         test_user: User,
-        mock_password_reset_service: PasswordResetService,
         mock_email_verification_service: EmailVerificationService,
     ) -> None:
-        """Test a change of address retires the tokens issued for the old one."""
-        # Arrange: Nothing else holds the new address
-        mock_user_service.session.exec = MagicMock()
-        mock_user_service.session.exec.return_value.first.return_value = None
-        mock_password_reset_service.invalidate_pending_for_user = MagicMock()
-        mock_email_verification_service.invalidate_pending_for_user = MagicMock()
-
-        user_update = UserUpdateMe(email="newemail@example.com")
-
-        # Act
-        mock_user_service.update_user_me(
-            current_user=test_user,
-            user_update=user_update,
-            password_reset_service=mock_password_reset_service,
-            email_verification_service=mock_email_verification_service,
-        )
-
-        # Assert: A reset or verification issued for the old address is no
-        # longer redeemable
-        mock_password_reset_service.invalidate_pending_for_user.assert_called_once_with(
-            user_id=test_user.id
-        )
-        mock_email_verification_service.invalidate_pending_for_user.assert_called_once_with(
-            user_id=test_user.id
-        )
-
-    def test_update_user_me_keeps_pending_email_flows_on_an_unchanged_address(
-        self,
-        mock_user_service: UserService,
-        test_user: User,
-        mock_password_reset_service: PasswordResetService,
-        mock_email_verification_service: EmailVerificationService,
-    ) -> None:
-        """Test resubmitting the same address leaves its pending tokens alone."""
+        """Test resubmitting the same address does not ask the user to prove it again."""
         # Arrange: The update carries the address the user already holds
         mock_user_service.session.exec = MagicMock()
         mock_user_service.session.exec.return_value.first.return_value = test_user
-        mock_password_reset_service.invalidate_pending_for_user = MagicMock()
-        mock_email_verification_service.invalidate_pending_for_user = MagicMock()
+        mock_email_verification_service.send_email_change_verification = MagicMock()
 
         user_update = UserUpdateMe(email=test_user.email)
 
@@ -681,13 +667,11 @@ class TestUpdateUserMe:
         mock_user_service.update_user_me(
             current_user=test_user,
             user_update=user_update,
-            password_reset_service=mock_password_reset_service,
             email_verification_service=mock_email_verification_service,
         )
 
         # Assert
-        mock_password_reset_service.invalidate_pending_for_user.assert_not_called()
-        mock_email_verification_service.invalidate_pending_for_user.assert_not_called()
+        mock_email_verification_service.send_email_change_verification.assert_not_called()
 
 
 class TestUpdateUser:

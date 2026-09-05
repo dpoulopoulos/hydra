@@ -348,6 +348,77 @@ class TestSendVerificationEmail:
         expected = request_time + timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
         assert email_verification.expires_at == expected
 
+class TestSendEmailChangeVerification:
+    """Tests for the send_email_change_verification method."""
+
+    def test_send_email_change_verification_writes_a_pending_change(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+    ) -> None:
+        """Test the row keeps the current address and the one being asked for apart."""
+        # Arrange: The user holds no other pending verification
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        # Act
+        with patch("app.services.email_verification.try_send_email"):
+            result = mock_email_verification_service.send_email_change_verification(
+                user=test_user, new_email="moving-to@example.com"
+            )
+
+        # Assert
+        assert isinstance(result, Message)
+        email_verification = mock_email_verification_service.session.add.call_args[0][0]
+        assert email_verification.email == test_user.email
+        assert email_verification.new_email == "moving-to@example.com"
+        assert email_verification.status == EmailVerificationStatus.PENDING
+
+    def test_send_email_change_verification_addresses_the_token_to_the_new_address(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+    ) -> None:
+        """Test the address being proven is the one the link is sent to."""
+        # Arrange
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        # Act
+        with patch("app.services.email_verification.try_send_email") as mock_send_email:
+            mock_email_verification_service.send_email_change_verification(
+                user=test_user, new_email="moving-to@example.com"
+            )
+
+        # Assert: The token names the new address, and the mail goes there
+        # rather than to the address the account still holds
+        email_verification = mock_email_verification_service.session.add.call_args[0][0]
+        decoded = jwt.decode(email_verification.token, settings.SECRET_KEY, algorithms=[ALGORITHM], audience=JWT.AUDIENCE)
+        assert decoded["sub"] == "moving-to@example.com"
+        assert mock_send_email.call_args.kwargs["email_to"] == "moving-to@example.com"
+
+    def test_send_email_change_verification_retires_an_earlier_pending_verification(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test a fresh request leaves no earlier verification redeemable."""
+        # Arrange: The user already has a pending verification
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act
+        with patch("app.services.email_verification.try_send_email"):
+            mock_email_verification_service.send_email_change_verification(
+                user=test_user, new_email="moving-to@example.com"
+            )
+
+        # Assert
+        assert test_email_verification.status == EmailVerificationStatus.EXPIRED
+
+
 class TestResendVerificationEmail:
     """Tests for the resend_verification_email method."""
 

@@ -210,7 +210,7 @@
           "users"
         ],
         "summary": "Update User Me",
-        "description": "Update the current user's information.\n\nArgs:\n    user_service: The user service dependency.\n    password_reset_service: The password reset service dependency.\n    email_verification_service: The email verification service dependency.\n    user_in: The user data to update.\n    current_user: The current authenticated user.\n\nReturns:\n    The updated user information.\n\nRaises:\n    HTTPException: If a user with the same email already exists (409), the user's token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
+        "description": "Update the current user's information.\n\nA new email address is not applied here: it is mailed a verification link\nand only becomes the account's address once that link is followed.\n\nArgs:\n    user_service: The user service dependency.\n    email_verification_service: The email verification service dependency.\n    user_in: The user data to update.\n    current_user: The current authenticated user.\n\nReturns:\n    The updated user information.\n\nRaises:\n    HTTPException: If a user with the same email already exists (409), the user's token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
         "operationId": "users-update_user_me",
         "requestBody": {
           "content": {
