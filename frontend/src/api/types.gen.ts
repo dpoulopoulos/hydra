@@ -2868,9 +2868,9 @@ export type UpcomingOccurrencesPublic = {
      */
     count: number;
     /**
-     * Total Minor
+     * Net Minor
      */
-    total_minor?: number;
+    net_minor?: number;
 };
 
 /**

@@ -21,6 +21,7 @@ from app.models import (
     RecurringRuleUpdate,
     RecurringRunResult,
     Transaction,
+    TransactionKind,
     UpcomingOccurrence,
     UpcomingOccurrencesPublic,
 )
@@ -36,6 +37,28 @@ from app.services.recurrence import (
 
 # How far ahead the upcoming list looks when no date is given.
 DEFAULT_UPCOMING_DAYS = 60
+
+
+def _signed_minor(occurrence: UpcomingOccurrence) -> int:
+    """Read an occurrence as the change it makes to what the household holds.
+
+    A stored amount is a positive magnitude and the meaning lives in the kind,
+    so a total that ignores the kind is not a quantity. A transfer contributes
+    nothing: it moves money between the household's own accounts.
+
+    Args:
+        occurrence: The projected occurrence to read.
+
+    Returns:
+        The signed amount, in minor units.
+    """
+    if occurrence.kind is TransactionKind.TRANSFER:
+        return 0
+
+    if occurrence.kind is TransactionKind.INCOME:
+        return occurrence.amount_minor
+
+    return -occurrence.amount_minor
 
 
 class RecurringRuleService:
@@ -253,7 +276,8 @@ class RecurringRuleService:
             until: The last day to project to, inclusive. Defaults to two months out.
 
         Returns:
-            The projected occurrences, soonest first, and what they add up to.
+            The projected occurrences, soonest first, and the net they leave the
+            household with: income less expenses, transfers excluded.
         """
         horizon = until or datetime.date.today() + datetime.timedelta(days=DEFAULT_UPCOMING_DAYS)
         upcoming: list[UpcomingOccurrence] = []
@@ -287,7 +311,7 @@ class RecurringRuleService:
         return UpcomingOccurrencesPublic(
             data=upcoming,
             count=len(upcoming),
-            total_minor=sum(occurrence.amount_minor for occurrence in upcoming),
+            net_minor=sum(_signed_minor(occurrence) for occurrence in upcoming),
         )
 
     def materialize_due(self, household: HouseholdContext, until: datetime.date | None = None) -> RecurringRunResult:

@@ -99,7 +99,11 @@ class UpcomingOccurrence(SQLModel):
 class UpcomingOccurrencesPublic(SQLModel):
     data: list[UpcomingOccurrence]
     count: int
-    total_minor: int = 0
+    # Signed by kind and with transfers left out, the way every other total in
+    # the API is derived. An amount is a positive magnitude, so summing the
+    # occurrences as they stand would count income as an outgoing and count a
+    # move between the household's own accounts at all.
+    net_minor: int = 0
 
 
 class RecurringRunResult(SQLModel):

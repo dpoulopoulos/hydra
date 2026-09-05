@@ -99,11 +99,12 @@ def make_rule(
     account_id: uuid.UUID | None = None,
     counter_account_id: uuid.UUID | None = None,
     category_id: uuid.UUID | None = None,
+    name: str = "Rent",
 ) -> RecurringRule:
     """Build a recurring rule row for the tests."""
     return RecurringRule(
         household_id=HOUSEHOLD_ID,
-        name="Rent",
+        name=name,
         frequency=frequency,
         interval=interval,
         day_of_month=day_of_month,
@@ -112,7 +113,7 @@ def make_rule(
         kind=kind,
         amount_minor=amount_minor,
         account_id=account_id or uuid.uuid4(),
-        counter_account_id=counter_account_id,
+        counter_account_id=counter_account_id or (uuid.uuid4() if kind is TransactionKind.TRANSFER else None),
         category_id=category_id,
         next_occurrence_on=next_occurrence_on,
         last_generated_on=last_generated_on,
@@ -661,9 +662,55 @@ class TestListUpcoming:
             date(2026, 5, 1),
             date(2026, 6, 1),
         ]
-        assert result.total_minor == 360_000
+        assert result.net_minor == -360_000
         mock_recurring_rule_service.session.add.assert_not_called()
         mock_recurring_rule_service.session.commit.assert_not_called()
+
+    def test_the_net_signs_income_and_expenses_and_leaves_transfers_out(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """An amount is a magnitude, so the headline has to read the kind to mean anything."""
+        rules = [
+            make_rule(name="Rent", amount_minor=120_000, next_occurrence_on=date(2026, 4, 1)),
+            make_rule(
+                name="Salary",
+                kind=TransactionKind.INCOME,
+                amount_minor=300_000,
+                next_occurrence_on=date(2026, 4, 25),
+            ),
+            make_rule(
+                name="To savings",
+                kind=TransactionKind.TRANSFER,
+                amount_minor=50_000,
+                next_occurrence_on=date(2026, 4, 28),
+            ),
+        ]
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = rules
+
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 4, 30))
+
+        assert result.count == 3
+        assert result.net_minor == 180_000
+
+    def test_a_window_of_only_transfers_nets_to_nothing(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """A transfer moves money between the household's own accounts."""
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [
+            make_rule(
+                name="To savings",
+                kind=TransactionKind.TRANSFER,
+                amount_minor=50_000,
+                next_occurrence_on=date(2026, 4, 1),
+            )
+        ]
+
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 4, 30))
+
+        assert result.count == 1
+        assert result.net_minor == 0
 
     def test_skips_an_exhausted_rule(
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
