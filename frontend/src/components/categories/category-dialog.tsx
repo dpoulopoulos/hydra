@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useCategoryTree } from '@/hooks/use-categories'
+import { useCategoryTree, useInvalidateCategories } from '@/hooks/use-categories'
 import { errorMessage } from '@/lib/api'
 import { CATEGORY_KIND_LABELS } from '@/lib/labels'
 
@@ -57,7 +57,7 @@ export function CategoryDialog({
   defaultParent?: CategoryPublic | null
   onOpenChange: (open: boolean) => void
 }) {
-  const queryClient = useQueryClient()
+  const invalidate = useInvalidateCategories()
   const isEdit = category !== null
   const { data: tree } = useCategoryTree()
 
@@ -105,7 +105,7 @@ export function CategoryDialog({
       if (error) throw error
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['categories'] })
+      invalidate()
       toast.success(isEdit ? 'Category saved' : 'Category added')
       onOpenChange(false)
     },
