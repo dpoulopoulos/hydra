@@ -1274,10 +1274,8 @@ export const recurringRulesListUpcomingOccurrences = <ThrowOnError extends boole
  * until: The last day to record up to, inclusive. Defaults to today.
  *
  * Returns:
- * How many transactions were created and how many rules moved on.
- *
- * Raises:
- * HTTPException: If a rule points at an account that no longer exists (404).
+ * How many transactions were created, how many occurrences were passed
+ * over, and how many rules moved on.
  */
 export const recurringRulesRunRecurringRules = <ThrowOnError extends boolean = false>(options?: Options<RecurringRulesRunRecurringRulesData, ThrowOnError>): RequestResult<RecurringRulesRunRecurringRulesResponses, RecurringRulesRunRecurringRulesErrors, ThrowOnError> => (options?.client ?? client).post<RecurringRulesRunRecurringRulesResponses, RecurringRulesRunRecurringRulesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

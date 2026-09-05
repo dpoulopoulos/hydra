@@ -130,10 +130,8 @@ def run_recurring_rules(
         until: The last day to record up to, inclusive. Defaults to today.
 
     Returns:
-        How many transactions were created and how many rules moved on.
-
-    Raises:
-        HTTPException: If a rule points at an account that no longer exists (404).
+        How many transactions were created, how many occurrences were passed
+        over, and how many rules moved on.
     """
     return recurring_rule_service.materialize_due(household=household, until=until)
 

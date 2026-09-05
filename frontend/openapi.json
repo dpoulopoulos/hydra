@@ -2495,7 +2495,7 @@
           "recurring-rules"
         ],
         "summary": "Run Recurring Rules",
-        "description": "Record the transactions the rules have fallen due for.\n\nThe read paths do this automatically, so this endpoint exists for catching\nup explicitly, or for creating occurrences ahead of today.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    until: The last day to record up to, inclusive. Defaults to today.\n\nReturns:\n    How many transactions were created and how many rules moved on.\n\nRaises:\n    HTTPException: If a rule points at an account that no longer exists (404).",
+        "description": "Record the transactions the rules have fallen due for.\n\nThe read paths do this automatically, so this endpoint exists for catching\nup explicitly, or for creating occurrences ahead of today.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    until: The last day to record up to, inclusive. Defaults to today.\n\nReturns:\n    How many transactions were created, how many occurrences were passed\n    over, and how many rules moved on.",
         "operationId": "recurring-rules-run_recurring_rules",
         "security": [
           {

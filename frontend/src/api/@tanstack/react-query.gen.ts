@@ -1614,10 +1614,8 @@ export const recurringRulesListUpcomingOccurrencesOptions = (options?: Options<R
  * until: The last day to record up to, inclusive. Defaults to today.
  *
  * Returns:
- * How many transactions were created and how many rules moved on.
- *
- * Raises:
- * HTTPException: If a rule points at an account that no longer exists (404).
+ * How many transactions were created, how many occurrences were passed
+ * over, and how many rules moved on.
  */
 export const recurringRulesRunRecurringRulesMutation = (options?: Partial<Options<RecurringRulesRunRecurringRulesData>>): UseMutationOptions<RecurringRulesRunRecurringRulesResponse, RecurringRulesRunRecurringRulesError, Options<RecurringRulesRunRecurringRulesData>> => {
     const mutationOptions: UseMutationOptions<RecurringRulesRunRecurringRulesResponse, RecurringRulesRunRecurringRulesError, Options<RecurringRulesRunRecurringRulesData>> = {

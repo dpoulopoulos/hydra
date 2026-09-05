@@ -298,16 +298,18 @@ class RecurringRuleService:
         Idempotent by the cursor on each rule, which only ever moves forward,
         and backed by a unique index on (rule, date) in case two requests race.
 
+        A rule whose account has since been archived, or has gone, is passed
+        over rather than failing the read it runs under: its occurrences are
+        counted as skipped and its cursor is left alone, so putting the account
+        back picks the rule up where it stopped.
+
         Args:
             household: The household context.
             until: The last day to create up to, inclusive. Defaults to today.
 
         Returns:
-            How many transactions were created, how many were already there,
-            and how many rules moved on.
-
-        Raises:
-            AccountNotFoundError: If a rule points at an account that has gone.
+            How many transactions were created, how many occurrences were
+            passed over, and how many rules moved on.
         """
         horizon = until or datetime.date.today()
         rules = self.recurring_rule_repository.lock_due(household_id=household.household_id, until=horizon)
@@ -335,6 +337,13 @@ class RecurringRuleService:
                 rule.next_occurrence_on = None
                 self.recurring_rule_repository.add(rule)
                 advanced += 1
+                continue
+
+            if not self._accounts_can_take_transactions(household=household, rule=rule):
+                # The ledger refuses an archived account by hand, so the rule
+                # must not write one behind the user's back. Counted, and the
+                # cursor stays put until the account is usable again.
+                skipped += len(dates)
                 continue
 
             for occurs_on in dates:
@@ -366,6 +375,32 @@ class RecurringRuleService:
         self.session.commit()
 
         return RecurringRunResult(created_count=created, skipped_count=skipped, rules_advanced=advanced)
+
+    def _accounts_can_take_transactions(self, household: HouseholdContext, rule: RecurringRule) -> bool:
+        """Check the accounts a rule draws on are still able to take a transaction.
+
+        Both are checked at create time, but an account can be archived, or
+        removed, long after the rule was written.
+
+        Args:
+            household: The household context.
+            rule: The rule about to be materialized.
+
+        Returns:
+            True if every account the rule names exists and is not archived.
+        """
+        account_ids = [rule.account_id]
+
+        if rule.counter_account_id is not None:
+            account_ids.append(rule.counter_account_id)
+
+        for account_id in account_ids:
+            try:
+                self._resolve_account(household=household, account_id=account_id)
+            except (AccountNotFoundError, AccountArchivedError):
+                return False
+
+        return True
 
     def _next_after(self, rule: RecurringRule, last: datetime.date) -> datetime.date | None:
         """Work out the cursor after an occurrence was created.
