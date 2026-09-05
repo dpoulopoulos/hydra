@@ -186,6 +186,12 @@ export function RuleDialog({
     kind: kind === TransactionKind.INCOME ? CategoryKind.INCOME : CategoryKind.EXPENSE,
   })
 
+  // A balance is computed from the ledger, so the account list comes back as a
+  // new object whenever anything in the household moves. Keeping the payload
+  // out of the effects below means a refetch behind an open dialog never
+  // reaches the form the user is filling in.
+  const defaultAccountId = accounts?.data[0]?.id ?? ''
+
   useEffect(() => {
     if (!open) return
     setShowMore(Boolean(rule && ((rule.interval ?? 1) > 1 || rule.end_date || rule.merchant)))
@@ -198,12 +204,21 @@ export function RuleDialog({
       day_of_month: rule?.day_of_month ? String(rule.day_of_month) : '',
       start_date: rule?.start_date ?? today(),
       end_date: rule?.end_date ?? '',
-      account_id: rule?.account_id ?? accounts?.data[0]?.id ?? '',
+      account_id: rule?.account_id ?? '',
       counter_account_id: rule?.counter_account_id ?? '',
       category_id: rule?.category_id ?? NO_CATEGORY,
       merchant: rule?.merchant ?? '',
     })
-  }, [open, rule, accounts, currency, form])
+  }, [open, rule, currency, form])
+
+  // The accounts can still be on their way when the dialog opens, so the first
+  // one is offered as soon as they land. Only the empty picker is filled in: a
+  // choice already made, by the user or by the rule being edited, stands.
+  useEffect(() => {
+    if (!open || !defaultAccountId) return
+    if (form.getValues('account_id')) return
+    form.setValue('account_id', defaultAccountId)
+  }, [open, defaultAccountId, form])
 
   const save = useMutation({
     mutationFn: async (parsed: Parsed) => {
