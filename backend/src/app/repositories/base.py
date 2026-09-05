@@ -5,6 +5,31 @@ from sqlalchemy import Table
 from sqlmodel import Session, SQLModel, func, select
 from sqlmodel.sql.expression import SelectOfScalar
 
+# The character a LIKE pattern uses to quote the next one. Postgres has no
+# default, so every pattern built here has to declare it with escape=.
+LIKE_ESCAPE = "\\"
+
+
+def contains_pattern(term: str) -> str:
+    """Build a LIKE pattern matching a term literally anywhere in a column.
+
+    ``%`` and ``_`` are LIKE metacharacters, so a term carrying them would be
+    interpreted rather than matched: searching for "50%" would otherwise
+    return every row containing "50". They are escaped here, the backslash
+    first so the escapes that follow are not escaped again.
+
+    Args:
+        term: The text to search for, as the user typed it.
+
+    Returns:
+        A pattern to pass to ``ilike(pattern, escape=LIKE_ESCAPE)``.
+    """
+    escaped = term.replace(LIKE_ESCAPE, LIKE_ESCAPE * 2)
+    for metacharacter in ("%", "_"):
+        escaped = escaped.replace(metacharacter, LIKE_ESCAPE + metacharacter)
+
+    return f"%{escaped}%"
+
 
 def table_of(model_class: type[SQLModel]) -> Table:
     """Get the mapped table of a SQLModel class.
