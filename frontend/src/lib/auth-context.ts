@@ -7,6 +7,14 @@ export type AuthValue = {
   /** True until the stored token has been checked against the API. */
   isLoading: boolean
   isAuthenticated: boolean
+  /** True only when the session is over: no token, or the API rejected it. */
+  isUnauthenticated: boolean
+  /** Set when the check failed for a reason that is not a rejection. */
+  error: unknown
+  /** Ask again, after a failure that may well have passed by now. */
+  retry: () => void
+  /** True while a repeat check is in flight, so the retry can show its work. */
+  isRetrying: boolean
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => void
 }

@@ -3,8 +3,9 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AuthContext, type AuthValue } from '@/lib/auth-context'
+import { AuthContext } from '@/lib/auth-context'
 import { Component as Dashboard } from '@/pages/dashboard'
+import { session } from '@/test/auth'
 
 // The page reads its four reports from the generated client, so the tests
 // stand in for the endpoints rather than for the queries: what matters here is
@@ -23,13 +24,10 @@ vi.mock('@/api', async (importOriginal) => {
 
 const api = await import('@/api')
 
-const auth: AuthValue = {
+const auth = session({
   user: { id: 'u', email: 'someone@example.com', full_name: 'Ada', is_active: true } as never,
-  isLoading: false,
   isAuthenticated: true,
-  signIn: async () => {},
-  signOut: () => {},
-}
+})
 
 function renderDashboard() {
   const client = new QueryClient({
