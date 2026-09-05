@@ -51,6 +51,7 @@ class LedgerReferenceResolver:
         account_id: uuid.UUID,
         counter_account_id: uuid.UUID | None,
         category_id: uuid.UUID | None,
+        check_accounts: bool = True,
     ) -> None:
         """Check every reference of an entry, as it will stand once written.
 
@@ -65,6 +66,10 @@ class LedgerReferenceResolver:
             account_id: The account it draws on.
             counter_account_id: The destination account, for a transfer.
             category_id: The category, for an expense or income.
+            check_accounts: Whether to look the accounts up and check they can
+                still take transactions. An edit that names no account leaves
+                this off, so an unrelated change still saves once an account
+                the entry already points at has been archived.
 
         Raises:
             AccountNotFoundError: If an account does not exist in the household.
@@ -79,10 +84,12 @@ class LedgerReferenceResolver:
             counter_account_id=counter_account_id,
             category_id=category_id,
         )
-        self.resolve_account(household=household, account_id=account_id)
 
-        if counter_account_id is not None:
-            self.resolve_account(household=household, account_id=counter_account_id)
+        if check_accounts:
+            self.resolve_account(household=household, account_id=account_id)
+
+            if counter_account_id is not None:
+                self.resolve_account(household=household, account_id=counter_account_id)
 
         # After the lookups rather than before: an account that is not there is
         # a missing reference first and a badly shaped transfer second, so
