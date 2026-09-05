@@ -496,7 +496,9 @@ class TestUpdateTransaction:
             kind=TransactionKind.TRANSFER, account_id=account.id, counter_account_id=uuid.uuid4()
         )
         mock_transaction_service.session.exec = MagicMock()
-        mock_transaction_service.session.exec.return_value.first.side_effect = [transaction, account]
+        # Three lookups: the transaction, then both accounts, which the same ID
+        # now resolves twice before the two are compared.
+        mock_transaction_service.session.exec.return_value.first.side_effect = [transaction, account, account]
 
         with pytest.raises(SameAccountTransferError):
             mock_transaction_service.update_transaction(

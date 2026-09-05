@@ -40,6 +40,7 @@ from app.services import (
     HouseholdService,
     IncomeService,
     InvestmentService,
+    LedgerReferenceResolver,
     PasswordResetService,
     RecurringRuleService,
     ReportService,
@@ -537,19 +538,37 @@ def mock_transaction_repository(mock_db_session: MagicMock) -> TransactionReposi
 
 
 @pytest.fixture
+def mock_reference_resolver(
+    mock_account_repository: AccountRepository,
+    mock_category_repository: CategoryRepository,
+) -> LedgerReferenceResolver:
+    """Create a LedgerReferenceResolver over repositories with a mocked session.
+
+    Args:
+        mock_account_repository: The account repository instance.
+        mock_category_repository: The category repository instance.
+
+    Returns:
+        A LedgerReferenceResolver instance with a mocked session.
+    """
+    return LedgerReferenceResolver(
+        account_repository=mock_account_repository,
+        category_repository=mock_category_repository,
+    )
+
+
+@pytest.fixture
 def mock_transaction_service(
     mock_db_session: MagicMock,
     mock_transaction_repository: TransactionRepository,
-    mock_account_repository: AccountRepository,
-    mock_category_repository: CategoryRepository,
+    mock_reference_resolver: LedgerReferenceResolver,
 ) -> TransactionService:
     """Create a TransactionService instance with a mocked session.
 
     Args:
         mock_db_session: The mock database session.
         mock_transaction_repository: The transaction repository instance.
-        mock_account_repository: The account repository instance.
-        mock_category_repository: The category repository instance.
+        mock_reference_resolver: The ledger reference resolver instance.
 
     Returns:
         A TransactionService instance with a mocked session.
@@ -557,8 +576,7 @@ def mock_transaction_service(
     return TransactionService(
         session=mock_db_session,
         transaction_repository=mock_transaction_repository,
-        account_repository=mock_account_repository,
-        category_repository=mock_category_repository,
+        reference_resolver=mock_reference_resolver,
     )
 
 
