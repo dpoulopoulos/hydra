@@ -316,7 +316,8 @@ export function Component() {
                       <TableHead className="text-right">Price</TableHead>
                       <TableHead className="text-right">Cost</TableHead>
                       <TableHead className="text-right">Value</TableHead>
-                      <TableHead className="text-right">Gain</TableHead>
+                      <TableHead className="text-right">Unrealised</TableHead>
+                      <TableHead className="text-right">Realised</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
@@ -382,12 +383,34 @@ export function Component() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          {position.unrealised_gain_minor === null ||
+                          {/* A sold position holds nothing, so there is nothing
+                              left to gain or lose on paper. A dash rather than
+                              a zero, which would read as "flat" instead of
+                              "does not apply". */}
+                          {!position.is_open ||
+                          position.unrealised_gain_minor === null ||
                           position.unrealised_gain_minor === undefined ? (
                             <span className="text-muted-foreground">—</span>
                           ) : (
                             <Money
                               minor={position.unrealised_gain_minor}
+                              currency={currency}
+                              signed
+                              colored
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {/* Its own column, because it is the only figure a
+                              sold position still has, and because an open
+                              position can have banked money too: selling half
+                              realises a gain while the rest keeps moving. */}
+                          {position.realised_gain_minor === null ||
+                          position.realised_gain_minor === undefined ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <Money
+                              minor={position.realised_gain_minor}
                               currency={currency}
                               signed
                               colored
