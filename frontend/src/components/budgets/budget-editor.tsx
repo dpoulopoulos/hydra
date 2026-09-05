@@ -46,7 +46,7 @@ function readLimits(
   for (const [category_id, value] of Object.entries(limits)) {
     if (value.trim() === '') continue
 
-    const amount = amountSchema({ currency, allowZero: true }).safeParse(value)
+    const amount = amountSchema(currency, { allowZero: true }).safeParse(value)
 
     if (!amount.success) {
       errors[category_id] = amount.error.issues[0].message

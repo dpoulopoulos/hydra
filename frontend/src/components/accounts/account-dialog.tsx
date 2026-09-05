@@ -58,7 +58,7 @@ function buildSchema(currency: string) {
         message: 'Check the IBAN: that is not a valid one.',
       })
       .optional(),
-    opening_balance: amountSchema({ currency, allowZero: true }),
+    opening_balance: amountSchema(currency, { allowZero: true }),
     opening_balance_date: z.string().min(1, 'Pick the date this balance was true.'),
   })
 }

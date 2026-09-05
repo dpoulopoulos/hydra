@@ -46,7 +46,7 @@ function buildSchema(currency: string) {
   return z.object({
     client_id: z.string().min(1, 'Pick who this was with.'),
     occurs_on: z.string().min(1, 'Pick the day.'),
-    fee: amountSchema({ currency, allowZero: true }),
+    fee: amountSchema(currency, { allowZero: true }),
     status: z.enum(IncomeSessionStatus),
     payment_status: z.enum(PaymentStatus),
     paid_on: z.string().optional(),
