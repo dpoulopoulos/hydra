@@ -18,3 +18,11 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 }
+
+// Radix drives its select with pointer capture and scrolls the chosen option
+// into view. jsdom implements neither, so opening a picker in a test would
+// throw before the options were ever on screen.
+Element.prototype.hasPointerCapture ??= () => false
+Element.prototype.setPointerCapture ??= () => {}
+Element.prototype.releasePointerCapture ??= () => {}
+Element.prototype.scrollIntoView ??= () => {}
