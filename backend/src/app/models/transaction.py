@@ -65,6 +65,7 @@ class TransactionPublic(TransactionBase):
     category_id: uuid.UUID | None = None
     counter_account_id: uuid.UUID | None = None
     recurring_rule_id: uuid.UUID | None = None
+    income_session_id: uuid.UUID | None = None
     is_generated: bool = False
     created_at: datetime.datetime
     updated_at: datetime.datetime | None = None
@@ -165,6 +166,14 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
             unique=True,
             postgresql_where=text("recurring_rule_id IS NOT NULL"),
         ),
+        # At most one transaction per session, enforced where two requests
+        # racing to record the same payment cannot get round it.
+        Index(
+            "uq_transaction_income_session",
+            "income_session_id",
+            unique=True,
+            postgresql_where=text("income_session_id IS NOT NULL"),
+        ),
     )
 
     household_id: uuid.UUID = Field(foreign_key="household.id", ondelete="CASCADE", index=True)
@@ -179,6 +188,11 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
     # Set when a recurring rule created this row. SET NULL on delete, so
     # removing a rule keeps the transactions it already made: they happened.
     recurring_rule_id: uuid.UUID | None = Field(default=None, foreign_key="recurringrule.id", ondelete="SET NULL")
+    # Set when a paid session created this row. SET NULL on delete is belt and
+    # braces: the income service removes the transaction along with the session,
+    # so an orphan should be impossible, and if one ever appeared it would read
+    # as ordinary income rather than as money silently vanishing.
+    income_session_id: uuid.UUID | None = Field(default=None, foreign_key="incomesession.id", ondelete="SET NULL")
     is_generated: bool = Field(default=False)
     # Unused in this version. Two nullable columns now mean adding CSV or bank
     # import later is purely additive: one partial unique index for dedupe and

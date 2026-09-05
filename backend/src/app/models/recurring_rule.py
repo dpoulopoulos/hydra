@@ -18,6 +18,7 @@ MAX_RECURRENCE_INTERVAL = 1200
 
 
 class RecurrenceFrequency(StrEnum):
+    DAILY = "daily"
     WEEKLY = "weekly"
     MONTHLY = "monthly"
     YEARLY = "yearly"
