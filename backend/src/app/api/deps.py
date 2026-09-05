@@ -12,7 +12,15 @@ from app.core.db import engine
 from app.core.security import TokenType, decode_token
 from app.exceptions import HouseholdRoleRequiredError, UserNotAuthorizedError
 from app.exceptions.password_exceptions import InvalidCredentialsError
-from app.models import HouseholdContext, HouseholdRole, TokenPayload, TransactionFilters, User
+from app.models import (
+    HouseholdContext,
+    HouseholdRole,
+    IncomeClientFilters,
+    IncomeSessionFilters,
+    TokenPayload,
+    TransactionFilters,
+    User,
+)
 from app.repositories import (
     AccountRepository,
     BudgetRepository,
@@ -22,6 +30,9 @@ from app.repositories import (
     HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
+    IncomeClientRepository,
+    IncomeSessionRepository,
+    IncomeVaultRepository,
     InstrumentRepository,
     PasswordResetRepository,
     RecurringRuleRepository,
@@ -36,6 +47,7 @@ from app.services import (
     CategoryService,
     EmailVerificationService,
     HouseholdService,
+    IncomeService,
     InvestmentService,
     PasswordResetService,
     RecurringRuleService,
@@ -715,3 +727,92 @@ def get_investment_service(
 
 
 InvestmentServiceDep = Annotated[InvestmentService, Depends(get_investment_service)]
+
+
+IncomeClientFiltersDep = Annotated[IncomeClientFilters, Query()]
+IncomeSessionFiltersDep = Annotated[IncomeSessionFilters, Query()]
+
+
+def get_income_client_repository(session: SessionDep) -> IncomeClientRepository:
+    """Get an income client repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        An income client repository instance.
+    """
+    return IncomeClientRepository(session=session)
+
+
+IncomeClientRepositoryDep = Annotated[IncomeClientRepository, Depends(get_income_client_repository)]
+
+
+def get_income_session_repository(session: SessionDep) -> IncomeSessionRepository:
+    """Get an income session repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        An income session repository instance.
+    """
+    return IncomeSessionRepository(session=session)
+
+
+IncomeSessionRepositoryDep = Annotated[IncomeSessionRepository, Depends(get_income_session_repository)]
+
+
+def get_income_vault_repository(session: SessionDep) -> IncomeVaultRepository:
+    """Get an income vault repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        An income vault repository instance.
+    """
+    return IncomeVaultRepository(session=session)
+
+
+IncomeVaultRepositoryDep = Annotated[IncomeVaultRepository, Depends(get_income_vault_repository)]
+
+
+def get_income_service(
+    session: SessionDep,
+    income_client_repository: IncomeClientRepositoryDep,
+    income_session_repository: IncomeSessionRepositoryDep,
+    income_vault_repository: IncomeVaultRepositoryDep,
+    transaction_repository: TransactionRepositoryDep,
+    account_repository: AccountRepositoryDep,
+    category_repository: CategoryRepositoryDep,
+    household_repository: HouseholdRepositoryDep,
+) -> IncomeService:
+    """Get an income service instance.
+
+    Args:
+        session: The database session.
+        income_client_repository: The client repository instance.
+        income_session_repository: The session repository instance.
+        income_vault_repository: The vault repository instance.
+        transaction_repository: The transaction repository instance.
+        account_repository: The account repository instance.
+        category_repository: The category repository instance.
+        household_repository: The household repository instance.
+
+    Returns:
+        An income service instance.
+    """
+    return IncomeService(
+        session=session,
+        income_client_repository=income_client_repository,
+        income_session_repository=income_session_repository,
+        income_vault_repository=income_vault_repository,
+        transaction_repository=transaction_repository,
+        account_repository=account_repository,
+        category_repository=category_repository,
+        household_repository=household_repository,
+    )
+
+
+IncomeServiceDep = Annotated[IncomeService, Depends(get_income_service)]
