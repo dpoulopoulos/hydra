@@ -14,7 +14,7 @@
     "generate:api": "pnpm schema && openapi-ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
