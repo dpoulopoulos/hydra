@@ -1003,7 +1003,7 @@ export const accountsCreateAccountMutation = (options?: Partial<Options<Accounts
  *
  * Raises:
  * HTTPException: If the account does not exist in the household (404), or
- * it still has transactions (409).
+ * a transaction or recurring rule still references it (409).
  */
 export const accountsDeleteAccountMutation = (options?: Partial<Options<AccountsDeleteAccountData>>): UseMutationOptions<AccountsDeleteAccountResponse, AccountsDeleteAccountError, Options<AccountsDeleteAccountData>> => {
     const mutationOptions: UseMutationOptions<AccountsDeleteAccountResponse, AccountsDeleteAccountError, Options<AccountsDeleteAccountData>> = {

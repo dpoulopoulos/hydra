@@ -782,7 +782,7 @@ export const accountsCreateAccount = <ThrowOnError extends boolean = false>(opti
  *
  * Raises:
  * HTTPException: If the account does not exist in the household (404), or
- * it still has transactions (409).
+ * a transaction or recurring rule still references it (409).
  */
 export const accountsDeleteAccount = <ThrowOnError extends boolean = false>(options: Options<AccountsDeleteAccountData, ThrowOnError>): RequestResult<AccountsDeleteAccountResponses, AccountsDeleteAccountErrors, ThrowOnError> => (options.client ?? client).delete<AccountsDeleteAccountResponses, AccountsDeleteAccountErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
