@@ -9,6 +9,12 @@
       content="Track spending, set monthly budgets, and see where the money went."
     />
     <meta name="color-scheme" content="light dark" />
+    <!-- A component that builds a stylesheet while it runs has to mark it as
+         coming from the app. Caddy renders a fresh nonce here and names the
+         same value in the Content-Security-Policy header of every response; see
+         Caddyfile. Nothing renders this in development, where the placeholder
+         stays as it is and no policy is served. -->
+    <meta property="csp-nonce" nonce="{{placeholder `http.request.uuid`}}" />
     <title>hydra</title>
   </head>
   <body>

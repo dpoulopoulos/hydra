@@ -67,6 +67,11 @@
 	handle {
 		root * /srv
 		encode gzip
+		# The entry page is the only template: it carries this request's
+		# nonce, which a component that builds a stylesheet as it runs reads
+		# out of the page. Nothing else served here holds a placeholder, and
+		# the bundles are not HTML, so nothing else is rendered.
+		templates
 		# Client side routing: a path that is not a file on disk is still a
 		# page of the app, so the app itself has to answer for it.
 		try_files {path} /index.html

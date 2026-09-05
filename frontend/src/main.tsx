@@ -7,10 +7,15 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/lib/auth'
+import { applyCspNonce } from '@/lib/csp-nonce'
 import { queryClient } from '@/lib/query-client'
 import { router } from '@/routes'
 
 import './index.css'
+
+// Before anything renders, so the first stylesheet a component builds already
+// carries the nonce the policy asks for.
+applyCspNonce()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
