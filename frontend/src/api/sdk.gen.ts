@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { AccountsCreateAccountData, AccountsCreateAccountErrors, AccountsCreateAccountResponses, AccountsDeleteAccountData, AccountsDeleteAccountErrors, AccountsDeleteAccountResponses, AccountsGetAccountData, AccountsGetAccountErrors, AccountsGetAccountResponses, AccountsListAccountsData, AccountsListAccountsErrors, AccountsListAccountsResponses, AccountsUpdateAccountData, AccountsUpdateAccountErrors, AccountsUpdateAccountResponses, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsErrors, BudgetsBulkUpsertBudgetsResponses, BudgetsCopyBudgetsData, BudgetsCopyBudgetsErrors, BudgetsCopyBudgetsResponses, BudgetsCreateBudgetData, BudgetsCreateBudgetErrors, BudgetsCreateBudgetResponses, BudgetsDeleteBudgetData, BudgetsDeleteBudgetErrors, BudgetsDeleteBudgetResponses, BudgetsGetBudgetData, BudgetsGetBudgetErrors, BudgetsGetBudgetResponses, BudgetsListBudgetsData, BudgetsListBudgetsErrors, BudgetsListBudgetsResponses, BudgetsUpdateBudgetData, BudgetsUpdateBudgetErrors, BudgetsUpdateBudgetResponses, CategoriesCreateCategoryData, CategoriesCreateCategoryErrors, CategoriesCreateCategoryResponses, CategoriesDeleteCategoryData, CategoriesDeleteCategoryErrors, CategoriesDeleteCategoryResponses, CategoriesGetCategoryData, CategoriesGetCategoryErrors, CategoriesGetCategoryResponses, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeErrors, CategoriesGetCategoryTreeResponses, CategoriesListCategoriesData, CategoriesListCategoriesErrors, CategoriesListCategoriesResponses, CategoriesUpdateCategoryData, CategoriesUpdateCategoryErrors, CategoriesUpdateCategoryResponses, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailErrors, EmailVerificationResendVerificationEmailResponses, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailErrors, EmailVerificationVerifyEmailResponses, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteErrors, HouseholdsAcceptHouseholdInviteResponses, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteErrors, HouseholdsCreateHouseholdInviteResponses, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponses, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponses, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesErrors, HouseholdsListHouseholdInvitesResponses, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponses, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteErrors, HouseholdsPreviewHouseholdInviteResponses, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberErrors, HouseholdsRemoveHouseholdMemberResponses, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteErrors, HouseholdsRevokeHouseholdInviteResponses, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeErrors, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberErrors, HouseholdsUpdateHouseholdMemberResponses, HouseholdsUpdateHouseholdMeResponses, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentErrors, InvestmentsCreateInstrumentResponses, InvestmentsCreateTradeData, InvestmentsCreateTradeErrors, InvestmentsCreateTradeResponses, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentErrors, InvestmentsDeleteInstrumentResponses, InvestmentsDeleteTradeData, InvestmentsDeleteTradeErrors, InvestmentsDeleteTradeResponses, InvestmentsGetInstrumentData, InvestmentsGetInstrumentErrors, InvestmentsGetInstrumentResponses, InvestmentsGetPortfolioData, InvestmentsGetPortfolioErrors, InvestmentsGetPortfolioResponses, InvestmentsGetTradeData, InvestmentsGetTradeErrors, InvestmentsGetTradeResponses, InvestmentsListFxRatesData, InvestmentsListFxRatesResponses, InvestmentsListInstrumentsData, InvestmentsListInstrumentsErrors, InvestmentsListInstrumentsResponses, InvestmentsListTradesData, InvestmentsListTradesErrors, InvestmentsListTradesResponses, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponses, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsErrors, InvestmentsSearchSymbolsResponses, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceErrors, InvestmentsSetInstrumentPriceResponses, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentErrors, InvestmentsUpdateInstrumentResponses, InvestmentsUpdateTradeData, InvestmentsUpdateTradeErrors, InvestmentsUpdateTradeResponses, LoginLoginAccessTokenData, LoginLoginAccessTokenErrors, LoginLoginAccessTokenResponses, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetErrors, PasswordResetConfirmPasswordResetResponses, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetErrors, PasswordResetRequestPasswordResetResponses, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenErrors, PasswordResetVerifyPasswordResetTokenResponses, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleErrors, RecurringRulesCreateRecurringRuleResponses, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleErrors, RecurringRulesDeleteRecurringRuleResponses, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleErrors, RecurringRulesGetRecurringRuleResponses, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesErrors, RecurringRulesListRecurringRulesResponses, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesErrors, RecurringRulesListUpcomingOccurrencesResponses, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesErrors, RecurringRulesRunRecurringRulesResponses, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleErrors, RecurringRulesUpdateRecurringRuleResponses, ReportsBudgetProgressData, ReportsBudgetProgressErrors, ReportsBudgetProgressResponses, ReportsIncomeExpenseData, ReportsIncomeExpenseErrors, ReportsIncomeExpenseResponses, ReportsMonthSummaryData, ReportsMonthSummaryErrors, ReportsMonthSummaryResponses, ReportsSpendByCategoryData, ReportsSpendByCategoryErrors, ReportsSpendByCategoryResponses, ReportsSpendOverTimeData, ReportsSpendOverTimeErrors, ReportsSpendOverTimeResponses, TransactionsCreateTransactionData, TransactionsCreateTransactionErrors, TransactionsCreateTransactionResponses, TransactionsDeleteTransactionData, TransactionsDeleteTransactionErrors, TransactionsDeleteTransactionResponses, TransactionsGetTransactionData, TransactionsGetTransactionErrors, TransactionsGetTransactionResponses, TransactionsListTransactionsData, TransactionsListTransactionsErrors, TransactionsListTransactionsResponses, TransactionsUpdateTransactionData, TransactionsUpdateTransactionErrors, TransactionsUpdateTransactionResponses, UsersCreateUserData, UsersCreateUserErrors, UsersCreateUserResponses, UsersDeleteUserData, UsersDeleteUserErrors, UsersDeleteUserMeData, UsersDeleteUserMeResponses, UsersDeleteUserResponses, UsersGetUserByIdData, UsersGetUserByIdErrors, UsersGetUserByIdResponses, UsersGetUserMeData, UsersGetUserMeResponses, UsersGetUsersData, UsersGetUsersErrors, UsersGetUsersResponses, UsersRegisterUserData, UsersRegisterUserErrors, UsersRegisterUserResponses, UsersUpdatePasswordMeData, UsersUpdatePasswordMeErrors, UsersUpdatePasswordMeResponses, UsersUpdateUserData, UsersUpdateUserErrors, UsersUpdateUserMeData, UsersUpdateUserMeErrors, UsersUpdateUserMeResponses, UsersUpdateUserResponses } from './types.gen';
+import type { AccountsCreateAccountData, AccountsCreateAccountErrors, AccountsCreateAccountResponses, AccountsDeleteAccountData, AccountsDeleteAccountErrors, AccountsDeleteAccountResponses, AccountsGetAccountData, AccountsGetAccountErrors, AccountsGetAccountResponses, AccountsListAccountsData, AccountsListAccountsErrors, AccountsListAccountsResponses, AccountsUpdateAccountData, AccountsUpdateAccountErrors, AccountsUpdateAccountResponses, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsErrors, BudgetsBulkUpsertBudgetsResponses, BudgetsCopyBudgetsData, BudgetsCopyBudgetsErrors, BudgetsCopyBudgetsResponses, BudgetsCreateBudgetData, BudgetsCreateBudgetErrors, BudgetsCreateBudgetResponses, BudgetsDeleteBudgetData, BudgetsDeleteBudgetErrors, BudgetsDeleteBudgetResponses, BudgetsGetBudgetData, BudgetsGetBudgetErrors, BudgetsGetBudgetResponses, BudgetsListBudgetsData, BudgetsListBudgetsErrors, BudgetsListBudgetsResponses, BudgetsUpdateBudgetData, BudgetsUpdateBudgetErrors, BudgetsUpdateBudgetResponses, CategoriesCreateCategoryData, CategoriesCreateCategoryErrors, CategoriesCreateCategoryResponses, CategoriesDeleteCategoryData, CategoriesDeleteCategoryErrors, CategoriesDeleteCategoryResponses, CategoriesGetCategoryData, CategoriesGetCategoryErrors, CategoriesGetCategoryResponses, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeErrors, CategoriesGetCategoryTreeResponses, CategoriesListCategoriesData, CategoriesListCategoriesErrors, CategoriesListCategoriesResponses, CategoriesUpdateCategoryData, CategoriesUpdateCategoryErrors, CategoriesUpdateCategoryResponses, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailErrors, EmailVerificationResendVerificationEmailResponses, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailErrors, EmailVerificationVerifyEmailResponses, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteErrors, HouseholdsAcceptHouseholdInviteResponses, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteErrors, HouseholdsCreateHouseholdInviteResponses, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponses, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponses, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesErrors, HouseholdsListHouseholdInvitesResponses, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponses, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteErrors, HouseholdsPreviewHouseholdInviteResponses, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberErrors, HouseholdsRemoveHouseholdMemberResponses, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteErrors, HouseholdsRevokeHouseholdInviteResponses, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeErrors, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberErrors, HouseholdsUpdateHouseholdMemberResponses, HouseholdsUpdateHouseholdMeResponses, IncomeCreateClientData, IncomeCreateClientErrors, IncomeCreateClientResponses, IncomeCreateSessionData, IncomeCreateSessionErrors, IncomeCreateSessionResponses, IncomeDeleteClientData, IncomeDeleteClientErrors, IncomeDeleteClientResponses, IncomeDeleteSessionData, IncomeDeleteSessionErrors, IncomeDeleteSessionResponses, IncomeGetClientData, IncomeGetClientErrors, IncomeGetClientResponses, IncomeGetForecastData, IncomeGetForecastErrors, IncomeGetForecastResponses, IncomeGetSessionData, IncomeGetSessionErrors, IncomeGetSessionResponses, IncomeGetSummaryData, IncomeGetSummaryErrors, IncomeGetSummaryResponses, IncomeGetVaultData, IncomeGetVaultResponses, IncomeListClientsData, IncomeListClientsErrors, IncomeListClientsResponses, IncomeListSessionsData, IncomeListSessionsErrors, IncomeListSessionsResponses, IncomeResetVaultData, IncomeResetVaultErrors, IncomeResetVaultResponses, IncomeUpdateClientData, IncomeUpdateClientErrors, IncomeUpdateClientResponses, IncomeUpdateSessionData, IncomeUpdateSessionErrors, IncomeUpdateSessionResponses, IncomeUpsertVaultData, IncomeUpsertVaultErrors, IncomeUpsertVaultResponses, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentErrors, InvestmentsCreateInstrumentResponses, InvestmentsCreateTradeData, InvestmentsCreateTradeErrors, InvestmentsCreateTradeResponses, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentErrors, InvestmentsDeleteInstrumentResponses, InvestmentsDeleteTradeData, InvestmentsDeleteTradeErrors, InvestmentsDeleteTradeResponses, InvestmentsGetInstrumentData, InvestmentsGetInstrumentErrors, InvestmentsGetInstrumentResponses, InvestmentsGetPortfolioData, InvestmentsGetPortfolioErrors, InvestmentsGetPortfolioResponses, InvestmentsGetTradeData, InvestmentsGetTradeErrors, InvestmentsGetTradeResponses, InvestmentsListFxRatesData, InvestmentsListFxRatesResponses, InvestmentsListInstrumentsData, InvestmentsListInstrumentsErrors, InvestmentsListInstrumentsResponses, InvestmentsListTradesData, InvestmentsListTradesErrors, InvestmentsListTradesResponses, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponses, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsErrors, InvestmentsSearchSymbolsResponses, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceErrors, InvestmentsSetInstrumentPriceResponses, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentErrors, InvestmentsUpdateInstrumentResponses, InvestmentsUpdateTradeData, InvestmentsUpdateTradeErrors, InvestmentsUpdateTradeResponses, LoginLoginAccessTokenData, LoginLoginAccessTokenErrors, LoginLoginAccessTokenResponses, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetErrors, PasswordResetConfirmPasswordResetResponses, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetErrors, PasswordResetRequestPasswordResetResponses, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenErrors, PasswordResetVerifyPasswordResetTokenResponses, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleErrors, RecurringRulesCreateRecurringRuleResponses, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleErrors, RecurringRulesDeleteRecurringRuleResponses, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleErrors, RecurringRulesGetRecurringRuleResponses, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesErrors, RecurringRulesListRecurringRulesResponses, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesErrors, RecurringRulesListUpcomingOccurrencesResponses, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesErrors, RecurringRulesRunRecurringRulesResponses, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleErrors, RecurringRulesUpdateRecurringRuleResponses, ReportsBudgetProgressData, ReportsBudgetProgressErrors, ReportsBudgetProgressResponses, ReportsIncomeExpenseData, ReportsIncomeExpenseErrors, ReportsIncomeExpenseResponses, ReportsMonthSummaryData, ReportsMonthSummaryErrors, ReportsMonthSummaryResponses, ReportsSpendByCategoryData, ReportsSpendByCategoryErrors, ReportsSpendByCategoryResponses, ReportsSpendOverTimeData, ReportsSpendOverTimeErrors, ReportsSpendOverTimeResponses, TransactionsCreateTransactionData, TransactionsCreateTransactionErrors, TransactionsCreateTransactionResponses, TransactionsDeleteTransactionData, TransactionsDeleteTransactionErrors, TransactionsDeleteTransactionResponses, TransactionsGetTransactionData, TransactionsGetTransactionErrors, TransactionsGetTransactionResponses, TransactionsListTransactionsData, TransactionsListTransactionsErrors, TransactionsListTransactionsResponses, TransactionsUpdateTransactionData, TransactionsUpdateTransactionErrors, TransactionsUpdateTransactionResponses, UsersCreateUserData, UsersCreateUserErrors, UsersCreateUserResponses, UsersDeleteUserData, UsersDeleteUserErrors, UsersDeleteUserMeData, UsersDeleteUserMeResponses, UsersDeleteUserResponses, UsersGetUserByIdData, UsersGetUserByIdErrors, UsersGetUserByIdResponses, UsersGetUserMeData, UsersGetUserMeResponses, UsersGetUsersData, UsersGetUsersErrors, UsersGetUsersResponses, UsersRegisterUserData, UsersRegisterUserErrors, UsersRegisterUserResponses, UsersUpdatePasswordMeData, UsersUpdatePasswordMeErrors, UsersUpdatePasswordMeResponses, UsersUpdateUserData, UsersUpdateUserErrors, UsersUpdateUserMeData, UsersUpdateUserMeErrors, UsersUpdateUserMeResponses, UsersUpdateUserResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -912,6 +912,9 @@ export const transactionsCreateTransaction = <ThrowOnError extends boolean = fal
  *
  * Delete a transaction.
  *
+ * Income generated by a session is refused. Delete the session instead, and
+ * the row it produced goes with it.
+ *
  * Args:
  * transaction_service: The transaction service dependency.
  * household: The current household context.
@@ -921,7 +924,8 @@ export const transactionsCreateTransaction = <ThrowOnError extends boolean = fal
  * A confirmation message.
  *
  * Raises:
- * HTTPException: If the transaction does not exist in the household (404).
+ * HTTPException: If the transaction does not exist in the household (404),
+ * or it came from a session (409).
  */
 export const transactionsDeleteTransaction = <ThrowOnError extends boolean = false>(options: Options<TransactionsDeleteTransactionData, ThrowOnError>): RequestResult<TransactionsDeleteTransactionResponses, TransactionsDeleteTransactionErrors, ThrowOnError> => (options.client ?? client).delete<TransactionsDeleteTransactionResponses, TransactionsDeleteTransactionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -956,6 +960,9 @@ export const transactionsGetTransaction = <ThrowOnError extends boolean = false>
  *
  * Edit a transaction.
  *
+ * Income generated by a session is refused: the session holds the fee, and
+ * letting both sides be edited would let them drift apart.
+ *
  * Args:
  * transaction_service: The transaction service dependency.
  * household: The current household context.
@@ -967,8 +974,8 @@ export const transactionsGetTransaction = <ThrowOnError extends boolean = false>
  *
  * Raises:
  * HTTPException: If the transaction, an account or a category does not
- * exist in the household (404), or the change does not match the kind
- * (400).
+ * exist in the household (404), the change does not match the kind
+ * (400), or the transaction came from a session (409).
  */
 export const transactionsUpdateTransaction = <ThrowOnError extends boolean = false>(options: Options<TransactionsUpdateTransactionData, ThrowOnError>): RequestResult<TransactionsUpdateTransactionResponses, TransactionsUpdateTransactionErrors, ThrowOnError> => (options.client ?? client).patch<TransactionsUpdateTransactionResponses, TransactionsUpdateTransactionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1347,6 +1354,369 @@ export const recurringRulesUpdateRecurringRule = <ThrowOnError extends boolean =
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Reset Vault
+ *
+ * Forget your key, and with it your own client names.
+ *
+ * For the PIN nobody can remember. The names become unreadable ciphertext the
+ * moment the key is gone, so they are cleared rather than left behind as
+ * rubbish no future PIN could decode. Every fee, session and euro survives,
+ * and another member's names are untouched.
+ *
+ * The confirmation flag is required because this cannot be undone.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * confirm: Must be true, as an explicit acknowledgement.
+ *
+ * Returns:
+ * A confirmation message.
+ */
+export const incomeResetVault = <ThrowOnError extends boolean = false>(options?: Options<IncomeResetVaultData, ThrowOnError>): RequestResult<IncomeResetVaultResponses, IncomeResetVaultErrors, ThrowOnError> => (options?.client ?? client).delete<IncomeResetVaultResponses, IncomeResetVaultErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/vault',
+    ...options
+});
+
+/**
+ * Get Vault
+ *
+ * Get the key material the browser needs to unlock your client names.
+ *
+ * Everything returned is opaque to the server. The PIN that turns it into a
+ * key never leaves the browser, so this endpoint hands back a locked box and
+ * the instructions for its lock, and nothing else.
+ *
+ * The key is yours, not the household's. Another member has their own, and it
+ * opens their own clients.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ *
+ * Returns:
+ * The vault, or a 404 when no PIN has been set up yet.
+ */
+export const incomeGetVault = <ThrowOnError extends boolean = false>(options?: Options<IncomeGetVaultData, ThrowOnError>): RequestResult<IncomeGetVaultResponses, unknown, ThrowOnError> => (options?.client ?? client).get<IncomeGetVaultResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/vault',
+    ...options
+});
+
+/**
+ * Upsert Vault
+ *
+ * Set up the PIN, or change it.
+ *
+ * Changing a PIN re-wraps the same key and touches no client row: the names
+ * were never encrypted with the PIN itself.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * vault_in: The key material.
+ *
+ * Returns:
+ * The stored vault.
+ */
+export const incomeUpsertVault = <ThrowOnError extends boolean = false>(options: Options<IncomeUpsertVaultData, ThrowOnError>): RequestResult<IncomeUpsertVaultResponses, IncomeUpsertVaultErrors, ThrowOnError> => (options.client ?? client).put<IncomeUpsertVaultResponses, IncomeUpsertVaultErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/vault',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Clients
+ *
+ * List the clients of the household.
+ *
+ * There is no search by name and there cannot be one: the server holds
+ * ciphertext. The page filters and sorts after decrypting.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * filters: The filters to apply.
+ *
+ * Returns:
+ * The matching clients.
+ */
+export const incomeListClients = <ThrowOnError extends boolean = false>(options?: Options<IncomeListClientsData, ThrowOnError>): RequestResult<IncomeListClientsResponses, IncomeListClientsErrors, ThrowOnError> => (options?.client ?? client).get<IncomeListClientsResponses, IncomeListClientsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/clients',
+    ...options
+});
+
+/**
+ * Create Client
+ *
+ * Add a client.
+ *
+ * The name arrives encrypted under your key and is stored as it came. Other
+ * members of the household will see the row and its figures with the name
+ * blanked out.
+ *
+ * A client can carry how often you see them — every week, every other week,
+ * once a month — pinned to the date it started, which is what makes "every
+ * Monday" expressible. Leave it out for somebody seen as and when.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * client_in: The client to add.
+ *
+ * Returns:
+ * The added client.
+ */
+export const incomeCreateClient = <ThrowOnError extends boolean = false>(options: Options<IncomeCreateClientData, ThrowOnError>): RequestResult<IncomeCreateClientResponses, IncomeCreateClientErrors, ThrowOnError> => (options.client ?? client).post<IncomeCreateClientResponses, IncomeCreateClientErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/clients',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Client
+ *
+ * Delete a client who has no sessions.
+ *
+ * A client with sessions is refused. Those sessions record work that was done
+ * and money that was taken, and tidying a list is not a reason to destroy
+ * them. Archive instead. Only the person who added the client may do either.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * client_id: The ID of the client to delete.
+ *
+ * Returns:
+ * A confirmation message.
+ */
+export const incomeDeleteClient = <ThrowOnError extends boolean = false>(options: Options<IncomeDeleteClientData, ThrowOnError>): RequestResult<IncomeDeleteClientResponses, IncomeDeleteClientErrors, ThrowOnError> => (options.client ?? client).delete<IncomeDeleteClientResponses, IncomeDeleteClientErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/clients/{client_id}',
+    ...options
+});
+
+/**
+ * Get Client
+ *
+ * Get one client.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * client_id: The ID of the client.
+ *
+ * Returns:
+ * The client.
+ */
+export const incomeGetClient = <ThrowOnError extends boolean = false>(options: Options<IncomeGetClientData, ThrowOnError>): RequestResult<IncomeGetClientResponses, IncomeGetClientErrors, ThrowOnError> => (options.client ?? client).get<IncomeGetClientResponses, IncomeGetClientErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/clients/{client_id}',
+    ...options
+});
+
+/**
+ * Update Client
+ *
+ * Edit a client, or archive them.
+ *
+ * Only the person who added them. Their name is under that person's key, so
+ * saving from anybody else's screen would write over a name they cannot read.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * client_id: The ID of the client to edit.
+ * client_in: The fields to change.
+ *
+ * Returns:
+ * The updated client.
+ */
+export const incomeUpdateClient = <ThrowOnError extends boolean = false>(options: Options<IncomeUpdateClientData, ThrowOnError>): RequestResult<IncomeUpdateClientResponses, IncomeUpdateClientErrors, ThrowOnError> => (options.client ?? client).patch<IncomeUpdateClientResponses, IncomeUpdateClientErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/clients/{client_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Sessions
+ *
+ * List sessions.
+ *
+ * Filtering on `payment_status=pending` is the debtors list.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * filters: The filters to apply.
+ *
+ * Returns:
+ * The matching sessions, with the totals for the footer.
+ */
+export const incomeListSessions = <ThrowOnError extends boolean = false>(options?: Options<IncomeListSessionsData, ThrowOnError>): RequestResult<IncomeListSessionsResponses, IncomeListSessionsErrors, ThrowOnError> => (options?.client ?? client).get<IncomeListSessionsResponses, IncomeListSessionsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/sessions',
+    ...options
+});
+
+/**
+ * Create Session
+ *
+ * Record a session.
+ *
+ * A session becomes income only once it is paid. Recording one that has
+ * happened but not been settled leaves the ledger alone and puts the fee in
+ * what you are owed.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * session_in: The session to record.
+ *
+ * Returns:
+ * The recorded session.
+ */
+export const incomeCreateSession = <ThrowOnError extends boolean = false>(options: Options<IncomeCreateSessionData, ThrowOnError>): RequestResult<IncomeCreateSessionResponses, IncomeCreateSessionErrors, ThrowOnError> => (options.client ?? client).post<IncomeCreateSessionResponses, IncomeCreateSessionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Session
+ *
+ * Delete a session, and the ledger row it produced.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * session_id: The ID of the session to delete.
+ *
+ * Returns:
+ * A confirmation message.
+ */
+export const incomeDeleteSession = <ThrowOnError extends boolean = false>(options: Options<IncomeDeleteSessionData, ThrowOnError>): RequestResult<IncomeDeleteSessionResponses, IncomeDeleteSessionErrors, ThrowOnError> => (options.client ?? client).delete<IncomeDeleteSessionResponses, IncomeDeleteSessionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/sessions/{session_id}',
+    ...options
+});
+
+/**
+ * Get Session
+ *
+ * Get one session.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * session_id: The ID of the session.
+ *
+ * Returns:
+ * The session.
+ */
+export const incomeGetSession = <ThrowOnError extends boolean = false>(options: Options<IncomeGetSessionData, ThrowOnError>): RequestResult<IncomeGetSessionResponses, IncomeGetSessionErrors, ThrowOnError> => (options.client ?? client).get<IncomeGetSessionResponses, IncomeGetSessionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/sessions/{session_id}',
+    ...options
+});
+
+/**
+ * Update Session
+ *
+ * Edit a session, including marking it attended, missed, paid or waived.
+ *
+ * Marking a session paid writes the income to the ledger; taking that back
+ * removes it again. There is no separate status endpoint, because one state
+ * machine behind one method is one fewer place for the ledger and the diary to
+ * disagree.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * session_id: The ID of the session to edit.
+ * session_in: The fields to change.
+ *
+ * Returns:
+ * The updated session.
+ */
+export const incomeUpdateSession = <ThrowOnError extends boolean = false>(options: Options<IncomeUpdateSessionData, ThrowOnError>): RequestResult<IncomeUpdateSessionResponses, IncomeUpdateSessionErrors, ThrowOnError> => (options.client ?? client).patch<IncomeUpdateSessionResponses, IncomeUpdateSessionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/sessions/{session_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Summary
+ *
+ * Get the figures for one month, and what is owed across all of them.
+ *
+ * `earned` is what the month's work was worth, `received` is what arrived and
+ * is the figure the reports agree with, and what is owed is the difference.
+ * They are reported apart because a month can be busy and still leave you
+ * short, and one merged number would hide exactly that.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * month: The month in "YYYY-MM" form. Defaults to the current one.
+ *
+ * Returns:
+ * The summary.
+ */
+export const incomeGetSummary = <ThrowOnError extends boolean = false>(options?: Options<IncomeGetSummaryData, ThrowOnError>): RequestResult<IncomeGetSummaryResponses, IncomeGetSummaryErrors, ThrowOnError> => (options?.client ?? client).get<IncomeGetSummaryResponses, IncomeGetSummaryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/summary',
+    ...options
+});
+
+/**
+ * Get Forecast
+ *
+ * Estimate what a month will bring.
+ *
+ * Built from the complete months before it, never from the month in progress.
+ * The answer is a likely figure with a band around it rather than a single
+ * number, because a freelance month that lands exactly on its average is the
+ * exception.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * month: The month to forecast, in "YYYY-MM" form. Defaults to next month.
+ * months: How many complete months to average over.
+ *
+ * Returns:
+ * The forecast, its band, and the history behind it.
+ */
+export const incomeGetForecast = <ThrowOnError extends boolean = false>(options?: Options<IncomeGetForecastData, ThrowOnError>): RequestResult<IncomeGetForecastResponses, IncomeGetForecastErrors, ThrowOnError> => (options?.client ?? client).get<IncomeGetForecastResponses, IncomeGetForecastErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/income/forecast',
+    ...options
 });
 
 /**

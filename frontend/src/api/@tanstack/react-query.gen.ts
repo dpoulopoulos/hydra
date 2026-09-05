@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { accountsCreateAccount, accountsDeleteAccount, accountsGetAccount, accountsListAccounts, accountsUpdateAccount, budgetsBulkUpsertBudgets, budgetsCopyBudgets, budgetsCreateBudget, budgetsDeleteBudget, budgetsGetBudget, budgetsListBudgets, budgetsUpdateBudget, categoriesCreateCategory, categoriesDeleteCategory, categoriesGetCategory, categoriesGetCategoryTree, categoriesListCategories, categoriesUpdateCategory, emailVerificationResendVerificationEmail, emailVerificationVerifyEmail, householdsAcceptHouseholdInvite, householdsCreateHouseholdInvite, householdsGetHouseholdMe, householdsLeaveHousehold, householdsListHouseholdInvites, householdsListHouseholdMembers, householdsPreviewHouseholdInvite, householdsRemoveHouseholdMember, householdsRevokeHouseholdInvite, householdsUpdateHouseholdMe, householdsUpdateHouseholdMember, investmentsCreateInstrument, investmentsCreateTrade, investmentsDeleteInstrument, investmentsDeleteTrade, investmentsGetInstrument, investmentsGetPortfolio, investmentsGetTrade, investmentsListFxRates, investmentsListInstruments, investmentsListTrades, investmentsRefreshPrices, investmentsSearchSymbols, investmentsSetInstrumentPrice, investmentsUpdateInstrument, investmentsUpdateTrade, loginLoginAccessToken, type Options, passwordResetConfirmPasswordReset, passwordResetRequestPasswordReset, passwordResetVerifyPasswordResetToken, recurringRulesCreateRecurringRule, recurringRulesDeleteRecurringRule, recurringRulesGetRecurringRule, recurringRulesListRecurringRules, recurringRulesListUpcomingOccurrences, recurringRulesRunRecurringRules, recurringRulesUpdateRecurringRule, reportsBudgetProgress, reportsIncomeExpense, reportsMonthSummary, reportsSpendByCategory, reportsSpendOverTime, transactionsCreateTransaction, transactionsDeleteTransaction, transactionsGetTransaction, transactionsListTransactions, transactionsUpdateTransaction, usersCreateUser, usersDeleteUser, usersDeleteUserMe, usersGetUserById, usersGetUserMe, usersGetUsers, usersRegisterUser, usersUpdatePasswordMe, usersUpdateUser, usersUpdateUserMe } from '../sdk.gen';
-import type { AccountsCreateAccountData, AccountsCreateAccountError, AccountsCreateAccountResponse, AccountsDeleteAccountData, AccountsDeleteAccountError, AccountsDeleteAccountResponse, AccountsGetAccountData, AccountsGetAccountError, AccountsGetAccountResponse, AccountsListAccountsData, AccountsListAccountsError, AccountsListAccountsResponse, AccountsUpdateAccountData, AccountsUpdateAccountError, AccountsUpdateAccountResponse, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsError, BudgetsBulkUpsertBudgetsResponse, BudgetsCopyBudgetsData, BudgetsCopyBudgetsError, BudgetsCopyBudgetsResponse, BudgetsCreateBudgetData, BudgetsCreateBudgetError, BudgetsCreateBudgetResponse, BudgetsDeleteBudgetData, BudgetsDeleteBudgetError, BudgetsDeleteBudgetResponse, BudgetsGetBudgetData, BudgetsGetBudgetError, BudgetsGetBudgetResponse, BudgetsListBudgetsData, BudgetsListBudgetsError, BudgetsListBudgetsResponse, BudgetsUpdateBudgetData, BudgetsUpdateBudgetError, BudgetsUpdateBudgetResponse, CategoriesCreateCategoryData, CategoriesCreateCategoryError, CategoriesCreateCategoryResponse, CategoriesDeleteCategoryData, CategoriesDeleteCategoryError, CategoriesDeleteCategoryResponse, CategoriesGetCategoryData, CategoriesGetCategoryError, CategoriesGetCategoryResponse, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeError, CategoriesGetCategoryTreeResponse, CategoriesListCategoriesData, CategoriesListCategoriesError, CategoriesListCategoriesResponse, CategoriesUpdateCategoryData, CategoriesUpdateCategoryError, CategoriesUpdateCategoryResponse, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailError, EmailVerificationResendVerificationEmailResponse, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailError, EmailVerificationVerifyEmailResponse, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteError, HouseholdsAcceptHouseholdInviteResponse, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteError, HouseholdsCreateHouseholdInviteResponse, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponse, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponse, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesError, HouseholdsListHouseholdInvitesResponse, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponse, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteError, HouseholdsPreviewHouseholdInviteResponse, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberError, HouseholdsRemoveHouseholdMemberResponse, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteError, HouseholdsRevokeHouseholdInviteResponse, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeError, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberError, HouseholdsUpdateHouseholdMemberResponse, HouseholdsUpdateHouseholdMeResponse, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentError, InvestmentsCreateInstrumentResponse, InvestmentsCreateTradeData, InvestmentsCreateTradeError, InvestmentsCreateTradeResponse, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentError, InvestmentsDeleteInstrumentResponse, InvestmentsDeleteTradeData, InvestmentsDeleteTradeError, InvestmentsDeleteTradeResponse, InvestmentsGetInstrumentData, InvestmentsGetInstrumentError, InvestmentsGetInstrumentResponse, InvestmentsGetPortfolioData, InvestmentsGetPortfolioError, InvestmentsGetPortfolioResponse, InvestmentsGetTradeData, InvestmentsGetTradeError, InvestmentsGetTradeResponse, InvestmentsListFxRatesData, InvestmentsListFxRatesResponse, InvestmentsListInstrumentsData, InvestmentsListInstrumentsError, InvestmentsListInstrumentsResponse, InvestmentsListTradesData, InvestmentsListTradesError, InvestmentsListTradesResponse, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponse, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsError, InvestmentsSearchSymbolsResponse, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceError, InvestmentsSetInstrumentPriceResponse, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentError, InvestmentsUpdateInstrumentResponse, InvestmentsUpdateTradeData, InvestmentsUpdateTradeError, InvestmentsUpdateTradeResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenError, LoginLoginAccessTokenResponse, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetError, PasswordResetConfirmPasswordResetResponse, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetError, PasswordResetRequestPasswordResetResponse, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenError, PasswordResetVerifyPasswordResetTokenResponse, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleError, RecurringRulesCreateRecurringRuleResponse, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleError, RecurringRulesDeleteRecurringRuleResponse, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleError, RecurringRulesGetRecurringRuleResponse, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesError, RecurringRulesListRecurringRulesResponse, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesError, RecurringRulesListUpcomingOccurrencesResponse, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesError, RecurringRulesRunRecurringRulesResponse, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleError, RecurringRulesUpdateRecurringRuleResponse, ReportsBudgetProgressData, ReportsBudgetProgressError, ReportsBudgetProgressResponse, ReportsIncomeExpenseData, ReportsIncomeExpenseError, ReportsIncomeExpenseResponse, ReportsMonthSummaryData, ReportsMonthSummaryError, ReportsMonthSummaryResponse, ReportsSpendByCategoryData, ReportsSpendByCategoryError, ReportsSpendByCategoryResponse, ReportsSpendOverTimeData, ReportsSpendOverTimeError, ReportsSpendOverTimeResponse, TransactionsCreateTransactionData, TransactionsCreateTransactionError, TransactionsCreateTransactionResponse, TransactionsDeleteTransactionData, TransactionsDeleteTransactionError, TransactionsDeleteTransactionResponse, TransactionsGetTransactionData, TransactionsGetTransactionError, TransactionsGetTransactionResponse, TransactionsListTransactionsData, TransactionsListTransactionsError, TransactionsListTransactionsResponse, TransactionsUpdateTransactionData, TransactionsUpdateTransactionError, TransactionsUpdateTransactionResponse, UsersCreateUserData, UsersCreateUserError, UsersCreateUserResponse, UsersDeleteUserData, UsersDeleteUserError, UsersDeleteUserMeData, UsersDeleteUserMeResponse, UsersDeleteUserResponse, UsersGetUserByIdData, UsersGetUserByIdError, UsersGetUserByIdResponse, UsersGetUserMeData, UsersGetUserMeResponse, UsersGetUsersData, UsersGetUsersError, UsersGetUsersResponse, UsersRegisterUserData, UsersRegisterUserError, UsersRegisterUserResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeError, UsersUpdatePasswordMeResponse, UsersUpdateUserData, UsersUpdateUserError, UsersUpdateUserMeData, UsersUpdateUserMeError, UsersUpdateUserMeResponse, UsersUpdateUserResponse } from '../types.gen';
+import { accountsCreateAccount, accountsDeleteAccount, accountsGetAccount, accountsListAccounts, accountsUpdateAccount, budgetsBulkUpsertBudgets, budgetsCopyBudgets, budgetsCreateBudget, budgetsDeleteBudget, budgetsGetBudget, budgetsListBudgets, budgetsUpdateBudget, categoriesCreateCategory, categoriesDeleteCategory, categoriesGetCategory, categoriesGetCategoryTree, categoriesListCategories, categoriesUpdateCategory, emailVerificationResendVerificationEmail, emailVerificationVerifyEmail, householdsAcceptHouseholdInvite, householdsCreateHouseholdInvite, householdsGetHouseholdMe, householdsLeaveHousehold, householdsListHouseholdInvites, householdsListHouseholdMembers, householdsPreviewHouseholdInvite, householdsRemoveHouseholdMember, householdsRevokeHouseholdInvite, householdsUpdateHouseholdMe, householdsUpdateHouseholdMember, incomeCreateClient, incomeCreateSession, incomeDeleteClient, incomeDeleteSession, incomeGetClient, incomeGetForecast, incomeGetSession, incomeGetSummary, incomeGetVault, incomeListClients, incomeListSessions, incomeResetVault, incomeUpdateClient, incomeUpdateSession, incomeUpsertVault, investmentsCreateInstrument, investmentsCreateTrade, investmentsDeleteInstrument, investmentsDeleteTrade, investmentsGetInstrument, investmentsGetPortfolio, investmentsGetTrade, investmentsListFxRates, investmentsListInstruments, investmentsListTrades, investmentsRefreshPrices, investmentsSearchSymbols, investmentsSetInstrumentPrice, investmentsUpdateInstrument, investmentsUpdateTrade, loginLoginAccessToken, type Options, passwordResetConfirmPasswordReset, passwordResetRequestPasswordReset, passwordResetVerifyPasswordResetToken, recurringRulesCreateRecurringRule, recurringRulesDeleteRecurringRule, recurringRulesGetRecurringRule, recurringRulesListRecurringRules, recurringRulesListUpcomingOccurrences, recurringRulesRunRecurringRules, recurringRulesUpdateRecurringRule, reportsBudgetProgress, reportsIncomeExpense, reportsMonthSummary, reportsSpendByCategory, reportsSpendOverTime, transactionsCreateTransaction, transactionsDeleteTransaction, transactionsGetTransaction, transactionsListTransactions, transactionsUpdateTransaction, usersCreateUser, usersDeleteUser, usersDeleteUserMe, usersGetUserById, usersGetUserMe, usersGetUsers, usersRegisterUser, usersUpdatePasswordMe, usersUpdateUser, usersUpdateUserMe } from '../sdk.gen';
+import type { AccountsCreateAccountData, AccountsCreateAccountError, AccountsCreateAccountResponse, AccountsDeleteAccountData, AccountsDeleteAccountError, AccountsDeleteAccountResponse, AccountsGetAccountData, AccountsGetAccountError, AccountsGetAccountResponse, AccountsListAccountsData, AccountsListAccountsError, AccountsListAccountsResponse, AccountsUpdateAccountData, AccountsUpdateAccountError, AccountsUpdateAccountResponse, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsError, BudgetsBulkUpsertBudgetsResponse, BudgetsCopyBudgetsData, BudgetsCopyBudgetsError, BudgetsCopyBudgetsResponse, BudgetsCreateBudgetData, BudgetsCreateBudgetError, BudgetsCreateBudgetResponse, BudgetsDeleteBudgetData, BudgetsDeleteBudgetError, BudgetsDeleteBudgetResponse, BudgetsGetBudgetData, BudgetsGetBudgetError, BudgetsGetBudgetResponse, BudgetsListBudgetsData, BudgetsListBudgetsError, BudgetsListBudgetsResponse, BudgetsUpdateBudgetData, BudgetsUpdateBudgetError, BudgetsUpdateBudgetResponse, CategoriesCreateCategoryData, CategoriesCreateCategoryError, CategoriesCreateCategoryResponse, CategoriesDeleteCategoryData, CategoriesDeleteCategoryError, CategoriesDeleteCategoryResponse, CategoriesGetCategoryData, CategoriesGetCategoryError, CategoriesGetCategoryResponse, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeError, CategoriesGetCategoryTreeResponse, CategoriesListCategoriesData, CategoriesListCategoriesError, CategoriesListCategoriesResponse, CategoriesUpdateCategoryData, CategoriesUpdateCategoryError, CategoriesUpdateCategoryResponse, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailError, EmailVerificationResendVerificationEmailResponse, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailError, EmailVerificationVerifyEmailResponse, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteError, HouseholdsAcceptHouseholdInviteResponse, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteError, HouseholdsCreateHouseholdInviteResponse, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponse, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponse, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesError, HouseholdsListHouseholdInvitesResponse, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponse, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteError, HouseholdsPreviewHouseholdInviteResponse, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberError, HouseholdsRemoveHouseholdMemberResponse, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteError, HouseholdsRevokeHouseholdInviteResponse, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeError, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberError, HouseholdsUpdateHouseholdMemberResponse, HouseholdsUpdateHouseholdMeResponse, IncomeCreateClientData, IncomeCreateClientError, IncomeCreateClientResponse, IncomeCreateSessionData, IncomeCreateSessionError, IncomeCreateSessionResponse, IncomeDeleteClientData, IncomeDeleteClientError, IncomeDeleteClientResponse, IncomeDeleteSessionData, IncomeDeleteSessionError, IncomeDeleteSessionResponse, IncomeGetClientData, IncomeGetClientError, IncomeGetClientResponse, IncomeGetForecastData, IncomeGetForecastError, IncomeGetForecastResponse, IncomeGetSessionData, IncomeGetSessionError, IncomeGetSessionResponse, IncomeGetSummaryData, IncomeGetSummaryError, IncomeGetSummaryResponse, IncomeGetVaultData, IncomeGetVaultResponse, IncomeListClientsData, IncomeListClientsError, IncomeListClientsResponse, IncomeListSessionsData, IncomeListSessionsError, IncomeListSessionsResponse, IncomeResetVaultData, IncomeResetVaultError, IncomeResetVaultResponse, IncomeUpdateClientData, IncomeUpdateClientError, IncomeUpdateClientResponse, IncomeUpdateSessionData, IncomeUpdateSessionError, IncomeUpdateSessionResponse, IncomeUpsertVaultData, IncomeUpsertVaultError, IncomeUpsertVaultResponse, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentError, InvestmentsCreateInstrumentResponse, InvestmentsCreateTradeData, InvestmentsCreateTradeError, InvestmentsCreateTradeResponse, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentError, InvestmentsDeleteInstrumentResponse, InvestmentsDeleteTradeData, InvestmentsDeleteTradeError, InvestmentsDeleteTradeResponse, InvestmentsGetInstrumentData, InvestmentsGetInstrumentError, InvestmentsGetInstrumentResponse, InvestmentsGetPortfolioData, InvestmentsGetPortfolioError, InvestmentsGetPortfolioResponse, InvestmentsGetTradeData, InvestmentsGetTradeError, InvestmentsGetTradeResponse, InvestmentsListFxRatesData, InvestmentsListFxRatesResponse, InvestmentsListInstrumentsData, InvestmentsListInstrumentsError, InvestmentsListInstrumentsResponse, InvestmentsListTradesData, InvestmentsListTradesError, InvestmentsListTradesResponse, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponse, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsError, InvestmentsSearchSymbolsResponse, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceError, InvestmentsSetInstrumentPriceResponse, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentError, InvestmentsUpdateInstrumentResponse, InvestmentsUpdateTradeData, InvestmentsUpdateTradeError, InvestmentsUpdateTradeResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenError, LoginLoginAccessTokenResponse, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetError, PasswordResetConfirmPasswordResetResponse, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetError, PasswordResetRequestPasswordResetResponse, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenError, PasswordResetVerifyPasswordResetTokenResponse, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleError, RecurringRulesCreateRecurringRuleResponse, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleError, RecurringRulesDeleteRecurringRuleResponse, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleError, RecurringRulesGetRecurringRuleResponse, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesError, RecurringRulesListRecurringRulesResponse, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesError, RecurringRulesListUpcomingOccurrencesResponse, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesError, RecurringRulesRunRecurringRulesResponse, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleError, RecurringRulesUpdateRecurringRuleResponse, ReportsBudgetProgressData, ReportsBudgetProgressError, ReportsBudgetProgressResponse, ReportsIncomeExpenseData, ReportsIncomeExpenseError, ReportsIncomeExpenseResponse, ReportsMonthSummaryData, ReportsMonthSummaryError, ReportsMonthSummaryResponse, ReportsSpendByCategoryData, ReportsSpendByCategoryError, ReportsSpendByCategoryResponse, ReportsSpendOverTimeData, ReportsSpendOverTimeError, ReportsSpendOverTimeResponse, TransactionsCreateTransactionData, TransactionsCreateTransactionError, TransactionsCreateTransactionResponse, TransactionsDeleteTransactionData, TransactionsDeleteTransactionError, TransactionsDeleteTransactionResponse, TransactionsGetTransactionData, TransactionsGetTransactionError, TransactionsGetTransactionResponse, TransactionsListTransactionsData, TransactionsListTransactionsError, TransactionsListTransactionsResponse, TransactionsUpdateTransactionData, TransactionsUpdateTransactionError, TransactionsUpdateTransactionResponse, UsersCreateUserData, UsersCreateUserError, UsersCreateUserResponse, UsersDeleteUserData, UsersDeleteUserError, UsersDeleteUserMeData, UsersDeleteUserMeResponse, UsersDeleteUserResponse, UsersGetUserByIdData, UsersGetUserByIdError, UsersGetUserByIdResponse, UsersGetUserMeData, UsersGetUserMeResponse, UsersGetUsersData, UsersGetUsersError, UsersGetUsersResponse, UsersRegisterUserData, UsersRegisterUserError, UsersRegisterUserResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeError, UsersUpdatePasswordMeResponse, UsersUpdateUserData, UsersUpdateUserError, UsersUpdateUserMeData, UsersUpdateUserMeError, UsersUpdateUserMeResponse, UsersUpdateUserResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -1167,6 +1167,9 @@ export const transactionsCreateTransactionMutation = (options?: Partial<Options<
  *
  * Delete a transaction.
  *
+ * Income generated by a session is refused. Delete the session instead, and
+ * the row it produced goes with it.
+ *
  * Args:
  * transaction_service: The transaction service dependency.
  * household: The current household context.
@@ -1176,7 +1179,8 @@ export const transactionsCreateTransactionMutation = (options?: Partial<Options<
  * A confirmation message.
  *
  * Raises:
- * HTTPException: If the transaction does not exist in the household (404).
+ * HTTPException: If the transaction does not exist in the household (404),
+ * or it came from a session (409).
  */
 export const transactionsDeleteTransactionMutation = (options?: Partial<Options<TransactionsDeleteTransactionData>>): UseMutationOptions<TransactionsDeleteTransactionResponse, TransactionsDeleteTransactionError, Options<TransactionsDeleteTransactionData>> => {
     const mutationOptions: UseMutationOptions<TransactionsDeleteTransactionResponse, TransactionsDeleteTransactionError, Options<TransactionsDeleteTransactionData>> = {
@@ -1228,6 +1232,9 @@ export const transactionsGetTransactionOptions = (options: Options<TransactionsG
  *
  * Edit a transaction.
  *
+ * Income generated by a session is refused: the session holds the fee, and
+ * letting both sides be edited would let them drift apart.
+ *
  * Args:
  * transaction_service: The transaction service dependency.
  * household: The current household context.
@@ -1239,8 +1246,8 @@ export const transactionsGetTransactionOptions = (options: Options<TransactionsG
  *
  * Raises:
  * HTTPException: If the transaction, an account or a category does not
- * exist in the household (404), or the change does not match the kind
- * (400).
+ * exist in the household (404), the change does not match the kind
+ * (400), or the transaction came from a session (409).
  */
 export const transactionsUpdateTransactionMutation = (options?: Partial<Options<TransactionsUpdateTransactionData>>): UseMutationOptions<TransactionsUpdateTransactionResponse, TransactionsUpdateTransactionError, Options<TransactionsUpdateTransactionData>> => {
     const mutationOptions: UseMutationOptions<TransactionsUpdateTransactionResponse, TransactionsUpdateTransactionError, Options<TransactionsUpdateTransactionData>> = {
@@ -1717,6 +1724,476 @@ export const recurringRulesUpdateRecurringRuleMutation = (options?: Partial<Opti
     };
     return mutationOptions;
 };
+
+/**
+ * Reset Vault
+ *
+ * Forget your key, and with it your own client names.
+ *
+ * For the PIN nobody can remember. The names become unreadable ciphertext the
+ * moment the key is gone, so they are cleared rather than left behind as
+ * rubbish no future PIN could decode. Every fee, session and euro survives,
+ * and another member's names are untouched.
+ *
+ * The confirmation flag is required because this cannot be undone.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * confirm: Must be true, as an explicit acknowledgement.
+ *
+ * Returns:
+ * A confirmation message.
+ */
+export const incomeResetVaultMutation = (options?: Partial<Options<IncomeResetVaultData>>): UseMutationOptions<IncomeResetVaultResponse, IncomeResetVaultError, Options<IncomeResetVaultData>> => {
+    const mutationOptions: UseMutationOptions<IncomeResetVaultResponse, IncomeResetVaultError, Options<IncomeResetVaultData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await incomeResetVault({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const incomeGetVaultQueryKey = (options?: Options<IncomeGetVaultData>) => createQueryKey('incomeGetVault', options);
+
+/**
+ * Get Vault
+ *
+ * Get the key material the browser needs to unlock your client names.
+ *
+ * Everything returned is opaque to the server. The PIN that turns it into a
+ * key never leaves the browser, so this endpoint hands back a locked box and
+ * the instructions for its lock, and nothing else.
+ *
+ * The key is yours, not the household's. Another member has their own, and it
+ * opens their own clients.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ *
+ * Returns:
+ * The vault, or a 404 when no PIN has been set up yet.
+ */
+export const incomeGetVaultOptions = (options?: Options<IncomeGetVaultData>) => queryOptions<IncomeGetVaultResponse, DefaultError, IncomeGetVaultResponse, ReturnType<typeof incomeGetVaultQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await incomeGetVault({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: incomeGetVaultQueryKey(options)
+});
+
+/**
+ * Upsert Vault
+ *
+ * Set up the PIN, or change it.
+ *
+ * Changing a PIN re-wraps the same key and touches no client row: the names
+ * were never encrypted with the PIN itself.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * vault_in: The key material.
+ *
+ * Returns:
+ * The stored vault.
+ */
+export const incomeUpsertVaultMutation = (options?: Partial<Options<IncomeUpsertVaultData>>): UseMutationOptions<IncomeUpsertVaultResponse, IncomeUpsertVaultError, Options<IncomeUpsertVaultData>> => {
+    const mutationOptions: UseMutationOptions<IncomeUpsertVaultResponse, IncomeUpsertVaultError, Options<IncomeUpsertVaultData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await incomeUpsertVault({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const incomeListClientsQueryKey = (options?: Options<IncomeListClientsData>) => createQueryKey('incomeListClients', options);
+
+/**
+ * List Clients
+ *
+ * List the clients of the household.
+ *
+ * There is no search by name and there cannot be one: the server holds
+ * ciphertext. The page filters and sorts after decrypting.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * filters: The filters to apply.
+ *
+ * Returns:
+ * The matching clients.
+ */
+export const incomeListClientsOptions = (options?: Options<IncomeListClientsData>) => queryOptions<IncomeListClientsResponse, IncomeListClientsError, IncomeListClientsResponse, ReturnType<typeof incomeListClientsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await incomeListClients({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: incomeListClientsQueryKey(options)
+});
+
+/**
+ * Create Client
+ *
+ * Add a client.
+ *
+ * The name arrives encrypted under your key and is stored as it came. Other
+ * members of the household will see the row and its figures with the name
+ * blanked out.
+ *
+ * A client can carry how often you see them — every week, every other week,
+ * once a month — pinned to the date it started, which is what makes "every
+ * Monday" expressible. Leave it out for somebody seen as and when.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * client_in: The client to add.
+ *
+ * Returns:
+ * The added client.
+ */
+export const incomeCreateClientMutation = (options?: Partial<Options<IncomeCreateClientData>>): UseMutationOptions<IncomeCreateClientResponse, IncomeCreateClientError, Options<IncomeCreateClientData>> => {
+    const mutationOptions: UseMutationOptions<IncomeCreateClientResponse, IncomeCreateClientError, Options<IncomeCreateClientData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await incomeCreateClient({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete Client
+ *
+ * Delete a client who has no sessions.
+ *
+ * A client with sessions is refused. Those sessions record work that was done
+ * and money that was taken, and tidying a list is not a reason to destroy
+ * them. Archive instead. Only the person who added the client may do either.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * client_id: The ID of the client to delete.
+ *
+ * Returns:
+ * A confirmation message.
+ */
+export const incomeDeleteClientMutation = (options?: Partial<Options<IncomeDeleteClientData>>): UseMutationOptions<IncomeDeleteClientResponse, IncomeDeleteClientError, Options<IncomeDeleteClientData>> => {
+    const mutationOptions: UseMutationOptions<IncomeDeleteClientResponse, IncomeDeleteClientError, Options<IncomeDeleteClientData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await incomeDeleteClient({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const incomeGetClientQueryKey = (options: Options<IncomeGetClientData>) => createQueryKey('incomeGetClient', options);
+
+/**
+ * Get Client
+ *
+ * Get one client.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * client_id: The ID of the client.
+ *
+ * Returns:
+ * The client.
+ */
+export const incomeGetClientOptions = (options: Options<IncomeGetClientData>) => queryOptions<IncomeGetClientResponse, IncomeGetClientError, IncomeGetClientResponse, ReturnType<typeof incomeGetClientQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await incomeGetClient({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: incomeGetClientQueryKey(options)
+});
+
+/**
+ * Update Client
+ *
+ * Edit a client, or archive them.
+ *
+ * Only the person who added them. Their name is under that person's key, so
+ * saving from anybody else's screen would write over a name they cannot read.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * client_id: The ID of the client to edit.
+ * client_in: The fields to change.
+ *
+ * Returns:
+ * The updated client.
+ */
+export const incomeUpdateClientMutation = (options?: Partial<Options<IncomeUpdateClientData>>): UseMutationOptions<IncomeUpdateClientResponse, IncomeUpdateClientError, Options<IncomeUpdateClientData>> => {
+    const mutationOptions: UseMutationOptions<IncomeUpdateClientResponse, IncomeUpdateClientError, Options<IncomeUpdateClientData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await incomeUpdateClient({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const incomeListSessionsQueryKey = (options?: Options<IncomeListSessionsData>) => createQueryKey('incomeListSessions', options);
+
+/**
+ * List Sessions
+ *
+ * List sessions.
+ *
+ * Filtering on `payment_status=pending` is the debtors list.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * filters: The filters to apply.
+ *
+ * Returns:
+ * The matching sessions, with the totals for the footer.
+ */
+export const incomeListSessionsOptions = (options?: Options<IncomeListSessionsData>) => queryOptions<IncomeListSessionsResponse, IncomeListSessionsError, IncomeListSessionsResponse, ReturnType<typeof incomeListSessionsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await incomeListSessions({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: incomeListSessionsQueryKey(options)
+});
+
+/**
+ * Create Session
+ *
+ * Record a session.
+ *
+ * A session becomes income only once it is paid. Recording one that has
+ * happened but not been settled leaves the ledger alone and puts the fee in
+ * what you are owed.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * session_in: The session to record.
+ *
+ * Returns:
+ * The recorded session.
+ */
+export const incomeCreateSessionMutation = (options?: Partial<Options<IncomeCreateSessionData>>): UseMutationOptions<IncomeCreateSessionResponse, IncomeCreateSessionError, Options<IncomeCreateSessionData>> => {
+    const mutationOptions: UseMutationOptions<IncomeCreateSessionResponse, IncomeCreateSessionError, Options<IncomeCreateSessionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await incomeCreateSession({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete Session
+ *
+ * Delete a session, and the ledger row it produced.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * session_id: The ID of the session to delete.
+ *
+ * Returns:
+ * A confirmation message.
+ */
+export const incomeDeleteSessionMutation = (options?: Partial<Options<IncomeDeleteSessionData>>): UseMutationOptions<IncomeDeleteSessionResponse, IncomeDeleteSessionError, Options<IncomeDeleteSessionData>> => {
+    const mutationOptions: UseMutationOptions<IncomeDeleteSessionResponse, IncomeDeleteSessionError, Options<IncomeDeleteSessionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await incomeDeleteSession({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const incomeGetSessionQueryKey = (options: Options<IncomeGetSessionData>) => createQueryKey('incomeGetSession', options);
+
+/**
+ * Get Session
+ *
+ * Get one session.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * session_id: The ID of the session.
+ *
+ * Returns:
+ * The session.
+ */
+export const incomeGetSessionOptions = (options: Options<IncomeGetSessionData>) => queryOptions<IncomeGetSessionResponse, IncomeGetSessionError, IncomeGetSessionResponse, ReturnType<typeof incomeGetSessionQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await incomeGetSession({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: incomeGetSessionQueryKey(options)
+});
+
+/**
+ * Update Session
+ *
+ * Edit a session, including marking it attended, missed, paid or waived.
+ *
+ * Marking a session paid writes the income to the ledger; taking that back
+ * removes it again. There is no separate status endpoint, because one state
+ * machine behind one method is one fewer place for the ledger and the diary to
+ * disagree.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * session_id: The ID of the session to edit.
+ * session_in: The fields to change.
+ *
+ * Returns:
+ * The updated session.
+ */
+export const incomeUpdateSessionMutation = (options?: Partial<Options<IncomeUpdateSessionData>>): UseMutationOptions<IncomeUpdateSessionResponse, IncomeUpdateSessionError, Options<IncomeUpdateSessionData>> => {
+    const mutationOptions: UseMutationOptions<IncomeUpdateSessionResponse, IncomeUpdateSessionError, Options<IncomeUpdateSessionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await incomeUpdateSession({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const incomeGetSummaryQueryKey = (options?: Options<IncomeGetSummaryData>) => createQueryKey('incomeGetSummary', options);
+
+/**
+ * Get Summary
+ *
+ * Get the figures for one month, and what is owed across all of them.
+ *
+ * `earned` is what the month's work was worth, `received` is what arrived and
+ * is the figure the reports agree with, and what is owed is the difference.
+ * They are reported apart because a month can be busy and still leave you
+ * short, and one merged number would hide exactly that.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * month: The month in "YYYY-MM" form. Defaults to the current one.
+ *
+ * Returns:
+ * The summary.
+ */
+export const incomeGetSummaryOptions = (options?: Options<IncomeGetSummaryData>) => queryOptions<IncomeGetSummaryResponse, IncomeGetSummaryError, IncomeGetSummaryResponse, ReturnType<typeof incomeGetSummaryQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await incomeGetSummary({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: incomeGetSummaryQueryKey(options)
+});
+
+export const incomeGetForecastQueryKey = (options?: Options<IncomeGetForecastData>) => createQueryKey('incomeGetForecast', options);
+
+/**
+ * Get Forecast
+ *
+ * Estimate what a month will bring.
+ *
+ * Built from the complete months before it, never from the month in progress.
+ * The answer is a likely figure with a band around it rather than a single
+ * number, because a freelance month that lands exactly on its average is the
+ * exception.
+ *
+ * Args:
+ * income_service: The income service dependency.
+ * household: The current household context.
+ * month: The month to forecast, in "YYYY-MM" form. Defaults to next month.
+ * months: How many complete months to average over.
+ *
+ * Returns:
+ * The forecast, its band, and the history behind it.
+ */
+export const incomeGetForecastOptions = (options?: Options<IncomeGetForecastData>) => queryOptions<IncomeGetForecastResponse, IncomeGetForecastError, IncomeGetForecastResponse, ReturnType<typeof incomeGetForecastQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await incomeGetForecast({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: incomeGetForecastQueryKey(options)
+});
 
 export const investmentsListInstrumentsQueryKey = (options?: Options<InvestmentsListInstrumentsData>) => createQueryKey('investmentsListInstruments', options);
 
