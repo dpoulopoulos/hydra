@@ -125,12 +125,10 @@ class IncomeClientRepository(HouseholdScopedRepository[IncomeClient]):
         count_statement = select(func.count()).select_from(IncomeClient).where(*conditions)
         count = self.session.exec(count_statement).one()
 
-        statement = (
-            select(IncomeClient)
-            .where(*conditions)
-            .order_by(col(IncomeClient.created_at).asc())
-            .offset(filters.skip)
-            .limit(filters.limit)
+        statement = self._paginate(
+            select(IncomeClient).where(*conditions).order_by(col(IncomeClient.created_at).asc()),
+            skip=filters.skip,
+            limit=filters.limit,
         )
 
         return self.session.exec(statement).all(), count
@@ -291,12 +289,10 @@ class IncomeSessionRepository(HouseholdScopedRepository[IncomeSession]):
         ).where(*conditions)
         earned_total, outstanding_total = self.session.exec(totals_statement).one()
 
-        statement = (
-            select(IncomeSession)
-            .where(*conditions)
-            .order_by(*self._ordering(filters.sort))
-            .offset(filters.skip)
-            .limit(filters.limit)
+        statement = self._paginate(
+            select(IncomeSession).where(*conditions).order_by(*self._ordering(filters.sort)),
+            skip=filters.skip,
+            limit=filters.limit,
         )
 
         # Postgres sums a BigInteger into a numeric, which arrives as a

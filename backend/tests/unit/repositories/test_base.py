@@ -2,7 +2,7 @@ import uuid
 from unittest.mock import MagicMock
 
 import pytest
-from sqlmodel import Field, Session, SQLModel
+from sqlmodel import Field, Session, SQLModel, select
 
 from app.models.mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 from app.repositories.base import BaseRepository, HouseholdScopedRepository
@@ -98,6 +98,14 @@ def test_exists_for_household(
 
     mock_db_session.exec.return_value.first.return_value = None
     assert repository.exists_for_household(entity_id=uuid.uuid4(), household_id=household_id) is False
+
+
+def test_paginate_applies_the_offset_and_the_limit(repository: ScopedThingRepository) -> None:
+    statement = repository._paginate(select(ScopedThing), skip=20, limit=10)
+
+    compiled = str(statement.compile(compile_kwargs={"literal_binds": True}))
+    assert "LIMIT 10" in compiled
+    assert "OFFSET 20" in compiled
 
 
 class UnscopedThing(PrimaryKeyMixin, SQLModel, table=True):

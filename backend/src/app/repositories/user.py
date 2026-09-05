@@ -57,7 +57,7 @@ class UserRepository(BaseRepository[User]):
         count_statement = select(func.count()).select_from(User)
         count = self.session.exec(count_statement).one()
 
-        statement = select(User).offset(skip).limit(limit)
+        statement = self._paginate(select(User), skip=skip, limit=limit)
         users = self.session.exec(statement).all()
 
         return users, count
