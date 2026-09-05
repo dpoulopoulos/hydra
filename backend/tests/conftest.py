@@ -9,8 +9,8 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.main import app
 from app.core.security import ALGORITHM, create_access_token, get_password_hash
+from app.main import app
 from app.models import HouseholdContext, HouseholdRole, User
 from app.repositories import (
     AccountRepository,
@@ -285,7 +285,7 @@ def inactive_user_token(test_inactive_user: User) -> str:
 
 
 @pytest.fixture
-def client() -> Generator[TestClient, None, None]:
+def client() -> Generator[TestClient]:
     """Create a test client for the FastAPI application.
 
     Yields:

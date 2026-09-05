@@ -23,7 +23,7 @@ class TestLoginAccessToken:
     ) -> None:
         """Test successfully logging in with valid credentials."""
         # Arrange: Set up database dependency override and mock authentication
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -58,7 +58,7 @@ class TestLoginAccessToken:
     ) -> None:
         """Test login with non-existent user email."""
         # Arrange: Set up database dependency override and mock InvalidEmailOrPasswordError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -95,7 +95,7 @@ class TestLoginAccessToken:
         which addresses have an account here, one request per address.
         """
         # Arrange: Set up database dependency override
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -130,7 +130,7 @@ class TestLoginAccessToken:
     ) -> None:
         """Test login with incorrect password."""
         # Arrange: Set up database dependency override and mock InvalidEmailOrPasswordError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -163,7 +163,7 @@ class TestLoginAccessToken:
     ) -> None:
         """Test login with inactive user account."""
         # Arrange: Set up database dependency override and mock UserNotActiveError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -195,7 +195,7 @@ class TestLoginAccessToken:
     ) -> None:
         """Test login with missing username field."""
         # Arrange: Set up database dependency override
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -223,7 +223,7 @@ class TestLoginAccessToken:
     ) -> None:
         """Test login with missing password field."""
         # Arrange: Set up database dependency override
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -250,7 +250,7 @@ class TestLoginAccessToken:
     ) -> None:
         """Test login with empty username and password."""
         # Arrange: Set up database dependency override and fail if authentication is reached
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from app.core.security import JWT, create_password_reset_token
+from app.core.security import create_password_reset_token
 from app.exceptions import (
     PasswordResetExpiredError,
     PasswordResetNotFoundError,

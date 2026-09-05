@@ -25,7 +25,7 @@ class TestResendVerificationEmail:
     ) -> None:
         """Test successfully sending a verification email."""
         # Arrange: Set up database dependency override and mock service method
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -68,7 +68,7 @@ class TestResendVerificationEmail:
     ) -> None:
         """Test sending verification email for non-existent user (should still succeed for security)."""
         # Arrange: Set up database dependency override and mock service method
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -112,7 +112,7 @@ class TestResendVerificationEmail:
     ) -> None:
         """Test sending verification email with invalid email format."""
         # Arrange: Set up database dependency override
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -137,7 +137,7 @@ class TestResendVerificationEmail:
     ) -> None:
         """Test sending verification email without email field."""
         # Arrange: Set up database dependency override
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -167,7 +167,7 @@ class TestSendVerificationEmailMe:
     ) -> None:
         """Test that an active account can ask for a confirmation of the address it holds."""
         # Arrange: Set up dependency overrides with an authenticated user
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         def override_get_current_user() -> User:
@@ -212,7 +212,7 @@ class TestVerifyEmail:
     ) -> None:
         """Test successfully verifying email with valid token."""
         # Arrange: Set up database dependency override and mock service method
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -247,7 +247,7 @@ class TestVerifyEmail:
     ) -> None:
         """Test verifying email with non-existent token."""
         # Arrange: Set up database dependency override and mock EmailVerificationNotFoundError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -280,7 +280,7 @@ class TestVerifyEmail:
     ) -> None:
         """Test verifying email with expired token."""
         # Arrange: Set up database dependency override and mock EmailVerificationExpiredError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -313,7 +313,7 @@ class TestVerifyEmail:
     ) -> None:
         """Test verifying email with already used token."""
         # Arrange: Set up database dependency override and mock EmailVerificationUsedError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -346,7 +346,7 @@ class TestVerifyEmail:
     ) -> None:
         """Test verifying email with invalid token format."""
         # Arrange: Set up database dependency override and mock EmailVerificationTokenNotValidError
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db
@@ -379,7 +379,7 @@ class TestVerifyEmail:
     ) -> None:
         """Test verifying email without token field."""
         # Arrange: Set up database dependency override
-        def override_get_db() -> Generator[MagicMock, None, None]:
+        def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
 
         app.dependency_overrides[get_db] = override_get_db

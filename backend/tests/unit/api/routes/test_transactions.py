@@ -22,8 +22,8 @@ from app.models import (
     Message,
     TransactionKind,
     TransactionPublic,
-    TransactionsPublic,
     TransactionSort,
+    TransactionsPublic,
     User,
 )
 from app.models.fields import MAX_AMOUNT_MINOR
