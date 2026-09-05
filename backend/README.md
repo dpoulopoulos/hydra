@@ -440,6 +440,26 @@ Accounts created through `/api/v1/users/signup` start inactive and receive a ver
 verifying returns 403 with a message asking the user to verify. Accounts created by a superuser through
 `/api/v1/users/` are active immediately and receive a welcome email.
 
+Signup answers the same `200` and the same body whether or not the address already has an account, so the reply
+does not say which addresses are registered. The submitted password is hashed once, before the address is looked
+up, and that one hash is used by whichever path follows, so every signup pays exactly one bcrypt hash — the
+dominant cost of the request — whatever the answer is. The two paths are not otherwise
+constant-time: only a free address writes a user and a household, so a caller who can measure the difference
+precisely may still be able to tell them apart. An address that is already taken is told about the attempt by
+email instead, with links to sign in and to reset a password and no token in the message. The `409` for a
+duplicate address is still raised by `/api/v1/users/`, where the caller is a superuser who may already list every
+account.
+
+An invitation is only ever read for an address that is free, so an invite token that is unknown, used, expired or
+addressed to somebody else cannot be reported to the caller either: the error would answer a free address with a
+404, 400 or 403 and a taken one with the shared `200`. Such a signup creates the account without the invitation,
+with a household of its own, and the verification email it was going to get anyway says that the invitation was not
+applied. That paragraph does not say which of the possible reasons applied and does not repeat the token. The
+invitation is settled before anything is written, by `HouseholdService.check_signup_invite`, so dropping one costs
+no extra hash and no repeated write, and the news about it rides on the verification email rather than a second
+message. Every signup therefore does one bcrypt hash, one account write and one blocking send to the mail provider
+whatever the answer is, and cannot be told apart by the clock either.
+
 ### Password Management
 
 - Passwords are hashed with bcrypt (cost factor 12) via pwdlib
