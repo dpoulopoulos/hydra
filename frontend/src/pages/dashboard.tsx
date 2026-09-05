@@ -275,7 +275,11 @@ export function Component() {
               <CardContent className="space-y-4">
                 {budgets.isPending ? (
                   <LoadingRows rows={3} />
-                ) : budgets.data && budgets.data.rows.length > 0 ? (
+                ) : budgets.isError ? (
+                  // A failed request must not read as "no limits set": that
+                  // would answer the question this panel exists to ask.
+                  <ErrorState error={budgets.error} title="Budgets did not load" />
+                ) : budgets.data.rows.length > 0 ? (
                   budgets.data.rows
                     .slice(0, 4)
                     .map((row) => <BudgetBar key={row.budget_id} row={row} currency={currency} />)
