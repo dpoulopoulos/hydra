@@ -2598,7 +2598,7 @@
           "recurring-rules"
         ],
         "summary": "Update Recurring Rule",
-        "description": "Edit a recurring rule, or pause it by setting is_active to false.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    rule_id: The ID of the rule to edit.\n    rule_in: The fields to change.\n\nReturns:\n    The updated rule.\n\nRaises:\n    HTTPException: If the rule or the category does not exist in the\n        household (404), or the new schedule would never come due (400).",
+        "description": "Edit a recurring rule, or pause it by setting is_active to false.\n\nEditing does not re-check the account the rule draws on, so a rule can\nstill be paused after that account has been archived.\n\nArgs:\n    recurring_rule_service: The recurring rule service dependency.\n    household: The current household context.\n    rule_id: The ID of the rule to edit.\n    rule_in: The fields to change.\n\nReturns:\n    The updated rule.\n\nRaises:\n    HTTPException: If the rule or the category does not exist in the\n        household (404), or the edited rule does not match its kind or\n        would never come due (400).",
         "operationId": "recurring-rules-update_recurring_rule",
         "security": [
           {

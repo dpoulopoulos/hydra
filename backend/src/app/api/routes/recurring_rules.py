@@ -169,6 +169,9 @@ def update_recurring_rule(
 ) -> RecurringRulePublic:
     """Edit a recurring rule, or pause it by setting is_active to false.
 
+    Editing does not re-check the account the rule draws on, so a rule can
+    still be paused after that account has been archived.
+
     Args:
         recurring_rule_service: The recurring rule service dependency.
         household: The current household context.
@@ -180,7 +183,8 @@ def update_recurring_rule(
 
     Raises:
         HTTPException: If the rule or the category does not exist in the
-            household (404), or the new schedule would never come due (400).
+            household (404), or the edited rule does not match its kind or
+            would never come due (400).
     """
     return recurring_rule_service.update_rule(household=household, rule_id=rule_id, rule_update=rule_in)
 

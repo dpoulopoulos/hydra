@@ -1335,6 +1335,9 @@ export const recurringRulesGetRecurringRule = <ThrowOnError extends boolean = fa
  *
  * Edit a recurring rule, or pause it by setting is_active to false.
  *
+ * Editing does not re-check the account the rule draws on, so a rule can
+ * still be paused after that account has been archived.
+ *
  * Args:
  * recurring_rule_service: The recurring rule service dependency.
  * household: The current household context.
@@ -1346,7 +1349,8 @@ export const recurringRulesGetRecurringRule = <ThrowOnError extends boolean = fa
  *
  * Raises:
  * HTTPException: If the rule or the category does not exist in the
- * household (404), or the new schedule would never come due (400).
+ * household (404), or the edited rule does not match its kind or
+ * would never come due (400).
  */
 export const recurringRulesUpdateRecurringRule = <ThrowOnError extends boolean = false>(options: Options<RecurringRulesUpdateRecurringRuleData, ThrowOnError>): RequestResult<RecurringRulesUpdateRecurringRuleResponses, RecurringRulesUpdateRecurringRuleErrors, ThrowOnError> => (options.client ?? client).patch<RecurringRulesUpdateRecurringRuleResponses, RecurringRulesUpdateRecurringRuleErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
