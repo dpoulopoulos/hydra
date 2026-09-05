@@ -21,6 +21,7 @@ vi.mock('@/api', async (importOriginal) => {
     householdsListHouseholdMembers: vi.fn(),
     householdsListHouseholdInvites: vi.fn(),
     householdsUpdateHouseholdMe: vi.fn(),
+    householdsCreateHouseholdInvite: vi.fn(),
   }
 })
 
@@ -159,5 +160,46 @@ describe('the invitations list', () => {
     renderHousehold()
 
     expect(await screen.findByText('No invitations outstanding.')).toBeInTheDocument()
+  })
+})
+
+describe('inviting someone', () => {
+  /** The body the last invite call sent. */
+  function invitedBody() {
+    const call = vi.mocked(api.householdsCreateHouseholdInvite).mock.calls.at(-1)
+    return (call?.[0] as { body: Record<string, unknown> }).body
+  }
+
+  beforeEach(() => {
+    vi.mocked(api.householdsCreateHouseholdInvite).mockResolvedValue({ data: {} } as never)
+  })
+
+  it('invites them as a member unless another role is picked', async () => {
+    const person = userEvent.setup()
+    renderHousehold()
+
+    await person.type(await screen.findByLabelText('Email'), 'partner@example.com')
+    expect(screen.getByRole('combobox', { name: 'Role' })).toHaveTextContent('Member')
+
+    await person.click(screen.getByRole('button', { name: 'Send invitation' }))
+
+    await waitFor(() => expect(api.householdsCreateHouseholdInvite).toHaveBeenCalled())
+    expect(invitedBody()).toEqual({ email: 'partner@example.com', role: 'member' })
+  })
+
+  it('invites them as an owner when that is the role picked', async () => {
+    const person = userEvent.setup()
+    renderHousehold()
+
+    await person.type(await screen.findByLabelText('Email'), 'partner@example.com')
+    await person.click(screen.getByRole('combobox', { name: 'Role' }))
+    await person.click(await screen.findByRole('option', { name: 'Owner' }))
+
+    expect(screen.getByRole('combobox', { name: 'Role' })).toHaveTextContent('Owner')
+
+    await person.click(screen.getByRole('button', { name: 'Send invitation' }))
+
+    await waitFor(() => expect(api.householdsCreateHouseholdInvite).toHaveBeenCalled())
+    expect(invitedBody()).toEqual({ email: 'partner@example.com', role: 'owner' })
   })
 })
