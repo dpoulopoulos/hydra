@@ -6,6 +6,7 @@ import {
   Settings,
   Tags,
   Target,
+  TrendingUp,
   Wallet,
 } from 'lucide-react'
 import { NavLink } from 'react-router'
@@ -28,6 +29,7 @@ const money = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/accounts', label: 'Accounts', icon: Wallet },
+  { to: '/investments', label: 'Investments', icon: TrendingUp },
 ]
 
 const planning = [
