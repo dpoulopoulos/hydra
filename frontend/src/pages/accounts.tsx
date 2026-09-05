@@ -11,6 +11,7 @@ import {
   type AccountPublic,
 } from '@/api'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { CopyButton } from '@/components/copy-button'
 import { EmptyState, ErrorState, LoadingRows } from '@/components/data-state'
 import { PageHeader } from '@/components/layout/page-header'
 import { Money } from '@/components/money'
@@ -38,6 +39,7 @@ import {
 } from '@/components/ui/table'
 import { useCurrency } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
+import { formatIban } from '@/lib/iban'
 import { ACCOUNT_TYPE_LABELS } from '@/lib/labels'
 import { formatDate } from '@/lib/month'
 
@@ -113,6 +115,7 @@ export function Component() {
           <TableRow>
             <TableHead>Account</TableHead>
             <TableHead>Type</TableHead>
+            <TableHead>IBAN</TableHead>
             <TableHead>Tracking since</TableHead>
             <TableHead className="text-right">Balance</TableHead>
             <TableHead className="w-10" />
@@ -132,6 +135,21 @@ export function Component() {
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {ACCOUNT_TYPE_LABELS[account.type] ?? account.type}
+              </TableCell>
+              <TableCell>
+                {account.iban ? (
+                  <div className="flex items-center gap-1">
+                    {/* Grouped in fours to read it, copied compact to use it:
+                        a payment form takes the spaces, but not every one
+                        strips them. */}
+                    <span className="text-muted-foreground font-mono text-xs whitespace-nowrap">
+                      {formatIban(account.iban)}
+                    </span>
+                    <CopyButton value={account.iban} label="IBAN" />
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">&mdash;</span>
+                )}
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {formatDate(account.opening_balance_date)}
