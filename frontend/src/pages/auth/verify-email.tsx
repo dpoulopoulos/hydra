@@ -25,8 +25,9 @@ export function Component() {
 
   const verify = useMutation({
     mutationFn: async (value: string) => {
-      const { error } = await emailVerificationVerifyEmail({ body: { token: value } })
+      const { data, error } = await emailVerificationVerifyEmail({ body: { token: value } })
       if (error) throw error
+      return data?.message ?? ''
     },
   })
 
@@ -66,11 +67,13 @@ export function Component() {
 
   if (verify.isSuccess) {
     return (
-      <AuthLayout title="Email verified" description="Your account is active.">
+      <AuthLayout title="Email verified" description="That address is yours.">
         <Alert>
           <CheckCircle2 className="size-4" />
           <AlertTitle>You are all set</AlertTitle>
-          <AlertDescription>Sign in to start tracking your household's money.</AlertDescription>
+          {/* The same link either activates an account or moves one to a new
+              address, and only the server knows which this was. */}
+          <AlertDescription>{verify.data}</AlertDescription>
         </Alert>
         <Link
           to="/login"
