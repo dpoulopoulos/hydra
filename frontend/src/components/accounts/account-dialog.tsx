@@ -107,6 +107,13 @@ export function AccountDialog({
     )
   }, [open, account, form])
 
+  // Cash is money in a pocket: it sits at no institution, so it is asked for
+  // neither. A credit card sits at one, but what it has is a card number, not
+  // an IBAN. Hiding a field beats leaving it there to be filled in wrongly.
+  const type = form.watch('type')
+  const heldAtBank = type !== AccountType.CASH
+  const hasIban = heldAtBank && type !== AccountType.CREDIT_CARD
+
   const save = useMutation({
     mutationFn: async (parsed: Parsed) => {
       if (account) {
@@ -117,8 +124,8 @@ export function AccountDialog({
           body: {
             name: parsed.name,
             type: parsed.type,
-            institution: parsed.institution || null,
-            iban: parsed.iban || null,
+            institution: heldAtBank ? parsed.institution || null : null,
+            iban: hasIban ? parsed.iban || null : null,
           },
         })
         if (error) throw error
@@ -129,8 +136,8 @@ export function AccountDialog({
         body: {
           name: parsed.name,
           type: parsed.type,
-          institution: parsed.institution || null,
-          iban: parsed.iban || null,
+          institution: heldAtBank ? parsed.institution || null : null,
+          iban: hasIban ? parsed.iban || null : null,
           opening_balance_minor: parsed.opening_balance,
           opening_balance_date: parsed.opening_balance_date,
         },
@@ -179,8 +186,20 @@ export function AccountDialog({
           <Field id="type" label="Type" error={form.formState.errors.type?.message}>
             {(props) => (
               <Select
-                value={form.watch('type')}
-                onValueChange={(value) => form.setValue('type', value as AccountType)}
+                value={type}
+                onValueChange={(value) => {
+                  form.setValue('type', value as AccountType)
+                  // Clear what the form is about to hide. A half typed IBAN
+                  // left behind would fail validation the user cannot see.
+                  if (value === AccountType.CASH) {
+                    form.setValue('institution', '')
+                    form.clearErrors('institution')
+                  }
+                  if (value === AccountType.CASH || value === AccountType.CREDIT_CARD) {
+                    form.setValue('iban', '')
+                    form.clearErrors('iban')
+                  }
+                }}
               >
                 <SelectTrigger id={props.id} className="w-full">
                   <SelectValue />
@@ -196,33 +215,39 @@ export function AccountDialog({
             )}
           </Field>
 
-          <Field
-            id="institution"
-            label="Bank"
-            hint="Optional. Helps tell similar accounts apart."
-            error={form.formState.errors.institution?.message}
-          >
-            {(props) => (
-              <Input {...props} {...form.register('institution')} placeholder="Optional" />
-            )}
-          </Field>
+          {heldAtBank ? (
+            <>
+              <Field
+                id="institution"
+                label="Bank"
+                hint="Optional. Helps tell similar accounts apart."
+                error={form.formState.errors.institution?.message}
+              >
+                {(props) => (
+                  <Input {...props} {...form.register('institution')} placeholder="Optional" />
+                )}
+              </Field>
 
-          <Field
-            id="iban"
-            label="IBAN"
-            hint="Optional. Listed with a copy button, for when someone has to pay in."
-            error={form.formState.errors.iban?.message}
-          >
-            {(props) => (
-              <Input
-                {...props}
-                {...form.register('iban')}
-                placeholder="Optional"
-                autoComplete="off"
-                spellCheck={false}
-              />
-            )}
-          </Field>
+              {hasIban ? (
+                <Field
+                  id="iban"
+                  label="IBAN"
+                  hint="Optional. Listed with a copy button, for when someone has to pay in."
+                  error={form.formState.errors.iban?.message}
+                >
+                  {(props) => (
+                    <Input
+                      {...props}
+                      {...form.register('iban')}
+                      placeholder="Optional"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                  )}
+                </Field>
+              ) : null}
+            </>
+          ) : null}
 
           {!isEdit ? (
             <div className="grid gap-4 sm:grid-cols-2">
