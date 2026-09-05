@@ -164,9 +164,7 @@ class TestCreateCategory:
         with pytest.raises(CategoryKindMismatchError):
             mock_category_service.create_category(
                 household=household_context,
-                category_create=CategoryCreate(
-                    name="Groceries", parent_id=parent.id, kind=CategoryKind.EXPENSE
-                ),
+                category_create=CategoryCreate(name="Groceries", parent_id=parent.id, kind=CategoryKind.EXPENSE),
             )
 
     def test_rejects_a_duplicate_sibling_name(
@@ -247,9 +245,9 @@ class TestGetCategory:
         mock_category_service.session.exec = MagicMock()
         mock_category_service.session.exec.return_value.first.return_value = category
 
-        assert mock_category_service.get_category(
-            household=household_context, category_id=category.id
-        ).id == category.id
+        assert (
+            mock_category_service.get_category(household=household_context, category_id=category.id).id == category.id
+        )
 
     def test_a_category_from_another_household_is_not_found(
         self, mock_category_service: CategoryService, household_context: HouseholdContext
@@ -460,9 +458,7 @@ class TestDeleteCategory:
         mock_category_service.session.exec.return_value.first.return_value = category
         mock_category_service.session.exec.return_value.one.return_value = 0
 
-        result = mock_category_service.delete_category(
-            household=household_context, category_id=category.id
-        )
+        result = mock_category_service.delete_category(household=household_context, category_id=category.id)
 
         assert isinstance(result, Message)
         mock_category_service.session.delete.assert_called_once_with(category)

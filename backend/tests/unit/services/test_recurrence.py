@@ -11,9 +11,7 @@ class TestFirstOccurrence:
     """Tests for first_occurrence."""
 
     def test_a_monthly_rule_starts_on_its_start_date(self) -> None:
-        assert first_occurrence(
-            start_date=date(2026, 3, 4), frequency=RecurrenceFrequency.MONTHLY
-        ) == date(2026, 3, 4)
+        assert first_occurrence(start_date=date(2026, 3, 4), frequency=RecurrenceFrequency.MONTHLY) == date(2026, 3, 4)
 
     def test_an_explicit_day_moves_the_first_occurrence_forward(self) -> None:
         """A rule that starts on the 4th but bills on the 15th first falls due on the 15th."""
@@ -32,9 +30,7 @@ class TestFirstOccurrence:
         ) == date(2026, 2, 28)
 
     def test_a_weekly_rule_starts_on_its_start_date(self) -> None:
-        assert first_occurrence(
-            start_date=date(2026, 3, 4), frequency=RecurrenceFrequency.WEEKLY
-        ) == date(2026, 3, 4)
+        assert first_occurrence(start_date=date(2026, 3, 4), frequency=RecurrenceFrequency.WEEKLY) == date(2026, 3, 4)
 
     def test_the_day_of_month_is_ignored_for_a_weekly_rule(self) -> None:
         assert first_occurrence(
@@ -46,24 +42,16 @@ class TestAdvanceMonthly:
     """Tests for advancing a monthly rule."""
 
     def test_moves_on_one_month(self) -> None:
-        assert advance(
-            current=date(2026, 3, 4), frequency=RecurrenceFrequency.MONTHLY, interval=1
-        ) == date(2026, 4, 4)
+        assert advance(current=date(2026, 3, 4), frequency=RecurrenceFrequency.MONTHLY, interval=1) == date(2026, 4, 4)
 
     def test_rolls_the_year_over(self) -> None:
-        assert advance(
-            current=date(2026, 12, 4), frequency=RecurrenceFrequency.MONTHLY, interval=1
-        ) == date(2027, 1, 4)
+        assert advance(current=date(2026, 12, 4), frequency=RecurrenceFrequency.MONTHLY, interval=1) == date(2027, 1, 4)
 
     def test_an_interval_of_two_skips_a_month(self) -> None:
-        assert advance(
-            current=date(2026, 3, 4), frequency=RecurrenceFrequency.MONTHLY, interval=2
-        ) == date(2026, 5, 4)
+        assert advance(current=date(2026, 3, 4), frequency=RecurrenceFrequency.MONTHLY, interval=2) == date(2026, 5, 4)
 
     def test_an_interval_of_three_rolls_the_year_over(self) -> None:
-        assert advance(
-            current=date(2026, 11, 4), frequency=RecurrenceFrequency.MONTHLY, interval=3
-        ) == date(2027, 2, 4)
+        assert advance(current=date(2026, 11, 4), frequency=RecurrenceFrequency.MONTHLY, interval=3) == date(2027, 2, 4)
 
     def test_the_31st_is_clamped_to_the_end_of_a_short_month(self) -> None:
         assert advance(
@@ -111,14 +99,10 @@ class TestAdvanceWeekly:
     """Tests for advancing a weekly rule."""
 
     def test_moves_on_seven_days(self) -> None:
-        assert advance(
-            current=date(2026, 3, 4), frequency=RecurrenceFrequency.WEEKLY, interval=1
-        ) == date(2026, 3, 11)
+        assert advance(current=date(2026, 3, 4), frequency=RecurrenceFrequency.WEEKLY, interval=1) == date(2026, 3, 11)
 
     def test_an_interval_of_two_is_a_fortnight(self) -> None:
-        assert advance(
-            current=date(2026, 3, 4), frequency=RecurrenceFrequency.WEEKLY, interval=2
-        ) == date(2026, 3, 18)
+        assert advance(current=date(2026, 3, 4), frequency=RecurrenceFrequency.WEEKLY, interval=2) == date(2026, 3, 18)
 
     def test_keeps_the_same_weekday(self) -> None:
         start = date(2026, 3, 4)
@@ -126,28 +110,20 @@ class TestAdvanceWeekly:
         assert moved.weekday() == start.weekday()
 
     def test_crosses_a_month_boundary(self) -> None:
-        assert advance(
-            current=date(2026, 3, 30), frequency=RecurrenceFrequency.WEEKLY, interval=1
-        ) == date(2026, 4, 6)
+        assert advance(current=date(2026, 3, 30), frequency=RecurrenceFrequency.WEEKLY, interval=1) == date(2026, 4, 6)
 
 
 class TestAdvanceYearly:
     """Tests for advancing a yearly rule."""
 
     def test_moves_on_one_year(self) -> None:
-        assert advance(
-            current=date(2026, 3, 4), frequency=RecurrenceFrequency.YEARLY, interval=1
-        ) == date(2027, 3, 4)
+        assert advance(current=date(2026, 3, 4), frequency=RecurrenceFrequency.YEARLY, interval=1) == date(2027, 3, 4)
 
     def test_an_interval_of_two_skips_a_year(self) -> None:
-        assert advance(
-            current=date(2026, 3, 4), frequency=RecurrenceFrequency.YEARLY, interval=2
-        ) == date(2028, 3, 4)
+        assert advance(current=date(2026, 3, 4), frequency=RecurrenceFrequency.YEARLY, interval=2) == date(2028, 3, 4)
 
     def test_the_29th_of_february_is_clamped_in_a_common_year(self) -> None:
-        assert advance(
-            current=date(2028, 2, 29), frequency=RecurrenceFrequency.YEARLY, interval=1
-        ) == date(2029, 2, 28)
+        assert advance(current=date(2028, 2, 29), frequency=RecurrenceFrequency.YEARLY, interval=1) == date(2029, 2, 28)
 
     def test_the_29th_of_february_returns_in_the_next_leap_year(self) -> None:
         assert advance(
@@ -164,9 +140,7 @@ class TestAdvanceInterval:
     @pytest.mark.parametrize("interval", [0, -1])
     def test_rejects_an_interval_that_would_not_move_the_date_on(self, interval: int) -> None:
         with pytest.raises(ValueError):
-            advance(
-                current=date(2026, 3, 4), frequency=RecurrenceFrequency.YEARLY, interval=interval
-            )
+            advance(current=date(2026, 3, 4), frequency=RecurrenceFrequency.YEARLY, interval=interval)
 
     def test_accepts_the_largest_interval(self) -> None:
         assert advance(
@@ -187,9 +161,7 @@ class TestAdvancePastTheCalendar:
             (RecurrenceFrequency.WEEKLY, 1),
         ],
     )
-    def test_returns_none_at_the_end_of_the_calendar(
-        self, frequency: RecurrenceFrequency, interval: int
-    ) -> None:
+    def test_returns_none_at_the_end_of_the_calendar(self, frequency: RecurrenceFrequency, interval: int) -> None:
         assert advance(current=date.max, frequency=frequency, interval=interval) is None
 
     def test_returns_none_for_a_stored_interval_above_the_cap(self) -> None:
@@ -204,21 +176,16 @@ class TestAdvancePastTheCalendar:
         )
 
     def test_the_last_step_that_still_fits_is_taken(self) -> None:
-        assert advance(
-            current=date(9998, 12, 31), frequency=RecurrenceFrequency.YEARLY, interval=1
-        ) == date(9999, 12, 31)
+        assert advance(current=date(9998, 12, 31), frequency=RecurrenceFrequency.YEARLY, interval=1) == date(
+            9999, 12, 31
+        )
 
 
 class TestFirstOccurrencePastTheCalendar:
     """A first occurrence that cannot be placed on the calendar."""
 
     def test_returns_none_when_the_first_occurrence_leaves_the_calendar(self) -> None:
-        assert (
-            first_occurrence(
-                start_date=date.max, frequency=RecurrenceFrequency.MONTHLY, day_of_month=1
-            )
-            is None
-        )
+        assert first_occurrence(start_date=date.max, frequency=RecurrenceFrequency.MONTHLY, day_of_month=1) is None
 
 
 class TestOccurrencesUntil:
@@ -312,9 +279,7 @@ class TestOccurrencesUntil:
         ("frequency", "interval"),
         [(RecurrenceFrequency.YEARLY, MAX_RECURRENCE_INTERVAL), (RecurrenceFrequency.WEEKLY, 1)],
     )
-    def test_stops_when_the_schedule_runs_off_the_calendar(
-        self, frequency: RecurrenceFrequency, interval: int
-    ) -> None:
+    def test_stops_when_the_schedule_runs_off_the_calendar(self, frequency: RecurrenceFrequency, interval: int) -> None:
         """Asking to look ahead to the last day there is must not raise."""
         dates = occurrences_until(
             cursor=date(9990, 1, 1),

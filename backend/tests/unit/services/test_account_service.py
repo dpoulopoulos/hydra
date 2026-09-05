@@ -64,9 +64,7 @@ class TestCreateAccount:
 
         result = mock_account_service.create_account(
             household=household_context,
-            account_create=AccountCreate(
-                name="Cash", type=AccountType.CASH, opening_balance_date=date(2026, 1, 1)
-            ),
+            account_create=AccountCreate(name="Cash", type=AccountType.CASH, opening_balance_date=date(2026, 1, 1)),
         )
 
         assert result.name == "Cash"
@@ -87,9 +85,7 @@ class TestCreateAccount:
 
         result = mock_account_service.create_account(
             household=household_context,
-            account_create=AccountCreate(
-                name="Cash", type=AccountType.CASH, opening_balance_date=date(2026, 1, 1)
-            ),
+            account_create=AccountCreate(name="Cash", type=AccountType.CASH, opening_balance_date=date(2026, 1, 1)),
         )
 
         assert result.currency_code == "GBP"
@@ -140,9 +136,7 @@ class TestCreateAccount:
         with pytest.raises(HouseholdNotFoundError):
             mock_account_service.create_account(
                 household=household_context,
-                account_create=AccountCreate(
-                    name="Cash", type=AccountType.CASH, opening_balance_date=date(2026, 1, 1)
-                ),
+                account_create=AccountCreate(name="Cash", type=AccountType.CASH, opening_balance_date=date(2026, 1, 1)),
             )
 
 
@@ -179,9 +173,7 @@ class TestListAccounts:
     ) -> None:
         """Money owed on a card is a negative balance, so net worth is not overstated."""
         current = make_account(name="Current", opening_balance_minor=100_000)
-        card = make_account(
-            name="Card", account_type=AccountType.CREDIT_CARD, opening_balance_minor=-40_000
-        )
+        card = make_account(name="Card", account_type=AccountType.CREDIT_CARD, opening_balance_minor=-40_000)
         mock_account_service.session.exec = MagicMock()
         mock_account_service.session.exec.return_value.one.return_value = 2
         mock_account_service.session.exec.return_value.all.side_effect = [

@@ -55,9 +55,7 @@ def make_budget(
 class TestCreateBudget:
     """Tests for create_budget."""
 
-    def test_sets_a_limit(
-        self, mock_budget_service: BudgetService, household_context: HouseholdContext
-    ) -> None:
+    def test_sets_a_limit(self, mock_budget_service: BudgetService, household_context: HouseholdContext) -> None:
         category = make_category()
         mock_budget_service.session.exec = MagicMock()
         mock_budget_service.session.exec.return_value.first.side_effect = [category, None]
@@ -100,9 +98,7 @@ class TestCreateBudget:
         with pytest.raises(ValueError):
             BudgetCreate(category_id=uuid.uuid4(), month="2026-03", limit_minor=-1)
 
-    def test_allows_a_zero_limit(
-        self, mock_budget_service: BudgetService, household_context: HouseholdContext
-    ) -> None:
+    def test_allows_a_zero_limit(self, mock_budget_service: BudgetService, household_context: HouseholdContext) -> None:
         """A limit of nothing is a real choice: spend nothing here this month."""
         category = make_category()
         mock_budget_service.session.exec = MagicMock()
@@ -166,9 +162,7 @@ class TestCreateBudget:
         child = make_category(name="Groceries", parent_id=parent.id)
         mock_budget_service.session.exec = MagicMock()
         mock_budget_service.session.exec.return_value.first.side_effect = [child, None, parent]
-        mock_budget_service.session.exec.return_value.all.return_value = [
-            make_budget(category_id=parent.id)
-        ]
+        mock_budget_service.session.exec.return_value.all.return_value = [make_budget(category_id=parent.id)]
 
         with pytest.raises(BudgetOverlapError) as caught:
             mock_budget_service.create_budget(
@@ -223,9 +217,7 @@ class TestListBudgets:
 class TestGetBudget:
     """Tests for get_budget."""
 
-    def test_returns_the_budget(
-        self, mock_budget_service: BudgetService, household_context: HouseholdContext
-    ) -> None:
+    def test_returns_the_budget(self, mock_budget_service: BudgetService, household_context: HouseholdContext) -> None:
         budget = make_budget()
         mock_budget_service.session.exec = MagicMock()
         mock_budget_service.session.exec.return_value.first.return_value = budget
@@ -245,9 +237,7 @@ class TestGetBudget:
 class TestUpdateBudget:
     """Tests for update_budget."""
 
-    def test_changes_the_limit(
-        self, mock_budget_service: BudgetService, household_context: HouseholdContext
-    ) -> None:
+    def test_changes_the_limit(self, mock_budget_service: BudgetService, household_context: HouseholdContext) -> None:
         budget = make_budget()
         mock_budget_service.session.exec = MagicMock()
         mock_budget_service.session.exec.return_value.first.return_value = budget
@@ -267,9 +257,7 @@ class TestUpdateBudget:
 class TestDeleteBudget:
     """Tests for delete_budget."""
 
-    def test_removes_the_budget(
-        self, mock_budget_service: BudgetService, household_context: HouseholdContext
-    ) -> None:
+    def test_removes_the_budget(self, mock_budget_service: BudgetService, household_context: HouseholdContext) -> None:
         budget = make_budget()
         mock_budget_service.session.exec = MagicMock()
         mock_budget_service.session.exec.return_value.first.return_value = budget
@@ -319,9 +307,7 @@ class TestBulkUpsert:
 
         mock_budget_service.bulk_upsert(
             household=household_context,
-            bulk=BudgetBulkUpsert(
-                month="2026-03", entries=[BudgetEntry(category_id=food.id, limit_minor=45_000)]
-            ),
+            bulk=BudgetBulkUpsert(month="2026-03", entries=[BudgetEntry(category_id=food.id, limit_minor=45_000)]),
         )
 
         assert existing.limit_minor == 45_000
@@ -338,9 +324,7 @@ class TestBulkUpsert:
 
         mock_budget_service.bulk_upsert(
             household=household_context,
-            bulk=BudgetBulkUpsert(
-                month="2026-03", entries=[BudgetEntry(category_id=food.id, limit_minor=40_000)]
-            ),
+            bulk=BudgetBulkUpsert(month="2026-03", entries=[BudgetEntry(category_id=food.id, limit_minor=40_000)]),
         )
 
         mock_budget_service.session.delete.assert_called_once_with(dropped)
@@ -398,9 +382,7 @@ class TestBulkUpsert:
         with pytest.raises(CategoryNotFoundError):
             mock_budget_service.bulk_upsert(
                 household=household_context,
-                bulk=BudgetBulkUpsert(
-                    month="2026-03", entries=[BudgetEntry(category_id=uuid.uuid4(), limit_minor=1)]
-                ),
+                bulk=BudgetBulkUpsert(month="2026-03", entries=[BudgetEntry(category_id=uuid.uuid4(), limit_minor=1)]),
             )
 
     def test_rejects_a_set_containing_a_parent_and_its_child(

@@ -33,9 +33,7 @@ RULE_ID = uuid.UUID("77777777-7777-7777-7777-777777777777")
 ACCOUNT_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
 
 
-def make_public(
-    amount_minor: int = 120_000, next_occurrence_on: date | None = date(2026, 4, 1)
-) -> RecurringRulePublic:
+def make_public(amount_minor: int = 120_000, next_occurrence_on: date | None = date(2026, 4, 1)) -> RecurringRulePublic:
     """Build a recurring rule response payload."""
     return RecurringRulePublic(
         id=RULE_ID,
@@ -54,9 +52,7 @@ def make_public(
 
 
 @pytest.fixture
-def wire(
-    mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext
-) -> Generator[MagicMock]:
+def wire(mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext) -> Generator[MagicMock]:
     """Override the database, the current user, the household scope and the service.
 
     Yields:
@@ -80,9 +76,7 @@ def wire(
 class TestCreateRecurringRule:
     """Tests for POST /recurring-rules/."""
 
-    def test_creates_a_rule(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_creates_a_rule(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.create_rule.return_value = make_public()
 
         response = client.post(
@@ -101,9 +95,7 @@ class TestCreateRecurringRule:
         assert response.status_code == 200
         assert response.json()["next_occurrence_on"] == "2026-04-01"
 
-    def test_rejects_a_zero_amount(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_rejects_a_zero_amount(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.post(
             "/api/v1/recurring-rules/",
             headers=auth_headers,
@@ -151,9 +143,7 @@ class TestCreateRecurringRule:
 
         assert response.status_code == 422
 
-    def test_rejects_a_zero_interval(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_rejects_a_zero_interval(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.post(
             "/api/v1/recurring-rules/",
             headers=auth_headers,
@@ -209,9 +199,7 @@ class TestCreateRecurringRule:
 class TestListRecurringRules:
     """Tests for GET /recurring-rules/."""
 
-    def test_returns_the_rules(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_rules(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.list_rules.return_value = RecurringRulesPublic(data=[make_public()], count=1)
 
         response = client.get("/api/v1/recurring-rules/", headers=auth_headers)
@@ -232,9 +220,7 @@ class TestListRecurringRules:
 class TestListUpcoming:
     """Tests for GET /recurring-rules/upcoming."""
 
-    def test_returns_the_projection(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_projection(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.list_upcoming.return_value = UpcomingOccurrencesPublic(
             data=[
                 UpcomingOccurrence(
@@ -273,9 +259,7 @@ class TestRunRecurringRules:
     def test_records_what_has_fallen_due(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
-        wire.materialize_due.return_value = RecurringRunResult(
-            created_count=3, skipped_count=0, rules_advanced=1
-        )
+        wire.materialize_due.return_value = RecurringRunResult(created_count=3, skipped_count=0, rules_advanced=1)
 
         response = client.post("/api/v1/recurring-rules/run", headers=auth_headers)
 
@@ -285,9 +269,7 @@ class TestRunRecurringRules:
     def test_run_is_not_parsed_as_a_rule_id(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
-        wire.materialize_due.return_value = RecurringRunResult(
-            created_count=0, skipped_count=0, rules_advanced=0
-        )
+        wire.materialize_due.return_value = RecurringRunResult(created_count=0, skipped_count=0, rules_advanced=0)
 
         response = client.post("/api/v1/recurring-rules/run", headers=auth_headers)
 
@@ -297,9 +279,7 @@ class TestRunRecurringRules:
 class TestGetRecurringRule:
     """Tests for GET /recurring-rules/{rule_id}."""
 
-    def test_returns_the_rule(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_rule(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.get_rule.return_value = make_public()
 
         response = client.get(f"/api/v1/recurring-rules/{RULE_ID}", headers=auth_headers)
@@ -320,9 +300,7 @@ class TestGetRecurringRule:
 class TestUpdateRecurringRule:
     """Tests for PATCH /recurring-rules/{rule_id}."""
 
-    def test_changes_the_amount(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_changes_the_amount(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.update_rule.return_value = make_public(amount_minor=130_000)
 
         response = client.patch(
@@ -332,17 +310,12 @@ class TestUpdateRecurringRule:
         assert response.status_code == 200
         assert wire.update_rule.call_args.kwargs["rule_update"].amount_minor == 130000
 
-    def test_pauses_the_rule(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_pauses_the_rule(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.update_rule.return_value = make_public()
 
-        client.patch(
-            f"/api/v1/recurring-rules/{RULE_ID}", headers=auth_headers, json={"is_active": False}
-        )
+        client.patch(f"/api/v1/recurring-rules/{RULE_ID}", headers=auth_headers, json={"is_active": False})
 
         assert wire.update_rule.call_args.kwargs["rule_update"].is_active is False
-
 
     def test_rejects_an_interval_beyond_the_cap(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
@@ -359,12 +332,8 @@ class TestUpdateRecurringRule:
 class TestDeleteRecurringRule:
     """Tests for DELETE /recurring-rules/{rule_id}."""
 
-    def test_deletes_the_rule(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
-        wire.delete_rule.return_value = Message(
-            message="Recurring rule deleted. The transactions it created are kept."
-        )
+    def test_deletes_the_rule(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
+        wire.delete_rule.return_value = Message(message="Recurring rule deleted. The transactions it created are kept.")
 
         response = client.delete(f"/api/v1/recurring-rules/{RULE_ID}", headers=auth_headers)
 

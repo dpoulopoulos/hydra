@@ -52,9 +52,7 @@ class TestGetPasswordResetService:
 class TestGetCurrentUser:
     """Test cases for get_current_user dependency."""
 
-    def test_get_current_user_with_valid_token(
-        self, mock_user_service: UserService, user_token: str, test_user: User
-    ):
+    def test_get_current_user_with_valid_token(self, mock_user_service: UserService, user_token: str, test_user: User):
         """Test get_current_user with a valid token."""
         # Arrange: Mock user service to return test user
         mock_user_service.get_authenticated_user = MagicMock(return_value=test_user)
@@ -66,9 +64,7 @@ class TestGetCurrentUser:
         assert result == test_user
         mock_user_service.get_authenticated_user.assert_called_once()
 
-    def test_get_current_user_with_malformed_token(
-        self, mock_user_service: UserService
-    ):
+    def test_get_current_user_with_malformed_token(self, mock_user_service: UserService):
         """Test get_current_user with a malformed token."""
         # Arrange: Set up malformed token
         malformed_token = "not-a-jwt-token"
@@ -100,9 +96,7 @@ class TestGetCurrentUser:
         with pytest.raises(InvalidCredentialsError):
             get_current_user(mock_user_service, "some.token.here")
 
-    def test_get_current_user_with_expired_token(
-        self, mock_user_service: UserService, expired_user_token: str
-    ):
+    def test_get_current_user_with_expired_token(self, mock_user_service: UserService, expired_user_token: str):
         """Test get_current_user with an expired JWT token."""
         # Act & Assert: Verify InvalidCredentialsError is raised for expired token
         with pytest.raises(InvalidCredentialsError):

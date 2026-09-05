@@ -17,9 +17,7 @@ def email_verification_repository(mock_db_session: MagicMock) -> EmailVerificati
     return EmailVerificationRepository(session=mock_db_session)
 
 
-def test_looks_a_user_up_by_address_ignoring_case(
-    user_repository: UserRepository, mock_db_session: MagicMock
-) -> None:
+def test_looks_a_user_up_by_address_ignoring_case(user_repository: UserRepository, mock_db_session: MagicMock) -> None:
     """Addresses are stored as typed, so equality would miss a normalised caller."""
     mock_db_session.exec.return_value.first.return_value = None
 

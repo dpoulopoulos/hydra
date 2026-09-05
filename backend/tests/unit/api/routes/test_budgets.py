@@ -36,9 +36,7 @@ def make_public(limit_minor: int = 40_000, month: str = "2026-03") -> BudgetPubl
 
 
 @pytest.fixture
-def wire(
-    mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext
-) -> Generator[MagicMock]:
+def wire(mock_db_session: MagicMock, test_user: User, household_context: HouseholdContext) -> Generator[MagicMock]:
     """Override the database, the current user, the household scope and the service.
 
     Yields:
@@ -62,9 +60,7 @@ def wire(
 class TestCreateBudget:
     """Tests for POST /budgets/."""
 
-    def test_sets_a_limit(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_sets_a_limit(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.create_budget.return_value = make_public()
 
         response = client.post(
@@ -87,9 +83,7 @@ class TestCreateBudget:
 
         assert response.status_code == 422
 
-    def test_rejects_a_full_date(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_rejects_a_full_date(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         """Storage keeps only the month, so a day would be silently dropped."""
         response = client.post(
             "/api/v1/budgets/",
@@ -118,9 +112,7 @@ class TestCreateBudget:
     def test_reports_an_overlap_as_a_conflict(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
-        wire.create_budget.side_effect = BudgetOverlapError(
-            parent_name="Food & Drink", child_name="Groceries"
-        )
+        wire.create_budget.side_effect = BudgetOverlapError(parent_name="Food & Drink", child_name="Groceries")
 
         response = client.post(
             "/api/v1/budgets/",
@@ -164,18 +156,14 @@ class TestListBudgets:
     def test_returns_the_budgets_for_a_month(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
-        wire.list_budgets.return_value = BudgetsPublic(
-            data=[make_public()], count=1, total_limit_minor=40_000
-        )
+        wire.list_budgets.return_value = BudgetsPublic(data=[make_public()], count=1, total_limit_minor=40_000)
 
         response = client.get("/api/v1/budgets/", headers=auth_headers, params={"month": "2026-03"})
 
         assert response.status_code == 200
         assert response.json()["total_limit_minor"] == 40000
 
-    def test_requires_a_month(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_requires_a_month(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         response = client.get("/api/v1/budgets/", headers=auth_headers)
 
         assert response.status_code == 422
@@ -194,9 +182,7 @@ class TestBulkUpsertBudgets:
     def test_sets_a_whole_month_in_one_request(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
-        wire.bulk_upsert.return_value = BudgetsPublic(
-            data=[make_public()], count=1, total_limit_minor=40_000
-        )
+        wire.bulk_upsert.return_value = BudgetsPublic(data=[make_public()], count=1, total_limit_minor=40_000)
 
         response = client.put(
             "/api/v1/budgets/bulk",
@@ -219,9 +205,7 @@ class TestBulkUpsertBudgets:
         """The literal "bulk" path must win over the {budget_id} path."""
         wire.bulk_upsert.return_value = BudgetsPublic(data=[], count=0)
 
-        response = client.put(
-            "/api/v1/budgets/bulk", headers=auth_headers, json={"month": "2026-03", "entries": []}
-        )
+        response = client.put("/api/v1/budgets/bulk", headers=auth_headers, json={"month": "2026-03", "entries": []})
 
         assert response.status_code != 422
         wire.get_budget.assert_not_called()
@@ -231,13 +215,10 @@ class TestBulkUpsertBudgets:
     ) -> None:
         wire.bulk_upsert.return_value = BudgetsPublic(data=[], count=0)
 
-        response = client.put(
-            "/api/v1/budgets/bulk", headers=auth_headers, json={"month": "2026-03", "entries": []}
-        )
+        response = client.put("/api/v1/budgets/bulk", headers=auth_headers, json={"month": "2026-03", "entries": []})
 
         assert response.status_code == 200
         assert response.json()["count"] == 0
-
 
     def test_rejects_more_entries_than_a_month_could_hold(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
@@ -248,10 +229,7 @@ class TestBulkUpsertBudgets:
             headers=auth_headers,
             json={
                 "month": "2026-03",
-                "entries": [
-                    {"category_id": str(uuid.uuid4()), "limit_minor": 1}
-                    for _ in range(MAX_BULK_ENTRIES + 1)
-                ],
+                "entries": [{"category_id": str(uuid.uuid4()), "limit_minor": 1} for _ in range(MAX_BULK_ENTRIES + 1)],
             },
         )
 
@@ -261,9 +239,7 @@ class TestBulkUpsertBudgets:
 class TestCopyBudgets:
     """Tests for POST /budgets/copy."""
 
-    def test_copies_a_month_forward(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_copies_a_month_forward(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.copy_month.return_value = BudgetsPublic(
             data=[make_public(month="2026-04")], count=1, total_limit_minor=40_000
         )
@@ -307,9 +283,7 @@ class TestCopyBudgets:
 class TestGetBudget:
     """Tests for GET /budgets/{budget_id}."""
 
-    def test_returns_the_budget(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_returns_the_budget(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.get_budget.return_value = make_public()
 
         response = client.get(f"/api/v1/budgets/{BUDGET_ID}", headers=auth_headers)
@@ -330,27 +304,18 @@ class TestGetBudget:
 class TestUpdateBudget:
     """Tests for PATCH /budgets/{budget_id}."""
 
-    def test_changes_the_limit(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_changes_the_limit(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.update_budget.return_value = make_public(limit_minor=50_000)
 
-        response = client.patch(
-            f"/api/v1/budgets/{BUDGET_ID}", headers=auth_headers, json={"limit_minor": 50000}
-        )
+        response = client.patch(f"/api/v1/budgets/{BUDGET_ID}", headers=auth_headers, json={"limit_minor": 50000})
 
         assert response.status_code == 200
         assert wire.update_budget.call_args.kwargs["budget_update"].limit_minor == 50000
 
-    def test_rejects_a_negative_limit(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
-        response = client.patch(
-            f"/api/v1/budgets/{BUDGET_ID}", headers=auth_headers, json={"limit_minor": -1}
-        )
+    def test_rejects_a_negative_limit(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
+        response = client.patch(f"/api/v1/budgets/{BUDGET_ID}", headers=auth_headers, json={"limit_minor": -1})
 
         assert response.status_code == 422
-
 
     def test_rejects_a_limit_beyond_the_cap(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
@@ -367,9 +332,7 @@ class TestUpdateBudget:
 class TestDeleteBudget:
     """Tests for DELETE /budgets/{budget_id}."""
 
-    def test_removes_the_budget(
-        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
-    ) -> None:
+    def test_removes_the_budget(self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]) -> None:
         wire.delete_budget.return_value = Message(message="Budget removed.")
 
         response = client.delete(f"/api/v1/budgets/{BUDGET_ID}", headers=auth_headers)

@@ -35,9 +35,7 @@ from app.services import EmailVerificationService, UserService
 class TestAuthenticate:
     """Tests for the authenticate method."""
 
-    def test_authenticate_success(
-        self, mock_user_service: UserService, test_user: User, user_token: str
-    ) -> None:
+    def test_authenticate_success(self, mock_user_service: UserService, test_user: User, user_token: str) -> None:
         """Test successful user authentication."""
         # Arrange: Mock database query to return test user
         mock_user_service.session.exec = MagicMock()
@@ -47,9 +45,7 @@ class TestAuthenticate:
         with patch("app.services.user.verify_password", return_value=True):
             with patch("app.services.user.create_access_token") as mock_create_token:
                 mock_create_token.return_value = user_token
-                result = mock_user_service.authenticate(
-                    email=test_user.email, password="testpassword123"
-                )
+                result = mock_user_service.authenticate(email=test_user.email, password="testpassword123")
 
         # Assert: Verify token was created with correct user ID and expiry
         assert isinstance(result, Token)
@@ -60,9 +56,7 @@ class TestAuthenticate:
 
         mock_create_token.assert_called_once()
 
-    def test_authenticate_user_not_found(
-        self, mock_user_service: UserService
-    ) -> None:
+    def test_authenticate_user_not_found(self, mock_user_service: UserService) -> None:
         """Test authentication when user does not exist."""
         # Arrange: Mock database query to return None (user not found)
         mock_user_service.session.exec = MagicMock()
@@ -70,13 +64,9 @@ class TestAuthenticate:
 
         # Act & Assert: Verify the failure does not name the email as the reason
         with pytest.raises(InvalidEmailOrPasswordError):
-            mock_user_service.authenticate(
-                email="nonexistent@example.com", password="password123"
-            )
+            mock_user_service.authenticate(email="nonexistent@example.com", password="password123")
 
-    def test_authenticate_wrong_password(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_authenticate_wrong_password(self, mock_user_service: UserService, test_user: User) -> None:
         """Test authentication with incorrect password."""
         # Arrange: Mock database query and password verification to fail
         mock_user_service.session.exec = MagicMock()
@@ -85,9 +75,7 @@ class TestAuthenticate:
         # Act & Assert: Verify the failure does not name the password as the reason
         with patch("app.services.user.verify_password", return_value=False):
             with pytest.raises(InvalidEmailOrPasswordError):
-                mock_user_service.authenticate(
-                    email=test_user.email, password="wrongpassword"
-                )
+                mock_user_service.authenticate(email=test_user.email, password="wrongpassword")
 
     def test_authenticate_hashes_a_password_even_when_the_email_is_unknown(
         self, mock_user_service: UserService
@@ -104,9 +92,7 @@ class TestAuthenticate:
         # Act: Authenticate an unregistered address
         with patch("app.services.user.verify_password", return_value=False) as mock_verify_password:
             with pytest.raises(InvalidEmailOrPasswordError):
-                mock_user_service.authenticate(
-                    email="nonexistent@example.com", password="junkpassword123"
-                )
+                mock_user_service.authenticate(email="nonexistent@example.com", password="junkpassword123")
 
         # Assert: Verify the password was checked against the dummy hash
         mock_verify_password.assert_called_once_with("junkpassword123", dummy_password_hash())
@@ -125,37 +111,27 @@ class TestAuthenticate:
 
         # Act: Authenticate an unregistered address, then a registered one with a wrong password
         with pytest.raises(InvalidEmailOrPasswordError) as unknown_email:
-            mock_user_service.authenticate(
-                email="nonexistent@example.com", password="junkpassword123"
-            )
+            mock_user_service.authenticate(email="nonexistent@example.com", password="junkpassword123")
 
         mock_user_service.session.exec.return_value.first.return_value = test_user
 
         with patch("app.services.user.verify_password", return_value=False):
             with pytest.raises(InvalidEmailOrPasswordError) as wrong_password:
-                mock_user_service.authenticate(
-                    email=test_user.email, password="junkpassword123"
-                )
+                mock_user_service.authenticate(email=test_user.email, password="junkpassword123")
 
         # Assert: Both failures carry the same message
         assert unknown_email.value.message == wrong_password.value.message
 
-    def test_authenticate_inactive_user(
-        self, mock_user_service: UserService, test_inactive_user: User
-    ) -> None:
+    def test_authenticate_inactive_user(self, mock_user_service: UserService, test_inactive_user: User) -> None:
         """Test authentication with inactive user."""
         # Arrange: Mock database query to return inactive user
         mock_user_service.session.exec = MagicMock()
-        mock_user_service.session.exec.return_value.first.return_value = (
-            test_inactive_user
-        )
+        mock_user_service.session.exec.return_value.first.return_value = test_inactive_user
 
         # Act & Assert: Verify UserNotActiveError is raised for inactive user
         with patch("app.services.user.verify_password", return_value=True):
             with pytest.raises(UserNotActiveError):
-                mock_user_service.authenticate(
-                    email=test_inactive_user.email, password="password123"
-                )
+                mock_user_service.authenticate(email=test_inactive_user.email, password="password123")
 
     def test_authenticate_inactive_user_with_pending_verification(
         self, mock_user_service: UserService, test_inactive_user: User, mock_email_verification_service
@@ -163,9 +139,7 @@ class TestAuthenticate:
         """Test authentication with inactive user with pending email verification."""
         # Arrange: Mock database query to return inactive user
         mock_user_service.session.exec = MagicMock()
-        mock_user_service.session.exec.return_value.first.return_value = (
-            test_inactive_user
-        )
+        mock_user_service.session.exec.return_value.first.return_value = test_inactive_user
 
         # Mock email verification service with pending verification
         mock_pending_verification = MagicMock()
@@ -190,14 +164,10 @@ class TestAuthenticate:
         """Test authentication with inactive user without pending email verification."""
         # Arrange: Mock database query to return inactive user
         mock_user_service.session.exec = MagicMock()
-        mock_user_service.session.exec.return_value.first.return_value = (
-            test_inactive_user
-        )
+        mock_user_service.session.exec.return_value.first.return_value = test_inactive_user
 
         # Mock email verification service with no pending verification
-        mock_email_verification_service.get_pending_verification_by_user_id = MagicMock(
-            return_value=None
-        )
+        mock_email_verification_service.get_pending_verification_by_user_id = MagicMock(return_value=None)
 
         # Act & Assert: Verify UserNotActiveError is raised with is_verified=True
         with patch("app.services.user.verify_password", return_value=True):
@@ -214,9 +184,7 @@ class TestAuthenticate:
 class TestCreateUser:
     """Tests for the create_user method."""
 
-    def test_create_user_success(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_create_user_success(self, mock_user_service: UserService, test_user: User) -> None:
         """Test successful user creation."""
         # Arrange: Mock database operations and user data
         mock_user_service.session.exec = MagicMock()
@@ -274,9 +242,7 @@ class TestCreateUser:
         assert "newuser@example.com" in caplog.text
         assert "ConnectTimeout" in caplog.text
 
-    def test_create_user_with_user_register(
-        self, mock_user_service: UserService
-    ) -> None:
+    def test_create_user_with_user_register(self, mock_user_service: UserService) -> None:
         """Test user creation with UserRegister model."""
         # Arrange: Mock database operations and UserRegister data
         mock_user_service.session.exec = MagicMock()
@@ -302,9 +268,7 @@ class TestCreateUser:
         mock_user_service.session.commit.assert_called_once()
         mock_user_service.session.refresh.assert_called_once()
 
-    def test_create_user_already_exists(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_create_user_already_exists(self, mock_user_service: UserService, test_user: User) -> None:
         """Test creating user when email already exists."""
         # Arrange: Mock database query to return existing user
         mock_user_service.session.exec = MagicMock()
@@ -324,9 +288,7 @@ class TestCreateUser:
 class TestGetAuthenticatedUser:
     """Tests for the get_authenticated_user method."""
 
-    def test_get_authenticated_user_success(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_get_authenticated_user_success(self, mock_user_service: UserService, test_user: User) -> None:
         """Test successful retrieval of authenticated user."""
         # Arrange: Mock repository to return active user
         mock_user_service.user_repository.get_by_id = MagicMock(return_value=test_user)
@@ -339,9 +301,7 @@ class TestGetAuthenticatedUser:
         assert result == test_user
         mock_user_service.user_repository.get_by_id.assert_called_once_with(test_user.id)
 
-    def test_get_authenticated_user_not_found(
-        self, mock_user_service: UserService
-    ) -> None:
+    def test_get_authenticated_user_not_found(self, mock_user_service: UserService) -> None:
         """Test getting authenticated user when user not found."""
         # Arrange: Mock repository to return None (user not found)
         mock_user_service.user_repository.get_by_id = MagicMock(return_value=None)
@@ -351,9 +311,7 @@ class TestGetAuthenticatedUser:
         with pytest.raises(UserNotFoundError):
             mock_user_service.get_authenticated_user(token_data=token_data)
 
-    def test_get_authenticated_user_inactive(
-        self, mock_user_service: UserService, test_inactive_user: User
-    ) -> None:
+    def test_get_authenticated_user_inactive(self, mock_user_service: UserService, test_inactive_user: User) -> None:
         """Test getting authenticated user when user is inactive."""
         # Arrange: Mock repository to return inactive user
         mock_user_service.user_repository.get_by_id = MagicMock(return_value=test_inactive_user)
@@ -363,9 +321,7 @@ class TestGetAuthenticatedUser:
         with pytest.raises(UserNotActiveError):
             mock_user_service.get_authenticated_user(token_data=token_data)
 
-    def test_get_authenticated_user_no_subject(
-        self, mock_user_service: UserService
-    ) -> None:
+    def test_get_authenticated_user_no_subject(self, mock_user_service: UserService) -> None:
         """Test getting authenticated user when token has no subject."""
         # Arrange: Create token data with None subject
         token_data = TokenPayload(sub=None)
@@ -378,9 +334,7 @@ class TestGetAuthenticatedUser:
 class TestGetUserByEmail:
     """Tests for the get_user_by_email method."""
 
-    def test_get_user_by_email_success(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_get_user_by_email_success(self, mock_user_service: UserService, test_user: User) -> None:
         """Test successfully getting user by email."""
         # Arrange: Mock database query to return user
         mock_user_service.session.exec = MagicMock()
@@ -393,9 +347,7 @@ class TestGetUserByEmail:
         assert result == test_user
         mock_user_service.session.exec.assert_called_once()
 
-    def test_get_user_by_email_not_found(
-        self, mock_user_service: UserService
-    ) -> None:
+    def test_get_user_by_email_not_found(self, mock_user_service: UserService) -> None:
         """Test getting user by email when user does not exist."""
         # Arrange: Mock database query to return None
         mock_user_service.session.exec = MagicMock()
@@ -412,17 +364,13 @@ class TestGetUserByEmail:
 class TestGetUserById:
     """Tests for the get_user_by_id method."""
 
-    def test_get_user_by_id_own_user(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_get_user_by_id_own_user(self, mock_user_service: UserService, test_user: User) -> None:
         """Test getting own user by ID."""
         # Arrange: Mock database to return user
         mock_user_service.session.get = MagicMock(return_value=test_user)
 
         # Act: Get own user by ID
-        result = mock_user_service.get_user_by_id(
-            current_user=test_user, user_id=test_user.id
-        )
+        result = mock_user_service.get_user_by_id(current_user=test_user, user_id=test_user.id)
 
         # Assert: Verify correct user was returned
         assert result == UserPublic.model_validate(test_user)
@@ -439,17 +387,13 @@ class TestGetUserById:
         mock_user_service.session.get = MagicMock(return_value=test_user)
 
         # Act: Get another user by ID as superuser
-        result = mock_user_service.get_user_by_id(
-            current_user=test_superuser, user_id=test_user.id
-        )
+        result = mock_user_service.get_user_by_id(current_user=test_superuser, user_id=test_user.id)
 
         # Assert: Verify correct user was returned
         assert result == UserPublic.model_validate(test_user)
         mock_user_service.session.get.assert_called_once()
 
-    def test_get_user_by_id_not_found(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_get_user_by_id_not_found(self, mock_user_service: UserService, test_user: User) -> None:
         """Test getting user by ID when user not found."""
         # Arrange: Mock database to return None (user not found)
         mock_user_service.session.get = MagicMock(return_value=None)
@@ -457,9 +401,7 @@ class TestGetUserById:
 
         # Act & Assert: Verify UserNotFoundError is raised
         with pytest.raises(UserNotFoundError):
-            mock_user_service.get_user_by_id(
-                current_user=test_user, user_id=nonexistent_id
-            )
+            mock_user_service.get_user_by_id(current_user=test_user, user_id=nonexistent_id)
 
     def test_get_user_by_id_not_authorized(
         self,
@@ -473,9 +415,7 @@ class TestGetUserById:
 
         # Act & Assert: Verify UserNotAuthorizedError is raised
         with pytest.raises(UserNotAuthorizedError):
-            mock_user_service.get_user_by_id(
-                current_user=test_user, user_id=another_test_user.id
-            )
+            mock_user_service.get_user_by_id(current_user=test_user, user_id=another_test_user.id)
 
 
 class TestGetUsers:
@@ -508,9 +448,7 @@ class TestGetUsers:
         assert result_count == 2
         mock_user_service.session.exec.assert_called()
 
-    def test_get_users_with_pagination(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_get_users_with_pagination(self, mock_user_service: UserService, test_user: User) -> None:
         """Test getting users with pagination."""
         # Arrange: Mock database queries with pagination parameters
         mock_user_service.session.exec = MagicMock()
@@ -631,9 +569,7 @@ class TestUpdateUserMe:
         """Test updating email to one that already exists."""
         # Arrange: Mock database query to return existing user with email
         mock_user_service.session.exec = MagicMock()
-        mock_user_service.session.exec.return_value.first.return_value = (
-            another_test_user
-        )
+        mock_user_service.session.exec.return_value.first.return_value = another_test_user
         mock_email_verification_service.send_email_change_verification = MagicMock()
 
         user_update = UserUpdateMe(email=another_test_user.email)
@@ -693,9 +629,7 @@ class TestUpdateUser:
         user_update = UserUpdate(full_name="Updated Name")
 
         # Act: Update user's full name
-        result = mock_user_service.update_user(
-            user_id=test_user.id, user_update=user_update
-        )
+        result = mock_user_service.update_user(user_id=test_user.id, user_update=user_update)
 
         # Assert: Verify user was updated successfully
         assert isinstance(result, UserPublic)
@@ -704,9 +638,7 @@ class TestUpdateUser:
         mock_user_service.session.commit.assert_called_once()
         mock_user_service.session.refresh.assert_called_once()
 
-    def test_update_user_with_password(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_update_user_with_password(self, mock_user_service: UserService, test_user: User) -> None:
         """Test updating user with new password."""
         # Arrange: Mock database operations and password update
         mock_user_service.session.get = MagicMock(return_value=test_user)
@@ -722,9 +654,7 @@ class TestUpdateUser:
         with patch("app.services.user.get_password_hash") as mock_hash:
             hashed_password = "new_hashed_password"
             mock_hash.return_value = hashed_password
-            result = mock_user_service.update_user(
-                user_id=test_user.id, user_update=user_update
-            )
+            result = mock_user_service.update_user(user_id=test_user.id, user_update=user_update)
 
         # Assert: Verify password was hashed and updated
         assert isinstance(result, UserPublic)
@@ -742,9 +672,7 @@ class TestUpdateUser:
 
         # Act & Assert: Verify UserNotFoundError is raised
         with pytest.raises(UserNotFoundError):
-            mock_user_service.update_user(
-                user_id=nonexistent_id, user_update=user_update
-            )
+            mock_user_service.update_user(user_id=nonexistent_id, user_update=user_update)
 
     def test_update_user_email_exists(
         self,
@@ -756,42 +684,32 @@ class TestUpdateUser:
         # Arrange: Mock database to return existing user with email
         mock_user_service.session.get = MagicMock(return_value=test_user)
         mock_user_service.session.exec = MagicMock()
-        mock_user_service.session.exec.return_value.first.return_value = (
-            another_test_user
-        )
+        mock_user_service.session.exec.return_value.first.return_value = another_test_user
 
         user_update = UserUpdate(email=another_test_user.email)
 
         # Act & Assert: Verify UserExistsError is raised
         with pytest.raises(UserExistsError):
-            mock_user_service.update_user(
-                user_id=test_user.id, user_update=user_update
-            )
+            mock_user_service.update_user(user_id=test_user.id, user_update=user_update)
 
 
 class TestUpdatePassword:
     """Tests for the update_password method."""
 
-    def test_update_password_success(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_update_password_success(self, mock_user_service: UserService, test_user: User) -> None:
         """Test successfully updating password."""
         # Arrange: Mock database operations and password data
         mock_user_service.session.add = MagicMock()
         mock_user_service.session.commit = MagicMock()
 
-        password_update = PasswordUpdate(
-            current_password="testpassword123", new_password="newpassword456"
-        )
+        password_update = PasswordUpdate(current_password="testpassword123", new_password="newpassword456")
 
         # Act: Update password with verification and hashing
         with patch("app.services.user.verify_password", return_value=True):
             with patch("app.services.user.get_password_hash") as mock_hash:
                 hashed_password = "new_hashed_password"
                 mock_hash.return_value = hashed_password
-                result = mock_user_service.update_password(
-                    user=test_user, password_update=password_update
-                )
+                result = mock_user_service.update_password(user=test_user, password_update=password_update)
 
         # Assert: Verify password was updated successfully
         assert isinstance(result, Message)
@@ -799,45 +717,31 @@ class TestUpdatePassword:
         mock_user_service.session.add.assert_called_once()
         mock_user_service.session.commit.assert_called_once()
 
-    def test_update_password_wrong_current(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_update_password_wrong_current(self, mock_user_service: UserService, test_user: User) -> None:
         """Test updating password with wrong current password."""
         # Arrange: Set up password update with wrong current password
-        password_update = PasswordUpdate(
-            current_password="wrongpassword", new_password="newpassword456"
-        )
+        password_update = PasswordUpdate(current_password="wrongpassword", new_password="newpassword456")
 
         # Act & Assert: Verify PasswordIsWrongError is raised
         with patch("app.services.user.verify_password", return_value=False):
             with pytest.raises(PasswordIsWrongError):
-                mock_user_service.update_password(
-                    user=test_user, password_update=password_update
-                )
+                mock_user_service.update_password(user=test_user, password_update=password_update)
 
-    def test_update_password_same_as_current(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_update_password_same_as_current(self, mock_user_service: UserService, test_user: User) -> None:
         """Test updating password to same as current."""
         # Arrange: Set up password update with same password
-        password_update = PasswordUpdate(
-            current_password="testpassword123", new_password="testpassword123"
-        )
+        password_update = PasswordUpdate(current_password="testpassword123", new_password="testpassword123")
 
         # Act & Assert: Verify PasswordUnmodifiedError is raised
         with patch("app.services.user.verify_password", return_value=True):
             with pytest.raises(PasswordUnmodifiedError):
-                mock_user_service.update_password(
-                    user=test_user, password_update=password_update
-                )
+                mock_user_service.update_password(user=test_user, password_update=password_update)
 
 
 class TestDeleteUserMe:
     """Tests for the delete_user_me method."""
 
-    def test_delete_user_me_success(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_delete_user_me_success(self, mock_user_service: UserService, test_user: User) -> None:
         """Test successfully deleting current user."""
         # Arrange: Mock database delete operations
         mock_user_service.session.delete = MagicMock()
@@ -852,9 +756,7 @@ class TestDeleteUserMe:
         mock_user_service.session.delete.assert_called_once_with(test_user)
         mock_user_service.session.commit.assert_called_once()
 
-    def test_delete_user_me_releases_the_household(
-        self, mock_user_service: UserService, test_user: User
-    ) -> None:
+    def test_delete_user_me_releases_the_household(self, mock_user_service: UserService, test_user: User) -> None:
         """Their household would otherwise be left behind with its ledger."""
         # Arrange: Mock database delete operations and a household service
         mock_user_service.session.delete = MagicMock()
@@ -881,9 +783,7 @@ class TestDeleteUserMe:
 
         household_service.release_for_user.assert_not_called()
 
-    def test_delete_user_me_superuser(
-        self, mock_user_service: UserService, test_superuser: User
-    ) -> None:
+    def test_delete_user_me_superuser(self, mock_user_service: UserService, test_superuser: User) -> None:
         """Test superuser trying to delete their own account."""
         # Act & Assert: Verify DeleteSuperUserError is raised for superuser
         with pytest.raises(DeleteSuperUserError):
@@ -906,9 +806,7 @@ class TestDeleteUser:
         mock_user_service.session.commit = MagicMock()
 
         # Act: Delete user as superuser
-        result = mock_user_service.delete_user(
-            user_id=test_user.id
-        )
+        result = mock_user_service.delete_user(user_id=test_user.id)
 
         # Assert: Verify user was deleted successfully
         assert isinstance(result, Message)
@@ -935,9 +833,7 @@ class TestDeleteUser:
         household_service.release_for_user.assert_called_once_with(user=test_user)
         mock_user_service.session.commit.assert_called_once()
 
-    def test_delete_user_not_found(
-        self, mock_user_service: UserService, test_superuser: User
-    ) -> None:
+    def test_delete_user_not_found(self, mock_user_service: UserService, test_superuser: User) -> None:
         """Test deleting user when user not found."""
         # Arrange: Mock database to return None (user not found)
         mock_user_service.session.get = MagicMock(return_value=None)
@@ -945,19 +841,13 @@ class TestDeleteUser:
 
         # Act & Assert: Verify UserNotFoundError is raised
         with pytest.raises(UserNotFoundError):
-            mock_user_service.delete_user(
-                user_id=nonexistent_id
-            )
+            mock_user_service.delete_user(user_id=nonexistent_id)
 
-    def test_delete_superuser_self(
-        self, mock_user_service: UserService, test_superuser: User
-    ) -> None:
+    def test_delete_superuser_self(self, mock_user_service: UserService, test_superuser: User) -> None:
         """Test user trying to delete their own account."""
         # Arrange: Mock database to return superuser
         mock_user_service.session.get = MagicMock(return_value=test_superuser)
 
         # Act & Assert: Verify DeleteSuperUserError is raised when superuser tries to delete self
         with pytest.raises(DeleteSuperUserError):
-            mock_user_service.delete_user(
-                user_id=test_superuser.id
-            )
+            mock_user_service.delete_user(user_id=test_superuser.id)

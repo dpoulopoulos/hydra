@@ -25,6 +25,7 @@ class TestRequestPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test successfully requesting a password reset."""
+
         # Arrange: Set up database dependency override and mock service method
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -64,6 +65,7 @@ class TestRequestPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test requesting password reset for non-existent user (should still succeed for security)."""
+
         # Arrange: Set up database dependency override and mock service method
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -104,6 +106,7 @@ class TestRequestPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test requesting password reset with invalid email format."""
+
         # Arrange: Set up database dependency override
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -129,6 +132,7 @@ class TestRequestPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test requesting password reset without email field."""
+
         # Arrange: Set up database dependency override
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -158,6 +162,7 @@ class TestVerifyPasswordResetToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test successfully verifying a password reset token."""
+
         # Arrange: Set up database dependency override and mock service method
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -193,6 +198,7 @@ class TestVerifyPasswordResetToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test verifying password reset token that doesn't exist."""
+
         # Arrange: Set up database dependency override and mock PasswordResetNotFoundError
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -226,6 +232,7 @@ class TestVerifyPasswordResetToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test verifying expired password reset token."""
+
         # Arrange: Set up database dependency override and mock PasswordResetExpiredError
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -259,6 +266,7 @@ class TestVerifyPasswordResetToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test verifying password reset token that was already used."""
+
         # Arrange: Set up database dependency override and mock PasswordResetUsedError
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -292,6 +300,7 @@ class TestVerifyPasswordResetToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test verifying invalid password reset token."""
+
         # Arrange: Set up database dependency override and mock PasswordResetTokenNotValidError
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -325,6 +334,7 @@ class TestVerifyPasswordResetToken:
         mock_db_session: MagicMock,
     ) -> None:
         """Test verifying password reset without token field."""
+
         # Arrange: Set up database dependency override
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -354,6 +364,7 @@ class TestConfirmPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test successfully confirming a password reset."""
+
         # Arrange: Set up database dependency override and mock service method
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -389,6 +400,7 @@ class TestConfirmPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test confirming password reset with non-existent token."""
+
         # Arrange: Set up database dependency override and mock PasswordResetNotFoundError
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -422,6 +434,7 @@ class TestConfirmPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test confirming password reset with expired token."""
+
         # Arrange: Set up database dependency override and mock PasswordResetExpiredError
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -455,6 +468,7 @@ class TestConfirmPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test confirming password reset with already used token."""
+
         # Arrange: Set up database dependency override and mock PasswordResetUsedError
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -488,6 +502,7 @@ class TestConfirmPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test confirming password reset with invalid token."""
+
         # Arrange: Set up database dependency override and mock PasswordResetTokenNotValidError
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -521,6 +536,7 @@ class TestConfirmPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test confirming password reset without token field."""
+
         # Arrange: Set up database dependency override
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -546,6 +562,7 @@ class TestConfirmPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test confirming password reset without new_password field."""
+
         # Arrange: Set up database dependency override
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -571,6 +588,7 @@ class TestConfirmPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test confirming password reset with password that's too short."""
+
         # Arrange: Set up database dependency override
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
@@ -596,6 +614,7 @@ class TestConfirmPasswordReset:
         mock_db_session: MagicMock,
     ) -> None:
         """Test confirming password reset with password that's too long."""
+
         # Arrange: Set up database dependency override
         def override_get_db() -> Generator[MagicMock]:
             yield mock_db_session
