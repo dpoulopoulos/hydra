@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import {
+  AccountType,
   accountsDeleteAccount,
   accountsListAccounts,
   accountsUpdateAccount,
@@ -98,6 +99,97 @@ export function Component() {
     onError: (error) => toast.error(errorMessage(error)),
   })
 
+  /**
+   * One table of accounts.
+   *
+   * Written once and called twice, because the page shows banking and
+   * brokerage separately: they hold different kinds of money, even though net
+   * worth counts both.
+   */
+  const accountTable = (rows: NonNullable<typeof accounts.data>['data']) => (
+    <Card className="overflow-hidden py-0">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Account</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Tracking since</TableHead>
+            <TableHead className="text-right">Balance</TableHead>
+            <TableHead className="w-10" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((account) => (
+            <TableRow key={account.id} className={account.archived_at ? 'opacity-60' : undefined}>
+              <TableCell>
+                <div className="flex items-center gap-2 font-medium">
+                  {account.name}
+                  {account.archived_at ? <Badge variant="secondary">Archived</Badge> : null}
+                </div>
+                {account.institution ? (
+                  <p className="text-muted-foreground text-xs">{account.institution}</p>
+                ) : null}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {ACCOUNT_TYPE_LABELS[account.type] ?? account.type}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {formatDate(account.opening_balance_date)}
+              </TableCell>
+              <TableCell className="text-right">
+                <Money
+                  minor={account.current_balance_minor ?? 0}
+                  currency={account.currency_code}
+                  colored={(account.current_balance_minor ?? 0) < 0}
+                />
+              </TableCell>
+              <TableCell>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label={`Manage ${account.name}`}>
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditing(account)}>
+                      <Pencil className="size-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setArchived.mutate({
+                          account,
+                          archived: account.archived_at === null,
+                        })
+                      }
+                    >
+                      {account.archived_at ? (
+                        <>
+                          <ArchiveRestore className="size-4" />
+                          Restore
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="size-4" />
+                          Archive
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={() => setDeleting(account)}>
+                      <Trash2 className="size-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  )
+
   return (
     <>
       <PageHeader title="Accounts" description="Every place your household keeps money.">
@@ -120,7 +212,10 @@ export function Component() {
       {accounts.data && accounts.data.count > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Net worth</CardTitle>
+            {/* Not called net worth: net worth also counts what the holdings
+                are worth, and that lives on the dashboard. This is the cash
+                side alone, brokerage cash included. */}
+            <CardTitle>Total balance</CardTitle>
             <CardDescription>
               Across {accounts.data.count} {accounts.data.count === 1 ? 'account' : 'accounts'}
             </CardDescription>
@@ -148,93 +243,40 @@ export function Component() {
           <Button onClick={() => setCreating(true)}>Add your first account</Button>
         </EmptyState>
       ) : (
-        <Card className="overflow-hidden py-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Account</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Tracking since</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {accounts.data.data.map((account) => (
-                <TableRow
-                  key={account.id}
-                  className={account.archived_at ? 'opacity-60' : undefined}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-2 font-medium">
-                      {account.name}
-                      {account.archived_at ? <Badge variant="secondary">Archived</Badge> : null}
-                    </div>
-                    {account.institution ? (
-                      <p className="text-muted-foreground text-xs">{account.institution}</p>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {ACCOUNT_TYPE_LABELS[account.type] ?? account.type}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(account.opening_balance_date)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money
-                      minor={account.current_balance_minor ?? 0}
-                      currency={account.currency_code}
-                      colored={(account.current_balance_minor ?? 0) < 0}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label={`Manage ${account.name}`}>
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setEditing(account)}>
-                          <Pencil className="size-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            setArchived.mutate({
-                              account,
-                              archived: account.archived_at === null,
-                            })
-                          }
-                        >
-                          {account.archived_at ? (
-                            <>
-                              <ArchiveRestore className="size-4" />
-                              Restore
-                            </>
-                          ) : (
-                            <>
-                              <Archive className="size-4" />
-                              Archive
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDeleting(account)}
-                        >
-                          <Trash2 className="size-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+        (() => {
+          // Brokerage accounts are listed apart. Their balance is cash handed
+          // to a broker rather than money to spend, and net worth counts the
+          // holdings instead of it, so mixing them into one list would invite
+          // adding up a column that is not meant to be added up.
+          const brokerage = accounts.data.data.filter(
+            (account) => account.type === AccountType.BROKERAGE,
+          )
+          const banking = accounts.data.data.filter(
+            (account) => account.type !== AccountType.BROKERAGE,
+          )
+
+          if (brokerage.length === 0) return accountTable(banking)
+
+          return (
+            <div className="space-y-6">
+              {banking.length > 0 ? (
+                <section className="space-y-2">
+                  <h2 className="text-sm font-medium">Banking</h2>
+                  {accountTable(banking)}
+                </section>
+              ) : null}
+              <section className="space-y-2">
+                <h2 className="text-sm font-medium">Brokerage</h2>
+                <p className="text-muted-foreground text-xs">
+                  The cash sitting with each broker: transferred in and not yet spent, plus what
+                  sales have returned. Buying takes cash out of it, so this and your holdings never
+                  describe the same money.
+                </p>
+                {accountTable(brokerage)}
+              </section>
+            </div>
+          )
+        })()
       )}
 
       {accounts.data && accounts.data.count > 0 ? (
