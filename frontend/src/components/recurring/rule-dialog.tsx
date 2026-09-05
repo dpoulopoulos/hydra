@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -29,6 +28,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { FormSection as Section } from '@/components/form-section'
 import { Separator } from '@/components/ui/separator'
 import {
   Select,
@@ -141,16 +141,6 @@ function describeRule({
   if (endDate) sentence += ` It stops after ${formatDate(endDate)}.`
   if (category && kind !== TransactionKind.TRANSFER) sentence += ` Filed under ${category}.`
   return sentence
-}
-
-/** A titled group of fields, so ten controls read as three decisions. */
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="space-y-3">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{title}</p>
-      {children}
-    </div>
-  )
 }
 
 export function RuleDialog({
