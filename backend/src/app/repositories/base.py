@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy import Table
 from sqlmodel import Session, SQLModel, func, select
+from sqlmodel.sql.expression import SelectOfScalar
 
 
 def table_of(model_class: type[SQLModel]) -> Table:
@@ -92,6 +93,22 @@ class BaseRepository[T: SQLModel]:
         (like auto-incremented IDs) without finalizing the transaction.
         """
         self.session.flush()
+
+    def _paginate(self, statement: SelectOfScalar[T], skip: int, limit: int) -> SelectOfScalar[T]:
+        """Cut a query down to one page of results.
+
+        Shared so every listing spells a page the same way and a caller cannot
+        get an offset applied without a limit, or the other way round.
+
+        Args:
+            statement: The ordered query to page over.
+            skip: Number of records to skip.
+            limit: Maximum number of records to return.
+
+        Returns:
+            The query, restricted to the page.
+        """
+        return statement.offset(skip).limit(limit)
 
     def refresh(self, entity: T) -> None:
         """Refresh entity from database.

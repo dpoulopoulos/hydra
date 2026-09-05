@@ -38,12 +38,10 @@ class InstrumentRepository(HouseholdScopedRepository[Instrument]):
         count_statement = select(func.count()).select_from(Instrument).where(Instrument.household_id == household_id)
         count = self.session.exec(count_statement).one()
 
-        statement = (
-            select(Instrument)
-            .where(Instrument.household_id == household_id)
-            .order_by(col(Instrument.symbol))
-            .offset(skip)
-            .limit(limit)
+        statement = self._paginate(
+            select(Instrument).where(Instrument.household_id == household_id).order_by(col(Instrument.symbol)),
+            skip=skip,
+            limit=limit,
         )
 
         return self.session.exec(statement).all(), count
@@ -104,12 +102,10 @@ class TradeRepository(HouseholdScopedRepository[Trade]):
         count_statement = select(func.count()).select_from(Trade).where(*conditions)
         count = self.session.exec(count_statement).one()
 
-        statement = (
-            select(Trade)
-            .where(*conditions)
-            .order_by(col(Trade.traded_on).desc(), col(Trade.created_at).desc())
-            .offset(skip)
-            .limit(limit)
+        statement = self._paginate(
+            select(Trade).where(*conditions).order_by(col(Trade.traded_on).desc(), col(Trade.created_at).desc()),
+            skip=skip,
+            limit=limit,
         )
 
         return self.session.exec(statement).all(), count
