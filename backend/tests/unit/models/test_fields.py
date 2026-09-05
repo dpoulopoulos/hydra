@@ -8,6 +8,7 @@ from app.models.fields import (
     BCRYPT_MAX_PASSWORD_BYTES,
     Iban,
     MonthKey,
+    month_bounds,
     month_key_of,
     month_start,
     next_month_start,
@@ -75,6 +76,17 @@ class TestMonthKey:
     def test_next_month_start_rolls_over_the_year(self) -> None:
         assert next_month_start("2026-09") == date(2026, 10, 1)
         assert next_month_start("2026-12") == date(2027, 1, 1)
+
+    def test_month_bounds_covers_the_whole_month(self) -> None:
+        assert month_bounds("2026-09") == (date(2026, 9, 1), date(2026, 9, 30))
+        assert month_bounds("2026-01") == (date(2026, 1, 1), date(2026, 1, 31))
+
+    def test_month_bounds_ends_a_february_correctly(self) -> None:
+        assert month_bounds("2026-02") == (date(2026, 2, 1), date(2026, 2, 28))
+        assert month_bounds("2028-02") == (date(2028, 2, 1), date(2028, 2, 29))
+
+    def test_month_bounds_ends_a_december_correctly(self) -> None:
+        assert month_bounds("2026-12") == (date(2026, 12, 1), date(2026, 12, 31))
 
     def test_month_key_of_formats_a_date(self) -> None:
         assert month_key_of(date(2026, 9, 17)) == "2026-09"
