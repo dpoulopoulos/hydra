@@ -2,6 +2,7 @@ from app.repositories.account import AccountRepository
 from app.repositories.base import BaseRepository, HouseholdScopedRepository
 from app.repositories.budget import BudgetRepository
 from app.repositories.category import CategoryRepository
+from app.repositories.email_outbox import EmailOutboxRepository
 from app.repositories.email_verification import EmailVerificationRepository
 from app.repositories.household import (
     HouseholdInviteRepository,
@@ -32,6 +33,7 @@ __all__ = [
     "BaseRepository",
     "BudgetRepository",
     "CategoryRepository",
+    "EmailOutboxRepository",
     "EmailVerificationRepository",
     "HouseholdInviteRepository",
     "HouseholdMemberRepository",

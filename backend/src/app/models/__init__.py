@@ -30,6 +30,11 @@ from .category import (
     CategoryTreePublic,
     CategoryUpdate,
 )
+from .email_outbox import (
+    SUBJECT_MAX_LENGTH,
+    EmailOutbox,
+    EmailOutboxStatus,
+)
 from .email_verification import (
     EmailVerification,
     EmailVerificationConfirm,
@@ -202,6 +207,9 @@ __all__ = [
     "CategoryTreeNode",
     "CategoryTreePublic",
     "CategoryUpdate",
+    "SUBJECT_MAX_LENGTH",
+    "EmailOutbox",
+    "EmailOutboxStatus",
     "EmailVerification",
     "EmailVerificationConfirm",
     "EmailVerificationPublic",
