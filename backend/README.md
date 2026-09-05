@@ -464,7 +464,8 @@ The suite has two tiers, and they answer different questions.
 ### Unit tests
 
 [tests/unit/](tests/unit/) mocks the database session, so no Postgres instance is required and no SQL is executed.
-This is the fast tier and where most tests belong.
+This is the fast tier and where most tests belong. The run fails below the coverage threshold in
+[scripts/test.sh](scripts/test.sh), so coverage cannot regress unnoticed.
 
 ```bash
 # Run the unit tests with coverage
