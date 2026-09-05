@@ -9,6 +9,10 @@ from sqlmodel import Field, SQLModel
 from .fields import MAX_AMOUNT_MINOR
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
+# The unique index that makes a recurring occurrence impossible to write
+# twice. Named here so the service can recognise the violation it raises.
+RULE_OCCURRENCE_INDEX = "uq_transaction_rule_occurrence"
+
 
 class TransactionKind(StrEnum):
     EXPENSE = "expense"
@@ -160,7 +164,7 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
         # moves forward, so an occurrence is created once; this makes a second
         # attempt impossible even if two requests race.
         Index(
-            "uq_transaction_rule_occurrence",
+            RULE_OCCURRENCE_INDEX,
             "recurring_rule_id",
             "occurred_on",
             unique=True,
