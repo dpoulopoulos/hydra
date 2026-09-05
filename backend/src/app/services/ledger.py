@@ -18,11 +18,18 @@ from app.models import (
 from app.repositories.account import AccountRepository
 from app.repositories.category import CategoryRepository
 
-# Which category kind each transaction kind needs. A transfer takes none.
-_CATEGORY_KIND_FOR: dict[TransactionKind, CategoryKind] = {
+# Which category kind each transaction kind needs. Every kind is listed, and a
+# transfer maps to None rather than being left out: an absent key would read as
+# "no constraint", which is how a category slipped onto a transfer before.
+CATEGORY_KIND_FOR: dict[TransactionKind, CategoryKind | None] = {
     TransactionKind.EXPENSE: CategoryKind.EXPENSE,
     TransactionKind.INCOME: CategoryKind.INCOME,
+    TransactionKind.TRANSFER: None,
 }
+
+_TRANSFER_HAS_NO_CATEGORY = (
+    "A transfer has no category: it moves money between your own accounts rather than spending it."
+)
 
 
 class LedgerReferenceResolver:
@@ -129,9 +136,7 @@ class LedgerReferenceResolver:
                 raise TransferShapeError("A transfer needs a destination account.") from None
 
             if category_id is not None:
-                raise TransferShapeError(
-                    "A transfer has no category: it moves money between your own accounts rather than spending it."
-                ) from None
+                raise TransferShapeError(_TRANSFER_HAS_NO_CATEGORY) from None
         elif counter_account_id is not None:
             raise TransferShapeError(
                 "Only a transfer has a destination account. Set the kind to transfer, or remove it."
@@ -174,12 +179,17 @@ class LedgerReferenceResolver:
 
         Raises:
             CategoryNotFoundError: If the category does not exist in the household.
+            TransferShapeError: If the kind takes no category at all.
             TransactionCategoryKindError: If the category is the wrong kind.
         """
-        category = self.require_category(household=household, category_id=category_id)
-        expected = _CATEGORY_KIND_FOR.get(kind)
+        expected = CATEGORY_KIND_FOR[kind]
 
-        if expected is not None and category.kind is not expected:
+        if expected is None:
+            raise TransferShapeError(_TRANSFER_HAS_NO_CATEGORY) from None
+
+        category = self.require_category(household=household, category_id=category_id)
+
+        if category.kind is not expected:
             raise TransactionCategoryKindError from None
 
         return category

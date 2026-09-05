@@ -22,7 +22,7 @@ from app.models import (
 )
 from app.repositories.account import AccountRepository
 from app.repositories.category import CategoryRepository
-from app.services.ledger import LedgerReferenceResolver
+from app.services.ledger import CATEGORY_KIND_FOR, LedgerReferenceResolver
 
 HOUSEHOLD_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
@@ -174,6 +174,21 @@ class TestResolveCategory:
             resolver.resolve_category(
                 household=household_context, category_id=category.id, kind=TransactionKind.EXPENSE
             )
+
+    def test_rejects_a_category_on_a_transfer(
+        self, resolver: LedgerReferenceResolver, household_context: HouseholdContext, mock_db_session: MagicMock
+    ) -> None:
+        """A transfer takes no category, so no category can be the right kind for one."""
+        with pytest.raises(TransferShapeError):
+            resolver.resolve_category(
+                household=household_context, category_id=uuid.uuid4(), kind=TransactionKind.TRANSFER
+            )
+
+        mock_db_session.exec.assert_not_called()
+
+    def test_covers_every_kind(self) -> None:
+        """A kind missing from the map would read as "any category will do"."""
+        assert set(CATEGORY_KIND_FOR) == set(TransactionKind)
 
     def test_require_category_ignores_the_kind(
         self, resolver: LedgerReferenceResolver, household_context: HouseholdContext, mock_db_session: MagicMock
