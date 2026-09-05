@@ -212,21 +212,33 @@ The session token is kept in `localStorage`, so any script running on the origin
 can read it. What keeps a script that should not be there from running at all is
 the browser, told what to allow by the response headers `Caddyfile` sets:
 
-| Header                      | Value                                                      |
-| --------------------------- | ---------------------------------------------------------- |
-| `Content-Security-Policy`   | `'self'` throughout, plus `data:` images and inline styles |
-| `X-Content-Type-Options`    | `nosniff`                                                  |
-| `Referrer-Policy`           | `no-referrer`                                              |
-| `X-Frame-Options`           | `DENY`                                                     |
-| `Strict-Transport-Security` | one year, including subdomains                             |
+| Header                      | Value                                                         |
+| --------------------------- | ------------------------------------------------------------- |
+| `Content-Security-Policy`   | `'self'` throughout, plus `data:` images and style attributes |
+| `X-Content-Type-Options`    | `nosniff`                                                     |
+| `Referrer-Policy`           | `no-referrer`                                                 |
+| `X-Frame-Options`           | `DENY`                                                        |
+| `Strict-Transport-Security` | one year, including subdomains                                |
 
 Two of those are worth a word. The policy is nearly all `'self'` because there is
 one origin to allow: the bundles and fonts under `/static`, and the API under
-`/api`. Inline styles are the exception, because the UI components set style
-attributes as they render. And `no-referrer` matters here in particular, since
-password reset, email verification and invite links all carry a single use token
-in the query string, which a `Referer` header would otherwise hand to whatever
-other origin the page happens to talk to.
+`/api`. Styles are the exception, and only half of one: `style-src-attr` allows
+inline styles, because the UI components set style attributes with values they
+compute as they render, while `style-src-elem` allows no stylesheet the page did
+not come with. And `no-referrer` matters here in particular, since password
+reset, email verification and invite links all carry a single use token in the
+query string, which a `Referer` header would otherwise hand to whatever other
+origin the page happens to talk to.
+
+Radix and next-themes do build a stylesheet while they run, for the scroll lock
+behind a dialog and for suppressing transitions across a theme change. Caddy
+renders a fresh nonce into the entry page and names the same value in the
+header of every response, and `src/lib/csp-nonce.ts` hands it to them on start
+up, so those stylesheets are taken and later ones are not. Two more things stay
+off that path entirely: shadcn's chart wrapper, which sets its colours on the
+container's style attribute instead of emitting a stylesheet, and sonner, whose
+stylesheet is imported from `sonner/dist/styles.css` and bundled rather than
+injected. See `withoutSonnerStyleInjection` in `vite.config.ts`.
 
 A new front end dependency that loads something from elsewhere will be blocked,
 and will say so in the browser console. Widen the policy deliberately when that
@@ -238,7 +250,10 @@ checks the headers and the routing. It needs Docker, but not a build of the app.
 ## Notes on the vendored parts
 
 Components under `src/components/ui` come from shadcn/ui, and `shadcn add`
-overwrites them. Two eslint rules are switched off for that directory because
+overwrites them. `chart.tsx` is the one that has been changed on purpose:
+upstream renders the series colours as a `<style>` element, which the production
+policy refuses, so it sets them as custom properties on the container instead.
+`chart.test.tsx` fails if an update puts the stylesheet back. Two eslint rules are switched off for that directory because
 its house patterns trip them: exporting a `cva` variants object beside a
 component, and priming state from a media query inside an effect. Fixing them
 in place would be undone by the next update.
