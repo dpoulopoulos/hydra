@@ -3,7 +3,7 @@ import warnings
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import AnyUrl, BeforeValidator, EmailStr, PostgresDsn, computed_field, model_validator
+from pydantic import AnyUrl, BeforeValidator, EmailStr, Field, PostgresDsn, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -246,6 +246,15 @@ class Settings(BaseSettings):
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     )
+
+    # Delivery is retried out of the outbox table rather than in the request
+    # that asked for the mail. A message is attempted at most
+    # EMAIL_OUTBOX_MAX_ATTEMPTS times, waiting twice as long after each
+    # failure, starting at the base delay and never exceeding the maximum.
+    EMAIL_OUTBOX_MAX_ATTEMPTS: int = Field(default=6, ge=1)
+    EMAIL_OUTBOX_RETRY_BASE_SECONDS: int = Field(default=60, ge=1)
+    EMAIL_OUTBOX_RETRY_MAX_SECONDS: int = Field(default=3600, ge=1)  # 1 hour
+    EMAIL_OUTBOX_BATCH_SIZE: int = Field(default=20, ge=1)
 
     EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 24  # 1 day
     EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 48  # 2 days
