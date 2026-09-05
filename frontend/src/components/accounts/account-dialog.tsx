@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -39,24 +39,33 @@ import { ACCOUNT_TYPE_LABELS } from '@/lib/labels'
 import { toMajor } from '@/lib/money'
 import { today } from '@/lib/month'
 
-const schema = z.object({
-  name: z.string().trim().min(1, 'Give the account a name.').max(255),
-  type: z.enum(AccountType),
-  institution: z.string().trim().max(255).optional(),
-  iban: z
-    .string()
-    .trim()
-    .transform(compactIban)
-    .refine((value) => value === '' || isValidIban(value), {
-      message: 'Check the IBAN: that is not a valid one.',
-    })
-    .optional(),
-  opening_balance: amountSchema({ allowZero: true }),
-  opening_balance_date: z.string().min(1, 'Pick the date this balance was true.'),
-})
+/**
+ * The form's rules.
+ *
+ * A function of the currency, because how many minor units a typed amount
+ * stands for is a property of the currency the household keeps its books in.
+ */
+function buildSchema(currency: string) {
+  return z.object({
+    name: z.string().trim().min(1, 'Give the account a name.').max(255),
+    type: z.enum(AccountType),
+    institution: z.string().trim().max(255).optional(),
+    iban: z
+      .string()
+      .trim()
+      .transform(compactIban)
+      .refine((value) => value === '' || isValidIban(value), {
+        message: 'Check the IBAN: that is not a valid one.',
+      })
+      .optional(),
+    opening_balance: amountSchema({ currency, allowZero: true }),
+    opening_balance_date: z.string().min(1, 'Pick the date this balance was true.'),
+  })
+}
 
-type Values = z.input<typeof schema>
-type Parsed = z.output<typeof schema>
+type Schema = ReturnType<typeof buildSchema>
+type Values = z.input<Schema>
+type Parsed = z.output<Schema>
 
 export function AccountDialog({
   open,
@@ -69,6 +78,7 @@ export function AccountDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const currency = useCurrency()
+  const schema = useMemo(() => buildSchema(currency), [currency])
   const queryClient = useQueryClient()
   const isEdit = account !== null
 
