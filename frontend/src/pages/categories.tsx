@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import {
   Archive,
   ArchiveRestore,
@@ -36,11 +36,10 @@ import {
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useCategoryTree } from '@/hooks/use-categories'
+import { useCategoryTree, useInvalidateCategories } from '@/hooks/use-categories'
 import { errorMessage } from '@/lib/api'
 
 export function Component() {
-  const queryClient = useQueryClient()
   const [kind, setKind] = useState<CategoryKind>(CategoryKind.EXPENSE)
   const [includeArchived, setIncludeArchived] = useState(false)
   const [editing, setEditing] = useState<CategoryPublic | null>(null)
@@ -49,10 +48,7 @@ export function Component() {
 
   const tree = useCategoryTree({ includeArchived, kind })
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['categories'] })
-    void queryClient.invalidateQueries({ queryKey: ['reports'] })
-  }
+  const invalidate = useInvalidateCategories()
 
   const setArchived = useMutation({
     mutationFn: async ({ category, archived }: { category: CategoryPublic; archived: boolean }) => {
