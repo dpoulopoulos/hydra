@@ -3,20 +3,8 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session
 
-from app.exceptions import (
-    AccountArchivedError,
-    AccountNotFoundError,
-    CategoryNotFoundError,
-    SameAccountTransferError,
-    TransactionCategoryKindError,
-    TransactionFromSessionError,
-    TransactionNotFoundError,
-    TransferShapeError,
-)
+from app.exceptions import TransactionFromSessionError, TransactionNotFoundError
 from app.models import (
-    Account,
-    Category,
-    CategoryKind,
     HouseholdContext,
     Message,
     Transaction,
@@ -27,18 +15,11 @@ from app.models import (
     TransactionsPublic,
     TransactionUpdate,
 )
-from app.repositories.account import AccountRepository
-from app.repositories.category import CategoryRepository
 from app.repositories.transaction import TransactionRepository
+from app.services.ledger import LedgerReferenceResolver
 
 if TYPE_CHECKING:
     from app.services.recurring_rule import RecurringRuleService
-
-# Which category kind each transaction kind needs. A transfer takes none.
-_CATEGORY_KIND_FOR: dict[TransactionKind, CategoryKind] = {
-    TransactionKind.EXPENSE: CategoryKind.EXPENSE,
-    TransactionKind.INCOME: CategoryKind.INCOME,
-}
 
 
 class TransactionService:
@@ -48,21 +29,18 @@ class TransactionService:
         self,
         session: Session,
         transaction_repository: TransactionRepository,
-        account_repository: AccountRepository,
-        category_repository: CategoryRepository,
+        reference_resolver: LedgerReferenceResolver,
     ) -> None:
         """Initialize the transaction service.
 
         Args:
             session: The database session.
             transaction_repository: The transaction repository instance.
-            account_repository: The account repository instance.
-            category_repository: The category repository instance.
+            reference_resolver: The resolver for the accounts and category a transaction points at.
         """
         self.session = session
         self.transaction_repository = transaction_repository
-        self.account_repository = account_repository
-        self.category_repository = category_repository
+        self.reference_resolver = reference_resolver
 
     def create_transaction(
         self, household: HouseholdContext, transaction_create: TransactionCreate
@@ -87,25 +65,13 @@ class TransactionService:
             TransferShapeError: If the transaction does not match its kind.
             TransactionCategoryKindError: If the category is the wrong kind.
         """
-        self._check_shape(
+        self.reference_resolver.resolve(
+            household=household,
             kind=transaction_create.kind,
-            category_id=transaction_create.category_id,
+            account_id=transaction_create.account_id,
             counter_account_id=transaction_create.counter_account_id,
+            category_id=transaction_create.category_id,
         )
-        self._resolve_account(household=household, account_id=transaction_create.account_id)
-
-        if transaction_create.counter_account_id is not None:
-            if transaction_create.counter_account_id == transaction_create.account_id:
-                raise SameAccountTransferError from None
-
-            self._resolve_account(household=household, account_id=transaction_create.counter_account_id)
-
-        if transaction_create.category_id is not None:
-            self._resolve_category(
-                household=household,
-                category_id=transaction_create.category_id,
-                kind=transaction_create.kind,
-            )
 
         transaction = Transaction.model_validate(
             transaction_create,
@@ -146,7 +112,7 @@ class TransactionService:
         if filters.category_id is not None:
             # Resolved through the scoped repository, so filtering by another
             # household's category is a 404 rather than an empty page.
-            self._require_category(household=household, category_id=filters.category_id)
+            self.reference_resolver.require_category(household=household, category_id=filters.category_id)
 
             category_ids = (
                 self.transaction_repository.descendant_category_ids(
@@ -229,17 +195,13 @@ class TransactionService:
         if kind is not TransactionKind.TRANSFER and "counter_account_id" not in fields:
             counter_account_id = None
 
-        self._check_shape(kind=kind, category_id=category_id, counter_account_id=counter_account_id)
-        self._resolve_account(household=household, account_id=account_id)
-
-        if counter_account_id is not None:
-            if counter_account_id == account_id:
-                raise SameAccountTransferError from None
-
-            self._resolve_account(household=household, account_id=counter_account_id)
-
-        if category_id is not None:
-            self._resolve_category(household=household, category_id=category_id, kind=kind)
+        self.reference_resolver.resolve(
+            household=household,
+            kind=kind,
+            account_id=account_id,
+            counter_account_id=counter_account_id,
+            category_id=category_id,
+        )
 
         transaction.sqlmodel_update(
             {
@@ -295,107 +257,6 @@ class TransactionService:
         """
         if transaction.income_session_id is not None:
             raise TransactionFromSessionError from None
-
-    def _check_shape(
-        self,
-        kind: TransactionKind,
-        category_id: uuid.UUID | None,
-        counter_account_id: uuid.UUID | None,
-    ) -> None:
-        """Check that a transaction matches the shape its kind requires.
-
-        The database enforces the same rule, so this exists to turn it into a
-        clear message rather than an integrity error.
-
-        Args:
-            kind: The kind of transaction.
-            category_id: The category, if any.
-            counter_account_id: The destination account, if any.
-
-        Raises:
-            TransferShapeError: If the fields do not match the kind.
-        """
-        if kind is TransactionKind.TRANSFER:
-            if counter_account_id is None:
-                raise TransferShapeError("A transfer needs a destination account.") from None
-
-            if category_id is not None:
-                raise TransferShapeError(
-                    "A transfer has no category: it moves money between your own accounts rather than spending it."
-                ) from None
-        elif counter_account_id is not None:
-            raise TransferShapeError(
-                "Only a transfer has a destination account. Set the kind to transfer, or remove it."
-            ) from None
-
-    def _resolve_account(self, household: HouseholdContext, account_id: uuid.UUID) -> Account:
-        """Load an account of the household and check it can take transactions.
-
-        Args:
-            household: The household context.
-            account_id: The ID of the account.
-
-        Returns:
-            The account.
-
-        Raises:
-            AccountNotFoundError: If the account does not exist in the household.
-            AccountArchivedError: If the account is archived.
-        """
-        account = self.account_repository.get_for_household(entity_id=account_id, household_id=household.household_id)
-
-        if not account:
-            raise AccountNotFoundError from None
-
-        if account.archived_at is not None:
-            raise AccountArchivedError(name=account.name) from None
-
-        return account
-
-    def _resolve_category(self, household: HouseholdContext, category_id: uuid.UUID, kind: TransactionKind) -> Category:
-        """Load a category of the household and check it suits the kind.
-
-        Args:
-            household: The household context.
-            category_id: The ID of the category.
-            kind: The kind of transaction it is being used for.
-
-        Returns:
-            The category.
-
-        Raises:
-            CategoryNotFoundError: If the category does not exist in the household.
-            TransactionCategoryKindError: If the category is the wrong kind.
-        """
-        category = self._require_category(household=household, category_id=category_id)
-        expected = _CATEGORY_KIND_FOR.get(kind)
-
-        if expected is not None and category.kind is not expected:
-            raise TransactionCategoryKindError from None
-
-        return category
-
-    def _require_category(self, household: HouseholdContext, category_id: uuid.UUID) -> Category:
-        """Load a category of the household.
-
-        Args:
-            household: The household context.
-            category_id: The ID of the category.
-
-        Returns:
-            The category.
-
-        Raises:
-            CategoryNotFoundError: If the category does not exist in the household.
-        """
-        category = self.category_repository.get_for_household(
-            entity_id=category_id, household_id=household.household_id
-        )
-
-        if not category:
-            raise CategoryNotFoundError from None
-
-        return category
 
     def _require_transaction(self, household: HouseholdContext, transaction_id: uuid.UUID) -> Transaction:
         """Load a transaction of the household.

@@ -49,6 +49,7 @@ from app.services import (
     HouseholdService,
     IncomeService,
     InvestmentService,
+    LedgerReferenceResolver,
     PasswordResetService,
     RecurringRuleService,
     ReportService,
@@ -194,6 +195,28 @@ def get_budget_service(
 BudgetServiceDep = Annotated[BudgetService, Depends(get_budget_service)]
 
 
+def get_ledger_reference_resolver(
+    account_repository: AccountRepositoryDep,
+    category_repository: CategoryRepositoryDep,
+) -> LedgerReferenceResolver:
+    """Get a ledger reference resolver instance.
+
+    Args:
+        account_repository: The account repository instance.
+        category_repository: The category repository instance.
+
+    Returns:
+        A ledger reference resolver instance.
+    """
+    return LedgerReferenceResolver(
+        account_repository=account_repository,
+        category_repository=category_repository,
+    )
+
+
+LedgerReferenceResolverDep = Annotated[LedgerReferenceResolver, Depends(get_ledger_reference_resolver)]
+
+
 def get_transaction_repository(session: SessionDep) -> TransactionRepository:
     """Get a transaction repository instance.
 
@@ -212,16 +235,14 @@ TransactionRepositoryDep = Annotated[TransactionRepository, Depends(get_transact
 def get_transaction_service(
     session: SessionDep,
     transaction_repository: TransactionRepositoryDep,
-    account_repository: AccountRepositoryDep,
-    category_repository: CategoryRepositoryDep,
+    reference_resolver: LedgerReferenceResolverDep,
 ) -> TransactionService:
     """Get a transaction service instance.
 
     Args:
         session: The database session.
         transaction_repository: The transaction repository instance.
-        account_repository: The account repository instance.
-        category_repository: The category repository instance.
+        reference_resolver: The ledger reference resolver instance.
 
     Returns:
         A transaction service instance.
@@ -229,8 +250,7 @@ def get_transaction_service(
     return TransactionService(
         session=session,
         transaction_repository=transaction_repository,
-        account_repository=account_repository,
-        category_repository=category_repository,
+        reference_resolver=reference_resolver,
     )
 
 
