@@ -45,6 +45,52 @@ import { formatDate } from '@/lib/month'
 
 const PAGE_SIZE = 25
 
+/**
+ * How the page groups accounts.
+ *
+ * Each section holds one kind of money, so no column mixes two of them. Cash
+ * in hand is not in any bank, a credit card is what is owed rather than what
+ * is held, and a brokerage balance is cash handed to a broker that net worth
+ * counts through the holdings instead. A section with no accounts is left out.
+ *
+ * A section also drops the columns it has nothing to say in: the type when it
+ * holds a single type, and the IBAN when its accounts never have one.
+ *
+ * The order runs from the money a bank holds to the money in a pocket.
+ */
+const SECTIONS: {
+  title: string
+  description?: string
+  types: AccountType[]
+  hideType?: boolean
+  hideIban?: boolean
+}[] = [
+  {
+    title: 'Banking',
+    description: 'What a bank holds for you, ready to spend or put aside.',
+    types: [AccountType.CURRENT, AccountType.SAVINGS],
+  },
+  {
+    title: 'Credit cards',
+    description: 'What you owe the card so far. A balance here counts against the total.',
+    types: [AccountType.CREDIT_CARD],
+    hideIban: true,
+  },
+  {
+    title: 'Brokerage',
+    description:
+      'The cash sitting with each broker: transferred in and not yet spent, plus what sales have returned. Buying takes cash out of it, so this and your holdings never describe the same money.',
+    types: [AccountType.BROKERAGE],
+  },
+  {
+    title: 'Cash',
+    description: 'What you carry, not what a bank holds for you.',
+    types: [AccountType.CASH],
+    hideType: true,
+    hideIban: true,
+  },
+]
+
 export function Component() {
   const currency = useCurrency()
   const queryClient = useQueryClient()
@@ -104,21 +150,30 @@ export function Component() {
   /**
    * One table of accounts.
    *
-   * Written once and called twice, because the page shows banking and
-   * brokerage separately: they hold different kinds of money, even though net
-   * worth counts both.
+   * Written once and called for every section, because the page groups
+   * accounts by the kind of money they hold, even though the total counts
+   * all of them.
+   *
+   * The columns are laid out at fixed widths, with one empty column taking up
+   * the slack in the middle. A section that drops the type or the IBAN then
+   * widens that gap instead of shifting everything along it, so the headings
+   * of every table on the page still line up with each other.
    */
-  const accountTable = (rows: NonNullable<typeof accounts.data>['data']) => (
+  const accountTable = (
+    rows: NonNullable<typeof accounts.data>['data'],
+    { hideType = false, hideIban = false } = {},
+  ) => (
     <Card className="overflow-hidden py-0">
-      <Table>
+      <Table className="min-w-[62rem] table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead>Account</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>IBAN</TableHead>
-            <TableHead>Tracking since</TableHead>
-            <TableHead className="text-right">Balance</TableHead>
-            <TableHead className="w-10" />
+            <TableHead className="w-72">Account</TableHead>
+            {hideType ? null : <TableHead className="w-36">Type</TableHead>}
+            {hideIban ? null : <TableHead className="w-72">IBAN</TableHead>}
+            <TableHead />
+            <TableHead className="w-36">Tracking since</TableHead>
+            <TableHead className="w-32 text-right">Balance</TableHead>
+            <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -133,24 +188,29 @@ export function Component() {
                   <p className="text-muted-foreground text-xs">{account.institution}</p>
                 ) : null}
               </TableCell>
-              <TableCell className="text-muted-foreground">
-                {ACCOUNT_TYPE_LABELS[account.type] ?? account.type}
-              </TableCell>
-              <TableCell>
-                {account.iban ? (
-                  <div className="flex items-center gap-1">
-                    {/* Grouped in fours to read it, copied compact to use it:
-                        a payment form takes the spaces, but not every one
-                        strips them. */}
-                    <span className="text-muted-foreground font-mono text-xs whitespace-nowrap">
-                      {formatIban(account.iban)}
-                    </span>
-                    <CopyButton value={account.iban} label="IBAN" />
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground">&mdash;</span>
-                )}
-              </TableCell>
+              {hideType ? null : (
+                <TableCell className="text-muted-foreground">
+                  {ACCOUNT_TYPE_LABELS[account.type] ?? account.type}
+                </TableCell>
+              )}
+              {hideIban ? null : (
+                <TableCell>
+                  {account.iban ? (
+                    <div className="flex items-center gap-1">
+                      {/* Grouped in fours to read it, copied compact to use
+                          it: a payment form takes the spaces, but not every
+                          one strips them. */}
+                      <span className="text-muted-foreground font-mono text-xs whitespace-nowrap">
+                        {formatIban(account.iban)}
+                      </span>
+                      <CopyButton value={account.iban} label="IBAN" />
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">&mdash;</span>
+                  )}
+                </TableCell>
+              )}
+              <TableCell />
               <TableCell className="text-muted-foreground">
                 {formatDate(account.opening_balance_date)}
               </TableCell>
@@ -261,40 +321,40 @@ export function Component() {
           <Button onClick={() => setCreating(true)}>Add your first account</Button>
         </EmptyState>
       ) : (
-        (() => {
-          // Brokerage accounts are listed apart. Their balance is cash handed
-          // to a broker rather than money to spend, and net worth counts the
-          // holdings instead of it, so mixing them into one list would invite
-          // adding up a column that is not meant to be added up.
-          const brokerage = accounts.data.data.filter(
-            (account) => account.type === AccountType.BROKERAGE,
-          )
-          const banking = accounts.data.data.filter(
-            (account) => account.type !== AccountType.BROKERAGE,
-          )
+        <div className="space-y-6">
+          {SECTIONS.map((section) => {
+            const rows = accounts.data.data.filter((account) =>
+              section.types.includes(account.type),
+            )
+            if (rows.length === 0) return null
 
-          if (brokerage.length === 0) return accountTable(banking)
-
-          return (
-            <div className="space-y-6">
-              {banking.length > 0 ? (
-                <section className="space-y-2">
-                  <h2 className="text-sm font-medium">Banking</h2>
-                  {accountTable(banking)}
-                </section>
-              ) : null}
-              <section className="space-y-2">
-                <h2 className="text-sm font-medium">Brokerage</h2>
-                <p className="text-muted-foreground text-xs">
-                  The cash sitting with each broker: transferred in and not yet spent, plus what
-                  sales have returned. Buying takes cash out of it, so this and your holdings never
-                  describe the same money.
-                </p>
-                {accountTable(brokerage)}
+            return (
+              <section key={section.title} className="space-y-2">
+                <h2 className="text-sm font-medium">{section.title}</h2>
+                {section.description ? (
+                  <p className="text-muted-foreground text-xs">{section.description}</p>
+                ) : null}
+                {accountTable(rows, { hideType: section.hideType, hideIban: section.hideIban })}
               </section>
-            </div>
-          )
-        })()
+            )
+          })}
+
+          {/* A type the sections do not name yet. Listing it here rather than
+              dropping it means a new account type shows up on the page before
+              anyone remembers to put it in a section. */}
+          {(() => {
+            const named = SECTIONS.flatMap((section) => section.types)
+            const rest = accounts.data.data.filter((account) => !named.includes(account.type))
+            if (rest.length === 0) return null
+
+            return (
+              <section className="space-y-2">
+                <h2 className="text-sm font-medium">Other</h2>
+                {accountTable(rest)}
+              </section>
+            )
+          })()}
+        </div>
       )}
 
       {accounts.data && accounts.data.count > 0 ? (
