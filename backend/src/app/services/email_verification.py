@@ -123,12 +123,18 @@ class EmailVerificationService:
                 email_verification_id=pending_verification.id, status=EmailVerificationStatus.EXPIRED
             )
 
-    def send_verification_email(self, user_service: UserService, user_email: str) -> Message:
+    def send_verification_email(
+        self, user_service: UserService, user_email: str, invite_unusable: bool = False
+    ) -> Message:
         """Send an email verification to a user.
 
         Args:
             user_service: A user service instance.
-            user_email: The email address to send the verification to.
+            user_email: The address to send the verification to.
+            invite_unusable: Whether the signup carried an invitation that could not be applied. The
+                verification email says so as well when it did, so that a signup sends one message
+                whatever happened to its invitation and cannot be told apart by how long the send
+                took.
 
         Returns:
             What became of the message: sent, queued for another attempt, or
@@ -141,7 +147,9 @@ class EmailVerificationService:
         if not user:
             raise UserNotFoundError from None
 
-        return _delivery_message(self._issue_verification(user=user, address=user.email))
+        return _delivery_message(
+            self._issue_verification(user=user, address=user.email, invite_unusable=invite_unusable)
+        )
 
     def send_email_change_verification(self, user: User, new_email: str) -> Message:
         """Send a verification to an address a user has asked to move to.
@@ -162,7 +170,9 @@ class EmailVerificationService:
             destination=" to the new address",
         )
 
-    def _issue_verification(self, user: User, address: str, new_email: str | None = None) -> VerificationDelivery:
+    def _issue_verification(
+        self, user: User, address: str, new_email: str | None = None, invite_unusable: bool = False
+    ) -> VerificationDelivery:
         """Write a pending verification for a user and mail its token out.
 
         Args:
@@ -172,6 +182,8 @@ class EmailVerificationService:
                 requested one for a change of address.
             new_email: The address the account moves to once the token is
                 redeemed, or None when the verification activates the account.
+            invite_unusable: Whether the signup carried an invitation that could
+                not be applied, which the message says so too.
 
         Returns:
             What became of the message: sent, queued for another attempt, or
@@ -206,7 +218,7 @@ class EmailVerificationService:
         if not settings.emails_enabled:
             return VerificationDelivery.NOT_CONFIGURED
 
-        email_data = generate_email_verification_email(email=address, token=token)
+        email_data = generate_email_verification_email(email=address, token=token, invite_unusable=invite_unusable)
         delivered = EmailOutboxService.for_session(self.session).deliver_or_queue(
             email_to=address,
             subject=email_data.subject,

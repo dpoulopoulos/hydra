@@ -123,18 +123,18 @@
                     </tr>
                     <tr>
                       <td align="center" style="font-size:0px;padding:0 24px 12px;word-break:break-word;">
-                        <div style="font-family:Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:20px;line-height:1;text-align:center;color:#333333;">Verify Your Email Address</div>
+                        <div style="font-family:Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:20px;line-height:1;text-align:center;color:#333333;">Someone Tried to Sign Up</div>
                       </td>
                     </tr>
                     <tr>
                       <td align="center" style="font-size:0px;padding:10px 25px;padding-right:25px;padding-left:25px;word-break:break-word;">
-                        <div style="font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;text-align:center;color:#555555;">Hi {{ email }},<br /><br />Thank you for signing up for {{ project_name }}!<br />Please verify your email address to activate your account.</div>
+                        <div style="font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;text-align:center;color:#555555;">Hi {{ email }},<br /><br />Someone used this address to sign up for {{ project_name }}, but it already has an account.<br />If that was you, sign in with the password you already have.</div>
                       </td>
                     </tr>
-                    {% if invite_unusable %}
+                    {% if invited %}
                     <tr>
                       <td align="center" style="font-size:0px;padding:0 25px 10px;word-break:break-word;">
-                        <div style="font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;text-align:center;color:#555555;">The invitation link the sign-up carried could not be used. It may have expired, it may already have been used or withdrawn, or it may have been sent to a different address.<br />Nothing was joined for you: the account has a household of its own instead. Verify this address below, then ask whoever invited you for a new invitation.</div>
+                        <div style="font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;text-align:center;color:#555555;">The sign-up followed an invitation to join a household. Nothing was joined for you: sign in first, then open the invitation link again to accept it.</div>
                       </td>
                     </tr>
                     {% endif %}
@@ -144,7 +144,7 @@
                           <tbody>
                             <tr>
                               <td align="center" bgcolor="#009688" role="presentation" style="border:none;border-radius:8px;cursor:auto;mso-padding-alt:10px 25px;background:#009688;" valign="middle">
-                                <a href="{{ link }}" style="display:inline-block;background:#009688;color:#ffffff;font-family:Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:18px;font-weight:normal;line-height:120%;margin:0;text-decoration:none;text-transform:none;padding:10px 25px;mso-padding-alt:0px;border-radius:8px;" target="_blank"> Verify Email </a>
+                                <a href="{{ login_link }}" style="display:inline-block;background:#009688;color:#ffffff;font-family:Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:18px;font-weight:normal;line-height:120%;margin:0;text-decoration:none;text-transform:none;padding:10px 25px;mso-padding-alt:0px;border-radius:8px;" target="_blank"> Sign In </a>
                               </td>
                             </tr>
                           </tbody>
@@ -153,7 +153,7 @@
                     </tr>
                     <tr>
                       <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
-                        <div style="font-family:Arial, Helvetica, sans-serif;font-size:14px;line-height:1.5;text-align:center;color:#888888;">This link will expire in 48 hours.<br />If you didn't create an account, you can safely ignore this email.</div>
+                        <div style="font-family:Arial, Helvetica, sans-serif;font-size:14px;line-height:1.5;text-align:center;color:#888888;">Forgot your password? Reset it at {{ reset_link }}.<br />If this was not you, nothing has changed and you can safely ignore this email.</div>
                       </td>
                     </tr>
                     <tr>

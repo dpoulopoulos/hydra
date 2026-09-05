@@ -104,12 +104,18 @@ def generate_password_reset_email(email: str, token: str) -> EmailData:
     return EmailData(html_content=html_content, subject=subject)
 
 
-def generate_email_verification_email(email: str, token: str) -> EmailData:
+def generate_email_verification_email(email: str, token: str, invite_unusable: bool = False) -> EmailData:
     """Generate an email verification email.
 
     Args:
         email: Recipient email address.
         token: The email verification token.
+        invite_unusable: Whether the signup carried an invitation that could not be applied. When it
+            did, this message says so too, rather than a second message being sent: each send blocks
+            on an HTTPS call to the mail provider, so a signup that posted two of them would take
+            visibly longer than one that posted one, and the clock would answer the question the
+            shared reply refuses. The paragraph lists the possible reasons rather than naming the
+            one that applied, and does not repeat the invite token.
 
     Returns:
         EmailData object with HTML content and subject.
@@ -121,7 +127,40 @@ def generate_email_verification_email(email: str, token: str) -> EmailData:
             "project_name": settings.PROJECT_NAME,
             "email": email,
             "token": token,
+            "invite_unusable": invite_unusable,
             "link": f"{settings.FRONTEND_HOST}/verify-email?token={token}",
+            "assets_base_url": settings.assets_base_url,
+        },
+    )
+    return EmailData(html_content=html_content, subject=subject)
+
+
+def generate_signup_attempt_email(email: str, invited: bool = False) -> EmailData:
+    """Generate a 'someone signed up with your address' email.
+
+    Signup answers the same way for a registered and an unregistered address, so the fact that an
+    address already has an account is told to the address itself and to nobody else. The message
+    carries no token: it only points at sign-in and password reset, which the holder could have
+    reached on their own.
+
+    Args:
+        email: Recipient email address, which already has an account.
+        invited: Whether the attempt followed a household invitation. When it did, the message says
+            the invitation is still waiting, since an unauthenticated signup cannot accept it. The
+            invitation link is not repeated here, so the message still carries no token.
+
+    Returns:
+        EmailData object with HTML content and subject.
+    """
+    subject = f"Your Account - {settings.PROJECT_NAME}"
+    html_content = _render_email_template(
+        template_name="signup_attempt.html",
+        context={
+            "project_name": settings.PROJECT_NAME,
+            "email": email,
+            "invited": invited,
+            "login_link": f"{settings.FRONTEND_HOST}/login",
+            "reset_link": f"{settings.FRONTEND_HOST}/forgot-password",
             "assets_base_url": settings.assets_base_url,
         },
     )
