@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { errorMessage } from '@/lib/api'
-import { formatDate } from '@/lib/month'
+import { formatDateTime } from '@/lib/month'
 
 export function Component() {
   const [searchParams] = useSearchParams()
@@ -83,7 +83,7 @@ export function Component() {
         <AlertTitle>Everything is shared</AlertTitle>
         <AlertDescription>
           You will both see and manage the same accounts, budgets and transactions. The invitation
-          expires on {formatDate(invite.expires_at)}.
+          expires on {formatDateTime(invite.expires_at)}.
         </AlertDescription>
       </Alert>
 

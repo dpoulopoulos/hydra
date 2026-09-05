@@ -55,7 +55,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { useHousehold } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
-import { formatDate } from '@/lib/month'
+import { formatDateTime } from '@/lib/month'
 
 const renameSchema = z.object({
   name: z.string().trim().min(1, 'Give the household a name.').max(255),
@@ -407,7 +407,7 @@ export function Component() {
                       <p className="truncate font-medium">{item.email}</p>
                       <p className="text-muted-foreground text-sm">
                         {item.role === HouseholdRole.OWNER ? 'Owner' : 'Member'} · expires{' '}
-                        {formatDate(item.expires_at)}
+                        {formatDateTime(item.expires_at)}
                       </p>
                     </div>
                     <Button variant="ghost" size="sm" onClick={() => setRevoking(item)}>
