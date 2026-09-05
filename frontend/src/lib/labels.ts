@@ -1,4 +1,11 @@
-import { AccountType, CategoryKind, RecurrenceFrequency, TransactionKind } from '@/api'
+import {
+  AccountType,
+  CategoryKind,
+  InstrumentKind,
+  RecurrenceFrequency,
+  TradeSide,
+  TransactionKind,
+} from '@/api'
 
 /**
  * Words for the enum values the API uses.
@@ -11,6 +18,7 @@ export const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   [AccountType.CURRENT]: 'Current account',
   [AccountType.SAVINGS]: 'Savings',
   [AccountType.CREDIT_CARD]: 'Credit card',
+  [AccountType.BROKERAGE]: 'Brokerage',
 }
 
 export const TRANSACTION_KIND_LABELS: Record<string, string> = {
@@ -22,6 +30,20 @@ export const TRANSACTION_KIND_LABELS: Record<string, string> = {
 export const CATEGORY_KIND_LABELS: Record<string, string> = {
   [CategoryKind.EXPENSE]: 'Expense',
   [CategoryKind.INCOME]: 'Income',
+}
+
+export const INSTRUMENT_KIND_LABELS: Record<string, string> = {
+  [InstrumentKind.ETF]: 'ETF',
+  [InstrumentKind.STOCK]: 'Share',
+  [InstrumentKind.FUND]: 'Fund',
+  [InstrumentKind.BOND]: 'Bond',
+  [InstrumentKind.CRYPTO]: 'Crypto',
+  [InstrumentKind.OTHER]: 'Other',
+}
+
+export const TRADE_SIDE_LABELS: Record<string, string> = {
+  [TradeSide.BUY]: 'Bought',
+  [TradeSide.SELL]: 'Sold',
 }
 
 export const FREQUENCY_LABELS: Record<string, string> = {
