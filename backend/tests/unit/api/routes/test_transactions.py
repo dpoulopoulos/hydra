@@ -11,6 +11,7 @@ from app.exceptions import (
     AccountArchivedError,
     CategoryNotFoundError,
     SameAccountTransferError,
+    TransactionFromSessionError,
     TransactionNotFoundError,
     TransferShapeError,
 )
@@ -407,3 +408,35 @@ class TestDeleteTransaction:
         response = client.delete(f"/api/v1/transactions/{uuid.uuid4()}", headers=auth_headers)
 
         assert response.status_code == 404
+
+
+
+
+class TestSessionGeneratedTransactions:
+    """Tests that session income is refused here and pointed at the Income page.
+
+    The mapping is the whole test. A service exception with no status code
+    registered for it comes back as a 500, which is the shape of failure a unit
+    test of the service alone would never see.
+    """
+
+    def test_editing_session_income_is_a_conflict(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        wire.update_transaction.side_effect = TransactionFromSessionError
+
+        response = client.patch(
+            f"/api/v1/transactions/{TRANSACTION_ID}", headers=auth_headers, json={"amount_minor": 999}
+        )
+
+        assert response.status_code == 409
+        assert "Income page" in response.json()["detail"]
+
+    def test_deleting_session_income_is_a_conflict(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        wire.delete_transaction.side_effect = TransactionFromSessionError
+
+        response = client.delete(f"/api/v1/transactions/{TRANSACTION_ID}", headers=auth_headers)
+
+        assert response.status_code == 409

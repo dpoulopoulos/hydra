@@ -9,6 +9,7 @@ from app.exceptions import (
     CategoryNotFoundError,
     SameAccountTransferError,
     TransactionCategoryKindError,
+    TransactionFromSessionError,
     TransactionNotFoundError,
     TransferShapeError,
 )
@@ -210,6 +211,7 @@ class TransactionService:
             TransactionCategoryKindError: If the category is the wrong kind.
         """
         transaction = self._require_transaction(household=household, transaction_id=transaction_id)
+        self._check_not_from_session(transaction)
 
         fields = transaction_update.model_dump(exclude_unset=True)
         kind = fields.get("kind", transaction.kind)
@@ -271,10 +273,28 @@ class TransactionService:
             TransactionNotFoundError: If the transaction does not exist in the household.
         """
         transaction = self._require_transaction(household=household, transaction_id=transaction_id)
+        self._check_not_from_session(transaction)
         self.transaction_repository.delete(transaction)
         self.session.commit()
 
         return Message(message="Transaction deleted.")
+
+    def _check_not_from_session(self, transaction: Transaction) -> None:
+        """Refuse to edit a row a paid session generated.
+
+        The session holds the fee, and the Income page reads it from there. If
+        this row could be changed here the two would drift apart, and afterwards
+        nothing in the app could say which of the two figures was real. One
+        writer per number is what keeps the ledger and the diary equal.
+
+        Args:
+            transaction: The transaction about to be changed.
+
+        Raises:
+            TransactionFromSessionError: If a session generated the transaction.
+        """
+        if transaction.income_session_id is not None:
+            raise TransactionFromSessionError from None
 
     def _check_shape(
         self,
