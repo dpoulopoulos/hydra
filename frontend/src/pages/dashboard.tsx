@@ -46,8 +46,7 @@ export function Component() {
   const [savedSpan, setSavedSpan] = useState<Period>('month')
   const year = month.slice(0, 4)
 
-  // The summary is one request on purpose, and it also brings any recurring
-  // transactions that have fallen due up to date.
+  // The summary is one request on purpose: one round trip for the tiles.
   const summary = useQuery({
     queryKey: ['reports', 'summary', month],
     queryFn: async () => {

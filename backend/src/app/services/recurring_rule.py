@@ -288,12 +288,12 @@ class RecurringRuleService:
     def materialize_due(self, household: HouseholdContext, until: datetime.date | None = None) -> RecurringRunResult:
         """Create the transactions the rules have fallen due for.
 
-        Called from the read paths, so opening the app brings the ledger up to
-        date. That means a GET can write, which is a deliberate trade for not
-        needing a scheduler: nothing here is time critical, and correctness
-        only has to hold when somebody looks. The same method is what a worker
-        would call later, so adding one becomes a deployment change rather than
-        a code change.
+        The only place transactions fall out of the rules, and reached only
+        through "POST /recurring-rules/run": the client calls it once when the
+        app loads, so every read afterwards answers from the same ledger
+        instead of the first read of the screen deciding what the rest see.
+        The same method is what a scheduled worker would call, so adding one
+        becomes a deployment change rather than a code change.
 
         Idempotent by the cursor on each rule, which only ever moves forward,
         and backed by a unique index on (rule, date) in case two requests race.

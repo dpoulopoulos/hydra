@@ -388,6 +388,29 @@ class TestMonthSummary:
         assert body["over_budget_category_count"] == 1
         assert body["top_categories"][0]["category_name"] == "Transport"
 
+    def test_does_not_record_recurring_transactions(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        """Writing here would leave the other reports answering from an older ledger."""
+        wire.month_summary.return_value = MonthSummaryReport(
+            period=period(),
+            income_minor=0,
+            expense_minor=0,
+            net_minor=0,
+            net_worth_minor=0,
+            budgeted_minor=0,
+            over_budget_category_count=0,
+            transaction_count=0,
+            top_categories=[],
+        )
+
+        response = client.get(
+            "/api/v1/reports/summary", headers=auth_headers, params={"month": "2026-03"}
+        )
+
+        assert response.status_code == 200
+        assert "recurring_rule_service" not in wire.month_summary.call_args.kwargs
+
     def test_rejects_a_month_that_is_not_a_month(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:

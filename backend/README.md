@@ -348,7 +348,7 @@ categories, budgets and transactions.
 | Categories | `/api/v1/categories` | Two levels deep, seeded on household creation. |
 | Transactions | `/api/v1/transactions` | Expenses, income and transfers. A transfer is one row, not two. |
 | Budgets | `/api/v1/budgets` | One limit per category per month. No rollover. |
-| Recurring rules | `/api/v1/recurring-rules` | Materialize real transactions; run from the read paths. |
+| Recurring rules | `/api/v1/recurring-rules` | Materialize real transactions; run by `POST /recurring-rules/run`, which the app calls on load. |
 | Reports | `/api/v1/reports` | Spend by category, spend over time, budget vs actual, income vs expense, dashboard summary. |
 
 Deleting an account deletes the household it leaves empty. A household is only reachable through its

@@ -848,16 +848,11 @@ export const accountsUpdateAccount = <ThrowOnError extends boolean = false>(opti
  *
  * List the transactions of the household.
  *
- * Any recurring transactions that have fallen due are recorded first, so the
- * ledger is up to date without needing a scheduler.
- *
  * Filtering by a parent category includes the spending filed under its
  * subcategories, unless include_subcategories is set to false.
  *
  * Args:
  * transaction_service: The transaction service dependency.
- * recurring_rule_service: The recurring rule service dependency, used to
- * bring the ledger up to date before reading it.
  * household: The current household context.
  * filters: The date range, account, category, kind, amount range, search
  * text, ordering and paging to apply.
@@ -1252,8 +1247,9 @@ export const recurringRulesListUpcomingOccurrences = <ThrowOnError extends boole
  *
  * Record the transactions the rules have fallen due for.
  *
- * The read paths do this automatically, so this endpoint exists for catching
- * up explicitly, or for creating occurrences ahead of today.
+ * The only way the rules are turned into transactions. The app calls it
+ * once on load; it also serves for catching up by hand, or for creating
+ * occurrences ahead of today.
  *
  * Args:
  * recurring_rule_service: The recurring rule service dependency.
@@ -1467,13 +1463,9 @@ export const reportsBudgetProgress = <ThrowOnError extends boolean = false>(opti
  * Gather the dashboard figures for one month.
  *
  * One request rather than several, so opening the app is a single round trip.
- * Any recurring transactions that have fallen due are recorded first, so the
- * dashboard is not out of date the moment it loads.
  *
  * Args:
  * report_service: The report service dependency.
- * recurring_rule_service: The recurring rule service dependency, used to
- * bring the ledger up to date before reading it.
  * household: The current household context.
  * month: The month, in "YYYY-MM" form.
  *

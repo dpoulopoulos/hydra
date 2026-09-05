@@ -5,8 +5,13 @@ import { UserMenu } from '@/components/layout/user-menu'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Separator } from '@/components/ui/separator'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { useRecurringCatchUp } from '@/hooks/use-recurring-catch-up'
 
 export function AppShell() {
+  // Brings the ledger up to date here, once, rather than inside a read: the
+  // screens below then all answer from the same ledger.
+  useRecurringCatchUp()
+
   return (
     <SidebarProvider>
       <AppSidebar />
