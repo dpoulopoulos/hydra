@@ -5,7 +5,7 @@ from enum import StrEnum
 from sqlalchemy import BigInteger, CheckConstraint, Date, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from .fields import MAX_AMOUNT_MINOR
+from .fields import IBAN_MAX_LENGTH, MAX_AMOUNT_MINOR, Iban
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
 
@@ -28,6 +28,10 @@ class AccountBase(SQLModel):
     name: str = Field(max_length=255)
     type: AccountType
     institution: str | None = Field(default=None, max_length=255)
+    # Stored compact and upper case, whatever spacing the user typed. It is
+    # here so the account can be handed to someone who has to pay into it; the
+    # app never uses it to move money itself.
+    iban: Iban | None = Field(default=None, max_length=IBAN_MAX_LENGTH)
 
 
 class AccountCreate(AccountBase):
@@ -42,6 +46,7 @@ class AccountUpdate(SQLModel):
     name: str | None = Field(default=None, max_length=255)
     type: AccountType | None = Field(default=None)
     institution: str | None = Field(default=None, max_length=255)
+    iban: Iban | None = Field(default=None, max_length=IBAN_MAX_LENGTH)
     is_archived: bool | None = Field(default=None)
 
 

@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from typing import Annotated
 
@@ -39,6 +40,51 @@ Password = Annotated[str, AfterValidator(_within_bcrypt_limit)]
 # a 422 belongs. The cap sits an order of magnitude below the column, so a total
 # of capped amounts still fits, and no real amount comes close to it.
 MAX_AMOUNT_MINOR = 2**62
+
+
+# An IBAN is at most 34 characters: two letters for the country, two check
+# digits, then up to 30 characters of account number. People write it in
+# groups of four, so the value is normalized before it is stored and the
+# column is sized for the compact form.
+IBAN_MAX_LENGTH = 34
+
+_IBAN_PATTERN = re.compile(r"^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$")
+
+
+def _normalize_iban(value: str) -> str:
+    """Strip the spacing out of an IBAN and check it is well formed.
+
+    The check digits are what makes an IBAN worth validating: they catch a
+    mistyped or swapped character, which a length check alone would let
+    through. The account number is moved to the front, every letter becomes
+    its position in the alphabet plus nine, and a valid IBAN leaves a
+    remainder of one modulo 97.
+
+    Args:
+        value: The IBAN, with or without the usual spaces.
+
+    Returns:
+        The IBAN in upper case with the spaces removed.
+
+    Raises:
+        ValueError: If the IBAN is not well formed, or its check digits do
+            not match the rest of it.
+    """
+    compact = value.replace(" ", "").upper()
+
+    if not _IBAN_PATTERN.match(compact):
+        raise ValueError("IBAN must be a country code, two check digits and up to 30 more characters.")
+
+    rearranged = compact[4:] + compact[:4]
+    digits = "".join(str(int(char, 36)) for char in rearranged)
+
+    if int(digits) % 97 != 1:
+        raise ValueError("IBAN check digits do not match the rest of the IBAN.")
+
+    return compact
+
+
+Iban = Annotated[str, AfterValidator(_normalize_iban)]
 
 
 # A calendar month, as used by budgets and by the report endpoints. Budgets are

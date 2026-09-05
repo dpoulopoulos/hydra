@@ -4,7 +4,14 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from app.models import UserCreate
-from app.models.fields import BCRYPT_MAX_PASSWORD_BYTES, MonthKey, month_key_of, month_start, next_month_start
+from app.models.fields import (
+    BCRYPT_MAX_PASSWORD_BYTES,
+    Iban,
+    MonthKey,
+    month_key_of,
+    month_start,
+    next_month_start,
+)
 
 
 class TestPassword:
@@ -75,3 +82,53 @@ class TestMonthKey:
 
     def test_round_trips(self) -> None:
         assert month_key_of(month_start("2026-07")) == "2026-07"
+
+
+class TestIban:
+    """Test the Iban field type."""
+
+    adapter = TypeAdapter(Iban)
+
+    def test_spacing_and_case_are_normalized(self):
+        """Test that an IBAN written in groups of four is stored compact."""
+        # Arrange: Set up an IBAN the way a bank statement prints it
+        written = "gr16 0110 1250 0000 0001 2300 695"
+
+        # Act: Validate it
+        iban = self.adapter.validate_python(written)
+
+        # Assert: Verify the spaces are gone and the letters are upper case
+        assert iban == "GR1601101250000000012300695"
+
+    def test_valid_iban_is_accepted(self):
+        """Test that a well formed IBAN passes the check digits."""
+        # Arrange: Set up a valid IBAN
+        written = "DE89370400440532013000"
+
+        # Act: Validate it
+        iban = self.adapter.validate_python(written)
+
+        # Assert: Verify it is returned unchanged
+        assert iban == written
+
+    def test_mistyped_iban_is_rejected(self):
+        """Test that a single wrong digit fails the check digits."""
+        # Arrange: Set up a valid IBAN with one digit changed
+        written = "DE89370400440532013001"
+
+        # Act & Assert: Verify the check digits catch it
+        with pytest.raises(ValidationError) as exc_info:
+            self.adapter.validate_python(written)
+
+        assert "check digits" in str(exc_info.value)
+
+    def test_malformed_iban_is_rejected(self):
+        """Test that something that is not shaped like an IBAN is rejected."""
+        # Arrange: Set up a value that is too short and starts with digits
+        written = "1234"
+
+        # Act & Assert: Verify the shape is refused before the check digits
+        with pytest.raises(ValidationError) as exc_info:
+            self.adapter.validate_python(written)
+
+        assert "country code" in str(exc_info.value)
