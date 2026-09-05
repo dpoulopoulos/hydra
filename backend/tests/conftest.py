@@ -17,12 +17,15 @@ from app.repositories import (
     BudgetRepository,
     CategoryRepository,
     EmailVerificationRepository,
+    FxRateRepository,
     HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
+    InstrumentRepository,
     PasswordResetRepository,
     RecurringRuleRepository,
     ReportRepository,
+    TradeRepository,
     TransactionRepository,
     UserRepository,
 )
@@ -32,6 +35,7 @@ from app.services import (
     CategoryService,
     EmailVerificationService,
     HouseholdService,
+    InvestmentService,
     PasswordResetService,
     RecurringRuleService,
     ReportService,
@@ -668,4 +672,93 @@ def mock_recurring_rule_service(
         transaction_repository=mock_transaction_repository,
         account_repository=mock_account_repository,
         category_repository=mock_category_repository,
+    )
+
+
+@pytest.fixture
+def mock_instrument_repository(mock_db_session: MagicMock) -> InstrumentRepository:
+    """Create an InstrumentRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        An InstrumentRepository instance with a mocked session.
+    """
+    return InstrumentRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_trade_repository(mock_db_session: MagicMock) -> TradeRepository:
+    """Create a TradeRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        A TradeRepository instance with a mocked session.
+    """
+    return TradeRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_fx_rate_repository(mock_db_session: MagicMock) -> FxRateRepository:
+    """Create an FxRateRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        An FxRateRepository instance with a mocked session.
+    """
+    return FxRateRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_price_provider() -> MagicMock:
+    """Create a price provider that answers with nothing until a test says otherwise.
+
+    Returns:
+        A mock price provider, configured as reachable and knowing no symbols.
+    """
+    provider = MagicMock()
+    provider.is_configured = True
+    provider.quotes.return_value = ({}, {})
+    provider.fx_rates.return_value = ({}, {})
+    provider.search.return_value = []
+    return provider
+
+
+@pytest.fixture
+def mock_investment_service(
+    mock_db_session: MagicMock,
+    mock_instrument_repository: InstrumentRepository,
+    mock_trade_repository: TradeRepository,
+    mock_fx_rate_repository: FxRateRepository,
+    mock_household_repository: HouseholdRepository,
+    mock_price_provider: MagicMock,
+    mock_account_repository: AccountRepository,
+) -> InvestmentService:
+    """Create an InvestmentService instance with a mocked session and provider.
+
+    Args:
+        mock_db_session: The mock database session.
+        mock_instrument_repository: The instrument repository instance.
+        mock_trade_repository: The trade repository instance.
+        mock_fx_rate_repository: The FX rate repository instance.
+        mock_household_repository: The household repository instance.
+        mock_price_provider: The mock price provider.
+        mock_account_repository: The account repository instance.
+
+    Returns:
+        An InvestmentService instance with a mocked session.
+    """
+    return InvestmentService(
+        session=mock_db_session,
+        instrument_repository=mock_instrument_repository,
+        trade_repository=mock_trade_repository,
+        fx_rate_repository=mock_fx_rate_repository,
+        household_repository=mock_household_repository,
+        price_provider=mock_price_provider,
+        account_repository=mock_account_repository,
     )
