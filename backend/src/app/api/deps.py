@@ -18,12 +18,15 @@ from app.repositories import (
     BudgetRepository,
     CategoryRepository,
     EmailVerificationRepository,
+    FxRateRepository,
     HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
+    InstrumentRepository,
     PasswordResetRepository,
     RecurringRuleRepository,
     ReportRepository,
+    TradeRepository,
     TransactionRepository,
     UserRepository,
 )
@@ -33,11 +36,19 @@ from app.services import (
     CategoryService,
     EmailVerificationService,
     HouseholdService,
+    InvestmentService,
     PasswordResetService,
     RecurringRuleService,
     ReportService,
     TransactionService,
     UserService,
+)
+from app.services.prices import (
+    EodhdProvider,
+    FrankfurterFxProvider,
+    NullPriceProvider,
+    PriceProvider,
+    YahooFinanceProvider,
 )
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login/access-token")
@@ -582,3 +593,125 @@ OwnerHousehold = Annotated[HouseholdContext, Depends(get_household_owner)]
 
 
 TransactionFiltersDep = Annotated[TransactionFilters, Query()]
+
+
+def get_instrument_repository(session: SessionDep) -> InstrumentRepository:
+    """Get an instrument repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        An instrument repository instance.
+    """
+    return InstrumentRepository(session=session)
+
+
+InstrumentRepositoryDep = Annotated[InstrumentRepository, Depends(get_instrument_repository)]
+
+
+def get_trade_repository(session: SessionDep) -> TradeRepository:
+    """Get a trade repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A trade repository instance.
+    """
+    return TradeRepository(session=session)
+
+
+TradeRepositoryDep = Annotated[TradeRepository, Depends(get_trade_repository)]
+
+
+def get_fx_rate_repository(session: SessionDep) -> FxRateRepository:
+    """Get an FX rate repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        An FX rate repository instance.
+    """
+    return FxRateRepository(session=session)
+
+
+FxRateRepositoryDep = Annotated[FxRateRepository, Depends(get_fx_rate_repository)]
+
+
+def get_price_provider() -> PriceProvider:
+    """Get the configured source of market prices.
+
+    Returns:
+        The provider named in the settings, or one that refuses every call when
+        market data is switched off.
+    """
+    if settings.MARKET_DATA_PROVIDER == "eodhd":
+        # No key means no provider, rather than a provider that fails on every
+        # call. The difference is what the caller is told: "market data is not
+        # set up" points at the missing setting, where "the provider refused"
+        # points at the provider.
+        if not settings.EODHD_API_KEY:
+            return NullPriceProvider()
+
+        return EodhdProvider(
+            api_key=settings.EODHD_API_KEY,
+            base_url=settings.EODHD_BASE_URL,
+            timeout_seconds=settings.MARKET_DATA_TIMEOUT_SECONDS,
+            fx_provider=FrankfurterFxProvider(
+                base_url=settings.FRANKFURTER_BASE_URL,
+                timeout_seconds=settings.MARKET_DATA_TIMEOUT_SECONDS,
+            ),
+        )
+
+    if settings.MARKET_DATA_PROVIDER == "yahoo":
+        return YahooFinanceProvider(
+            base_url=settings.YAHOO_FINANCE_BASE_URL,
+            search_url=settings.YAHOO_FINANCE_SEARCH_URL,
+            timeout_seconds=settings.MARKET_DATA_TIMEOUT_SECONDS,
+            user_agent=settings.MARKET_DATA_USER_AGENT,
+        )
+
+    return NullPriceProvider()
+
+
+PriceProviderDep = Annotated[PriceProvider, Depends(get_price_provider)]
+
+
+def get_investment_service(
+    session: SessionDep,
+    instrument_repository: InstrumentRepositoryDep,
+    trade_repository: TradeRepositoryDep,
+    fx_rate_repository: FxRateRepositoryDep,
+    household_repository: HouseholdRepositoryDep,
+    price_provider: PriceProviderDep,
+    account_repository: AccountRepositoryDep,
+) -> InvestmentService:
+    """Get an investment service instance.
+
+    Args:
+        session: The database session.
+        instrument_repository: The instrument repository instance.
+        trade_repository: The trade repository instance.
+        fx_rate_repository: The FX rate repository instance.
+        household_repository: The household repository instance.
+        price_provider: The configured source of market prices.
+        account_repository: The account repository instance.
+
+    Returns:
+        An investment service instance.
+    """
+    return InvestmentService(
+        session=session,
+        instrument_repository=instrument_repository,
+        trade_repository=trade_repository,
+        fx_rate_repository=fx_rate_repository,
+        household_repository=household_repository,
+        price_provider=price_provider,
+        account_repository=account_repository,
+        price_cache_hours=settings.MARKET_DATA_CACHE_HOURS,
+    )
+
+
+InvestmentServiceDep = Annotated[InvestmentService, Depends(get_investment_service)]

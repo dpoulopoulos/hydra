@@ -6,6 +6,7 @@ from app.api.routes import (
     categories,
     email_verification,
     households,
+    investments,
     login,
     password_reset,
     recurring_rules,
@@ -22,6 +23,7 @@ api_router.include_router(accounts.router)
 api_router.include_router(transactions.router)
 api_router.include_router(budgets.router)
 api_router.include_router(recurring_rules.router)
+api_router.include_router(investments.router)
 api_router.include_router(reports.router)
 api_router.include_router(login.router)
 api_router.include_router(password_reset.router)
