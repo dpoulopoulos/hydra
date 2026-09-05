@@ -30,7 +30,6 @@ from app.models import (
     Trade,
     TradeCreate,
     TradeSide,
-    TransactionKind,
 )
 from app.models.fields import MICRO
 from app.services import InvestmentService
@@ -81,6 +80,12 @@ def make_trade(
         fee_minor=fee_minor,
     )
     trade.created_at = created_at or datetime(2026, 1, 15, 12, 0)
+    return trade
+
+
+def _trade_for(instrument_id: uuid.UUID, trade: Trade) -> Trade:
+    """Point a built trade at another instrument."""
+    trade.instrument_id = instrument_id
     return trade
 
 
@@ -1759,3 +1764,110 @@ class TestAPositionWithNoRate:
 
         # Assert: Verify it is counted
         assert portfolio.unpriced_count == 1
+
+
+class TestASoldPositionWithNoRate:
+    """Tests for the one case where the total can be silently short."""
+
+    @pytest.fixture
+    def wired(self, mock_investment_service: InvestmentService, household: Household) -> InvestmentService:
+        """A dollar holding, sold in full, in a euro household with no dollar rate."""
+        instrument = make_instrument(symbol="VOO.US", currency_code="USD")
+        mock_investment_service.household_repository.get_by_id = MagicMock(return_value=household)
+        mock_investment_service.instrument_repository.list_for_household = MagicMock(return_value=([instrument], 1))
+        mock_investment_service.fx_rate_repository.rates_into = MagicMock(return_value={})
+        mock_investment_service.trade_repository.history_for_household = MagicMock(
+            return_value=[
+                make_trade(TradeSide.BUY, units=10, price_major=100, traded_on=date(2026, 1, 1)),
+                make_trade(TradeSide.SELL, units=10, price_major=150, traded_on=date(2026, 2, 1)),
+            ]
+        )
+        return mock_investment_service
+
+    def test_it_is_still_counted_when_sold_positions_are_hidden(
+        self, wired: InvestmentService, household_context: HouseholdContext
+    ) -> None:
+        """Test that hiding the row does not also hide that a figure is missing.
+
+        Its realised gain cannot be converted, so it adds nothing to the total.
+        If it were not counted here either, the default view would understate
+        and say nothing about it.
+        """
+        # Act: Read the portfolio the way the page does by default
+        portfolio = wired.get_portfolio(household=household_context, include_closed=False)
+
+        # Assert: Verify the row is hidden but the gap is still reported
+        assert portfolio.data == []
+        assert portfolio.unpriced_count == 1
+
+    def test_the_count_is_the_same_either_way(
+        self, wired: InvestmentService, household_context: HouseholdContext
+    ) -> None:
+        """Test that the count follows the realised total rather than the listing."""
+        # Act: Read it both ways
+        hidden = wired.get_portfolio(household=household_context, include_closed=False)
+        shown = wired.get_portfolio(household=household_context, include_closed=True)
+
+        # Assert: Verify the toggle changes which rows are listed and nothing else
+        assert hidden.unpriced_count == shown.unpriced_count == 1
+
+
+class TestRealisedGainSurvivesTheFilter:
+    """Tests that hiding sold positions does not hide the money they made."""
+
+    @pytest.fixture
+    def wired(self, mock_investment_service: InvestmentService, household: Household) -> InvestmentService:
+        """A household holding one open position and one sold out completely."""
+        open_one = make_instrument(symbol="VWCE.DE", last_price_micro=12_845 * MICRO)
+        closed_one = make_instrument(symbol="SGLN.L")
+        closed_one.id = uuid.UUID("44444444-4444-4444-4444-444444444444")
+
+        mock_investment_service.household_repository.get_by_id = MagicMock(return_value=household)
+        mock_investment_service.instrument_repository.list_for_household = MagicMock(
+            return_value=([open_one, closed_one], 2)
+        )
+        mock_investment_service.fx_rate_repository.rates_into = MagicMock(return_value={})
+        # The open one has never been sold; the closed one was bought and sold
+        # in full, banking 100.00.
+        mock_investment_service.trade_repository.history_for_household = MagicMock(
+            return_value=[
+                make_trade(TradeSide.BUY, units=10, price_major=100, traded_on=date(2026, 1, 1)),
+                _trade_for(
+                    closed_one.id,
+                    make_trade(TradeSide.BUY, units=1, price_major=100, traded_on=date(2026, 1, 1)),
+                ),
+                _trade_for(
+                    closed_one.id,
+                    make_trade(TradeSide.SELL, units=1, price_major=200, traded_on=date(2026, 2, 1)),
+                ),
+            ]
+        )
+        return mock_investment_service
+
+    def test_the_realised_total_is_the_same_either_way(
+        self, wired: InvestmentService, household_context: HouseholdContext
+    ) -> None:
+        """Test that hiding sold positions does not subtract from realised gains.
+
+        A realised gain is a fact about the past: the money was banked. Turning
+        on "show me more" must never make a total go down.
+        """
+        # Act: Read the portfolio with the sold position hidden, then shown
+        hidden = wired.get_portfolio(household=household_context, include_closed=False)
+        shown = wired.get_portfolio(household=household_context, include_closed=True)
+
+        # Assert: Verify the money made is reported the same way twice
+        assert hidden.total_realised_gain_minor == 10_000
+        assert shown.total_realised_gain_minor == 10_000
+
+    def test_the_filter_still_controls_which_rows_are_listed(
+        self, wired: InvestmentService, household_context: HouseholdContext
+    ) -> None:
+        """Test that the toggle keeps doing its job of hiding the row itself."""
+        # Act: Read the portfolio both ways
+        hidden = wired.get_portfolio(household=household_context, include_closed=False)
+        shown = wired.get_portfolio(household=household_context, include_closed=True)
+
+        # Assert: Verify only the listing changed
+        assert [position.symbol for position in hidden.data] == ["VWCE.DE"]
+        assert [position.symbol for position in shown.data] == ["VWCE.DE", "SGLN.L"]

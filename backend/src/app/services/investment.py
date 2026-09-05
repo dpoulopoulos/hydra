@@ -607,9 +607,6 @@ class InvestmentService:
             folded = self._fold(trades.get(instrument.id, []))
             is_open = folded.quantity_micro > 0
 
-            if not is_open and not include_closed and folded.realised_gain_minor == 0:
-                continue
-
             rate = rates.get(instrument.currency_code)
             # A holding already in the household's currency needs no rate and
             # must never wait on one, so it gets the identity rather than a
@@ -620,10 +617,29 @@ class InvestmentService:
                 self._to_position(instrument=instrument, folded=folded, rate_micro=rate_micro, is_open=is_open)
             )
 
+        # Both worked out before anything is hidden, and for the same reason. A
+        # realised gain is a fact about the past: the money was banked, and it
+        # does not stop having been banked because the position that produced it
+        # is closed and filtered out of the list. The count of what could not be
+        # valued has to follow it, or a position sold in full in a currency with
+        # no stored rate would add nothing to the total and warn about nothing
+        # either, which is the one case where the total is silently short.
+        realised_gain_minor = sum(position.realised_gain_minor or 0 for position in positions)
+        unpriced_count = sum(
+            1
+            for position in positions
+            if position.cost_basis_minor is None or (position.is_open and position.market_value_minor is None)
+        )
+
         if not include_closed:
             positions = [position for position in positions if position.is_open]
 
-        return self._to_portfolio(currency_code=base_currency, positions=positions)
+        return self._to_portfolio(
+            currency_code=base_currency,
+            positions=positions,
+            realised_gain_minor=realised_gain_minor,
+            unpriced_count=unpriced_count,
+        )
 
     def refresh_prices(self, household: HouseholdContext) -> PriceRefreshResult:
         """Fetch a fresh price for every instrument, and the rates to value them.
@@ -1088,12 +1104,23 @@ class InvestmentService:
             ),
         )
 
-    def _to_portfolio(self, currency_code: str, positions: list[PositionPublic]) -> PortfolioPublic:
+    def _to_portfolio(
+        self,
+        currency_code: str,
+        positions: list[PositionPublic],
+        realised_gain_minor: int,
+        unpriced_count: int,
+    ) -> PortfolioPublic:
         """Total up the positions.
 
         Args:
             currency_code: The household's currency.
-            positions: The positions to total.
+            positions: The positions to show, which may be a subset.
+            realised_gain_minor: Realised gains across every position the
+                household has, passed in rather than summed from `positions`
+                because it must not change when closed ones are hidden.
+            unpriced_count: How many positions could not be fully valued, over
+                the same unfiltered set and for the same reason.
 
         Returns:
             The portfolio.
@@ -1108,14 +1135,8 @@ class InvestmentService:
             total_cost_basis_minor=sum(position.cost_basis_minor or 0 for position in positions),
             total_market_value_minor=sum(position.market_value_minor or 0 for position in priced),
             total_unrealised_gain_minor=sum(position.unrealised_gain_minor or 0 for position in priced),
-            total_realised_gain_minor=sum(position.realised_gain_minor or 0 for position in positions),
-            # Anything missing a figure it should have. A closed position needs
-            # no market value, but it does need a rate for its realised gain.
-            unpriced_count=sum(
-                1
-                for position in positions
-                if position.cost_basis_minor is None or (position.is_open and position.market_value_minor is None)
-            ),
+            total_realised_gain_minor=realised_gain_minor,
+            unpriced_count=unpriced_count,
             # The age of a total is the age of its stalest part, so the oldest
             # quote behind it is the one worth showing.
             priced_as_of=min(as_of) if as_of else None,
