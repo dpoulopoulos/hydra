@@ -667,6 +667,12 @@ def create_user(self, user_create: UserCreate) -> UserPublic:
     """
 ```
 
+An `Args:` section has to name exactly the parameters of the signature above it, in the same order, leaving
+out `self` and `cls`. Documenting only some of them is not an option, and neither is leaving the section out
+of a docstring on a function that takes parameters: a docstring either describes the whole signature or the
+function goes without one. `tests/unit/test_docstrings.py` walks the package and fails on anything else,
+because neither ruff nor mypy reads a parameter list out of a docstring.
+
 ## Production Considerations
 
 - Set strong `SECRET_KEY` (use `openssl rand -hex 32`)
