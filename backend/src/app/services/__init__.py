@@ -3,6 +3,7 @@ from .budget import BudgetService
 from .category import CategoryService
 from .email_verification import EmailVerificationService
 from .household import HouseholdService
+from .income import IncomeService
 from .investment import InvestmentService
 from .password_reset import PasswordResetService
 from .recurring_rule import RecurringRuleService
@@ -16,6 +17,7 @@ __all__ = [
     "CategoryService",
     "EmailVerificationService",
     "HouseholdService",
+    "IncomeService",
     "InvestmentService",
     "PasswordResetService",
     "RecurringRuleService",
