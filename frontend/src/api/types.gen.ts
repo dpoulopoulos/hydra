@@ -18,6 +18,10 @@ export type AccountCreate = {
      */
     institution?: string | null;
     /**
+     * Iban
+     */
+    iban?: string | null;
+    /**
      * Opening Balance Minor
      */
     opening_balance_minor?: number;
@@ -40,6 +44,10 @@ export type AccountPublic = {
      * Institution
      */
     institution?: string | null;
+    /**
+     * Iban
+     */
+    iban?: string | null;
     /**
      * Id
      */
@@ -107,6 +115,10 @@ export type AccountUpdate = {
      * Institution
      */
     institution?: string | null;
+    /**
+     * Iban
+     */
+    iban?: string | null;
     /**
      * Is Archived
      */

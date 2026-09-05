@@ -4071,6 +4071,18 @@
             ],
             "title": "Institution"
           },
+          "iban": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 34
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iban"
+          },
           "opening_balance_minor": {
             "type": "integer",
             "maximum": 4.611686018427388e+18,
@@ -4113,6 +4125,18 @@
               }
             ],
             "title": "Institution"
+          },
+          "iban": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 34
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iban"
           },
           "id": {
             "type": "string",
@@ -4231,6 +4255,18 @@
               }
             ],
             "title": "Institution"
+          },
+          "iban": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 34
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iban"
           },
           "is_archived": {
             "anyOf": [
