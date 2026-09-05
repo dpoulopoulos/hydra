@@ -94,7 +94,7 @@ class EmailVerificationService:
 
         Args:
             user_service: A user service instance.
-            user_id: The user ID to send the verification to.
+            user_email: The email address to send the verification to.
 
         Returns:
             Success message.
