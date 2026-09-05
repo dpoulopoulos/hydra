@@ -155,6 +155,16 @@ in the compose file:
 `node_modules` is never synced from the host. It is built for the container's
 platform, and `.dockerignore` keeps the host's copy out of the image.
 
+Neither image runs as root. The dev stage drops to the `node` user (uid 1000)
+that `node:24-slim` already ships, before dependencies are installed, so the
+install tree, Vite's cache and pnpm's store all belong to it; the production
+stage drops to an `app` user of its own. If something in the dev container ever
+needs to write a path it does not own, give that path to `node` in the
+`Dockerfile` rather than taking the `USER` line out.
+
+`make web-test-dev` from the repository root builds the dev image and checks
+that it runs unprivileged and still serves a synced file. It needs Docker.
+
 ## Security headers in production
 
 The session token is kept in `localStorage`, so any script running on the origin
