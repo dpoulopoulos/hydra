@@ -48,14 +48,16 @@ class AccountRepository(HouseholdScopedRepository[Account]):
         Returns:
             Tuple of (accounts, total_count), ordered by name.
         """
-        statement = self._matching(
-            household_id=household_id, include_archived=include_archived, account_type=account_type
+        conditions = self._conditions(include_archived=include_archived, account_type=account_type)
+
+        count = self.count_for_household(household_id, *conditions)
+        statement = self._paginate(
+            select(Account).where(self.household_column == household_id, *conditions).order_by(col(Account.name)),
+            skip=skip,
+            limit=limit,
         )
 
-        count = len(self.session.exec(statement).all())
-        page = self.session.exec(statement.order_by(col(Account.name)).offset(skip).limit(limit)).all()
-
-        return page, count
+        return self.session.exec(statement).all(), count
 
     def total_balance(
         self,
@@ -76,43 +78,36 @@ class AccountRepository(HouseholdScopedRepository[Account]):
         Returns:
             The total balance, or zero when nothing matches.
         """
-        statement = self._matching(
-            household_id=household_id, include_archived=include_archived, account_type=account_type
-        )
-        account_ids = self.session.exec(statement.with_only_columns(col(Account.id))).all()
+        conditions = self._conditions(include_archived=include_archived, account_type=account_type)
+        statement = select(Account.id).where(self.household_column == household_id, *conditions)
+        account_ids = self.session.exec(statement).all()
         if not account_ids:
             return 0
 
         return sum(self.balances_of(account_ids=account_ids, household_id=household_id).values())
 
-    def _matching(
-        self,
-        household_id: uuid.UUID,
-        include_archived: bool,
-        account_type: AccountType | None,
-    ) -> Any:
-        """Build the query for the accounts a listing covers.
+    def _conditions(self, include_archived: bool, account_type: AccountType | None) -> list[Any]:
+        """Build the WHERE clauses for the accounts a listing covers.
 
-        Shared so a page and its total can never disagree about which
-        accounts they are talking about.
+        Shared so a page, its count and its total can never disagree about
+        which accounts they are talking about.
 
         Args:
-            household_id: The ID of the household.
             include_archived: Whether to include archived accounts.
             account_type: An optional type to filter on.
 
         Returns:
-            The filtered query, unordered and unpaged.
+            The conditions to apply, on top of the household scope.
         """
-        statement = select(Account).where(Account.household_id == household_id)
+        conditions: list[Any] = []
 
         if not include_archived:
-            statement = statement.where(col(Account.archived_at).is_(None))
+            conditions.append(col(Account.archived_at).is_(None))
 
         if account_type is not None:
-            statement = statement.where(Account.type == account_type)
+            conditions.append(Account.type == account_type)
 
-        return statement
+        return conditions
 
     def get_by_name(self, household_id: uuid.UUID, name: str) -> Account | None:
         """Get an account by name within a household.
