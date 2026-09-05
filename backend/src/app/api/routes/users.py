@@ -7,7 +7,6 @@ from app.api.deps import (
     CurrentUser,
     EmailVerificationServiceDep,
     HouseholdServiceDep,
-    PasswordResetServiceDep,
     UserServiceDep,
     get_current_active_superuser,
 )
@@ -189,16 +188,17 @@ def get_users(
 def update_user_me(
     *,
     user_service: UserServiceDep,
-    password_reset_service: PasswordResetServiceDep,
     email_verification_service: EmailVerificationServiceDep,
     user_in: UserUpdateMe,
     current_user: CurrentUser,
 ) -> UserPublic:
     """Update the current user's information.
 
+    A new email address is not applied here: it is mailed a verification link
+    and only becomes the account's address once that link is followed.
+
     Args:
         user_service: The user service dependency.
-        password_reset_service: The password reset service dependency.
         email_verification_service: The email verification service dependency.
         user_in: The user data to update.
         current_user: The current authenticated user.
@@ -213,7 +213,6 @@ def update_user_me(
     return user_service.update_user_me(
         current_user=current_user,
         user_update=user_in,
-        password_reset_service=password_reset_service,
         email_verification_service=email_verification_service,
     )
 

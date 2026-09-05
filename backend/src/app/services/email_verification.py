@@ -89,6 +89,39 @@ class EmailVerificationService:
         if not user:
             raise UserNotFoundError from None
 
+        self._issue_verification(user=user, address=user.email)
+
+        return Message(message="Verification email sent successfully.")
+
+    def send_email_change_verification(self, user: User, new_email: str) -> Message:
+        """Send a verification to an address a user has asked to move to.
+
+        The account keeps its current address until the token is redeemed, so
+        an address nobody has proven can reach is never one a security flow
+        will deliver to.
+
+        Args:
+            user: The account asking for the change.
+            new_email: The address the account wants to move to.
+
+        Returns:
+            Success message.
+        """
+        self._issue_verification(user=user, address=new_email, new_email=new_email)
+
+        return Message(message="Verification email sent to the new address.")
+
+    def _issue_verification(self, user: User, address: str, new_email: str | None = None) -> None:
+        """Write a pending verification for a user and mail its token out.
+
+        Args:
+            user: The account the verification is issued for.
+            address: The address the token is issued for and delivered to. It
+                is the account's own address for an activation, and the
+                requested one for a change of address.
+            new_email: The address the account moves to once the token is
+                redeemed, or None when the verification activates the account.
+        """
         # Mark existing pending verifications as expired
         existing_verification = self.email_verification_repository.get_pending_by_user_id(user.id)
 
@@ -97,10 +130,11 @@ class EmailVerificationService:
                 email_verification_id=existing_verification.id, status=EmailVerificationStatus.EXPIRED
             )
 
-        token = create_email_verification_token(subject=user.email)
+        token = create_email_verification_token(subject=address)
 
         email_verification = EmailVerification(
             email=user.email,
+            new_email=new_email,
             user_id=user.id,
             status=EmailVerificationStatus.PENDING,
             expires_at=datetime.now(UTC) + timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS),
@@ -114,14 +148,12 @@ class EmailVerificationService:
         # must not turn this into a 500: the caller would retry, expire the row
         # it just created and write another one for mail that never leaves.
         if settings.emails_enabled:
-            email_data = generate_email_verification_email(email=user.email, token=token)
+            email_data = generate_email_verification_email(email=address, token=token)
             try_send_email(
-                email_to=user.email,
+                email_to=address,
                 subject=email_data.subject,
                 html_content=email_data.html_content,
             )
-
-        return Message(message="Verification email sent successfully.")
 
     def resend_verification_email(self, user_service: UserService, email: str) -> Message:
         """Resend verification email.

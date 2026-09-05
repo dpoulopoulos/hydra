@@ -34,7 +34,6 @@ from app.utils import generate_new_account_email, try_send_email
 if TYPE_CHECKING:
     from app.services.email_verification import EmailVerificationService
     from app.services.household import CategorySeeder, HouseholdService
-    from app.services.password_reset import PasswordResetService
 
 
 class UserService:
@@ -232,31 +231,37 @@ class UserService:
         self,
         current_user: User,
         user_update: UserUpdateMe,
-        password_reset_service: "PasswordResetService",
         email_verification_service: "EmailVerificationService",
     ) -> UserPublic:
         """Update the current user's information.
 
+        A new address is not written here. It is held in a pending
+        verification and mailed a token; the account moves to it only once that
+        token comes back. Until then the account keeps the address it has
+        proven, which is the only one a password reset or a verification can be
+        delivered to.
+
         Args:
             current_user: The current authenticated user.
             user_update: The user data to update.
-            password_reset_service: A password reset service instance, used to
-                retire a reset that was issued for the old address.
             email_verification_service: An email verification service instance,
-                used to retire a verification of the old address.
+                used to ask the new address to prove itself.
 
         Returns:
-            The updated user.
+            The updated user, still holding its current address.
 
         Raises:
             UserExistsError: If a user with the same email already exists.
         """
         user_data = user_update.model_dump(exclude_unset=True)
 
-        email_changed = bool(user_update.email) and user_update.email != current_user.email
+        # The address is the one field here that needs proving, so it is kept
+        # out of what gets written and handled on its own.
+        new_email = user_data.pop("email", None)
+        email_changed = bool(new_email) and new_email != current_user.email
 
-        if user_update.email:
-            existing_user = self.get_user_by_email(email=user_update.email)
+        if email_changed:
+            existing_user = self.get_user_by_email(email=new_email)
             if existing_user and existing_user.id != current_user.id:
                 raise UserExistsError(user=existing_user) from None
 
@@ -264,13 +269,8 @@ class UserService:
         current_user = self.user_repository.save(current_user)
         self.session.commit()
 
-        # A pending reset or verification was issued for the address the
-        # account held at the time. Leaving one pending across a change of
-        # address releases it still redeemable, which is what lets a token
-        # outlive the account's claim to the address it names.
         if email_changed:
-            password_reset_service.invalidate_pending_for_user(user_id=current_user.id)
-            email_verification_service.invalidate_pending_for_user(user_id=current_user.id)
+            email_verification_service.send_email_change_verification(user=current_user, new_email=new_email)
 
         return UserPublic.model_validate(current_user)
 

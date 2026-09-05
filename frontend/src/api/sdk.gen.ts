@@ -154,9 +154,11 @@ export const usersGetUserMe = <ThrowOnError extends boolean = false>(options?: O
  *
  * Update the current user's information.
  *
+ * A new email address is not applied here: it is mailed a verification link
+ * and only becomes the account's address once that link is followed.
+ *
  * Args:
  * user_service: The user service dependency.
- * password_reset_service: The password reset service dependency.
  * email_verification_service: The email verification service dependency.
  * user_in: The user data to update.
  * current_user: The current authenticated user.
