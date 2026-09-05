@@ -1,8 +1,5 @@
-import logging
-import smtplib
 from unittest.mock import MagicMock, patch
 
-import httpx
 import pytest
 
 from app.core.config import settings
@@ -13,7 +10,6 @@ from app.utils.email_utils import (
     generate_password_reset_email,
     mask_email,
     send_email,
-    try_send_email,
 )
 
 
@@ -349,76 +345,6 @@ class TestSendEmailViaResend:
         # Assert: Verify no message was built for a mail server
         mock_post.assert_called_once()
         mock_message_class.assert_not_called()
-
-
-class TestTrySendEmail:
-    """Test the try_send_email function."""
-
-    @patch("app.utils.email_utils.send_email")
-    def test_try_send_email_reports_success(self, mock_send_email: MagicMock) -> None:
-        """Try send email returns True when the message leaves."""
-        # Act: Hand a message to the helper
-        sent = try_send_email(
-            email_to="recipient@example.com",
-            subject="Test Subject",
-            html_content="<p>Test content</p>",
-        )
-
-        # Assert: Verify the message was passed on unchanged and reported as sent
-        assert sent is True
-        mock_send_email.assert_called_once_with(
-            email_to="recipient@example.com",
-            subject="Test Subject",
-            html_content="<p>Test content</p>",
-        )
-
-    @pytest.mark.parametrize(
-        "error",
-        [
-            httpx.HTTPStatusError(
-                "429",
-                request=httpx.Request("POST", "https://api.resend.com/emails"),
-                response=httpx.Response(429),
-            ),
-            httpx.ConnectTimeout("timed out"),
-            smtplib.SMTPException("mail server said no"),
-            OSError("Name or service not known"),
-        ],
-    )
-    @patch("app.utils.email_utils.send_email")
-    def test_try_send_email_reports_delivery_failure(
-        self, mock_send_email: MagicMock, error: Exception, caplog
-    ) -> None:
-        """Try send email returns False and logs when delivery fails."""
-        # Arrange: Make the provider fail the way it does in production
-        mock_send_email.side_effect = error
-
-        # Act: Hand a message to the helper
-        with caplog.at_level(logging.ERROR, logger="app.utils.email_utils"):
-            sent = try_send_email(
-                email_to="recipient@example.com",
-                subject="Test Subject",
-                html_content="<p>Test content</p>",
-            )
-
-        # Assert: Verify the failure is reported and recorded with the recipient
-        assert sent is False
-        assert "recipient@example.com" in caplog.text
-        assert type(error).__name__ in caplog.text
-
-    @patch("app.utils.email_utils.send_email")
-    def test_try_send_email_does_not_hide_misconfiguration(self, mock_send_email: MagicMock) -> None:
-        """Try send email lets a programming error through instead of logging it."""
-        # Arrange: Emails are not configured, which send_email asserts on
-        mock_send_email.side_effect = AssertionError("no provided configuration for email variables")
-
-        # Act & Assert: Verify the assertion is not treated as a delivery failure
-        with pytest.raises(AssertionError, match="no provided configuration for email variables"):
-            try_send_email(
-                email_to="recipient@example.com",
-                subject="Test Subject",
-                html_content="<p>Test content</p>",
-            )
 
 
 class TestMaskEmail:

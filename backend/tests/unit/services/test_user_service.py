@@ -18,6 +18,8 @@ from app.exceptions import (
     UserNotFoundError,
 )
 from app.models import (
+    EmailOutbox,
+    EmailOutboxStatus,
     Message,
     PasswordUpdate,
     Token,
@@ -206,14 +208,15 @@ class TestCreateUser:
 
         # Assert: Verify user was created and database operations were called
         assert isinstance(result, UserPublic)
-        mock_user_service.session.add.assert_called_once()
-        mock_user_service.session.commit.assert_called_once()
-        mock_user_service.session.refresh.assert_called_once()
+        # The account is written first; the welcome email is queued after it.
+        assert isinstance(mock_user_service.session.add.call_args_list[0].args[0], User)
+        mock_user_service.session.commit.assert_called()
+        mock_user_service.session.refresh.assert_called()
 
     def test_create_user_survives_a_failed_welcome_email(
         self, mock_user_service: UserService, monkeypatch, caplog
     ) -> None:
-        """Test that a welcome email that cannot be delivered is only logged."""
+        """Test that a welcome email that cannot be delivered is queued for a retry."""
         # Arrange: Mock database operations and turn mail on
         mock_user_service.session.exec = MagicMock()
         mock_user_service.session.exec.return_value.first.return_value = None
@@ -232,15 +235,17 @@ class TestCreateUser:
         )
 
         # Act: Create the user while the provider is unreachable
-        with patch("app.utils.email_utils.send_email", side_effect=httpx.ConnectTimeout("timed out")):
-            with caplog.at_level(logging.ERROR, logger="app.utils.email_utils"):
+        with patch("app.services.email_outbox.send_email", side_effect=httpx.ConnectTimeout("timed out")):
+            with caplog.at_level(logging.WARNING, logger="app.services.email_outbox"):
                 result = mock_user_service.create_user(user_create=user_create, category_service=MagicMock())
 
-        # Assert: Verify the account is returned and the failure is on record
+        # Assert: Verify the account is returned and the greeting is still owed
         assert isinstance(result, UserPublic)
-        mock_user_service.session.commit.assert_called_once()
         assert "newuser@example.com" in caplog.text
         assert "ConnectTimeout" in caplog.text
+        queued = mock_user_service.session.add.call_args.args[0]
+        assert isinstance(queued, EmailOutbox)
+        assert queued.status == EmailOutboxStatus.PENDING
 
     def test_create_user_with_user_register(self, mock_user_service: UserService) -> None:
         """Test user creation with UserRegister model."""
@@ -264,9 +269,10 @@ class TestCreateUser:
 
         # Assert: Verify user was created and database operations were called
         assert isinstance(result, UserPublic)
-        mock_user_service.session.add.assert_called_once()
-        mock_user_service.session.commit.assert_called_once()
-        mock_user_service.session.refresh.assert_called_once()
+        # The account is written first; the welcome email is queued after it.
+        assert isinstance(mock_user_service.session.add.call_args_list[0].args[0], User)
+        mock_user_service.session.commit.assert_called()
+        mock_user_service.session.refresh.assert_called()
 
     def test_create_user_already_exists(self, mock_user_service: UserService, test_user: User) -> None:
         """Test creating user when email already exists."""

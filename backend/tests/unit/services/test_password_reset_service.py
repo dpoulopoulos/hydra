@@ -14,7 +14,7 @@ from app.exceptions import (
     PasswordResetUsedError,
     UserNotFoundError,
 )
-from app.models import Message, PasswordReset, PasswordResetStatus, User
+from app.models import EmailOutbox, EmailOutboxStatus, Message, PasswordReset, PasswordResetStatus, User
 from app.services import PasswordResetService
 
 
@@ -175,7 +175,7 @@ class TestRequestPasswordReset:
             mock_settings.emails_enabled = True
             mock_settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 24
             with patch("app.services.password_reset.generate_password_reset_email") as mock_generate:
-                with patch("app.services.password_reset.try_send_email") as mock_send:
+                with patch("app.services.password_reset.EmailOutboxService") as mock_outbox:
                     mock_email_data = MagicMock()
                     mock_email_data.subject = "Reset your password"
                     mock_email_data.html_content = "<html>Reset link</html>"
@@ -185,9 +185,9 @@ class TestRequestPasswordReset:
                         user_service=mock_user_service, email=test_user.email
                     )
 
-                    # Assert: Verify email was sent
+                    # Assert: Verify the message was handed to the outbox
                     mock_generate.assert_called_once()
-                    mock_send.assert_called_once()
+                    mock_outbox.for_session.return_value.deliver_or_queue.assert_called_once()
 
     def test_request_password_reset_reports_success_when_delivery_fails(
         self,
@@ -196,7 +196,7 @@ class TestRequestPasswordReset:
         test_user: User,
         caplog,
     ) -> None:
-        """Test that a delivery failure is logged and does not fail the request."""
+        """Test that a delivery failure is queued for a retry and does not fail the request."""
         # Arrange: Mock user service to return test user
         mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
 
@@ -211,19 +211,22 @@ class TestRequestPasswordReset:
         with patch("app.services.password_reset.settings") as mock_settings:
             mock_settings.emails_enabled = True
             mock_settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 24
-            with patch("app.utils.email_utils.send_email") as mock_send:
+            with patch("app.services.email_outbox.send_email") as mock_send:
                 mock_send.side_effect = httpx.ConnectTimeout("timed out")
 
-                with caplog.at_level(logging.ERROR, logger="app.utils.email_utils"):
+                with caplog.at_level(logging.WARNING, logger="app.services.email_outbox"):
                     result = mock_password_reset_service.request_password_reset(
                         user_service=mock_user_service, email=test_user.email
                     )
 
-        # Assert: Verify the generic message is returned and the failure is on record
+        # Assert: Verify the generic message is returned and the reset is still owed
         assert isinstance(result, Message)
         assert "If an account exists" in result.message
         assert test_user.email in caplog.text
         assert "ConnectTimeout" in caplog.text
+        queued = mock_password_reset_service.session.add.call_args.args[0]
+        assert isinstance(queued, EmailOutbox)
+        assert queued.status == EmailOutboxStatus.PENDING
 
     def test_request_password_reset_expiry_is_relative_to_request_time(
         self,
