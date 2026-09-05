@@ -8,6 +8,11 @@ from app.repositories.household import (
     HouseholdMemberRepository,
     HouseholdRepository,
 )
+from app.repositories.investment import (
+    FxRateRepository,
+    InstrumentRepository,
+    TradeRepository,
+)
 from app.repositories.password_reset import PasswordResetRepository
 from app.repositories.recurring_rule import RecurringRuleRepository
 from app.repositories.report import ReportRepository
@@ -24,6 +29,9 @@ __all__ = [
     "HouseholdMemberRepository",
     "HouseholdRepository",
     "HouseholdScopedRepository",
+    "FxRateRepository",
+    "InstrumentRepository",
+    "TradeRepository",
     "PasswordResetRepository",
     "RecurringRuleRepository",
     "ReportRepository",
