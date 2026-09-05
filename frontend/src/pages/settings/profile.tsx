@@ -51,9 +51,20 @@ export function Component() {
         body: { full_name: values.full_name?.trim() || null, email: values.email },
       })
       if (error) throw error
+      return values.email
     },
-    onSuccess: () => {
+    onSuccess: (requestedEmail) => {
       void queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+
+      // A new address is not the account's until the link sent to it is
+      // followed, so the form goes back to saying which address the account
+      // actually holds rather than the one that was asked for.
+      if (user && requestedEmail !== user.email) {
+        detailsForm.setValue('email', user.email)
+        toast.success(`Open the link we sent to ${requestedEmail} to finish the change`)
+        return
+      }
+
       toast.success('Profile saved')
     },
   })
@@ -98,6 +109,7 @@ export function Component() {
           <CardTitle>Your details</CardTitle>
           <CardDescription>
             Your name appears next to anything you record, so the household can tell who added what.
+            A new email address becomes yours once you open the link we send to it.
           </CardDescription>
         </CardHeader>
         <CardContent>
