@@ -70,17 +70,31 @@ export function formatDate(value: string, options?: Intl.DateTimeFormatOptions):
 }
 
 /**
+ * Read a tz-aware timestamp, defaulting a value that names no zone to UTC.
+ *
+ * The API's timestamps are UTC, but its `datetime` columns are declared
+ * without a zone, so they arrive as "2026-09-11T21:00:00" rather than with a
+ * trailing Z. ECMAScript reads a date-time in that shape as local time, which
+ * would move the instant by the viewer's own offset -- the very error these
+ * formatters exist to avoid.
+ */
+function parseInstant(value: string): Date {
+  const namesAZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value)
+  return new Date(namesAZone || !value.includes('T') ? value : `${value}Z`)
+}
+
+/**
  * A timestamp rendered for people as a date alone, e.g. "4 Mar 2026".
  *
  * Unlike `formatDate` this converts the instant to the viewer's timezone
- * first, which is what a tz-aware value wants: parsing is unambiguous here
- * precisely because the value carries an offset.
+ * first, which is what a timestamp wants: the day it falls on is the reader's
+ * day, not the one it happens to have in UTC.
  */
 export function formatInstantAsDate(value: string, options?: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat(
     undefined,
     options ?? { day: 'numeric', month: 'short', year: 'numeric' },
-  ).format(new Date(value))
+  ).format(parseInstant(value))
 }
 
 /** A timestamp rendered for people, e.g. "4 Mar 2026, 14:30". */
@@ -91,5 +105,5 @@ export function formatDateTime(value: string): string {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value))
+  }).format(parseInstant(value))
 }
