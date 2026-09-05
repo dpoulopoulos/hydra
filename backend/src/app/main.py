@@ -16,6 +16,7 @@ from app.api.routes.budgets import budget_exception_mappings
 from app.api.routes.categories import category_exception_mappings
 from app.api.routes.email_verification import email_verification_exception_mappings
 from app.api.routes.households import household_exception_mappings
+from app.api.routes.income import income_exception_mappings
 from app.api.routes.investments import investment_exception_mappings
 from app.api.routes.login import login_exception_mappings
 from app.api.routes.password_reset import password_reset_exception_mappings
@@ -118,6 +119,7 @@ exception_mappings = [
     budget_exception_mappings(),
     report_exception_mappings(),
     recurring_rule_exception_mappings(),
+    income_exception_mappings(),
     investment_exception_mappings(),
 ]
 
