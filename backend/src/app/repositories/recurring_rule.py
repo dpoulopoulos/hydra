@@ -38,21 +38,21 @@ class RecurringRuleRepository(HouseholdScopedRepository[RecurringRule]):
         Returns:
             Tuple of (rules, total_count), soonest due first.
         """
-        conditions: list[Any] = [RecurringRule.household_id == household_id]
+        conditions: list[Any] = []
 
         if is_active is not None:
             conditions.append(RecurringRule.is_active == is_active)
 
-        count = self.session.exec(select(func.count()).select_from(RecurringRule).where(*conditions)).one()
-        page = self.session.exec(
+        count = self.count_for_household(household_id, *conditions)
+        statement = self._paginate(
             select(RecurringRule)
-            .where(*conditions)
-            .order_by(col(RecurringRule.next_occurrence_on))
-            .offset(skip)
-            .limit(limit)
-        ).all()
+            .where(self.household_column == household_id, *conditions)
+            .order_by(col(RecurringRule.next_occurrence_on)),
+            skip=skip,
+            limit=limit,
+        )
 
-        return page, count
+        return self.session.exec(statement).all(), count
 
     def list_active(self, household_id: uuid.UUID) -> Sequence[RecurringRule]:
         """List the active rules of a household.
