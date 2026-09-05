@@ -14,6 +14,7 @@ from app.exceptions import (
     EmailVerificationNotFoundError,
     EmailVerificationTokenNotValidError,
     EmailVerificationUsedError,
+    UserExistsError,
     UserNotFoundError,
 )
 from app.models import EmailVerification, EmailVerificationStatus, Message, User
@@ -655,3 +656,151 @@ class TestVerifyEmail:
         with patch.object(mock_user_service.user_repository, "get_by_id", return_value=None):
             with pytest.raises(UserNotFoundError):
                 mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
+
+
+class TestVerifyEmailAddressChange:
+    """Tests for redeeming a verification that stands for a change of address."""
+
+    @pytest.fixture
+    def change_email_verification(self, test_user: User) -> EmailVerification:
+        """Create a pending change of address for the test user.
+
+        Args:
+            test_user: The test user.
+
+        Returns:
+            A pending verification of an address the user asked to move to.
+        """
+        verification = EmailVerification(
+            email=test_user.email,
+            new_email="moving-to@example.com",
+            user_id=test_user.id,
+            status=EmailVerificationStatus.PENDING,
+            expires_at=datetime.now(UTC) + timedelta(hours=24),
+            token=create_email_verification_token(subject="moving-to@example.com"),
+        )
+        verification.id = uuid.UUID("77777777-7777-7777-7777-777777777777")
+        return verification
+
+    def test_verify_email_moves_the_account_to_the_verified_address(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        change_email_verification: EmailVerification,
+    ) -> None:
+        """Test the address the token proves is the one the account ends up with."""
+        # Arrange: Nothing else holds the address being moved to
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = change_email_verification
+        mock_email_verification_service.session.get.return_value = change_email_verification
+
+        # Act
+        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=test_user):
+            with patch.object(mock_user_service, "get_user_by_email", return_value=None):
+                result = mock_email_verification_service.verify_email(
+                    user_service=mock_user_service, token=change_email_verification.token
+                )
+
+        # Assert
+        assert isinstance(result, Message)
+        assert "updated" in result.message
+        assert test_user.email == "moving-to@example.com"
+        assert change_email_verification.status == EmailVerificationStatus.VERIFIED
+
+    def test_verify_email_change_leaves_the_account_status_alone(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        change_email_verification: EmailVerification,
+    ) -> None:
+        """Test a change of address does not activate an account that is not active."""
+        # Arrange: The account is not active, and a change of address says
+        # nothing about why it was deactivated
+        test_user.is_active = False
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = change_email_verification
+        mock_email_verification_service.session.get.return_value = change_email_verification
+
+        # Act
+        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=test_user):
+            with patch.object(mock_user_service, "get_user_by_email", return_value=None):
+                mock_email_verification_service.verify_email(
+                    user_service=mock_user_service, token=change_email_verification.token
+                )
+
+        # Assert
+        assert test_user.is_active is False
+
+    def test_verify_email_change_rejects_a_token_for_another_address(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        change_email_verification: EmailVerification,
+    ) -> None:
+        """Test the row's pending address is the only one its token can prove."""
+        # Arrange: The row names one address, the token another
+        change_email_verification.new_email = "somewhere-else@example.com"
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = change_email_verification
+        mock_email_verification_service.session.get.return_value = change_email_verification
+
+        # Act & Assert
+        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=test_user):
+            with pytest.raises(EmailVerificationTokenNotValidError):
+                mock_email_verification_service.verify_email(
+                    user_service=mock_user_service, token=change_email_verification.token
+                )
+
+        assert test_user.email != "somewhere-else@example.com"
+        assert change_email_verification.status == EmailVerificationStatus.PENDING
+
+    def test_verify_email_change_rejects_a_token_the_account_has_moved_past(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        change_email_verification: EmailVerification,
+    ) -> None:
+        """Test a change asked for from an address the account no longer holds is not redeemable."""
+        # Arrange: The account was moved elsewhere after this change was asked for
+        test_user.email = "already-moved@example.com"
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = change_email_verification
+        mock_email_verification_service.session.get.return_value = change_email_verification
+
+        # Act & Assert
+        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=test_user):
+            with pytest.raises(EmailVerificationTokenNotValidError):
+                mock_email_verification_service.verify_email(
+                    user_service=mock_user_service, token=change_email_verification.token
+                )
+
+        assert test_user.email == "already-moved@example.com"
+
+    def test_verify_email_change_rejects_an_address_taken_in_the_meantime(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        another_test_user: User,
+        change_email_verification: EmailVerification,
+    ) -> None:
+        """Test an address registered between the request and the redemption is not taken over."""
+        # Arrange: Another account signed up with the address in the meantime
+        another_test_user.email = "moving-to@example.com"
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = change_email_verification
+        mock_email_verification_service.session.get.return_value = change_email_verification
+
+        # Act & Assert
+        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=test_user):
+            with patch.object(mock_user_service, "get_user_by_email", return_value=another_test_user):
+                with pytest.raises(UserExistsError):
+                    mock_email_verification_service.verify_email(
+                        user_service=mock_user_service, token=change_email_verification.token
+                    )
+
+        assert change_email_verification.status == EmailVerificationStatus.PENDING

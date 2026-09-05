@@ -2063,6 +2063,8 @@ export const emailVerificationResendVerificationEmailMutation = (options?: Parti
  *
  * Verify a user's email address.
  *
+ * A token issued for a change of address moves the account to that address.
+ *
  * Args:
  * email_verification_service: The email verification service dependency.
  * user_service: The user service dependency.
@@ -2072,7 +2074,8 @@ export const emailVerificationResendVerificationEmailMutation = (options?: Parti
  * A message indicating that the email was verified successfully.
  *
  * Raises:
- * HTTPException: If the token is invalid (400), expired (400), already used (400), or not found (404).
+ * HTTPException: If the token is invalid (400), expired (400), already used (400), not found (404),
+ * or another account holds the address the change would move to (409).
  */
 export const emailVerificationVerifyEmailMutation = (options?: Partial<Options<EmailVerificationVerifyEmailData>>): UseMutationOptions<EmailVerificationVerifyEmailResponse, EmailVerificationVerifyEmailError, Options<EmailVerificationVerifyEmailData>> => {
     const mutationOptions: UseMutationOptions<EmailVerificationVerifyEmailResponse, EmailVerificationVerifyEmailError, Options<EmailVerificationVerifyEmailData>> = {

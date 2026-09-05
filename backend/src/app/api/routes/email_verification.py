@@ -7,6 +7,7 @@ from app.exceptions import (
     EmailVerificationTokenNotValidError,
     EmailVerificationUsedError,
     ServiceError,
+    UserExistsError,
 )
 from app.models import EmailVerificationConfirm, EmailVerificationRequest, Message
 
@@ -24,6 +25,7 @@ def email_verification_exception_mappings() -> dict[type[ServiceError], int]:
         EmailVerificationExpiredError: status.HTTP_400_BAD_REQUEST,
         EmailVerificationUsedError: status.HTTP_400_BAD_REQUEST,
         EmailVerificationTokenNotValidError: status.HTTP_400_BAD_REQUEST,
+        UserExistsError: status.HTTP_409_CONFLICT,
     }
 
 
@@ -61,6 +63,8 @@ def verify_email(
 ) -> Message:
     """Verify a user's email address.
 
+    A token issued for a change of address moves the account to that address.
+
     Args:
         email_verification_service: The email verification service dependency.
         user_service: The user service dependency.
@@ -70,6 +74,7 @@ def verify_email(
         A message indicating that the email was verified successfully.
 
     Raises:
-        HTTPException: If the token is invalid (400), expired (400), already used (400), or not found (404).
+        HTTPException: If the token is invalid (400), expired (400), already used (400), not found (404),
+            or another account holds the address the change would move to (409).
     """
     return email_verification_service.verify_email(user_service=user_service, token=email_verification_confirm.token)
