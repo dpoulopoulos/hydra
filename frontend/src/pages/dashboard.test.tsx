@@ -88,3 +88,25 @@ describe('the budgets panel', () => {
     expect(screen.getByRole('link', { name: 'Set budgets' })).toBeInTheDocument()
   })
 })
+
+describe('the latest activity panel', () => {
+  it('says the transactions did not load rather than that there are none', async () => {
+    vi.mocked(api.transactionsListTransactions).mockResolvedValue({
+      error: { detail: 'Transactions are unavailable.' },
+    } as never)
+    renderDashboard()
+
+    expect(await screen.findByText('Transactions are unavailable.')).toBeInTheDocument()
+    expect(screen.queryByText('Nothing recorded yet.')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Record your first transaction' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('still invites the first transaction when there genuinely are none', async () => {
+    renderDashboard()
+
+    expect(await screen.findByText('Nothing recorded yet.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Record your first transaction' })).toBeInTheDocument()
+  })
+})
