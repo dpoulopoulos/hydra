@@ -59,6 +59,16 @@ export function formatAmount(minor: number, currency = 'EUR'): string {
   }).format(toMajor(minor, currency))
 }
 
+/**
+ * Format minor units as a short number, for a chart axis.
+ *
+ * No currency symbol: an axis repeats its label on every tick, so the symbol
+ * belongs to the chart's title, and the ticks only have to stay readable.
+ */
+export function formatCompactAmount(minor: number, currency = 'EUR'): string {
+  return new Intl.NumberFormat(undefined, { notation: 'compact' }).format(toMajor(minor, currency))
+}
+
 /** Format a 0-1 ratio as a whole percentage, e.g. 0.8 -> "80%". */
 export function formatPercent(ratio: number): string {
   return new Intl.NumberFormat(undefined, {
