@@ -182,6 +182,8 @@ def send_email(
 
     Raises:
         AssertionError: If email sending is not enabled in the settings.
+        HTTPStatusError: If Resend rejects the request.
+        SMTPException: If the mail server did not accept the message.
     """
     assert settings.emails_enabled, "no provided configuration for email variables"
     # emails_enabled already implies this, but it is not something mypy can narrow.
@@ -208,7 +210,15 @@ def send_email(
     if settings.SMTP_PASSWORD:
         smtp_options["password"] = settings.SMTP_PASSWORD
 
-    message.send(to=email_to, smtp=smtp_options)
+    response = message.send(to=email_to, smtp=smtp_options)
+
+    # The library answers a refused or unreachable server with an unsuccessful
+    # response rather than an exception, so a message that never left would
+    # otherwise be indistinguishable from a delivered one.
+    if not response.success:
+        raise response.error or smtplib.SMTPException(
+            f"The mail server did not accept the message: {response.status_code} {response.status_text}"
+        )
 
 
 def generate_household_invite_email(email: str, token: str, household_name: str, inviter_name: str) -> EmailData:

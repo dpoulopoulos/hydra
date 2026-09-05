@@ -1,3 +1,4 @@
+import smtplib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -164,6 +165,52 @@ class TestSendEmail:
                 "password": "password123",
             },
         )
+
+    @patch("app.utils.email_utils.Message")
+    def test_send_email_raises_what_the_mail_server_refused_with(
+        self, mock_message_class: MagicMock, monkeypatch
+    ) -> None:
+        """A mail server that never took the message must not read as delivered."""
+        # Arrange: The library reports a refusal in its return value, not by raising
+        monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        response = MagicMock()
+        response.success = False
+        response.error = ConnectionRefusedError("[Errno 111] Connection refused")
+        mock_message_class.return_value.send.return_value = response
+
+        # Act & Assert: Verify the refusal reaches the caller as a delivery error
+        with pytest.raises(ConnectionRefusedError, match="Connection refused"):
+            send_email(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>Test content</p>",
+            )
+
+    @patch("app.utils.email_utils.Message")
+    def test_send_email_raises_when_the_mail_server_only_gives_a_status(
+        self, mock_message_class: MagicMock, monkeypatch
+    ) -> None:
+        """A rejection without an exception behind it is still a rejection."""
+        # Arrange: The server answered, and what it said was no
+        monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        response = MagicMock()
+        response.success = False
+        response.error = None
+        response.status_code = 451
+        response.status_text = "Requested action aborted"
+        mock_message_class.return_value.send.return_value = response
+
+        # Act & Assert: Verify the caller sees a delivery failure with the reason
+        with pytest.raises(smtplib.SMTPException, match="451"):
+            send_email(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>Test content</p>",
+            )
 
     @patch("app.utils.email_utils.Message")
     def test_send_email_with_ssl(self, mock_message_class: MagicMock, monkeypatch) -> None:
