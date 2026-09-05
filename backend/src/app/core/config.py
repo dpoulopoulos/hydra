@@ -71,6 +71,24 @@ class Settings(BaseSettings):
             f"{var_name} is not set, so {consequence}. Set it explicitly, at least for deployments."
         )
 
+    def _check_empty_secret(self, var_name: str, value: str) -> None:
+        """Check that a secret is not the empty string.
+
+        An empty string satisfies a required str field, so a secret set to nothing is
+        indistinguishable from one set to something as far as pydantic is concerned.
+
+        Args:
+            var_name: The name of the variable to check.
+            value: The value of the variable to check.
+
+        Raises:
+            ValueError: If the value is empty and the environment is not "local".
+        """
+        if value:
+            return
+
+        self._report_insecure_secret(f"{var_name} is empty. Give it a real value, at least for deployments.")
+
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         """Check for default secret values.
 
@@ -137,11 +155,17 @@ class Settings(BaseSettings):
         # requests land on other replicas, and every reset, verification and invite link in
         # someone's inbox stops verifying on the next restart.
         self._check_unset_secret("SECRET_KEY", "a random one was generated for this process only")
+        # Set but empty is worse than unset: nothing is signed with a secret at all, and anyone can
+        # mint a session token or a password reset link for any account.
+        self._check_empty_secret("SECRET_KEY", self.SECRET_KEY)
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
         # An empty password is legitimate where the host authenticates the connection another way,
         # with peer or trust auth, so it is the omission that is rejected rather than the value.
         self._check_unset_secret("POSTGRES_PASSWORD", "the database is being connected to with an empty password")
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
+        # The seeded superuser is created from this, so an empty one hands the first account in the
+        # database a hash of "" - no host authenticates that another way.
+        self._check_empty_secret("FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD)
         self._check_default_secret("FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD)
 
         return self
