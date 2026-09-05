@@ -2768,8 +2768,8 @@ export const reportsSpendOverTimeQueryKey = (options: Options<ReportsSpendOverTi
  *
  * Raises:
  * HTTPException: If the range starts after it ends (400), the range asks
- * for too many buckets (422), or the category does not exist in the
- * household (404).
+ * for too many buckets (422), or the account or category does not
+ * exist in the household (404).
  */
 export const reportsSpendOverTimeOptions = (options: Options<ReportsSpendOverTimeData>) => queryOptions<ReportsSpendOverTimeResponse, ReportsSpendOverTimeError, ReportsSpendOverTimeResponse, ReturnType<typeof reportsSpendOverTimeQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {

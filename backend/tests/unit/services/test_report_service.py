@@ -4,7 +4,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.exceptions import CategoryNotFoundError, InvalidDateRangeError, ReportRangeTooLargeError
+from app.exceptions import (
+    AccountNotFoundError,
+    CategoryNotFoundError,
+    InvalidDateRangeError,
+    ReportRangeTooLargeError,
+)
 from app.models import (
     Account,
     AccountType,
@@ -381,6 +386,43 @@ class TestSpendOverTime:
                 date_to=date(2026, 3, 31),
                 category_id=uuid.uuid4(),
             )
+
+    def test_an_account_from_another_household_is_not_found(
+        self, mock_report_service: ReportService, household_context: HouseholdContext
+    ) -> None:
+        mock_report_service.session.exec = MagicMock()
+        mock_report_service.session.exec.return_value.first.return_value = None
+
+        with pytest.raises(AccountNotFoundError):
+            mock_report_service.spend_over_time(
+                household=household_context,
+                date_from=date(2026, 3, 1),
+                date_to=date(2026, 3, 31),
+                account_id=uuid.uuid4(),
+            )
+
+    def test_an_account_of_the_household_filters_the_report(
+        self,
+        mock_report_service: ReportService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        account_id = uuid.uuid4()
+        mock_report_service.session.exec = MagicMock()
+        mock_report_service.session.exec.return_value.first.return_value = account_id
+        mock_report_service.session.execute = MagicMock()
+        mock_report_service.session.execute.return_value.all.return_value = []
+        mock_report_service.session.get = MagicMock(return_value=household)
+
+        mock_report_service.spend_over_time(
+            household=household_context,
+            date_from=date(2026, 3, 1),
+            date_to=date(2026, 3, 31),
+            account_id=account_id,
+        )
+
+        statement = str(mock_report_service.session.execute.call_args.args[0])
+        assert "account_id" in statement
 
 
 class TestIncomeExpense:

@@ -2174,8 +2174,8 @@ export const reportsSpendByCategory = <ThrowOnError extends boolean = false>(opt
  *
  * Raises:
  * HTTPException: If the range starts after it ends (400), the range asks
- * for too many buckets (422), or the category does not exist in the
- * household (404).
+ * for too many buckets (422), or the account or category does not
+ * exist in the household (404).
  */
 export const reportsSpendOverTime = <ThrowOnError extends boolean = false>(options: Options<ReportsSpendOverTimeData, ThrowOnError>): RequestResult<ReportsSpendOverTimeResponses, ReportsSpendOverTimeErrors, ThrowOnError> => (options.client ?? client).get<ReportsSpendOverTimeResponses, ReportsSpendOverTimeErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
