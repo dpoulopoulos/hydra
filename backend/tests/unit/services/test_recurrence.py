@@ -326,3 +326,32 @@ class TestOccurrencesUntil:
         assert dates
         assert dates[0] == date(9990, 1, 1)
         assert dates[-1] <= date.max
+
+
+class TestAdvanceDaily:
+    """Tests for advancing a daily rule."""
+
+    def test_moves_on_one_day(self) -> None:
+        assert advance(current=date(2026, 3, 4), frequency=RecurrenceFrequency.DAILY, interval=1) == date(2026, 3, 5)
+
+    def test_an_interval_moves_on_that_many_days(self) -> None:
+        assert advance(current=date(2026, 3, 4), frequency=RecurrenceFrequency.DAILY, interval=3) == date(2026, 3, 7)
+
+    def test_rolls_over_the_end_of_a_month(self) -> None:
+        assert advance(current=date(2026, 2, 28), frequency=RecurrenceFrequency.DAILY, interval=1) == date(2026, 3, 1)
+
+    def test_the_day_of_month_is_ignored(self) -> None:
+        """A daily rule is led by its date, so an anchor day means nothing."""
+        assert advance(
+            current=date(2026, 3, 4), frequency=RecurrenceFrequency.DAILY, interval=1, anchor_day=15
+        ) == date(2026, 3, 5)
+
+    def test_a_daily_rule_starts_on_its_start_date(self) -> None:
+        assert first_occurrence(
+            start_date=date(2026, 3, 4), frequency=RecurrenceFrequency.DAILY, day_of_month=15
+        ) == date(2026, 3, 4)
+
+    def test_lists_every_day_up_to_the_limit(self) -> None:
+        assert occurrences_until(
+            cursor=date(2026, 3, 1), until=date(2026, 3, 4), frequency=RecurrenceFrequency.DAILY, interval=1
+        ) == [date(2026, 3, 1), date(2026, 3, 2), date(2026, 3, 3), date(2026, 3, 4)]
