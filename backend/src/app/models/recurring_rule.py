@@ -105,6 +105,8 @@ class RecurringRunResult(SQLModel):
     """What one materialization pass did."""
 
     created_count: int
+    # Occurrences that fell due but were not written: the rule's account is
+    # archived or gone, or the transaction was already there.
     skipped_count: int
     rules_advanced: int
 
