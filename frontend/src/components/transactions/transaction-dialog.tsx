@@ -117,19 +117,35 @@ export function TransactionDialog({
     kind: kind === TransactionKind.INCOME ? CategoryKind.INCOME : CategoryKind.EXPENSE,
   })
 
+  // A balance is computed from the ledger, so the account list comes back as a
+  // new object whenever anything in the household moves. Keeping the payload
+  // out of the effects below means a refetch behind an open dialog never
+  // reaches the form the user is filling in.
+  const defaultAccountId = accounts?.data[0]?.id ?? ''
+
   useEffect(() => {
     if (!open) return
     form.reset({
       kind: transaction?.kind ?? TransactionKind.EXPENSE,
       amount: transaction ? String(toMajor(transaction.amount_minor, currency)) : '',
       occurred_on: transaction?.occurred_on ?? today(),
-      account_id: transaction?.account_id ?? accounts?.data[0]?.id ?? '',
+      account_id: transaction?.account_id ?? '',
       counter_account_id: transaction?.counter_account_id ?? '',
       category_id: transaction?.category_id ?? NO_CATEGORY,
       merchant: transaction?.merchant ?? '',
       note: transaction?.note ?? '',
     })
-  }, [open, transaction, accounts, currency, form])
+  }, [open, transaction, currency, form])
+
+  // The accounts can still be on their way when the dialog opens, so the first
+  // one is offered as soon as they land. Only the empty picker is filled in:
+  // a choice already made, by the user or by the transaction being edited,
+  // stands.
+  useEffect(() => {
+    if (!open || !defaultAccountId) return
+    if (form.getValues('account_id')) return
+    form.setValue('account_id', defaultAccountId)
+  }, [open, defaultAccountId, form])
 
   const save = useMutation({
     mutationFn: async (parsed: Parsed) => {
