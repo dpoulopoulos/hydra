@@ -11,6 +11,9 @@ import { applyCspNonce } from '@/lib/csp-nonce'
 import { queryClient } from '@/lib/query-client'
 import { router } from '@/routes'
 
+// sonner's own stylesheet, which it would otherwise append to the head as a
+// <style> element the production policy refuses. See vite.config.ts.
+import 'sonner/dist/styles.css'
 import './index.css'
 
 // Before anything renders, so the first stylesheet a component builds already
