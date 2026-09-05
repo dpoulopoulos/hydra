@@ -17,6 +17,8 @@ vi.mock('@/api', async (importOriginal) => {
     accountsListAccounts: vi.fn(),
     categoriesGetCategoryTree: vi.fn(),
     householdsGetHouseholdMe: vi.fn(),
+    recurringRulesCreateRecurringRule: vi.fn(),
+    recurringRulesUpdateRecurringRule: vi.fn(),
   }
 })
 
@@ -242,5 +244,125 @@ describe('a picker whose list will not load', () => {
     await vi.waitFor(() => expect(chosenAccount()).toBe('Current'))
     expect(screen.queryByText(/Could not load/)).not.toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Category' })).toBeEnabled()
+  })
+})
+
+const RENT = '33333333-3333-3333-3333-333333333333'
+
+/**
+ * A household whose pickers have something to offer: a second account to move
+ * money to, and a category to file it under.
+ */
+function pickersAreStocked() {
+  accountsAre(account(CURRENT, 'Current', 50000), account(SAVINGS, 'Rainy day', 900000))
+  vi.mocked(api.categoriesGetCategoryTree).mockResolvedValue({
+    data: {
+      data: [
+        {
+          id: RENT,
+          name: 'Rent',
+          kind: 'expense',
+          household_id: 'h',
+          created_at: '2026-01-01T00:00:00Z',
+          children: [],
+        },
+      ],
+      count: 1,
+    },
+  } as never)
+}
+
+/** The body the last create call sent. */
+function createdBody() {
+  const call = vi.mocked(api.recurringRulesCreateRecurringRule).mock.calls.at(-1)
+  return (call?.[0] as { body: Record<string, unknown> }).body
+}
+
+describe('the sentence under the fields', () => {
+  beforeEach(pickersAreStocked)
+
+  it('says back what every field holds, as they are filled in', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Amount'), '900')
+    expect(await screen.findByText(/€900.00 leaves Current every month/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: 'Repeats' }))
+    await user.click(await screen.findByRole('option', { name: 'Weekly' }))
+    expect(await screen.findByText(/every week/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /More options/ }))
+    await user.clear(await screen.findByLabelText('Every'))
+    await user.type(screen.getByLabelText('Every'), '2')
+    expect(await screen.findByText(/every 2 weeks/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: 'Category' }))
+    await user.click(await screen.findByRole('option', { name: 'Rent' }))
+    expect(await screen.findByText(/Filed under Rent\./)).toBeInTheDocument()
+  })
+
+  it('names both accounts of a transfer', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Amount'), '50')
+    await user.click(screen.getByRole('tab', { name: 'Transfer' }))
+    await user.click(await screen.findByRole('combobox', { name: 'To account' }))
+    await user.click(await screen.findByRole('option', { name: 'Rainy day' }))
+
+    expect(
+      await screen.findByText(/€50.00 moves from Current to Rainy day every month/),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('saving a rule', () => {
+  beforeEach(() => {
+    pickersAreStocked()
+    vi.mocked(api.recurringRulesCreateRecurringRule).mockResolvedValue({ data: {} } as never)
+  })
+
+  it('carries the account, category and schedule that were picked', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Name'), 'Rent')
+    await user.type(screen.getByLabelText('Amount'), '900')
+
+    await user.click(screen.getByRole('combobox', { name: 'Account' }))
+    await user.click(await screen.findByRole('option', { name: 'Rainy day' }))
+    expect(screen.getByRole('combobox', { name: 'Account' })).toHaveTextContent('Rainy day')
+
+    await user.click(screen.getByRole('combobox', { name: 'Category' }))
+    await user.click(await screen.findByRole('option', { name: 'Rent' }))
+    expect(screen.getByRole('combobox', { name: 'Category' })).toHaveTextContent('Rent')
+
+    await user.type(screen.getByLabelText('On day'), '5')
+    await user.click(screen.getByRole('button', { name: 'Add rule' }))
+
+    await vi.waitFor(() => expect(api.recurringRulesCreateRecurringRule).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({
+      name: 'Rent',
+      kind: 'expense',
+      amount_minor: 90000,
+      frequency: 'monthly',
+      interval: 1,
+      day_of_month: 5,
+      account_id: SAVINGS,
+      category_id: RENT,
+      counter_account_id: null,
+    })
+  })
+
+  it('keeps the account the money leaves out of the destinations', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(await screen.findByRole('tab', { name: 'Transfer' }))
+    await user.click(await screen.findByRole('combobox', { name: 'To account' }))
+
+    expect(await screen.findByRole('option', { name: 'Rainy day' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Current' })).not.toBeInTheDocument()
   })
 })

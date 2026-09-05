@@ -20,6 +20,7 @@ vi.mock('@/api', async (importOriginal) => {
     categoriesGetCategoryTree: vi.fn(),
     householdsGetHouseholdMe: vi.fn(),
     transactionsUpdateTransaction: vi.fn(),
+    transactionsCreateTransaction: vi.fn(),
   }
 })
 
@@ -289,5 +290,105 @@ describe('a picker whose list will not load', () => {
     await vi.waitFor(() => expect(chosenAccount()).toBe('Current'))
     expect(screen.queryByText(/Could not load/)).not.toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Category' })).toBeEnabled()
+  })
+})
+
+const GROCERIES = '33333333-3333-3333-3333-333333333333'
+
+/**
+ * A household whose pickers have something to offer: a second account to move
+ * money to, and a category to file the spending under.
+ */
+function pickersAreStocked() {
+  accountsAre(account(CURRENT, 'Current', 50000), account(SAVINGS, 'Rainy day', 900000))
+  vi.mocked(api.categoriesGetCategoryTree).mockResolvedValue({
+    data: {
+      data: [
+        {
+          id: GROCERIES,
+          name: 'Groceries',
+          kind: 'expense',
+          household_id: 'h',
+          created_at: '2026-01-01T00:00:00Z',
+          children: [],
+        },
+      ],
+      count: 1,
+    },
+  } as never)
+  vi.mocked(api.transactionsCreateTransaction).mockResolvedValue({ data: {} } as never)
+}
+
+/** The body the last create call sent. */
+function createdBody() {
+  const call = vi.mocked(api.transactionsCreateTransaction).mock.calls.at(-1)
+  return (call?.[0] as { body: Record<string, unknown> }).body
+}
+
+describe('recording an expense', () => {
+  beforeEach(pickersAreStocked)
+
+  it('saves the account and category that were picked', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Amount'), '12.50')
+    await user.click(await screen.findByRole('combobox', { name: 'Account' }))
+    await user.click(await screen.findByRole('option', { name: 'Rainy day' }))
+
+    expect(screen.getByRole('combobox', { name: 'Account' })).toHaveTextContent('Rainy day')
+
+    await user.click(screen.getByRole('combobox', { name: 'Category' }))
+    await user.click(await screen.findByRole('option', { name: 'Groceries' }))
+
+    expect(screen.getByRole('combobox', { name: 'Category' })).toHaveTextContent('Groceries')
+
+    await user.click(screen.getByRole('button', { name: 'Record it' }))
+
+    await waitFor(() => expect(api.transactionsCreateTransaction).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({
+      kind: 'expense',
+      amount_minor: 1250,
+      account_id: SAVINGS,
+      category_id: GROCERIES,
+      counter_account_id: null,
+    })
+  })
+})
+
+describe('recording a transfer', () => {
+  beforeEach(pickersAreStocked)
+
+  it('keeps the account the money leaves out of the destinations', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(await screen.findByRole('tab', { name: 'Transfer' }))
+    await user.click(await screen.findByRole('combobox', { name: 'To account' }))
+
+    expect(await screen.findByRole('option', { name: 'Rainy day' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Current' })).not.toBeInTheDocument()
+  })
+
+  it('saves the destination that was picked', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Amount'), '40')
+    await user.click(screen.getByRole('tab', { name: 'Transfer' }))
+    await user.click(await screen.findByRole('combobox', { name: 'To account' }))
+    await user.click(await screen.findByRole('option', { name: 'Rainy day' }))
+
+    expect(screen.getByRole('combobox', { name: 'To account' })).toHaveTextContent('Rainy day')
+
+    await user.click(screen.getByRole('button', { name: 'Record it' }))
+
+    await waitFor(() => expect(api.transactionsCreateTransaction).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({
+      kind: 'transfer',
+      account_id: CURRENT,
+      counter_account_id: SAVINGS,
+      category_id: null,
+    })
   })
 })

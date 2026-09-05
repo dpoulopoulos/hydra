@@ -110,3 +110,62 @@ describe('the parent picker', () => {
     expect(screen.getByText('Leave as a top-level category, or file it under one.')).toBeVisible()
   })
 })
+
+describe('the kind picker', () => {
+  /** A node of the category tree, shaped as the picker reads it. */
+  function category(id: string, name: string, kind: string) {
+    return { id, name, kind, household_id: 'h', created_at: '2026-01-01T00:00:00Z', children: [] }
+  }
+
+  /** The body the last create call sent. */
+  function createdBody() {
+    const call = vi.mocked(api.categoriesCreateCategory).mock.calls.at(-1)
+    return (call?.[0] as { body: Record<string, unknown> }).body
+  }
+
+  // The parents on offer are what these tests turn on, so the tree the shared
+  // setup leaves empty carries one category of each kind here.
+  beforeEach(() => {
+    vi.mocked(api.categoriesGetCategoryTree).mockResolvedValue({
+      data: {
+        data: [category('c1', 'Home', 'expense'), category('c2', 'Salary', 'income')],
+        count: 2,
+      },
+    } as never)
+  })
+
+  it('only offers parents of the chosen kind', async () => {
+    const user = userEvent.setup()
+    renderDialog(null)
+
+    await user.click(await screen.findByRole('combobox', { name: 'Sits under' }))
+    expect(await screen.findByRole('option', { name: 'Home' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Salary' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+
+    await user.click(screen.getByRole('combobox', { name: 'Kind' }))
+    await user.click(await screen.findByRole('option', { name: 'Income' }))
+
+    await user.click(screen.getByRole('combobox', { name: 'Sits under' }))
+    expect(await screen.findByRole('option', { name: 'Salary' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Home' })).not.toBeInTheDocument()
+  })
+
+  it('saves the kind and parent that were picked', async () => {
+    const user = userEvent.setup()
+    renderDialog(null)
+
+    await user.type(await screen.findByLabelText('Name'), 'Bonus')
+    await user.click(screen.getByRole('combobox', { name: 'Kind' }))
+    await user.click(await screen.findByRole('option', { name: 'Income' }))
+
+    expect(screen.getByRole('combobox', { name: 'Kind' })).toHaveTextContent('Income')
+
+    await user.click(screen.getByRole('combobox', { name: 'Sits under' }))
+    await user.click(await screen.findByRole('option', { name: 'Salary' }))
+    await user.click(screen.getByRole('button', { name: 'Add category' }))
+
+    await waitFor(() => expect(api.categoriesCreateCategory).toHaveBeenCalled())
+    expect(createdBody()).toEqual({ name: 'Bonus', kind: 'income', parent_id: 'c2' })
+  })
+})
