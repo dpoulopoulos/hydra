@@ -96,7 +96,9 @@ def make_rule(
     last_generated_on: date | None = None,
     amount_minor: int = 120_000,
     kind: TransactionKind = TransactionKind.EXPENSE,
+    account_id: uuid.UUID | None = None,
     counter_account_id: uuid.UUID | None = None,
+    category_id: uuid.UUID | None = None,
 ) -> RecurringRule:
     """Build a recurring rule row for the tests."""
     return RecurringRule(
@@ -109,8 +111,9 @@ def make_rule(
         end_date=end_date,
         kind=kind,
         amount_minor=amount_minor,
-        account_id=uuid.uuid4(),
+        account_id=account_id or uuid.uuid4(),
         counter_account_id=counter_account_id,
+        category_id=category_id,
         next_occurrence_on=next_occurrence_on,
         last_generated_on=last_generated_on,
     )
@@ -792,7 +795,7 @@ class TestUpdateRule:
     ) -> None:
         rule = make_rule()
         mock_recurring_rule_service.session.exec = MagicMock()
-        mock_recurring_rule_service.session.exec.return_value.first.return_value = rule
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule]
 
         result = mock_recurring_rule_service.update_rule(
             household=household_context,
@@ -807,7 +810,23 @@ class TestUpdateRule:
     ) -> None:
         rule = make_rule()
         mock_recurring_rule_service.session.exec = MagicMock()
-        mock_recurring_rule_service.session.exec.return_value.first.return_value = rule
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule]
+
+        result = mock_recurring_rule_service.update_rule(
+            household=household_context, rule_id=rule.id, rule_update=RecurringRuleUpdate(is_active=False)
+        )
+
+        assert result.is_active is False
+
+    def test_pauses_a_rule_whose_account_has_been_archived(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """Otherwise there would be no way to pause or fix such a rule short of deleting it."""
+        account = make_account(archived=True)
+        rule = make_rule(account_id=account.id)
+        mock_recurring_rule_service.session.exec = MagicMock()
+        # The account is offered, so an edit that looked it up would be refused.
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule, account]
 
         result = mock_recurring_rule_service.update_rule(
             household=household_context, rule_id=rule.id, rule_update=RecurringRuleUpdate(is_active=False)
@@ -821,7 +840,7 @@ class TestUpdateRule:
         """Otherwise the next pass would create a transaction that already exists."""
         rule = make_rule(next_occurrence_on=date(2026, 4, 1), last_generated_on=date(2026, 3, 1))
         mock_recurring_rule_service.session.exec = MagicMock()
-        mock_recurring_rule_service.session.exec.return_value.first.return_value = rule
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule]
 
         result = mock_recurring_rule_service.update_rule(
             household=household_context,
@@ -835,10 +854,12 @@ class TestUpdateRule:
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
     ) -> None:
         rule = make_rule(
-            start_date=date(2026, 1, 1), next_occurrence_on=date(2026, 1, 1), last_generated_on=None
+            start_date=date(2026, 1, 1),
+            next_occurrence_on=date(2026, 1, 1),
+            last_generated_on=None,
         )
         mock_recurring_rule_service.session.exec = MagicMock()
-        mock_recurring_rule_service.session.exec.return_value.first.return_value = rule
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule]
 
         result = mock_recurring_rule_service.update_rule(
             household=household_context,
@@ -853,7 +874,7 @@ class TestUpdateRule:
     ) -> None:
         rule = make_rule(start_date=date(2026, 3, 1))
         mock_recurring_rule_service.session.exec = MagicMock()
-        mock_recurring_rule_service.session.exec.return_value.first.return_value = rule
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule]
 
         with pytest.raises(InvalidRecurrenceError):
             mock_recurring_rule_service.update_rule(
@@ -873,6 +894,50 @@ class TestUpdateRule:
                 household=household_context,
                 rule_id=uuid.uuid4(),
                 rule_update=RecurringRuleUpdate(amount_minor=1),
+            )
+
+    def test_rejects_giving_a_transfer_rule_a_category(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """A transfer carries no category, so the edit is refused instead of failing the flush."""
+        rule = make_rule(kind=TransactionKind.TRANSFER, counter_account_id=uuid.uuid4())
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule]
+
+        with pytest.raises(TransferShapeError):
+            mock_recurring_rule_service.update_rule(
+                household=household_context,
+                rule_id=rule.id,
+                rule_update=RecurringRuleUpdate(category_id=uuid.uuid4()),
+            )
+
+    def test_rejects_a_category_from_another_household(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        rule = make_rule()
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule, None]
+
+        with pytest.raises(CategoryNotFoundError):
+            mock_recurring_rule_service.update_rule(
+                household=household_context,
+                rule_id=rule.id,
+                rule_update=RecurringRuleUpdate(category_id=uuid.uuid4()),
+            )
+
+    def test_rejects_an_income_category_on_an_expense_rule(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        category = make_category(name="Salary", kind=CategoryKind.INCOME)
+        rule = make_rule()
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule, category]
+
+        with pytest.raises(TransactionCategoryKindError):
+            mock_recurring_rule_service.update_rule(
+                household=household_context,
+                rule_id=rule.id,
+                rule_update=RecurringRuleUpdate(category_id=category.id),
             )
 
 
