@@ -48,7 +48,7 @@ import { formatDate, today } from '@/lib/month'
 function buildSchema(currency: string) {
   return z.object({
     name: z.string().trim().min(1, 'Give this person a name you will recognise.').max(120),
-    rate: amountSchema({ currency, allowZero: true }),
+    rate: amountSchema(currency, { allowZero: true }),
     default_account_id: z.string().min(1, 'Pick where the money lands.'),
     // Optional, so a practice that does not file income by category is not
     // forced to invent one.

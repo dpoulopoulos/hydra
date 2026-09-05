@@ -54,7 +54,7 @@ function buildSchema(currency: string) {
   return z
     .object({
       kind: z.enum(TransactionKind),
-      amount: amountSchema({ currency }),
+      amount: amountSchema(currency),
       occurred_on: z.string().min(1, 'Pick a date.'),
       account_id: z.string().min(1, 'Choose an account.'),
       counter_account_id: z.string(),

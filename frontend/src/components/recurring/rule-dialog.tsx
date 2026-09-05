@@ -61,7 +61,7 @@ function buildSchema(currency: string) {
     .object({
       name: z.string().trim().min(1, 'Name the rule, such as Rent or Netflix.').max(255),
       kind: z.enum(TransactionKind),
-      amount: amountSchema({ currency }),
+      amount: amountSchema(currency),
       frequency: z.enum(RecurrenceFrequency),
       interval: z.coerce.number().int().min(1, 'Repeat at least every one period.').max(60),
       day_of_month: z.string(),

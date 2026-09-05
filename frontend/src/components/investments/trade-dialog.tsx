@@ -51,7 +51,7 @@ function buildSchema(currency: string, householdCurrency: string) {
     traded_on: z.string().min(1, 'Pick the date it happened.'),
     quantity: quantitySchema(),
     price: priceSchema(currency),
-    fee: amountSchema({ currency, allowZero: true }),
+    fee: amountSchema(currency, { allowZero: true }),
     // The cash side is optional: a trade is a fact about a holding whether or
     // not the money is being tracked here. Only the broker is named, because a
     // trade spends cash already sitting there; moving money from a bank to a
@@ -62,7 +62,7 @@ function buildSchema(currency: string, householdCurrency: string) {
     // empty string passes through as undefined rather than failing the parse.
     cash_amount: z.union([
       z.literal('').transform(() => undefined),
-      amountSchema({ currency: householdCurrency, allowZero: true }),
+      amountSchema(householdCurrency, { allowZero: true }),
     ]),
     note: z.string().trim().max(1024).optional(),
   })
