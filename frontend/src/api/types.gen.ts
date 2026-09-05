@@ -636,6 +636,58 @@ export type CategoryUpdate = {
 };
 
 /**
+ * ClientForecastRow
+ *
+ * One client's contribution, and what they still owe.
+ */
+export type ClientForecastRow = {
+    /**
+     * Client Id
+     */
+    client_id: string;
+    /**
+     * Name Ct
+     */
+    name_ct: string;
+    /**
+     * Attended Count
+     */
+    attended_count: number;
+    /**
+     * Missed Count
+     */
+    missed_count: number;
+    /**
+     * Attendance Rate
+     */
+    attendance_rate?: number | null;
+    /**
+     * Outstanding Minor
+     */
+    outstanding_minor: number;
+    /**
+     * Oldest Unpaid On
+     */
+    oldest_unpaid_on?: string | null;
+    /**
+     * Average Monthly Minor
+     */
+    average_monthly_minor: number;
+    /**
+     * Booked Minor
+     */
+    booked_minor: number;
+    /**
+     * Last Session On
+     */
+    last_session_on?: string | null;
+    /**
+     * Is Archived
+     */
+    is_archived: boolean;
+};
+
+/**
  * EmailVerificationConfirm
  */
 export type EmailVerificationConfirm = {
@@ -654,6 +706,24 @@ export type EmailVerificationRequest = {
      */
     email: string;
 };
+
+/**
+ * ForecastBasis
+ *
+ * How much the forecast is actually worth believing.
+ */
+export const ForecastBasis = {
+    HISTORY: 'history',
+    SINGLE_MONTH: 'single_month',
+    INSUFFICIENT_HISTORY: 'insufficient_history'
+} as const;
+
+/**
+ * ForecastBasis
+ *
+ * How much the forecast is actually worth believing.
+ */
+export type ForecastBasis = typeof ForecastBasis[keyof typeof ForecastBasis];
 
 /**
  * FxRatePublic
@@ -897,6 +967,10 @@ export type HouseholdPublic = {
      */
     currency_code?: string;
     /**
+     * Session Merchant Label
+     */
+    session_merchant_label?: string;
+    /**
      * Id
      */
     id: string;
@@ -932,6 +1006,169 @@ export type HouseholdUpdate = {
      * Name
      */
     name?: string | null;
+    /**
+     * Session Merchant Label
+     */
+    session_merchant_label?: string | null;
+};
+
+/**
+ * IncomeClientCreate
+ */
+export type IncomeClientCreate = {
+    /**
+     * Name Ct
+     */
+    name_ct: string;
+    cadence_frequency?: RecurrenceFrequency | null;
+    /**
+     * Cadence Interval
+     */
+    cadence_interval?: number;
+    /**
+     * Cadence Anchor On
+     */
+    cadence_anchor_on?: string | null;
+    /**
+     * Cadence Weekdays
+     */
+    cadence_weekdays?: Array<number>;
+    /**
+     * Note Ct
+     */
+    note_ct?: string | null;
+    /**
+     * Default Rate Minor
+     */
+    default_rate_minor?: number;
+    /**
+     * Default Account Id
+     */
+    default_account_id: string;
+    /**
+     * Default Category Id
+     */
+    default_category_id?: string | null;
+};
+
+/**
+ * IncomeClientPublic
+ */
+export type IncomeClientPublic = {
+    /**
+     * Name Ct
+     */
+    name_ct: string;
+    cadence_frequency?: RecurrenceFrequency | null;
+    /**
+     * Cadence Interval
+     */
+    cadence_interval: number;
+    /**
+     * Cadence Anchor On
+     */
+    cadence_anchor_on?: string | null;
+    /**
+     * Cadence Weekdays
+     */
+    cadence_weekdays: Array<number>;
+    /**
+     * Note Ct
+     */
+    note_ct?: string | null;
+    /**
+     * Default Rate Minor
+     */
+    default_rate_minor: number;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Household Id
+     */
+    household_id: string;
+    /**
+     * Owner User Id
+     */
+    owner_user_id: string;
+    /**
+     * Default Account Id
+     */
+    default_account_id: string;
+    /**
+     * Default Category Id
+     */
+    default_category_id?: string | null;
+    /**
+     * Archived At
+     */
+    archived_at?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at?: string | null;
+};
+
+/**
+ * IncomeClientUpdate
+ */
+export type IncomeClientUpdate = {
+    /**
+     * Name Ct
+     */
+    name_ct?: string | null;
+    cadence_frequency?: RecurrenceFrequency | null;
+    /**
+     * Cadence Interval
+     */
+    cadence_interval?: number | null;
+    /**
+     * Cadence Anchor On
+     */
+    cadence_anchor_on?: string | null;
+    /**
+     * Cadence Weekdays
+     */
+    cadence_weekdays?: Array<number> | null;
+    /**
+     * Note Ct
+     */
+    note_ct?: string | null;
+    /**
+     * Default Rate Minor
+     */
+    default_rate_minor?: number | null;
+    /**
+     * Default Account Id
+     */
+    default_account_id?: string | null;
+    /**
+     * Default Category Id
+     */
+    default_category_id?: string | null;
+    /**
+     * Is Archived
+     */
+    is_archived?: boolean | null;
+};
+
+/**
+ * IncomeClientsPublic
+ */
+export type IncomeClientsPublic = {
+    /**
+     * Data
+     */
+    data: Array<IncomeClientPublic>;
+    /**
+     * Count
+     */
+    count: number;
 };
 
 /**
@@ -959,6 +1196,451 @@ export type IncomeExpenseReport = {
      * Average Savings Rate
      */
     average_savings_rate?: number | null;
+};
+
+/**
+ * IncomeForecast
+ *
+ * What the coming month is likely to bring.
+ */
+export type IncomeForecast = {
+    /**
+     * Month
+     */
+    month: string;
+    /**
+     * Currency Code
+     */
+    currency_code: string;
+    /**
+     * Likely Minor
+     */
+    likely_minor: number;
+    /**
+     * Low Minor
+     */
+    low_minor: number;
+    /**
+     * High Minor
+     */
+    high_minor: number;
+    basis: ForecastBasis;
+    /**
+     * Months Used
+     */
+    months_used: number;
+    /**
+     * History
+     */
+    history: Array<IncomeMonth>;
+    /**
+     * Booked Minor
+     */
+    booked_minor: number;
+    /**
+     * Booked Session Count
+     */
+    booked_session_count: number;
+    /**
+     * Earned So Far Minor
+     */
+    earned_so_far_minor: number;
+    /**
+     * Expected From Diary Minor
+     */
+    expected_from_diary_minor: number;
+    /**
+     * Diary Realisation Rate
+     */
+    diary_realisation_rate?: number | null;
+    /**
+     * Trial Count
+     */
+    trial_count?: number;
+    /**
+     * Expected Session Count
+     */
+    expected_session_count?: number | null;
+    /**
+     * New Client Session Rate
+     */
+    new_client_session_rate?: number | null;
+    /**
+     * Confidence Percent
+     */
+    confidence_percent?: number;
+    /**
+     * Monthly Churn Rate
+     */
+    monthly_churn_rate?: number | null;
+    /**
+     * Expected Client Months
+     */
+    expected_client_months?: number | null;
+    /**
+     * Client Lifetime Value Minor
+     */
+    client_lifetime_value_minor?: number | null;
+    /**
+     * Average Sessions Per Month
+     */
+    average_sessions_per_month?: number | null;
+    /**
+     * Clients
+     */
+    clients: Array<ClientForecastRow>;
+};
+
+/**
+ * IncomeMonth
+ *
+ * One month of the practice, as the forecast sees it.
+ */
+export type IncomeMonth = {
+    /**
+     * Month
+     */
+    month: string;
+    /**
+     * Earned Minor
+     */
+    earned_minor: number;
+    /**
+     * Received Minor
+     */
+    received_minor: number;
+    /**
+     * Outstanding Minor
+     */
+    outstanding_minor: number;
+    /**
+     * Attended Count
+     */
+    attended_count: number;
+    /**
+     * Missed Count
+     */
+    missed_count: number;
+    /**
+     * Cancelled Count
+     */
+    cancelled_count: number;
+    /**
+     * Unpaid Count
+     */
+    unpaid_count: number;
+    /**
+     * Client Count
+     */
+    client_count: number;
+    /**
+     * Owed Balance Minor
+     */
+    owed_balance_minor?: number;
+};
+
+/**
+ * IncomeSessionCreate
+ */
+export type IncomeSessionCreate = {
+    /**
+     * Occurs On
+     */
+    occurs_on: string;
+    /**
+     * Fee Minor
+     */
+    fee_minor?: number;
+    status?: IncomeSessionStatus;
+    payment_status?: PaymentStatus;
+    /**
+     * Paid On
+     */
+    paid_on?: string | null;
+    /**
+     * Note Ct
+     */
+    note_ct?: string | null;
+    /**
+     * Client Id
+     */
+    client_id: string;
+};
+
+/**
+ * IncomeSessionPublic
+ */
+export type IncomeSessionPublic = {
+    /**
+     * Occurs On
+     */
+    occurs_on: string;
+    /**
+     * Fee Minor
+     */
+    fee_minor: number;
+    status: IncomeSessionStatus;
+    payment_status: PaymentStatus;
+    /**
+     * Paid On
+     */
+    paid_on?: string | null;
+    /**
+     * Note Ct
+     */
+    note_ct?: string | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Household Id
+     */
+    household_id: string;
+    /**
+     * Client Id
+     */
+    client_id: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at?: string | null;
+};
+
+/**
+ * IncomeSessionSort
+ */
+export const IncomeSessionSort = { '-DATE': '-date', DATE: 'date' } as const;
+
+/**
+ * IncomeSessionSort
+ */
+export type IncomeSessionSort = typeof IncomeSessionSort[keyof typeof IncomeSessionSort];
+
+/**
+ * IncomeSessionStatus
+ *
+ * What happened to the hour.
+ */
+export const IncomeSessionStatus = {
+    SCHEDULED: 'scheduled',
+    ATTENDED: 'attended',
+    MISSED: 'missed',
+    CANCELLED: 'cancelled'
+} as const;
+
+/**
+ * IncomeSessionStatus
+ *
+ * What happened to the hour.
+ */
+export type IncomeSessionStatus = typeof IncomeSessionStatus[keyof typeof IncomeSessionStatus];
+
+/**
+ * IncomeSessionUpdate
+ */
+export type IncomeSessionUpdate = {
+    /**
+     * Client Id
+     */
+    client_id?: string | null;
+    /**
+     * Occurs On
+     */
+    occurs_on?: string | null;
+    /**
+     * Fee Minor
+     */
+    fee_minor?: number | null;
+    status?: IncomeSessionStatus | null;
+    payment_status?: PaymentStatus | null;
+    /**
+     * Paid On
+     */
+    paid_on?: string | null;
+    /**
+     * Note Ct
+     */
+    note_ct?: string | null;
+};
+
+/**
+ * IncomeSessionsPublic
+ */
+export type IncomeSessionsPublic = {
+    /**
+     * Data
+     */
+    data: Array<IncomeSessionPublic>;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Earned Total Minor
+     */
+    earned_total_minor?: number;
+    /**
+     * Outstanding Total Minor
+     */
+    outstanding_total_minor?: number;
+};
+
+/**
+ * IncomeSummary
+ *
+ * The tiles for one month, in a single request.
+ */
+export type IncomeSummary = {
+    /**
+     * Month
+     */
+    month: string;
+    /**
+     * Currency Code
+     */
+    currency_code: string;
+    /**
+     * Earned Minor
+     */
+    earned_minor: number;
+    /**
+     * Received Minor
+     */
+    received_minor: number;
+    /**
+     * Outstanding Minor
+     */
+    outstanding_minor: number;
+    /**
+     * Total Outstanding Minor
+     */
+    total_outstanding_minor: number;
+    /**
+     * Oldest Unpaid On
+     */
+    oldest_unpaid_on?: string | null;
+    /**
+     * Attended Count
+     */
+    attended_count: number;
+    /**
+     * Unpaid Count
+     */
+    unpaid_count: number;
+    /**
+     * Scheduled Minor
+     */
+    scheduled_minor: number;
+    /**
+     * Scheduled Count
+     */
+    scheduled_count: number;
+    /**
+     * Missed Count
+     */
+    missed_count: number;
+    /**
+     * Cancelled Count
+     */
+    cancelled_count: number;
+    /**
+     * Active Client Count
+     */
+    active_client_count: number;
+    /**
+     * Year
+     */
+    year?: number;
+    /**
+     * Year Earned Minor
+     */
+    year_earned_minor?: number;
+    /**
+     * Year Session Count
+     */
+    year_session_count?: number;
+};
+
+/**
+ * IncomeVaultPublic
+ */
+export type IncomeVaultPublic = {
+    /**
+     * Kdf
+     */
+    kdf?: string;
+    /**
+     * Kdf Salt
+     */
+    kdf_salt: string;
+    /**
+     * Kdf Memory Kib
+     */
+    kdf_memory_kib: number;
+    /**
+     * Kdf Iterations
+     */
+    kdf_iterations: number;
+    /**
+     * Kdf Parallelism
+     */
+    kdf_parallelism: number;
+    /**
+     * Wrapped Dek
+     */
+    wrapped_dek: string;
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at?: string | null;
+};
+
+/**
+ * IncomeVaultUpsert
+ *
+ * Set up the vault, or re-wrap the same key under a new PIN.
+ *
+ * Changing a PIN re-wraps the data key and touches no client row, because the
+ * names were never encrypted with the PIN itself.
+ */
+export type IncomeVaultUpsert = {
+    /**
+     * Kdf
+     */
+    kdf?: string;
+    /**
+     * Kdf Salt
+     */
+    kdf_salt: string;
+    /**
+     * Kdf Memory Kib
+     */
+    kdf_memory_kib: number;
+    /**
+     * Kdf Iterations
+     */
+    kdf_iterations: number;
+    /**
+     * Kdf Parallelism
+     */
+    kdf_parallelism: number;
+    /**
+     * Wrapped Dek
+     */
+    wrapped_dek: string;
 };
 
 /**
@@ -1257,6 +1939,24 @@ export type PasswordUpdate = {
 };
 
 /**
+ * PaymentStatus
+ *
+ * Whether the money arrived.
+ */
+export const PaymentStatus = {
+    PENDING: 'pending',
+    PAID: 'paid',
+    WAIVED: 'waived'
+} as const;
+
+/**
+ * PaymentStatus
+ *
+ * Whether the money arrived.
+ */
+export type PaymentStatus = typeof PaymentStatus[keyof typeof PaymentStatus];
+
+/**
  * PortfolioPublic
  *
  * The whole portfolio, valued in the household's currency.
@@ -1420,6 +2120,7 @@ export type QuoteFailure = {
  * RecurrenceFrequency
  */
 export const RecurrenceFrequency = {
+    DAILY: 'daily',
     WEEKLY: 'weekly',
     MONTHLY: 'monthly',
     YEARLY: 'yearly'
@@ -2039,6 +2740,10 @@ export type TransactionPublic = {
      * Recurring Rule Id
      */
     recurring_rule_id?: string | null;
+    /**
+     * Income Session Id
+     */
+    income_session_id?: string | null;
     /**
      * Is Generated
      */
@@ -3798,6 +4503,474 @@ export type RecurringRulesUpdateRecurringRuleResponses = {
 };
 
 export type RecurringRulesUpdateRecurringRuleResponse = RecurringRulesUpdateRecurringRuleResponses[keyof RecurringRulesUpdateRecurringRuleResponses];
+
+export type IncomeResetVaultData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Confirm
+         *
+         * Must be true. Every client name is lost.
+         */
+        confirm?: boolean;
+    };
+    url: '/api/v1/income/vault';
+};
+
+export type IncomeResetVaultErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeResetVaultError = IncomeResetVaultErrors[keyof IncomeResetVaultErrors];
+
+export type IncomeResetVaultResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type IncomeResetVaultResponse = IncomeResetVaultResponses[keyof IncomeResetVaultResponses];
+
+export type IncomeGetVaultData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/income/vault';
+};
+
+export type IncomeGetVaultResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeVaultPublic;
+};
+
+export type IncomeGetVaultResponse = IncomeGetVaultResponses[keyof IncomeGetVaultResponses];
+
+export type IncomeUpsertVaultData = {
+    body: IncomeVaultUpsert;
+    path?: never;
+    query?: never;
+    url: '/api/v1/income/vault';
+};
+
+export type IncomeUpsertVaultErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeUpsertVaultError = IncomeUpsertVaultErrors[keyof IncomeUpsertVaultErrors];
+
+export type IncomeUpsertVaultResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeVaultPublic;
+};
+
+export type IncomeUpsertVaultResponse = IncomeUpsertVaultResponses[keyof IncomeUpsertVaultResponses];
+
+export type IncomeListClientsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Is Archived
+         */
+        is_archived?: boolean | null;
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/income/clients';
+};
+
+export type IncomeListClientsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeListClientsError = IncomeListClientsErrors[keyof IncomeListClientsErrors];
+
+export type IncomeListClientsResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeClientsPublic;
+};
+
+export type IncomeListClientsResponse = IncomeListClientsResponses[keyof IncomeListClientsResponses];
+
+export type IncomeCreateClientData = {
+    body: IncomeClientCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/income/clients';
+};
+
+export type IncomeCreateClientErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeCreateClientError = IncomeCreateClientErrors[keyof IncomeCreateClientErrors];
+
+export type IncomeCreateClientResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeClientPublic;
+};
+
+export type IncomeCreateClientResponse = IncomeCreateClientResponses[keyof IncomeCreateClientResponses];
+
+export type IncomeDeleteClientData = {
+    body?: never;
+    path: {
+        /**
+         * Client Id
+         */
+        client_id: string;
+    };
+    query?: never;
+    url: '/api/v1/income/clients/{client_id}';
+};
+
+export type IncomeDeleteClientErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeDeleteClientError = IncomeDeleteClientErrors[keyof IncomeDeleteClientErrors];
+
+export type IncomeDeleteClientResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type IncomeDeleteClientResponse = IncomeDeleteClientResponses[keyof IncomeDeleteClientResponses];
+
+export type IncomeGetClientData = {
+    body?: never;
+    path: {
+        /**
+         * Client Id
+         */
+        client_id: string;
+    };
+    query?: never;
+    url: '/api/v1/income/clients/{client_id}';
+};
+
+export type IncomeGetClientErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeGetClientError = IncomeGetClientErrors[keyof IncomeGetClientErrors];
+
+export type IncomeGetClientResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeClientPublic;
+};
+
+export type IncomeGetClientResponse = IncomeGetClientResponses[keyof IncomeGetClientResponses];
+
+export type IncomeUpdateClientData = {
+    body: IncomeClientUpdate;
+    path: {
+        /**
+         * Client Id
+         */
+        client_id: string;
+    };
+    query?: never;
+    url: '/api/v1/income/clients/{client_id}';
+};
+
+export type IncomeUpdateClientErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeUpdateClientError = IncomeUpdateClientErrors[keyof IncomeUpdateClientErrors];
+
+export type IncomeUpdateClientResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeClientPublic;
+};
+
+export type IncomeUpdateClientResponse = IncomeUpdateClientResponses[keyof IncomeUpdateClientResponses];
+
+export type IncomeListSessionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Client Id
+         */
+        client_id?: string | null;
+        /**
+         * Month
+         */
+        month?: string | null;
+        /**
+         * Date From
+         */
+        date_from?: string | null;
+        /**
+         * Date To
+         */
+        date_to?: string | null;
+        /**
+         * Status
+         */
+        status?: IncomeSessionStatus | null;
+        /**
+         * Payment Status
+         */
+        payment_status?: PaymentStatus | null;
+        /**
+         * Owed Only
+         */
+        owed_only?: boolean;
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+        sort?: IncomeSessionSort;
+    };
+    url: '/api/v1/income/sessions';
+};
+
+export type IncomeListSessionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeListSessionsError = IncomeListSessionsErrors[keyof IncomeListSessionsErrors];
+
+export type IncomeListSessionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeSessionsPublic;
+};
+
+export type IncomeListSessionsResponse = IncomeListSessionsResponses[keyof IncomeListSessionsResponses];
+
+export type IncomeCreateSessionData = {
+    body: IncomeSessionCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/income/sessions';
+};
+
+export type IncomeCreateSessionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeCreateSessionError = IncomeCreateSessionErrors[keyof IncomeCreateSessionErrors];
+
+export type IncomeCreateSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeSessionPublic;
+};
+
+export type IncomeCreateSessionResponse = IncomeCreateSessionResponses[keyof IncomeCreateSessionResponses];
+
+export type IncomeDeleteSessionData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/income/sessions/{session_id}';
+};
+
+export type IncomeDeleteSessionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeDeleteSessionError = IncomeDeleteSessionErrors[keyof IncomeDeleteSessionErrors];
+
+export type IncomeDeleteSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type IncomeDeleteSessionResponse = IncomeDeleteSessionResponses[keyof IncomeDeleteSessionResponses];
+
+export type IncomeGetSessionData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/income/sessions/{session_id}';
+};
+
+export type IncomeGetSessionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeGetSessionError = IncomeGetSessionErrors[keyof IncomeGetSessionErrors];
+
+export type IncomeGetSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeSessionPublic;
+};
+
+export type IncomeGetSessionResponse = IncomeGetSessionResponses[keyof IncomeGetSessionResponses];
+
+export type IncomeUpdateSessionData = {
+    body: IncomeSessionUpdate;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/income/sessions/{session_id}';
+};
+
+export type IncomeUpdateSessionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeUpdateSessionError = IncomeUpdateSessionErrors[keyof IncomeUpdateSessionErrors];
+
+export type IncomeUpdateSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeSessionPublic;
+};
+
+export type IncomeUpdateSessionResponse = IncomeUpdateSessionResponses[keyof IncomeUpdateSessionResponses];
+
+export type IncomeGetSummaryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Month
+         */
+        month?: string | null;
+    };
+    url: '/api/v1/income/summary';
+};
+
+export type IncomeGetSummaryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeGetSummaryError = IncomeGetSummaryErrors[keyof IncomeGetSummaryErrors];
+
+export type IncomeGetSummaryResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeSummary;
+};
+
+export type IncomeGetSummaryResponse = IncomeGetSummaryResponses[keyof IncomeGetSummaryResponses];
+
+export type IncomeGetForecastData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Month
+         */
+        month?: string | null;
+        /**
+         * Months
+         */
+        months?: number;
+    };
+    url: '/api/v1/income/forecast';
+};
+
+export type IncomeGetForecastErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IncomeGetForecastError = IncomeGetForecastErrors[keyof IncomeGetForecastErrors];
+
+export type IncomeGetForecastResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncomeForecast;
+};
+
+export type IncomeGetForecastResponse = IncomeGetForecastResponses[keyof IncomeGetForecastResponses];
 
 export type InvestmentsListInstrumentsData = {
     body?: never;
