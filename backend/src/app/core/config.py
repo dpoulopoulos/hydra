@@ -50,16 +50,16 @@ class Settings(BaseSettings):
         else:
             raise ValueError(message)
 
-    def _check_unset_secret(self, var_name: str) -> None:
-        """Check that a secret with a generated default was supplied explicitly.
+    def _check_unset_secret(self, var_name: str, consequence: str) -> None:
+        """Check that a secret with a default was supplied explicitly.
 
-        A field that is absent from the environment is filled in with its default, which for
-        SECRET_KEY is a fresh random token. That boots, but every process signs with a different
-        key: sessions break as requests land on other replicas, and every reset, verification and
-        invite link in someone's inbox stops verifying on the next restart.
+        A field that is absent from the environment is filled in with its default, and a default
+        is never a secret. Pydantic sees nothing missing either way, so without this the difference
+        between a secret someone chose and one nobody did is invisible at boot.
 
         Args:
             var_name: The name of the variable to check.
+            consequence: What the default means for this field, for the error message.
 
         Raises:
             ValueError: If the variable was not set and the environment is not "local".
@@ -68,8 +68,7 @@ class Settings(BaseSettings):
             return
 
         self._report_insecure_secret(
-            f"{var_name} is not set, so a random one was generated for this process only. "
-            "Set it explicitly, at least for deployments."
+            f"{var_name} is not set, so {consequence}. Set it explicitly, at least for deployments."
         )
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
@@ -134,8 +133,14 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Self:
         """Enforce that default secrets are not used."""
-        self._check_unset_secret("SECRET_KEY")
+        # A generated key boots, but every process signs with a different one: sessions break as
+        # requests land on other replicas, and every reset, verification and invite link in
+        # someone's inbox stops verifying on the next restart.
+        self._check_unset_secret("SECRET_KEY", "a random one was generated for this process only")
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
+        # An empty password is legitimate where the host authenticates the connection another way,
+        # with peer or trust auth, so it is the omission that is rejected rather than the value.
+        self._check_unset_secret("POSTGRES_PASSWORD", "the database is being connected to with an empty password")
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
         self._check_default_secret("FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD)
 
