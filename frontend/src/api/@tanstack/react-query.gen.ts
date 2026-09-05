@@ -1120,7 +1120,7 @@ export const transactionsListTransactionsQueryKey = (options?: Options<Transacti
  * The matching transactions and the total number of matches.
  *
  * Raises:
- * HTTPException: If the category filter names a category outside the
+ * HTTPException: If the account or category filter names one outside the
  * household (404), or a filter is not recognised (422).
  */
 export const transactionsListTransactionsOptions = (options?: Options<TransactionsListTransactionsData>) => queryOptions<TransactionsListTransactionsResponse, TransactionsListTransactionsError, TransactionsListTransactionsResponse, ReturnType<typeof transactionsListTransactionsQueryKey>>({

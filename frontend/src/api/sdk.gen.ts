@@ -876,7 +876,7 @@ export const accountsUpdateAccount = <ThrowOnError extends boolean = false>(opti
  * The matching transactions and the total number of matches.
  *
  * Raises:
- * HTTPException: If the category filter names a category outside the
+ * HTTPException: If the account or category filter names one outside the
  * household (404), or a filter is not recognised (422).
  */
 export const transactionsListTransactions = <ThrowOnError extends boolean = false>(options?: Options<TransactionsListTransactionsData, ThrowOnError>): RequestResult<TransactionsListTransactionsResponses, TransactionsListTransactionsErrors, ThrowOnError> => (options?.client ?? client).get<TransactionsListTransactionsResponses, TransactionsListTransactionsErrors, ThrowOnError>({
