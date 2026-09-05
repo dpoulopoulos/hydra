@@ -5,21 +5,20 @@ import { cn } from 'cn'
 import * as RechartsPrimitive from 'recharts'
 import type { TooltipValueType } from 'recharts'
 
-// Format: { THEME_NAME: CSS_SELECTOR }
-const THEMES = { light: '', dark: '.dark' } as const
-
 const INITIAL_DIMENSION = { width: 320, height: 200 } as const
 type TooltipNameType = number | string
 
+// A colour is any CSS colour value, and in this app it is always a custom
+// property (`var(--chart-1)`) whose own definition already changes with the
+// theme. shadcn's wrapper also takes a { light, dark } pair here, which it can
+// only honour by emitting a stylesheet per theme selector; see colorProperties.
 export type ChartConfig = Record<
   string,
   {
     label?: React.ReactNode
     icon?: React.ComponentType
-  } & (
-    | { color?: string; theme?: never }
-    | { color?: never; theme: Record<keyof typeof THEMES, string> }
-  )
+    color?: string
+  }
 >
 
 type ChartContextProps = {
@@ -39,10 +38,10 @@ function useChart() {
 }
 
 function ChartContainer({
-  id,
   className,
   children,
   config,
+  style,
   initialDimension = INITIAL_DIMENSION,
   ...props
 }: React.ComponentProps<'div'> & {
@@ -53,21 +52,17 @@ function ChartContainer({
     height: number
   }
 }) {
-  const uniqueId = React.useId()
-  const chartId = `chart-${id ?? uniqueId.replace(/:/g, '')}`
-
   return (
     <ChartContext.Provider value={{ config }}>
       <div
         data-slot="chart"
-        data-chart={chartId}
+        style={{ ...colorProperties(config), ...style }}
         className={cn(
           "[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border flex aspect-video justify-center text-xs [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden",
           className,
         )}
         {...props}
       >
-        <ChartStyle id={chartId} config={config} />
         <RechartsPrimitive.ResponsiveContainer initialDimension={initialDimension}>
           {children}
         </RechartsPrimitive.ResponsiveContainer>
@@ -76,33 +71,22 @@ function ChartContainer({
   )
 }
 
-const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(([, config]) => config.theme ?? config.color)
-
-  if (!colorConfig.length) {
-    return null
-  }
-
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ?? itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join('\n')}
-}
-`,
-          )
-          .join('\n'),
-      }}
-    />
-  )
+/**
+ * The configured colours, as the `--color-<key>` custom properties the marks
+ * read, ready to be spread into a style attribute.
+ *
+ * shadcn's wrapper renders these as a <style> element instead. The production
+ * policy forbids that: `style-src-elem 'self'` means no inline stylesheet is
+ * honoured, this one or an injected one (see frontend/Caddyfile). A style
+ * attribute carries the same values, and scopes them to the chart by sitting
+ * on its container rather than by a selector.
+ */
+function colorProperties(config: ChartConfig): React.CSSProperties {
+  return Object.fromEntries(
+    Object.entries(config)
+      .filter(([, item]) => item.color)
+      .map(([key, item]) => [`--color-${key}`, item.color]),
+  ) as React.CSSProperties
 }
 
 const ChartTooltip = RechartsPrimitive.Tooltip
@@ -328,11 +312,4 @@ function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key:
   return configLabelKey in config ? config[configLabelKey] : config[key]
 }
 
-export {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-  ChartStyle,
-}
+export { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent }
