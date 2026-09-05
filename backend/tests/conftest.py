@@ -21,6 +21,9 @@ from app.repositories import (
     HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
+    IncomeClientRepository,
+    IncomeSessionRepository,
+    IncomeVaultRepository,
     InstrumentRepository,
     PasswordResetRepository,
     RecurringRuleRepository,
@@ -35,6 +38,7 @@ from app.services import (
     CategoryService,
     EmailVerificationService,
     HouseholdService,
+    IncomeService,
     InvestmentService,
     PasswordResetService,
     RecurringRuleService,
@@ -761,4 +765,81 @@ def mock_investment_service(
         household_repository=mock_household_repository,
         price_provider=mock_price_provider,
         account_repository=mock_account_repository,
+    )
+
+
+@pytest.fixture
+def mock_income_client_repository(mock_db_session: MagicMock) -> IncomeClientRepository:
+    """Create an IncomeClientRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        An IncomeClientRepository instance with a mocked session.
+    """
+    return IncomeClientRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_income_session_repository(mock_db_session: MagicMock) -> IncomeSessionRepository:
+    """Create an IncomeSessionRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        An IncomeSessionRepository instance with a mocked session.
+    """
+    return IncomeSessionRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_income_vault_repository(mock_db_session: MagicMock) -> IncomeVaultRepository:
+    """Create an IncomeVaultRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        An IncomeVaultRepository instance with a mocked session.
+    """
+    return IncomeVaultRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_income_service(
+    mock_db_session: MagicMock,
+    mock_income_client_repository: IncomeClientRepository,
+    mock_income_session_repository: IncomeSessionRepository,
+    mock_income_vault_repository: IncomeVaultRepository,
+    mock_transaction_repository: TransactionRepository,
+    mock_account_repository: AccountRepository,
+    mock_category_repository: CategoryRepository,
+    mock_household_repository: HouseholdRepository,
+) -> IncomeService:
+    """Create an IncomeService instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+        mock_income_client_repository: The client repository instance.
+        mock_income_session_repository: The session repository instance.
+        mock_income_vault_repository: The vault repository instance.
+        mock_transaction_repository: The transaction repository instance.
+        mock_account_repository: The account repository instance.
+        mock_category_repository: The category repository instance.
+        mock_household_repository: The household repository instance.
+
+    Returns:
+        An IncomeService instance with a mocked session.
+    """
+    return IncomeService(
+        session=mock_db_session,
+        income_client_repository=mock_income_client_repository,
+        income_session_repository=mock_income_session_repository,
+        income_vault_repository=mock_income_vault_repository,
+        transaction_repository=mock_transaction_repository,
+        account_repository=mock_account_repository,
+        category_repository=mock_category_repository,
+        household_repository=mock_household_repository,
     )
