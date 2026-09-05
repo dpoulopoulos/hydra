@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftRight, MoreHorizontal, Pencil, Repeat, Trash2 } from 'lucide-react'
+import { ArrowLeftRight, HandCoins, MoreHorizontal, Pencil, Repeat, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router'
 import { toast } from 'sonner'
 
 import {
@@ -166,6 +167,10 @@ export function Component() {
                 {transactions.data.data.map((transaction) => {
                   const isTransfer = transaction.kind === TransactionKind.TRANSFER
                   const isIncome = transaction.kind === TransactionKind.INCOME
+                  // The session holds the fee, so this row is a copy of it and
+                  // the API refuses to edit or delete it. Offering both here
+                  // would only produce an error toast.
+                  const fromSession = transaction.income_session_id != null
 
                   return (
                     <TableRow key={transaction.id}>
@@ -175,7 +180,12 @@ export function Component() {
                       <TableCell>
                         <div className="flex items-center gap-2 font-medium">
                           {transaction.merchant ?? (isTransfer ? 'Transfer' : 'No description')}
-                          {transaction.is_generated ? (
+                          {fromSession ? (
+                            <Badge variant="secondary" className="gap-1">
+                              <HandCoins className="size-3" />
+                              Session
+                            </Badge>
+                          ) : transaction.is_generated ? (
                             <Badge variant="secondary" className="gap-1">
                               <Repeat className="size-3" />
                               Recurring
@@ -223,18 +233,29 @@ export function Component() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditing(transaction)}>
-                              <Pencil className="size-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setDeleting(transaction)}
-                            >
-                              <Trash2 className="size-4" />
-                              Delete
-                            </DropdownMenuItem>
+                            {fromSession ? (
+                              <DropdownMenuItem asChild>
+                                <Link to="/income">
+                                  <HandCoins className="size-4" />
+                                  Change it on the Income page
+                                </Link>
+                              </DropdownMenuItem>
+                            ) : (
+                              <>
+                                <DropdownMenuItem onClick={() => setEditing(transaction)}>
+                                  <Pencil className="size-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => setDeleting(transaction)}
+                                >
+                                  <Trash2 className="size-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

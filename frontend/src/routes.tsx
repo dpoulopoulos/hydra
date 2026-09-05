@@ -28,6 +28,7 @@ const appRoutes: RouteObject[] = [
   { index: true, lazy: () => import('@/pages/dashboard') },
   { path: '/transactions', lazy: () => import('@/pages/transactions') },
   { path: '/accounts', lazy: () => import('@/pages/accounts') },
+  { path: '/income', lazy: () => import('@/pages/income') },
   { path: '/budgets', lazy: () => import('@/pages/budgets') },
   { path: '/investments', lazy: () => import('@/pages/investments') },
   { path: '/recurring', lazy: () => import('@/pages/recurring') },

@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   ChartColumnIncreasing,
+  HandCoins,
   LayoutDashboard,
   Repeat,
   Settings,
@@ -29,6 +30,7 @@ const money = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/accounts', label: 'Accounts', icon: Wallet },
+  { to: '/income', label: 'Income', icon: HandCoins },
   { to: '/investments', label: 'Investments', icon: TrendingUp },
 ]
 
