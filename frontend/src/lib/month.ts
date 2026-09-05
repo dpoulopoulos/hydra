@@ -52,13 +52,35 @@ export function formatMonth(month: string, options?: Intl.DateTimeFormatOptions)
   )
 }
 
-/** An ISO date rendered for people, e.g. "4 Mar 2026". */
+/**
+ * An ISO date rendered for people, e.g. "4 Mar 2026".
+ *
+ * The date is read as a calendar date rather than parsed, so a plain
+ * "2026-03-04" is not taken for UTC midnight and shown as the third to anyone
+ * west of Greenwich. That makes this the wrong formatter for a tz-aware
+ * timestamp, whose instant it would truncate: use `formatInstantAsDate` or
+ * `formatDateTime` for those.
+ */
 export function formatDate(value: string, options?: Intl.DateTimeFormatOptions): string {
   const [year, month, day] = value.slice(0, 10).split('-').map(Number)
   return new Intl.DateTimeFormat(
     undefined,
     options ?? { day: 'numeric', month: 'short', year: 'numeric' },
   ).format(new Date(year, month - 1, day))
+}
+
+/**
+ * A timestamp rendered for people as a date alone, e.g. "4 Mar 2026".
+ *
+ * Unlike `formatDate` this converts the instant to the viewer's timezone
+ * first, which is what a tz-aware value wants: parsing is unambiguous here
+ * precisely because the value carries an offset.
+ */
+export function formatInstantAsDate(value: string, options?: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat(
+    undefined,
+    options ?? { day: 'numeric', month: 'short', year: 'numeric' },
+  ).format(new Date(value))
 }
 
 /** A timestamp rendered for people, e.g. "4 Mar 2026, 14:30". */
