@@ -110,3 +110,22 @@ describe('the latest activity panel', () => {
     expect(screen.getByRole('link', { name: 'Record your first transaction' })).toBeInTheDocument()
   })
 })
+
+describe('the Saved tile', () => {
+  it('gives a reason when the year figures did not load', async () => {
+    vi.mocked(api.reportsIncomeExpense).mockResolvedValue({
+      error: { detail: 'The yearly report is unavailable.' },
+    } as never)
+    renderDashboard()
+
+    expect(await screen.findByText(/did not load/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Year' })).toBeDisabled()
+  })
+
+  it('offers the year once its figures are in', async () => {
+    renderDashboard()
+
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Year' })).toBeEnabled())
+    expect(screen.getByText('12 transactions this month')).toBeInTheDocument()
+  })
+})

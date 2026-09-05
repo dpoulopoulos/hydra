@@ -157,9 +157,13 @@ export function Component() {
               signed
               tone="auto"
               hint={
-                savedSpan === 'year'
-                  ? `Everything recorded in ${year}`
-                  : `${summary.data.transaction_count} transactions this month`
+                // The toggle below is dead without the year's figures, so say
+                // why rather than leaving it inert with no cause shown.
+                flows.isError
+                  ? `The ${year} total did not load, so this is ${formatMonth(month)}.`
+                  : savedSpan === 'year'
+                    ? `Everything recorded in ${year}`
+                    : `${summary.data.transaction_count} transactions this month`
               }
               action={
                 <PeriodToggle
