@@ -1,6 +1,7 @@
 import datetime
 import uuid
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session
 
 from app.exceptions import (
@@ -14,6 +15,7 @@ from app.exceptions import (
     TransferShapeError,
 )
 from app.models import (
+    RULE_OCCURRENCE_INDEX,
     Account,
     Category,
     CategoryKind,
@@ -297,6 +299,8 @@ class RecurringRuleService:
 
         Idempotent by the cursor on each rule, which only ever moves forward,
         and backed by a unique index on (rule, date) in case two requests race.
+        Losing that race counts the occurrence as skipped: it is already in the
+        ledger, written by the request that won.
 
         A rule whose account has since been archived, or has gone, is passed
         over rather than failing the read it runs under: its occurrences are
@@ -347,22 +351,10 @@ class RecurringRuleService:
                 continue
 
             for occurs_on in dates:
-                self.transaction_repository.add(
-                    Transaction(
-                        household_id=household.household_id,
-                        kind=rule.kind,
-                        amount_minor=rule.amount_minor,
-                        occurred_on=occurs_on,
-                        merchant=rule.merchant,
-                        note=rule.note,
-                        account_id=rule.account_id,
-                        counter_account_id=rule.counter_account_id,
-                        category_id=rule.category_id,
-                        recurring_rule_id=rule.id,
-                        is_generated=True,
-                    )
-                )
-                created += 1
+                if self._write_occurrence(household=household, rule=rule, occurs_on=occurs_on):
+                    created += 1
+                else:
+                    skipped += 1
 
             rule.last_generated_on = dates[-1]
             rule.next_occurrence_on = self._next_after(rule=rule, last=dates[-1])
@@ -375,6 +367,58 @@ class RecurringRuleService:
         self.session.commit()
 
         return RecurringRunResult(created_count=created, skipped_count=skipped, rules_advanced=advanced)
+
+    def _write_occurrence(self, household: HouseholdContext, rule: RecurringRule, occurs_on: datetime.date) -> bool:
+        """Write one occurrence of a rule, unless it is already there.
+
+        Written inside a savepoint, because the unique index on (rule, date)
+        is what stops two requests creating the same occurrence, and in
+        Postgres an integrity error otherwise leaves the whole transaction
+        aborted. Losing the race costs the occurrence, not the page load that
+        happened to run the pass.
+
+        Args:
+            household: The household context.
+            rule: The rule being materialized.
+            occurs_on: The day the occurrence falls on.
+
+        Returns:
+            True if the transaction was written, False if another request had
+            already written it.
+
+        Raises:
+            IntegrityError: If the insert failed for any other reason.
+        """
+        savepoint = self.session.begin_nested()
+
+        try:
+            self.transaction_repository.add(
+                Transaction(
+                    household_id=household.household_id,
+                    kind=rule.kind,
+                    amount_minor=rule.amount_minor,
+                    occurred_on=occurs_on,
+                    merchant=rule.merchant,
+                    note=rule.note,
+                    account_id=rule.account_id,
+                    counter_account_id=rule.counter_account_id,
+                    category_id=rule.category_id,
+                    recurring_rule_id=rule.id,
+                    is_generated=True,
+                )
+            )
+            self.session.flush()
+        except IntegrityError as error:
+            savepoint.rollback()
+
+            if RULE_OCCURRENCE_INDEX not in str(error.orig):
+                raise
+
+            return False
+
+        savepoint.commit()
+
+        return True
 
     def _accounts_can_take_transactions(self, household: HouseholdContext, rule: RecurringRule) -> bool:
         """Check the accounts a rule draws on are still able to take a transaction.

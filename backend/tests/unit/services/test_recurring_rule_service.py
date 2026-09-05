@@ -1,9 +1,12 @@
+import itertools
 import uuid
+from collections.abc import Callable
 from datetime import date
 from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.exc import IntegrityError
 
 from app.exceptions import (
     AccountArchivedError,
@@ -56,6 +59,26 @@ def created_transactions(service: RecurringRuleService) -> list[Transaction]:
         for call in service.session.add.call_args_list  # type: ignore[attr-defined]
         if isinstance(call.args[0], Transaction)
     ]
+
+
+def unique_violation(constraint: str = "uq_transaction_rule_occurrence") -> IntegrityError:
+    """Build the error Postgres raises when an insert hits a unique index."""
+    return IntegrityError(
+        "INSERT INTO transaction ...",
+        {},
+        Exception(f'duplicate key value violates unique constraint "{constraint}"'),
+    )
+
+
+def flush_failing_on(nth: int, error: Exception) -> Callable[[], None]:
+    """Build a flush stub that raises on its nth call and passes otherwise."""
+    calls = itertools.count(1)
+
+    def flush() -> None:
+        if next(calls) == nth:
+            raise error
+
+    return flush
 
 
 def make_category(name: str = "Rent / Mortgage", kind: CategoryKind = CategoryKind.EXPENSE) -> Category:
@@ -590,6 +613,74 @@ class TestMaterializeDue:
         assert result.created_count == 3
         assert result.skipped_count == 3
         assert result.rules_advanced == 1
+
+
+    def test_an_occurrence_another_request_already_wrote_is_skipped(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """The unique index must cost the racing request an occurrence, not the page it ran under."""
+        rule = make_rule(next_occurrence_on=date(2026, 1, 1))
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
+        mock_recurring_rule_service.session.flush.side_effect = flush_failing_on(2, unique_violation())
+
+        result = mock_recurring_rule_service.materialize_due(
+            household=household_context, until=date(2026, 3, 15)
+        )
+
+        assert result.created_count == 2
+        assert result.skipped_count == 1
+
+    def test_a_duplicate_is_rolled_back_to_the_savepoint(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """Without the savepoint the whole pass would be an aborted transaction."""
+        rule = make_rule(next_occurrence_on=date(2026, 1, 1))
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
+        mock_recurring_rule_service.session.flush.side_effect = flush_failing_on(1, unique_violation())
+
+        mock_recurring_rule_service.materialize_due(
+            household=household_context, until=date(2026, 1, 15)
+        )
+
+        mock_recurring_rule_service.session.begin_nested.return_value.rollback.assert_called_once()
+        mock_recurring_rule_service.session.commit.assert_called_once()
+
+    def test_the_cursor_still_moves_past_a_duplicate(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """The occurrence exists, written by the request that won the race."""
+        rule = make_rule(next_occurrence_on=date(2026, 1, 1))
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
+        mock_recurring_rule_service.session.flush.side_effect = flush_failing_on(1, unique_violation())
+
+        mock_recurring_rule_service.materialize_due(
+            household=household_context, until=date(2026, 1, 15)
+        )
+
+        assert rule.next_occurrence_on == date(2026, 2, 1)
+
+    def test_an_unrelated_integrity_error_is_not_swallowed(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """A broken reference is a bug to be seen, not an occurrence to skip."""
+        rule = make_rule(next_occurrence_on=date(2026, 1, 1))
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
+        mock_recurring_rule_service.session.flush.side_effect = flush_failing_on(
+            1, unique_violation("fk_transaction_account_household")
+        )
+
+        with pytest.raises(IntegrityError):
+            mock_recurring_rule_service.materialize_due(
+                household=household_context, until=date(2026, 1, 15)
+            )
 
 
 class TestListUpcoming:

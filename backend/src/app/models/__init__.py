@@ -95,6 +95,7 @@ from .report import (
 )
 from .token import Token, TokenPayload
 from .transaction import (
+    RULE_OCCURRENCE_INDEX,
     Transaction,
     TransactionBase,
     TransactionCreate,
@@ -202,6 +203,7 @@ __all__ = [
     "TimeSeriesPoint",
     "Token",
     "TokenPayload",
+    "RULE_OCCURRENCE_INDEX",
     "Transaction",
     "TransactionBase",
     "TransactionCreate",
