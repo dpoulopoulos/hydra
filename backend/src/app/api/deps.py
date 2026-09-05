@@ -511,8 +511,7 @@ def get_recurring_rule_service(
     session: SessionDep,
     recurring_rule_repository: RecurringRuleRepositoryDep,
     transaction_repository: TransactionRepositoryDep,
-    account_repository: AccountRepositoryDep,
-    category_repository: CategoryRepositoryDep,
+    reference_resolver: LedgerReferenceResolverDep,
 ) -> RecurringRuleService:
     """Get a recurring rule service instance.
 
@@ -520,8 +519,7 @@ def get_recurring_rule_service(
         session: The database session.
         recurring_rule_repository: The recurring rule repository instance.
         transaction_repository: The transaction repository instance.
-        account_repository: The account repository instance.
-        category_repository: The category repository instance.
+        reference_resolver: The ledger reference resolver instance.
 
     Returns:
         A recurring rule service instance.
@@ -530,8 +528,7 @@ def get_recurring_rule_service(
         session=session,
         recurring_rule_repository=recurring_rule_repository,
         transaction_repository=transaction_repository,
-        account_repository=account_repository,
-        category_repository=category_repository,
+        reference_resolver=reference_resolver,
     )
 
 

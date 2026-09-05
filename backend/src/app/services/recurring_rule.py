@@ -7,18 +7,11 @@ from sqlmodel import Session
 from app.exceptions import (
     AccountArchivedError,
     AccountNotFoundError,
-    CategoryNotFoundError,
     InvalidRecurrenceError,
     RecurringRuleNotFoundError,
-    SameAccountTransferError,
-    TransactionCategoryKindError,
-    TransferShapeError,
 )
 from app.models import (
     RULE_OCCURRENCE_INDEX,
-    Account,
-    Category,
-    CategoryKind,
     HouseholdContext,
     Message,
     RecurringRule,
@@ -28,14 +21,12 @@ from app.models import (
     RecurringRuleUpdate,
     RecurringRunResult,
     Transaction,
-    TransactionKind,
     UpcomingOccurrence,
     UpcomingOccurrencesPublic,
 )
-from app.repositories.account import AccountRepository
-from app.repositories.category import CategoryRepository
 from app.repositories.recurring_rule import RecurringRuleRepository
 from app.repositories.transaction import TransactionRepository
+from app.services.ledger import LedgerReferenceResolver
 from app.services.recurrence import (
     MAX_OCCURRENCES_PER_RUN,
     advance,
@@ -46,11 +37,6 @@ from app.services.recurrence import (
 # How far ahead the upcoming list looks when no date is given.
 DEFAULT_UPCOMING_DAYS = 60
 
-_CATEGORY_KIND_FOR: dict[TransactionKind, CategoryKind] = {
-    TransactionKind.EXPENSE: CategoryKind.EXPENSE,
-    TransactionKind.INCOME: CategoryKind.INCOME,
-}
-
 
 class RecurringRuleService:
     """Provide services for recurring transactions."""
@@ -60,8 +46,7 @@ class RecurringRuleService:
         session: Session,
         recurring_rule_repository: RecurringRuleRepository,
         transaction_repository: TransactionRepository,
-        account_repository: AccountRepository,
-        category_repository: CategoryRepository,
+        reference_resolver: LedgerReferenceResolver,
     ) -> None:
         """Initialize the recurring rule service.
 
@@ -69,14 +54,12 @@ class RecurringRuleService:
             session: The database session.
             recurring_rule_repository: The recurring rule repository instance.
             transaction_repository: The transaction repository instance.
-            account_repository: The account repository instance.
-            category_repository: The category repository instance.
+            reference_resolver: The resolver for the accounts and category a rule points at.
         """
         self.session = session
         self.recurring_rule_repository = recurring_rule_repository
         self.transaction_repository = transaction_repository
-        self.account_repository = account_repository
-        self.category_repository = category_repository
+        self.reference_resolver = reference_resolver
 
     def create_rule(self, household: HouseholdContext, rule_create: RecurringRuleCreate) -> RecurringRulePublic:
         """Create a recurring rule, such as rent or a subscription.
@@ -97,7 +80,7 @@ class RecurringRuleService:
             TransactionCategoryKindError: If the category is the wrong kind.
             InvalidRecurrenceError: If the schedule would never come due.
         """
-        self._validate_references(
+        self.reference_resolver.resolve(
             household=household,
             kind=rule_create.kind,
             account_id=rule_create.account_id,
@@ -186,11 +169,16 @@ class RecurringRuleService:
         let a rule through that the table itself refuses: giving a transfer
         rule a category passes a category check and then breaks on the flush.
 
-        The accounts are the exception: they are only looked up when the edit
-        names one, which no editable field does today. An account archived
-        after the rule was made would otherwise block every edit of the rule,
-        pausing included, leaving deletion as the only way to act on a rule
-        whose account has gone, and taking the rule's history with it.
+        The kind and the accounts are read off the stored rule rather than the
+        change, because no editable field carries them; a default from the
+        change would read as if they could be edited, and hide the fact that
+        making them editable has to be thought through here.
+
+        The accounts are also not looked up, since the edit cannot move them.
+        An account archived after the rule was made would otherwise block every
+        edit of the rule, pausing included, leaving deletion as the only way to
+        act on a rule whose account has gone, and taking the rule's history
+        with it.
 
         Args:
             household: The household context.
@@ -202,9 +190,8 @@ class RecurringRuleService:
 
         Raises:
             RecurringRuleNotFoundError: If the rule does not exist in the household.
-            AccountNotFoundError: If an account the edit names does not exist in the household.
-            AccountArchivedError: If an account the edit names is archived.
             CategoryNotFoundError: If the category does not exist in the household.
+            SameAccountTransferError: If a transfer names the same account twice.
             TransferShapeError: If the change does not match the kind.
             TransactionCategoryKindError: If the category is the wrong kind.
             InvalidRecurrenceError: If the new schedule would never come due.
@@ -212,13 +199,13 @@ class RecurringRuleService:
         rule = self._require_rule(household=household, rule_id=rule_id)
         fields = rule_update.model_dump(exclude_unset=True)
 
-        self._validate_references(
+        self.reference_resolver.resolve(
             household=household,
-            kind=fields.get("kind", rule.kind),
-            account_id=fields.get("account_id", rule.account_id),
-            counter_account_id=fields.get("counter_account_id", rule.counter_account_id),
+            kind=rule.kind,
+            account_id=rule.account_id,
+            counter_account_id=rule.counter_account_id,
             category_id=fields.get("category_id", rule.category_id),
-            check_accounts=bool({"account_id", "counter_account_id"} & fields.keys()),
+            check_accounts=False,
         )
         self._validate_schedule(start_date=rule.start_date, end_date=fields.get("end_date", rule.end_date))
         rule.sqlmodel_update(fields)
@@ -456,7 +443,7 @@ class RecurringRuleService:
 
         for account_id in account_ids:
             try:
-                self._resolve_account(household=household, account_id=account_id)
+                self.reference_resolver.resolve_account(household=household, account_id=account_id)
             except (AccountNotFoundError, AccountArchivedError):
                 return False
 
@@ -517,112 +504,6 @@ class RecurringRuleService:
         """
         if end_date and end_date < start_date:
             raise InvalidRecurrenceError("A rule cannot end before it starts.") from None
-
-    def _validate_references(
-        self,
-        household: HouseholdContext,
-        kind: TransactionKind,
-        account_id: uuid.UUID,
-        counter_account_id: uuid.UUID | None,
-        category_id: uuid.UUID | None,
-        check_accounts: bool = True,
-    ) -> None:
-        """Check the accounts and category a rule will use.
-
-        The same rules the ledger applies, checked here so a rule cannot be
-        saved that would fail every time it tried to create a transaction.
-
-        Args:
-            household: The household context.
-            kind: The kind of transaction the rule creates.
-            account_id: The account it draws on.
-            counter_account_id: The destination account, for a transfer.
-            category_id: The category, for an expense or income.
-            check_accounts: Whether to look the accounts up and check they can
-                still take transactions. An edit that names no account leaves
-                this off: see `update_rule`.
-
-        Raises:
-            AccountNotFoundError: If an account does not exist in the household.
-            AccountArchivedError: If an account is archived.
-            CategoryNotFoundError: If the category does not exist in the household.
-            SameAccountTransferError: If a transfer names the same account twice.
-            TransferShapeError: If the fields do not match the kind.
-            TransactionCategoryKindError: If the category is the wrong kind.
-        """
-        if kind is TransactionKind.TRANSFER:
-            if counter_account_id is None:
-                raise TransferShapeError("A transfer rule needs a destination account.") from None
-
-            if category_id is not None:
-                raise TransferShapeError("A transfer rule has no category.") from None
-        elif counter_account_id is not None:
-            raise TransferShapeError("Only a transfer rule has a destination account.") from None
-
-        if counter_account_id is not None and counter_account_id == account_id:
-            raise SameAccountTransferError from None
-
-        if check_accounts:
-            self._resolve_account(household=household, account_id=account_id)
-
-            if counter_account_id is not None:
-                self._resolve_account(household=household, account_id=counter_account_id)
-
-        if category_id is not None:
-            self._resolve_category(household=household, category_id=category_id, kind=kind)
-
-    def _resolve_account(self, household: HouseholdContext, account_id: uuid.UUID) -> Account:
-        """Load an account of the household and check it can take transactions.
-
-        Args:
-            household: The household context.
-            account_id: The ID of the account.
-
-        Returns:
-            The account.
-
-        Raises:
-            AccountNotFoundError: If the account does not exist in the household.
-            AccountArchivedError: If the account is archived.
-        """
-        account = self.account_repository.get_for_household(entity_id=account_id, household_id=household.household_id)
-
-        if not account:
-            raise AccountNotFoundError from None
-
-        if account.archived_at is not None:
-            raise AccountArchivedError(name=account.name) from None
-
-        return account
-
-    def _resolve_category(self, household: HouseholdContext, category_id: uuid.UUID, kind: TransactionKind) -> Category:
-        """Load a category of the household and check it suits the kind.
-
-        Args:
-            household: The household context.
-            category_id: The ID of the category.
-            kind: The kind of transaction the rule creates.
-
-        Returns:
-            The category.
-
-        Raises:
-            CategoryNotFoundError: If the category does not exist in the household.
-            TransactionCategoryKindError: If the category is the wrong kind.
-        """
-        category = self.category_repository.get_for_household(
-            entity_id=category_id, household_id=household.household_id
-        )
-
-        if not category:
-            raise CategoryNotFoundError from None
-
-        expected = _CATEGORY_KIND_FOR.get(kind)
-
-        if expected is not None and category.kind is not expected:
-            raise TransactionCategoryKindError from None
-
-        return category
 
     def _require_rule(self, household: HouseholdContext, rule_id: uuid.UUID) -> RecurringRule:
         """Load a recurring rule of the household.

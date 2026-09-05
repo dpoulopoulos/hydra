@@ -679,8 +679,7 @@ def mock_recurring_rule_service(
     mock_db_session: MagicMock,
     mock_recurring_rule_repository: RecurringRuleRepository,
     mock_transaction_repository: TransactionRepository,
-    mock_account_repository: AccountRepository,
-    mock_category_repository: CategoryRepository,
+    mock_reference_resolver: LedgerReferenceResolver,
 ) -> RecurringRuleService:
     """Create a RecurringRuleService instance with a mocked session.
 
@@ -688,8 +687,7 @@ def mock_recurring_rule_service(
         mock_db_session: The mock database session.
         mock_recurring_rule_repository: The recurring rule repository instance.
         mock_transaction_repository: The transaction repository instance.
-        mock_account_repository: The account repository instance.
-        mock_category_repository: The category repository instance.
+        mock_reference_resolver: The ledger reference resolver instance.
 
     Returns:
         A RecurringRuleService instance with a mocked session.
@@ -698,8 +696,7 @@ def mock_recurring_rule_service(
         session=mock_db_session,
         recurring_rule_repository=mock_recurring_rule_repository,
         transaction_repository=mock_transaction_repository,
-        account_repository=mock_account_repository,
-        category_repository=mock_category_repository,
+        reference_resolver=mock_reference_resolver,
     )
 
 
