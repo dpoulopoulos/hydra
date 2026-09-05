@@ -46,7 +46,8 @@ from app.repositories.household import (
     HouseholdRepository,
 )
 from app.repositories.user import UserRepository
-from app.utils import generate_household_invite_email, mask_email, try_send_email
+from app.services.email_outbox import EmailOutboxService
+from app.utils import generate_household_invite_email, mask_email
 
 
 class CategorySeeder(Protocol):
@@ -599,7 +600,7 @@ class HouseholdService:
 
         # The invite is committed and valid whether or not the mail leaves, and
         # reporting it as failed would only send the owner into the pending
-        # invite guard above. Log the delivery failure and return the invite.
+        # invite guard above. Queue the message and return the invite.
         if settings.emails_enabled:
             email_data = generate_household_invite_email(
                 email=email,
@@ -607,7 +608,9 @@ class HouseholdService:
                 household_name=entity.name,
                 inviter_name=household.user.full_name or household.user.email,
             )
-            try_send_email(email_to=email, subject=email_data.subject, html_content=email_data.html_content)
+            EmailOutboxService.for_session(self.session).deliver_or_queue(
+                email_to=email, subject=email_data.subject, html_content=email_data.html_content
+            )
 
         return HouseholdInvitePublic.model_validate(invite)
 

@@ -16,8 +16,9 @@ from app.exceptions import (
 )
 from app.models import EmailVerification, EmailVerificationStatus, Message, User
 from app.repositories.email_verification import EmailVerificationRepository
+from app.services.email_outbox import EmailOutboxService
 from app.services.user import UserService
-from app.utils import generate_email_verification_email, try_send_email
+from app.utils import generate_email_verification_email
 
 
 class InviteClaimer(Protocol):
@@ -163,10 +164,11 @@ class EmailVerificationService:
 
         # The verification row is committed by now, so a provider that is down
         # must not turn this into a 500: the caller would retry, expire the row
-        # it just created and write another one for mail that never leaves.
+        # it just created and write another one for mail that never leaves. The
+        # outbox keeps the message instead, and it is retried from there.
         if settings.emails_enabled:
             email_data = generate_email_verification_email(email=address, token=token)
-            try_send_email(
+            EmailOutboxService.for_session(self.session).deliver_or_queue(
                 email_to=address,
                 subject=email_data.subject,
                 html_content=email_data.html_content,

@@ -214,7 +214,7 @@ class TestSendVerificationEmail:
 
         # Act
         with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
-            with patch("app.services.email_verification.try_send_email") as mock_send_email:
+            with patch("app.services.email_verification.EmailOutboxService") as mock_outbox:
                 with patch("app.services.email_verification.generate_email_verification_email") as mock_generate:
                     mock_generate.return_value = MagicMock(subject="Verify Email", html_content="<html>Test</html>")
                     result = mock_email_verification_service.send_verification_email(
@@ -224,7 +224,7 @@ class TestSendVerificationEmail:
         # Assert
         assert isinstance(result, Message)
         assert result.message == "Verification email sent successfully."
-        mock_send_email.assert_called_once()
+        mock_outbox.for_session.return_value.deliver_or_queue.assert_called_once()
 
     def test_send_verification_email_survives_a_delivery_failure(
         self,
@@ -233,7 +233,7 @@ class TestSendVerificationEmail:
         test_user: User,
         caplog,
     ) -> None:
-        """Test that a delivery failure is logged instead of failing the request."""
+        """Test that a delivery failure is queued for a retry instead of failing the request."""
         # Arrange: The verification row is written, then the provider rate limits us
         mock_email_verification_service.session.exec = MagicMock()
         mock_email_verification_service.session.exec.return_value.first.return_value = None
@@ -243,8 +243,8 @@ class TestSendVerificationEmail:
 
         # Act
         with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
-            with patch("app.utils.email_utils.send_email", side_effect=rate_limited):
-                with caplog.at_level(logging.ERROR, logger="app.utils.email_utils"):
+            with patch("app.services.email_outbox.send_email", side_effect=rate_limited):
+                with caplog.at_level(logging.WARNING, logger="app.services.email_outbox"):
                     result = mock_email_verification_service.send_verification_email(
                         user_service=mock_user_service, user_email=test_user.email
                     )
@@ -270,7 +270,7 @@ class TestSendVerificationEmail:
 
         # Act
         with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
-            with patch("app.services.email_verification.try_send_email") as mock_send_email:
+            with patch("app.services.email_verification.EmailOutboxService") as mock_outbox:
                 result = mock_email_verification_service.send_verification_email(
                     user_service=mock_user_service, user_email=test_user.email
                 )
@@ -278,7 +278,7 @@ class TestSendVerificationEmail:
         # Assert
         assert isinstance(result, Message)
         assert result.message == "Verification email sent successfully."
-        mock_send_email.assert_not_called()
+        mock_outbox.for_session.return_value.deliver_or_queue.assert_not_called()
 
     def test_send_verification_email_with_existing_pending_verification(
         self,
@@ -324,7 +324,7 @@ class TestSendVerificationEmail:
 
         # Act
         with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
-            with patch("app.services.email_verification.try_send_email"):
+            with patch("app.services.email_verification.EmailOutboxService"):
                 result = mock_email_verification_service.send_verification_email(
                     user_service=mock_user_service, user_email=test_user.email
                 )
@@ -364,7 +364,7 @@ class TestSendVerificationEmail:
 
         # Act: Send a verification email at that later point in time
         with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
-            with patch("app.services.email_verification.try_send_email"):
+            with patch("app.services.email_verification.EmailOutboxService"):
                 with patch("app.services.email_verification.generate_email_verification_email"):
                     with patch("app.services.email_verification.datetime") as mock_datetime:
                         mock_datetime.now.return_value = request_time
@@ -393,7 +393,7 @@ class TestSendEmailChangeVerification:
         mock_email_verification_service.session.exec.return_value.first.return_value = None
 
         # Act
-        with patch("app.services.email_verification.try_send_email"):
+        with patch("app.services.email_verification.EmailOutboxService"):
             result = mock_email_verification_service.send_email_change_verification(
                 user=test_user, new_email="moving-to@example.com"
             )
@@ -416,7 +416,7 @@ class TestSendEmailChangeVerification:
         mock_email_verification_service.session.exec.return_value.first.return_value = None
 
         # Act
-        with patch("app.services.email_verification.try_send_email") as mock_send_email:
+        with patch("app.services.email_verification.EmailOutboxService") as mock_outbox:
             mock_email_verification_service.send_email_change_verification(
                 user=test_user, new_email="moving-to@example.com"
             )
@@ -428,7 +428,9 @@ class TestSendEmailChangeVerification:
             email_verification.token, settings.SECRET_KEY, algorithms=[ALGORITHM], audience=JWT.AUDIENCE
         )
         assert decoded["sub"] == "moving-to@example.com"
-        assert mock_send_email.call_args.kwargs["email_to"] == "moving-to@example.com"
+        assert mock_outbox.for_session.return_value.deliver_or_queue.call_args.kwargs["email_to"] == (
+            "moving-to@example.com"
+        )
 
     def test_send_email_change_verification_retires_an_earlier_pending_verification(
         self,
@@ -443,7 +445,7 @@ class TestSendEmailChangeVerification:
         mock_email_verification_service.session.get.return_value = test_email_verification
 
         # Act
-        with patch("app.services.email_verification.try_send_email"):
+        with patch("app.services.email_verification.EmailOutboxService"):
             mock_email_verification_service.send_email_change_verification(
                 user=test_user, new_email="moving-to@example.com"
             )

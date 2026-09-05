@@ -29,7 +29,8 @@ from app.models import (
     UserUpdateMe,
 )
 from app.repositories.user import UserRepository
-from app.utils import generate_new_account_email, try_send_email
+from app.services.email_outbox import EmailOutboxService
+from app.utils import generate_new_account_email
 
 if TYPE_CHECKING:
     from app.services.email_verification import EmailVerificationService
@@ -145,10 +146,10 @@ class UserService:
         # Only send welcome email for admin-created users who are immediately active
         # Public signup users will receive email verification instead.
         # The account is committed by now, so a greeting that cannot be
-        # delivered is logged rather than reported as a failed creation.
+        # delivered is queued rather than reported as a failed creation.
         if isinstance(user_create, UserCreate) and settings.emails_enabled:
             email_data = generate_new_account_email(username=user.email)
-            try_send_email(
+            EmailOutboxService.for_session(self.session).deliver_or_queue(
                 email_to=user.email,
                 subject=email_data.subject,
                 html_content=email_data.html_content,

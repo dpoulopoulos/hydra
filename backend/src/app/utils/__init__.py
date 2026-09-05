@@ -5,7 +5,6 @@ from .email_utils import (
     generate_password_reset_email,
     mask_email,
     send_email,
-    try_send_email,
 )
 
 __all__ = [
@@ -15,5 +14,4 @@ __all__ = [
     "generate_password_reset_email",
     "mask_email",
     "send_email",
-    "try_send_email",
 ]

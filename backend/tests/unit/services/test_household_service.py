@@ -22,6 +22,8 @@ from app.exceptions import (
     LastHouseholdOwnerError,
 )
 from app.models import (
+    EmailOutbox,
+    EmailOutboxStatus,
     EmailVerification,
     EmailVerificationStatus,
     Household,
@@ -620,7 +622,7 @@ class TestCreateInvite:
         assert result.status is HouseholdInviteStatus.PENDING
         # Stored lower case, so a differently cased reply still matches.
         assert result.email == "partner@example.com"
-        mock_household_service.session.commit.assert_called_once()
+        mock_household_service.session.commit.assert_called()
 
     def test_creates_the_invite_even_when_the_mail_does_not_go_out(
         self,
@@ -643,8 +645,8 @@ class TestCreateInvite:
         request = httpx.Request("POST", "https://api.resend.com/emails")
         rate_limited = httpx.HTTPStatusError("429", request=request, response=httpx.Response(429))
 
-        with patch("app.utils.email_utils.send_email", side_effect=rate_limited):
-            with caplog.at_level(logging.ERROR, logger="app.utils.email_utils"):
+        with patch("app.services.email_outbox.send_email", side_effect=rate_limited):
+            with caplog.at_level(logging.WARNING, logger="app.services.email_outbox"):
                 result = mock_household_service.create_invite(
                     household=context,
                     invite_create=HouseholdInviteCreate(email="partner@example.com"),
@@ -653,9 +655,12 @@ class TestCreateInvite:
         # The invite is real and reported as such, so the owner is not told to
         # retry an invitation that the pending guard would then reject.
         assert result.status is HouseholdInviteStatus.PENDING
-        mock_household_service.session.commit.assert_called_once()
         assert "partner@example.com" in caplog.text
         assert "HTTPStatusError" in caplog.text
+        # The invitee is still owed the mail, so it is waiting to be retried.
+        queued = mock_household_service.session.add.call_args.args[0]
+        assert isinstance(queued, EmailOutbox)
+        assert queued.status == EmailOutboxStatus.PENDING
 
     def test_binds_the_invite_to_the_account_that_proved_the_address(
         self,
