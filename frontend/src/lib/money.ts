@@ -10,7 +10,7 @@
 const fractionDigitsCache = new Map<string, number>()
 
 /** Get how many decimal places a currency uses, e.g. 2 for EUR, 0 for JPY. */
-function fractionDigits(currency: string): number {
+export function fractionDigits(currency: string): number {
   const cached = fractionDigitsCache.get(currency)
   if (cached !== undefined) return cached
 
