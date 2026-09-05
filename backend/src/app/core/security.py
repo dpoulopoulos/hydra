@@ -190,10 +190,10 @@ def get_password_hash(password: str) -> str:
     """Hash a password using bcrypt.
 
     Args:
-       password: The plain text password to hash.
+        password: The plain text password to hash.
 
     Returns:
-       Bcrypt hashed password string.
+        Bcrypt hashed password string.
     """
     return pwd_context.hash(password)
 

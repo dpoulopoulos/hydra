@@ -199,9 +199,7 @@ class TestSettings:
 
         assert "POSTGRES_PASSWORD" in str(exc_info.value)
 
-    def test_explicit_empty_postgres_password_accepted_in_production_environment(
-        self, base_settings_env, monkeypatch
-    ):
+    def test_explicit_empty_postgres_password_accepted_in_production_environment(self, base_settings_env, monkeypatch):
         """Test that an explicitly empty POSTGRES_PASSWORD boots the production environment.
 
         A host that authenticates the database connection another way, with peer or trust auth,
@@ -255,9 +253,7 @@ class TestSettings:
 
         assert "FIRST_SUPERUSER_PASSWORD" in str(exc_info.value)
 
-    def test_explicit_first_superuser_password_accepted_in_production_environment(
-        self, base_settings_env, monkeypatch
-    ):
+    def test_explicit_first_superuser_password_accepted_in_production_environment(self, base_settings_env, monkeypatch):
         """Test that a real FIRST_SUPERUSER_PASSWORD boots the production environment."""
         # Arrange: Set up production environment with a real FIRST_SUPERUSER_PASSWORD
         monkeypatch.setenv("FIRST_SUPERUSER_PASSWORD", "an-explicit-production-password")
