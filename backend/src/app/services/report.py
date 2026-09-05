@@ -7,6 +7,7 @@ from sqlmodel import Session
 
 from app.exceptions import CategoryNotFoundError, InvalidDateRangeError, ReportRangeTooLargeError
 from app.models import (
+    AccountType,
     BudgetProgressReport,
     BudgetProgressRow,
     CategoryDepth,
@@ -31,6 +32,7 @@ from app.repositories.report import ReportRepository
 from app.repositories.rows import MonthlyFlowRow, TimeBucketRow
 
 if TYPE_CHECKING:
+    from app.services.investment import InvestmentService
     from app.services.recurring_rule import RecurringRuleService
 
 # Guards on how much a single request can ask for. Daily buckets over decades
@@ -501,6 +503,7 @@ class ReportService:
         household: HouseholdContext,
         month: str,
         recurring_rule_service: "RecurringRuleService | None" = None,
+        investment_service: "InvestmentService | None" = None,
     ) -> MonthSummaryReport:
         """Gather the dashboard figures for one month.
 
@@ -513,6 +516,11 @@ class ReportService:
             recurring_rule_service: Optional recurring rule service. When given,
                 any recurring transactions that have fallen due are recorded
                 first, so the dashboard is not out of date the moment it loads.
+            investment_service: Optional investment service. When given, what
+                the holdings are worth is added to net worth. Left out, net
+                worth is the accounts alone, which is what it was before there
+                were any investments and what it stays for a deployment with
+                the feature switched off.
 
         Returns:
             The month's totals, the current net worth, and the biggest categories.
@@ -536,6 +544,10 @@ class ReportService:
         accounts, _ = self.account_repository.list_for_household(
             household_id=household.household_id, include_archived=False, limit=1000
         )
+        # Every account counts, brokerage included. A brokerage balance is
+        # cash actually sitting with the broker: buying takes it out and turns
+        # it into a holding, so it and the holdings can never describe the same
+        # money at the same time, and adding both counts nothing twice.
         balances = self.account_repository.balances_of(
             account_ids=[account.id for account in accounts], household_id=household.household_id
         )
@@ -543,12 +555,34 @@ class ReportService:
         progress = self.budget_progress(household=household, month=month)
         breakdown = self.spend_by_category(household=household, month=month)
 
+        # Split by where the money sits rather than summed, so the dashboard can
+        # show one part at a time.
+        by_id = {account.id: account for account in accounts}
+        bank_minor = sum(
+            balance for account_id, balance in balances.items() if by_id[account_id].type != AccountType.BROKERAGE
+        )
+        brokerage_minor = sum(balances.values()) - bank_minor
+        assets_minor = 0
+        unpriced_asset_count = 0
+
+        if investment_service is not None:
+            # Read from stored prices, never fetched. The dashboard must not
+            # wait on somebody else's server, and must not spend an API call to
+            # be opened.
+            portfolio = investment_service.get_portfolio(household=household)
+            assets_minor = portfolio.total_market_value_minor
+            unpriced_asset_count = portfolio.unpriced_count
+
         return MonthSummaryReport(
             period=self._period(household=household, date_from=date_from, date_to=date_to),
             income_minor=income,
             expense_minor=expense,
             net_minor=income - expense,
-            net_worth_minor=sum(balances.values()),
+            bank_minor=bank_minor,
+            brokerage_minor=brokerage_minor,
+            assets_minor=assets_minor,
+            net_worth_minor=bank_minor + brokerage_minor + assets_minor,
+            unpriced_asset_count=unpriced_asset_count,
             budgeted_minor=progress.total_limit_minor,
             over_budget_category_count=sum(1 for row in progress.rows if row.is_over_budget),
             transaction_count=transaction_count,

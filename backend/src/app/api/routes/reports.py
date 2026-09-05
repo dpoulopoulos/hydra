@@ -3,7 +3,12 @@ import uuid
 
 from fastapi import APIRouter, Query, status
 
-from app.api.deps import CurrentHousehold, RecurringRuleServiceDep, ReportServiceDep
+from app.api.deps import (
+    CurrentHousehold,
+    InvestmentServiceDep,
+    RecurringRuleServiceDep,
+    ReportServiceDep,
+)
 from app.exceptions import InvalidDateRangeError, ReportRangeTooLargeError, ServiceError
 from app.models import (
     BudgetProgressReport,
@@ -175,6 +180,7 @@ def month_summary(
     *,
     report_service: ReportServiceDep,
     recurring_rule_service: RecurringRuleServiceDep,
+    investment_service: InvestmentServiceDep,
     household: CurrentHousehold,
     month: str = Query(pattern=MONTH_KEY_PATTERN),
 ) -> MonthSummaryReport:
@@ -188,6 +194,8 @@ def month_summary(
         report_service: The report service dependency.
         recurring_rule_service: The recurring rule service dependency, used to
             bring the ledger up to date before reading it.
+        investment_service: The investment service dependency, used to value
+            the holdings from their stored prices.
         household: The current household context.
         month: The month, in "YYYY-MM" form.
 
@@ -198,4 +206,9 @@ def month_summary(
     Raises:
         HTTPException: If the month is not in "YYYY-MM" form (422).
     """
-    return report_service.month_summary(household=household, month=month, recurring_rule_service=recurring_rule_service)
+    return report_service.month_summary(
+        household=household,
+        month=month,
+        recurring_rule_service=recurring_rule_service,
+        investment_service=investment_service,
+    )
