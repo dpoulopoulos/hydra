@@ -589,7 +589,8 @@ export const householdsPreviewHouseholdInvite = <ThrowOnError extends boolean = 
  * The categories.
  *
  * Raises:
- * HTTPException: If the user belongs to no household (404).
+ * HTTPException: If the user belongs to no household, or the parent
+ * filter names a category outside it (404).
  */
 export const categoriesListCategories = <ThrowOnError extends boolean = false>(options?: Options<CategoriesListCategoriesData, ThrowOnError>): RequestResult<CategoriesListCategoriesResponses, CategoriesListCategoriesErrors, ThrowOnError> => (options?.client ?? client).get<CategoriesListCategoriesResponses, CategoriesListCategoriesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

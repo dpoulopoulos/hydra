@@ -756,7 +756,8 @@ export const categoriesListCategoriesQueryKey = (options?: Options<CategoriesLis
  * The categories.
  *
  * Raises:
- * HTTPException: If the user belongs to no household (404).
+ * HTTPException: If the user belongs to no household, or the parent
+ * filter names a category outside it (404).
  */
 export const categoriesListCategoriesOptions = (options?: Options<CategoriesListCategoriesData>) => queryOptions<CategoriesListCategoriesResponse, CategoriesListCategoriesError, CategoriesListCategoriesResponse, ReturnType<typeof categoriesListCategoriesQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
