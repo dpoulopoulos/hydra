@@ -134,7 +134,6 @@ class TestApportionMinor:
         """
         # Arrange: Set up a basis that does not divide evenly by three
         remaining = 100
-        held = 3
 
         # Act: Sell the position one unit at a time
         for units_left in (3, 2, 1):

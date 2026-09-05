@@ -393,7 +393,7 @@ class TestDocstringsMatchSignatures:
     def test_documented_args_match_signature(self, func: Callable[..., Any]) -> None:
         """Every generator documents exactly the parameters it accepts."""
         # Arrange: Read the parameters the function actually takes
-        expected = [name for name in inspect.signature(func).parameters]
+        expected = list(inspect.signature(func).parameters)
 
         # Act: Read the parameters the docstring claims it takes
         documented = self._documented_args(func)

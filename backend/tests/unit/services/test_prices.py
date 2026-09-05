@@ -431,7 +431,7 @@ class TestFrankfurterFxProvider:
         # Arrange: Record every request and answer with three rates out of USD
         calls: list[tuple[str, dict[str, str]]] = []
 
-        def fake(url: str, params: dict[str, str], timeout_seconds: float, redact: set[str] | None = None) -> Any:
+        def fake(url: str, params: dict[str, str], **_kwargs: Any) -> Any:
             calls.append((url, params))
             return {"base": "USD", "date": "2026-09-04", "rates": {"EUR": 0.86044, "GBP": 0.74, "CHF": 0.8}}
 
@@ -512,7 +512,7 @@ class TestEodhdProvider:
         # Arrange: Answer a batched request with a row per symbol
         calls: list[tuple[str, dict[str, str]]] = []
 
-        def fake(url: str, params: dict[str, str], timeout_seconds: float, redact: set[str] | None = None) -> Any:
+        def fake(url: str, params: dict[str, str], **_kwargs: Any) -> Any:
             calls.append((url, params))
             return [
                 {"code": "VUAA.XETRA", "close": 105.5, "timestamp": 1788553740},
@@ -652,7 +652,7 @@ class TestEodhdProvider:
         # Arrange: Record which host is asked
         hosts: list[str] = []
 
-        def fake(url: str, params: dict[str, str], timeout_seconds: float, redact: set[str] | None = None) -> Any:
+        def fake(url: str, _params: dict[str, str], **_kwargs: Any) -> Any:
             hosts.append(url)
             return {"date": "2026-09-04", "rates": {"EUR": 0.9}}
 

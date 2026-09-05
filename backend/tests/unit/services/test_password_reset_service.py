@@ -195,7 +195,7 @@ class TestRequestPasswordReset:
                     mock_email_data.html_content = "<html>Reset link</html>"
                     mock_generate.return_value = mock_email_data
 
-                    result = mock_password_reset_service.request_password_reset(
+                    mock_password_reset_service.request_password_reset(
                         user_service=mock_user_service, email=test_user.email
                     )
 
