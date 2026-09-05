@@ -147,7 +147,16 @@ class CategoryService:
 
         Returns:
             The categories.
+
+        Raises:
+            CategoryNotFoundError: If the parent filter names a category
+                outside the household.
         """
+        if parent_id is not None:
+            # Resolved through the scoped repository, so filtering by another
+            # household's parent is a 404 rather than an empty list.
+            self._require_category(household=household, category_id=parent_id)
+
         categories = self.category_repository.list_for_household(
             household_id=household.household_id,
             include_archived=include_archived,

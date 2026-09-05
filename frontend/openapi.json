@@ -973,7 +973,7 @@
           "categories"
         ],
         "summary": "List Categories",
-        "description": "List the categories of the household as a flat list.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    include_archived: Whether to include archived categories.\n    kind: An optional kind to filter on.\n    parent_id: An optional parent to filter on.\n\nReturns:\n    The categories.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
+        "description": "List the categories of the household as a flat list.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    include_archived: Whether to include archived categories.\n    kind: An optional kind to filter on.\n    parent_id: An optional parent to filter on.\n\nReturns:\n    The categories.\n\nRaises:\n    HTTPException: If the user belongs to no household, or the parent\n        filter names a category outside it (404).",
         "operationId": "categories-list_categories",
         "security": [
           {

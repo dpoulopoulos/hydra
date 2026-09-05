@@ -147,6 +147,17 @@ class TestListCategories:
         assert kwargs["kind"] is CategoryKind.INCOME
         assert kwargs["parent_id"] == parent_id
 
+    def test_a_parent_filter_from_another_household_is_not_found(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        wire.list_categories.side_effect = CategoryNotFoundError
+
+        response = client.get(
+            "/api/v1/categories/", headers=auth_headers, params={"parent_id": str(uuid.uuid4())}
+        )
+
+        assert response.status_code == 404
+
     def test_rejects_an_unknown_kind(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:

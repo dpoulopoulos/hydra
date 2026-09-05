@@ -181,6 +181,30 @@ class TestCreateCategory:
             )
 
 
+class TestListCategories:
+    """Tests for list_categories."""
+
+    def test_returns_the_categories_of_the_household(
+        self, mock_category_service: CategoryService, household_context: HouseholdContext
+    ) -> None:
+        mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.all.return_value = [make_category()]
+
+        result = mock_category_service.list_categories(household=household_context)
+
+        assert result.count == 1
+
+    def test_a_parent_filter_from_another_household_is_not_found(
+        self, mock_category_service: CategoryService, household_context: HouseholdContext
+    ) -> None:
+        """A foreign parent reads as 404 rather than quietly returning an empty list."""
+        mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.first.return_value = None
+
+        with pytest.raises(CategoryNotFoundError):
+            mock_category_service.list_categories(household=household_context, parent_id=uuid.uuid4())
+
+
 class TestGetCategoryTree:
     """Tests for get_category_tree."""
 

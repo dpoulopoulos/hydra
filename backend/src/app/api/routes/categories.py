@@ -86,7 +86,8 @@ def list_categories(
         The categories.
 
     Raises:
-        HTTPException: If the user belongs to no household (404).
+        HTTPException: If the user belongs to no household, or the parent
+            filter names a category outside it (404).
     """
     return category_service.list_categories(
         household=household, include_archived=include_archived, kind=kind, parent_id=parent_id
