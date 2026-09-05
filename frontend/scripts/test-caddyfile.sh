@@ -28,19 +28,42 @@ mkdir -p "$srv/static"
 echo '<!doctype html><title>hydra</title>' > "$srv/index.html"
 echo 'export const answer = 42' > "$srv/static/app.js"
 
-docker run --rm --detach --name "$container" \
+# Deliberately not --rm: a Caddyfile it cannot parse makes Caddy exit at once,
+# and the container has to outlive that for its log to still be readable. The
+# trap removes it either way.
+docker run --detach --name "$container" \
   --publish 127.0.0.1:0:8080 \
   --volume "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
   --volume "$srv:/srv:ro" \
   "$image" caddy run --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
 
-base="http://$(docker port "$container" 8080/tcp | head -1)"
+# Says why the server is not there and stops, rather than letting the checks
+# below run against nothing: they would each report an empty response, which
+# names none of the config errors that are the likely cause.
+give_up() {
+  echo "FAIL - $1. Caddy said:"
+  docker logs "$container" 2>&1 | sed "s/^/  /"
+  exit 1
+}
+
+port=$(docker port "$container" 8080/tcp 2>/dev/null | head -1 || true)
+[ -n "$port" ] || give_up "the server published no port"
+base="http://$port"
 
 # The server needs a moment to bind before the first request.
+ready=""
 for _ in $(seq 1 50); do
-  curl --silent --fail --output /dev/null "$base/" && break
+  if curl --silent --fail --output /dev/null "$base/"; then
+    ready=yes
+    break
+  fi
+  # A container that has already exited is never going to answer, so there is
+  # nothing left to wait for.
+  running=$(docker inspect --format "{{.State.Running}}" "$container" 2>/dev/null || true)
+  [ "$running" = "true" ] || break
   sleep 0.2
 done
+[ -n "$ready" ] || give_up "the server never answered"
 
 # Reports one expectation, and remembers a failure without stopping: a run
 # should list everything that is wrong, not only the first thing.
