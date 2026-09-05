@@ -1,7 +1,7 @@
 """add category archived_with_parent
 
 Revision ID: b41c7e5a9d02
-Revises: f19070ecfd19
+Revises: 2cd2b8081af4
 Create Date: 2026-09-05 09:12:44.108733
 
 """
@@ -16,7 +16,7 @@ import sqlmodel
 
 # revision identifiers, used by Alembic.
 revision: str = 'b41c7e5a9d02'
-down_revision: Union[str, Sequence[str], None] = 'f19070ecfd19'
+down_revision: Union[str, Sequence[str], None] = '2cd2b8081af4'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
