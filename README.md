@@ -18,8 +18,8 @@ manage the same accounts, categories, budgets and transactions.
   are wired, and where each builds from.
 - `DEPLOY.md` — deploying to Railway, step by step.
 - `.github/workflows/` — CI checks on every pull request, over both halves:
-  format, lint, tests, migrations, the frontend build, and whether the generated
-  API client is still in sync.
+  format, lint, tests, migrations, the frontend build, the production server
+  config, and whether the generated API client is still in sync.
 
 ## What it does
 
