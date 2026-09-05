@@ -105,3 +105,9 @@ class Category(CategoryBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, ta
     # no category, so they cannot be renamed away, archived or deleted.
     is_system: bool = Field(default=False)
     archived_at: datetime.datetime | None = Field(default=None)
+    # Set only on a subcategory that an archive of its parent took down with
+    # it. A child archived on its own keeps this False, so restoring the parent
+    # can put back exactly the branch the cascade retired and leave that child
+    # alone. Deliberately not exposed on the response models: it is bookkeeping
+    # for the cascade, not a property of the category the household edits.
+    archived_with_parent: bool = Field(default=False)
