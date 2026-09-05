@@ -180,6 +180,18 @@ class RecurringRuleService:
         falls due, but never backwards past what has already been created, so
         an edit cannot duplicate a transaction that already exists.
 
+        The whole row is re-validated after the change rather than only the
+        fields that were sent, the way an edited transaction is. Which shape
+        rules apply depends on the kind, so checking a field in isolation would
+        let a rule through that the table itself refuses: giving a transfer
+        rule a category passes a category check and then breaks on the flush.
+
+        The accounts are the exception: they are only looked up when the edit
+        names one, which no editable field does today. An account archived
+        after the rule was made would otherwise block every edit of the rule,
+        pausing included, leaving deletion as the only way to act on a rule
+        whose account has gone, and taking the rule's history with it.
+
         Args:
             household: The household context.
             rule_id: The ID of the rule to edit.
@@ -190,20 +202,24 @@ class RecurringRuleService:
 
         Raises:
             RecurringRuleNotFoundError: If the rule does not exist in the household.
+            AccountNotFoundError: If an account the edit names does not exist in the household.
+            AccountArchivedError: If an account the edit names is archived.
             CategoryNotFoundError: If the category does not exist in the household.
+            TransferShapeError: If the change does not match the kind.
             TransactionCategoryKindError: If the category is the wrong kind.
             InvalidRecurrenceError: If the new schedule would never come due.
         """
         rule = self._require_rule(household=household, rule_id=rule_id)
         fields = rule_update.model_dump(exclude_unset=True)
 
-        if fields.get("category_id") is not None:
-            self._resolve_category(
-                household=household,
-                category_id=fields["category_id"],
-                kind=fields.get("kind", rule.kind),
-            )
-
+        self._validate_references(
+            household=household,
+            kind=fields.get("kind", rule.kind),
+            account_id=fields.get("account_id", rule.account_id),
+            counter_account_id=fields.get("counter_account_id", rule.counter_account_id),
+            category_id=fields.get("category_id", rule.category_id),
+            check_accounts=bool({"account_id", "counter_account_id"} & fields.keys()),
+        )
         self._validate_schedule(start_date=rule.start_date, end_date=fields.get("end_date", rule.end_date))
         rule.sqlmodel_update(fields)
 
@@ -509,6 +525,7 @@ class RecurringRuleService:
         account_id: uuid.UUID,
         counter_account_id: uuid.UUID | None,
         category_id: uuid.UUID | None,
+        check_accounts: bool = True,
     ) -> None:
         """Check the accounts and category a rule will use.
 
@@ -521,6 +538,9 @@ class RecurringRuleService:
             account_id: The account it draws on.
             counter_account_id: The destination account, for a transfer.
             category_id: The category, for an expense or income.
+            check_accounts: Whether to look the accounts up and check they can
+                still take transactions. An edit that names no account leaves
+                this off: see `update_rule`.
 
         Raises:
             AccountNotFoundError: If an account does not exist in the household.
@@ -539,13 +559,14 @@ class RecurringRuleService:
         elif counter_account_id is not None:
             raise TransferShapeError("Only a transfer rule has a destination account.") from None
 
-        self._resolve_account(household=household, account_id=account_id)
+        if counter_account_id is not None and counter_account_id == account_id:
+            raise SameAccountTransferError from None
 
-        if counter_account_id is not None:
-            if counter_account_id == account_id:
-                raise SameAccountTransferError from None
+        if check_accounts:
+            self._resolve_account(household=household, account_id=account_id)
 
-            self._resolve_account(household=household, account_id=counter_account_id)
+            if counter_account_id is not None:
+                self._resolve_account(household=household, account_id=counter_account_id)
 
         if category_id is not None:
             self._resolve_category(household=household, category_id=category_id, kind=kind)
