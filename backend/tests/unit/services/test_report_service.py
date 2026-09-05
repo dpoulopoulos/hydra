@@ -342,6 +342,32 @@ class TestSpendOverTime:
         statement = str(mock_report_service.session.execute.call_args.args[0])
         assert "category_id IN" in statement
 
+    def test_the_category_filter_is_checked_without_loading_the_row(
+        self,
+        mock_report_service: ReportService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        """Only the category's existence matters here, so only its id is asked for."""
+        category_id = uuid.uuid4()
+        mock_report_service.session.exec = MagicMock()
+        mock_report_service.session.exec.return_value.first.return_value = category_id
+        mock_report_service.session.exec.return_value.all.return_value = []
+        mock_report_service.session.execute = MagicMock()
+        mock_report_service.session.execute.return_value.all.return_value = []
+        mock_report_service.session.get = MagicMock(return_value=household)
+
+        mock_report_service.spend_over_time(
+            household=household_context,
+            date_from=date(2026, 3, 1),
+            date_to=date(2026, 3, 31),
+            category_id=category_id,
+        )
+
+        statement = str(mock_report_service.session.exec.call_args_list[0].args[0])
+        assert statement.startswith("SELECT category.id")
+        assert "category.name" not in statement
+
     def test_a_category_from_another_household_is_not_found(
         self, mock_report_service: ReportService, household_context: HouseholdContext
     ) -> None:

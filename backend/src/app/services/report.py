@@ -382,11 +382,9 @@ class ReportService:
         Raises:
             CategoryNotFoundError: If the category does not exist in the household.
         """
-        category = self.category_repository.get_for_household(
+        if not self.category_repository.exists_for_household(
             entity_id=category_id, household_id=household.household_id
-        )
-
-        if not category:
+        ):
             raise CategoryNotFoundError from None
 
         children = self.category_repository.list_for_household(
