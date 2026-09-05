@@ -150,9 +150,9 @@ openssl rand -hex 32 | railway variable set --service backend SECRET_KEY --stdin
 
 | Variable | What it is |
 |---|---|
-| `SECRET_KEY` | Signs the session tokens. The app refuses to start without it. Changing it later signs everyone out. |
+| `SECRET_KEY` | Signs the session tokens. The app refuses to start without it, or on an empty one. Changing it later signs everyone out. |
 | `FIRST_SUPERUSER` | The address you will sign in with. |
-| `FIRST_SUPERUSER_PASSWORD` | Its password. |
+| `FIRST_SUPERUSER_PASSWORD` | Its password. The app refuses to start on an empty one. |
 | `RESEND_API_KEY` | An API key from Resend. |
 | `EMAILS_FROM_EMAIL` | An address on a domain Resend has verified for you. |
 

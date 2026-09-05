@@ -270,15 +270,15 @@ Key settings:
 |---------|-------------|---------|
 | `PROJECT_NAME` | Human readable project name | Required |
 | `PROJECT_ID` | Identifier used as the JWT issuer and audience | Required |
-| `SECRET_KEY` | JWT signing key | Generated per process in `local`, required elsewhere |
+| `SECRET_KEY` | JWT signing key | Generated per process in `local`, required and non-empty elsewhere |
 | `SESSION_TOKEN_EXPIRE_HOURS` | Session token lifetime | 192 (8 days) |
 | `POSTGRES_SERVER` | Database host | Required |
 | `POSTGRES_PORT` | Database port | `5432` |
 | `POSTGRES_DB` | Database name | `""` |
 | `POSTGRES_USER` | Database user | Required |
-| `POSTGRES_PASSWORD` | Database password | `""` |
+| `POSTGRES_PASSWORD` | Database password | Required outside `local`, and may be empty only when set on purpose |
 | `FIRST_SUPERUSER` | Seeded superuser address | Required |
-| `FIRST_SUPERUSER_PASSWORD` | Seeded superuser password | Required |
+| `FIRST_SUPERUSER_PASSWORD` | Seeded superuser password | Required, and non-empty outside `local` |
 | `BACKEND_CORS_ORIGINS` | Allowed CORS origins | `[]` |
 | `FRONTEND_HOST` | Base URL used in email links | `http://localhost:5173` |
 | `HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS` | Household invitation lifetime | 168 (7 days) |
@@ -288,9 +288,18 @@ Key settings:
 | `RUN_PRESTART` | Whether the entrypoint migrates and seeds before serving | `true` |
 
 The `Settings` class validates that "changethis" values are not used outside the `local` environment, where it warns
-instead. `SECRET_KEY` is held to the same standard when it is absent altogether: outside `local` the app refuses to
-start without one, because the generated fallback differs per process, which signs sessions with a key the next replica
-or the next restart cannot verify.
+instead. The secrets are held to the same standard when nobody set them at all, because a field with a default is never
+missing as far as pydantic is concerned, and a deployment that boots on a default gives no other sign that it did:
+
+- `SECRET_KEY` and `POSTGRES_PASSWORD` must come from the environment. Outside `local` the app refuses to start
+  otherwise. The generated `SECRET_KEY` fallback differs per process, which signs sessions with a key the next replica
+  or the next restart cannot verify; `POSTGRES_PASSWORD` falls back to an empty password.
+- `POSTGRES_PASSWORD` may still be empty when it was set on purpose, for a host that authenticates the connection with
+  peer or trust auth and has no password to give.
+- `SECRET_KEY` and `FIRST_SUPERUSER_PASSWORD` may not be empty outside `local`. An empty `SECRET_KEY` signs session
+  tokens and every reset, verification and invite link with nothing, which anyone can reproduce;
+  `FIRST_SUPERUSER_PASSWORD` seeds the first account in the database, and an empty value gives that account a hash of
+  `""`.
 
 `EMAIL_PROVIDER` exists because some hosts block outgoing SMTP. `smtp` talks to a mail server, which is what the local
 mail catcher offers. `resend` posts to an HTTPS API instead, and needs `RESEND_API_KEY`.
