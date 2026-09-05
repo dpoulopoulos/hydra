@@ -58,7 +58,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { errorMessage } from '@/lib/api'
 import { PASSWORD_HINT, passwordSchema } from '@/lib/password'
-import { formatDate } from '@/lib/month'
+import { formatInstantAsDate } from '@/lib/month'
 
 const PAGE_SIZE = 25
 
@@ -219,7 +219,7 @@ export function Component() {
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDate(row.created_at)}
+                      {formatInstantAsDate(row.created_at)}
                     </TableCell>
                     <TableCell>
                       {row.id === user?.id ? null : (
