@@ -33,7 +33,7 @@ jobs:
 
       # ruff neither imports nor runs the code, so no .env is needed here.
       - name: Check formatting
-        run: uv run ruff format --check --diff src scripts
+        run: uv run ruff format --check --diff src scripts tests
 
   prettier:
     name: prettier
