@@ -138,9 +138,10 @@ describe('formatDate', () => {
     expect(formatDate('2026-03-04', { day: 'numeric', month: 'long' })).toBe('March 4')
   })
 
-  // The three callers that pass a timestamp get the UTC calendar day, because
-  // the time and the zone are cut off before the date is built. It reads right
-  // from UTC and a day off elsewhere; #36 is the fix.
+  // The time and the zone are cut off before the date is built, so a
+  // timestamp handed to this formatter reads right from UTC and a day off
+  // elsewhere. Timestamps go to formatInstantAsDate and formatDateTime
+  // instead; this pins what the plain-date formatter does with one.
   it('cuts the time off a timestamp instead of converting it', () => {
     expect(formatDate('2026-03-04T23:30:00Z')).toBe(formatDate('2026-03-04'))
     expect(formatDate('2026-03-04T00:30:00+05:00')).toBe(formatDate('2026-03-04'))
@@ -172,6 +173,14 @@ describe('formatInstantAsDate', () => {
     expect(formatInstantAsDate('2026-09-12T02:00:00Z')).toBe(formatted(new Date(2026, 8, 11)))
   })
 
+  it('reads a timestamp that carries no offset as UTC', () => {
+    // What the API actually sends: its datetime columns hold UTC, but they are
+    // serialised without a zone, and an offsetless date-time is local time.
+    viewerIn('Asia/Dubai')
+
+    expect(formatInstantAsDate('2026-09-11T21:00:00.349195')).toBe(formatted(new Date(2026, 8, 12)))
+  })
+
   it('takes the same options as the other formatters', () => {
     viewerIn('Asia/Dubai')
 
@@ -190,6 +199,20 @@ describe('formatDateTime', () => {
 
   it('carries the offset the timestamp was written with', () => {
     expect(formatDateTime('2026-03-04T14:30:00+02:00')).toBe('Mar 4, 2026, 12:30 PM')
+  })
+
+  it('reads a timestamp that carries no offset as UTC', () => {
+    viewerIn('Asia/Dubai')
+
+    expect(formatDateTime('2026-09-11T21:00:00.349195')).toBe(
+      formatted(new Date(2026, 8, 12, 1, 0), {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    )
   })
 
   it('converts an instant to the viewer timezone', () => {
