@@ -124,6 +124,43 @@ class TestSettings:
         # Assert: Verify the explicit key was kept
         assert settings.SECRET_KEY == "an-explicit-production-key"
 
+    def test_empty_secret_key_warning_in_local_environment(self, base_settings_env, monkeypatch):
+        """Test that an empty SECRET_KEY only warns in the local environment."""
+        # Arrange: Set an empty SECRET_KEY
+        monkeypatch.setenv("SECRET_KEY", "")
+
+        # Act: Create settings instance and capture warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            Settings(_env_file=None)  # type: ignore
+
+            # Assert: Verify the empty key was reported
+            assert any("SECRET_KEY" in str(warning.message) for warning in w)
+
+    def test_empty_secret_key_error_in_staging_environment(self, base_settings_env, monkeypatch):
+        """Test that an empty SECRET_KEY is rejected in the staging environment."""
+        # Arrange: Set up staging environment with an empty SECRET_KEY
+        monkeypatch.setenv("SECRET_KEY", "")
+        monkeypatch.setenv("ENVIRONMENT", "staging")
+
+        # Act & Assert: Verify ValueError is raised for the empty SECRET_KEY
+        with pytest.raises(ValueError) as exc_info:
+            Settings(_env_file=None)  # type: ignore
+
+        assert "SECRET_KEY" in str(exc_info.value)
+
+    def test_empty_secret_key_error_in_production_environment(self, base_settings_env, monkeypatch):
+        """Test that an empty SECRET_KEY is rejected in the production environment."""
+        # Arrange: Set up production environment with an empty SECRET_KEY
+        monkeypatch.setenv("SECRET_KEY", "")
+        monkeypatch.setenv("ENVIRONMENT", "production")
+
+        # Act & Assert: Verify ValueError is raised for the empty SECRET_KEY
+        with pytest.raises(ValueError) as exc_info:
+            Settings(_env_file=None)  # type: ignore
+
+        assert "SECRET_KEY" in str(exc_info.value)
+
     def test_unset_postgres_password_warning_in_local_environment(self, base_settings_env, monkeypatch):
         """Test that an unset POSTGRES_PASSWORD only warns in the local environment."""
         # Arrange: Remove POSTGRES_PASSWORD so the empty default is used
@@ -180,6 +217,57 @@ class TestSettings:
 
         # Assert: Verify the empty password was accepted
         assert settings.POSTGRES_PASSWORD == ""
+
+    def test_empty_first_superuser_password_warning_in_local_environment(self, base_settings_env, monkeypatch):
+        """Test that an empty FIRST_SUPERUSER_PASSWORD only warns in the local environment."""
+        # Arrange: Set an empty FIRST_SUPERUSER_PASSWORD
+        monkeypatch.setenv("FIRST_SUPERUSER_PASSWORD", "")
+
+        # Act: Create settings instance and capture warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            Settings(_env_file=None)  # type: ignore
+
+            # Assert: Verify the empty password was reported
+            assert any("FIRST_SUPERUSER_PASSWORD" in str(warning.message) for warning in w)
+
+    def test_empty_first_superuser_password_error_in_staging_environment(self, base_settings_env, monkeypatch):
+        """Test that an empty FIRST_SUPERUSER_PASSWORD is rejected in the staging environment."""
+        # Arrange: Set up staging environment with an empty FIRST_SUPERUSER_PASSWORD
+        monkeypatch.setenv("FIRST_SUPERUSER_PASSWORD", "")
+        monkeypatch.setenv("ENVIRONMENT", "staging")
+
+        # Act & Assert: Verify ValueError is raised for the empty FIRST_SUPERUSER_PASSWORD
+        with pytest.raises(ValueError) as exc_info:
+            Settings(_env_file=None)  # type: ignore
+
+        assert "FIRST_SUPERUSER_PASSWORD" in str(exc_info.value)
+
+    def test_empty_first_superuser_password_error_in_production_environment(self, base_settings_env, monkeypatch):
+        """Test that an empty FIRST_SUPERUSER_PASSWORD is rejected in the production environment."""
+        # Arrange: Set up production environment with an empty FIRST_SUPERUSER_PASSWORD
+        monkeypatch.setenv("FIRST_SUPERUSER_PASSWORD", "")
+        monkeypatch.setenv("ENVIRONMENT", "production")
+
+        # Act & Assert: Verify ValueError is raised for the empty FIRST_SUPERUSER_PASSWORD
+        with pytest.raises(ValueError) as exc_info:
+            Settings(_env_file=None)  # type: ignore
+
+        assert "FIRST_SUPERUSER_PASSWORD" in str(exc_info.value)
+
+    def test_explicit_first_superuser_password_accepted_in_production_environment(
+        self, base_settings_env, monkeypatch
+    ):
+        """Test that a real FIRST_SUPERUSER_PASSWORD boots the production environment."""
+        # Arrange: Set up production environment with a real FIRST_SUPERUSER_PASSWORD
+        monkeypatch.setenv("FIRST_SUPERUSER_PASSWORD", "an-explicit-production-password")
+        monkeypatch.setenv("ENVIRONMENT", "production")
+
+        # Act: Create settings instance
+        settings = Settings(_env_file=None)  # type: ignore
+
+        # Assert: Verify the password was kept
+        assert settings.FIRST_SUPERUSER_PASSWORD == "an-explicit-production-password"
 
 
 class TestParseCors:
