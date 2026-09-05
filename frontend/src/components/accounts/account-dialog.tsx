@@ -67,6 +67,14 @@ type Schema = ReturnType<typeof buildSchema>
 type Values = z.input<Schema>
 type Parsed = z.output<Schema>
 
+// React Compiler will not memoize a component that calls React Hook Form's
+// `watch()`, and skips it whole. That skip is what this form relies on:
+// `form.reset()` empties the field map and counts on the next render calling
+// `register()` again, which a memoized render never repeats, leaving every
+// field unregistered and the form with nothing to save. Nothing goes stale in
+// return, since `watch()` re-renders this component and the controls under it
+// are handed the value from that render.
+/* eslint-disable react-hooks/incompatible-library -- skipping this one is the point; see above */
 export function AccountDialog({
   open,
   account,
