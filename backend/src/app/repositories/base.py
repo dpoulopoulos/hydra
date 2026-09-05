@@ -155,6 +155,10 @@ class HouseholdScopedRepository[T: SQLModel](BaseRepository[T]):
 
         self.id_column = columns["id"]
         self.household_column = columns["household_id"]
+        # Optional: only some household-owned models can be archived. Absence is
+        # caught in _archived_conditions rather than here, so a model that has
+        # no use for archiving is still allowed to be household scoped.
+        self.archived_column = columns.get("archived_at")
 
     def get_for_household(self, entity_id: UUID, household_id: UUID) -> T | None:
         """Get an entity by ID within a household.
@@ -168,6 +172,27 @@ class HouseholdScopedRepository[T: SQLModel](BaseRepository[T]):
         """
         statement = select(self.model_class).where(self.id_column == entity_id, self.household_column == household_id)
         return self.session.exec(statement).first()
+
+    def _archived_conditions(self, include_archived: bool) -> list[Any]:
+        """Build the WHERE clauses that keep archived rows out of a listing.
+
+        Archiving is the same idea wherever it appears, so the predicate is
+        written once here rather than in each repository that offers it.
+
+        Args:
+            include_archived: Whether archived rows should be included.
+
+        Returns:
+            The conditions to apply, empty when archived rows are wanted.
+
+        Raises:
+            TypeError: If the model has no ``archived_at`` column, which means
+                the caller is asking a question the model cannot answer.
+        """
+        if self.archived_column is None:
+            raise TypeError(f"{self.model_class.__name__} has no archived_at column and cannot be filtered on it.")
+
+        return [] if include_archived else [self.archived_column.is_(None)]
 
     def exists_for_household(self, entity_id: UUID, household_id: UUID) -> bool:
         """Check whether an entity exists within a household.

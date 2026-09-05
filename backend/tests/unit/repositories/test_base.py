@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -106,6 +107,39 @@ def test_paginate_applies_the_offset_and_the_limit(repository: ScopedThingReposi
     compiled = str(statement.compile(compile_kwargs={"literal_binds": True}))
     assert "LIMIT 10" in compiled
     assert "OFFSET 20" in compiled
+
+
+class ArchivableThing(PrimaryKeyMixin, SQLModel, table=True):
+    """A stand-in household-owned table that can be archived."""
+
+    __tablename__ = "archivablething"
+
+    household_id: uuid.UUID = Field(index=True)
+    archived_at: datetime | None = Field(default=None)
+
+
+@pytest.fixture
+def archivable_repository(mock_db_session: MagicMock) -> HouseholdScopedRepository[ArchivableThing]:
+    return HouseholdScopedRepository(session=mock_db_session, model_class=ArchivableThing)
+
+
+def test_hides_the_archived_rows_by_default(
+    archivable_repository: HouseholdScopedRepository[ArchivableThing],
+) -> None:
+    conditions = archivable_repository._archived_conditions(include_archived=False)
+
+    assert [str(condition) for condition in conditions] == ["archivablething.archived_at IS NULL"]
+
+
+def test_includes_the_archived_rows_on_request(
+    archivable_repository: HouseholdScopedRepository[ArchivableThing],
+) -> None:
+    assert archivable_repository._archived_conditions(include_archived=True) == []
+
+
+def test_rejects_archiving_a_model_that_cannot_be_archived(repository: ScopedThingRepository) -> None:
+    with pytest.raises(TypeError, match="archived_at"):
+        repository._archived_conditions(include_archived=False)
 
 
 class UnscopedThing(PrimaryKeyMixin, SQLModel, table=True):

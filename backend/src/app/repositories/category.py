@@ -38,10 +38,9 @@ class CategoryRepository(HouseholdScopedRepository[Category]):
         Returns:
             The categories, ordered by sort order and then name.
         """
-        statement = select(Category).where(Category.household_id == household_id)
-
-        if not include_archived:
-            statement = statement.where(col(Category.archived_at).is_(None))
+        statement = select(Category).where(
+            self.household_column == household_id, *self._archived_conditions(include_archived)
+        )
 
         if kind is not None:
             statement = statement.where(Category.kind == kind)
