@@ -1099,7 +1099,16 @@ class IncomeService:
         span = max(1, (last_day - window_from).days)
 
         def priced(client_id: uuid.UUID, fee_minor: int, day: datetime.date) -> Trial | None:
-            """Price one appointment by who it is with and how far off it is."""
+            """Price one appointment by who it is with and how far off it is.
+
+            Args:
+                client_id: The client the appointment is with.
+                fee_minor: What the appointment is billed at, in minor units.
+                day: The date the appointment falls on.
+
+            Returns:
+                The appointment as a trial, or None when the client has no attendance rate.
+            """
             attends = rates.get(client_id)
 
             if attends is None:
