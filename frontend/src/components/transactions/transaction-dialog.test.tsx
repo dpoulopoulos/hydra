@@ -29,7 +29,16 @@ const api = await import('@/api')
 const CURRENT = '11111111-1111-1111-1111-111111111111'
 const SAVINGS = '22222222-2222-2222-2222-222222222222'
 
-function account(id: string, name: string, balanceMinor: number, currencyCode = 'EUR') {
+/** The day an account was archived, for the accounts a test closes. */
+const ARCHIVED = '2026-02-01T00:00:00Z'
+
+function account(
+  id: string,
+  name: string,
+  balanceMinor: number,
+  currencyCode = 'EUR',
+  archivedAt: string | null = null,
+) {
   return {
     id,
     name,
@@ -40,6 +49,7 @@ function account(id: string, name: string, balanceMinor: number, currencyCode = 
     opening_balance_date: '2026-01-01',
     current_balance_minor: balanceMinor,
     created_at: '2026-01-01T00:00:00Z',
+    archived_at: archivedAt,
   }
 }
 
@@ -435,5 +445,43 @@ describe('an account with a currency of its own', () => {
 
     await vi.waitFor(() => expect(amountCurrency()).toBe('JPY'))
     expect(screen.getByLabelText('Amount')).toHaveValue('2500')
+  })
+})
+
+describe('editing a transaction on an archived account', () => {
+  it('still shows the account the transaction sits on', async () => {
+    accountsAre(
+      account(CURRENT, 'Current', 50000, 'EUR', ARCHIVED),
+      account(SAVINGS, 'Savings', 900000),
+    )
+    renderEditDialog(transaction(4250))
+
+    await vi.waitFor(() => expect(chosenAccount()).toBe('Current (archived)'))
+  })
+
+  it('does not offer an archived account the transaction does not use', async () => {
+    const user = userEvent.setup()
+    accountsAre(
+      account(CURRENT, 'Current', 50000),
+      account(SAVINGS, 'Savings', 900000, 'EUR', ARCHIVED),
+    )
+    renderEditDialog(transaction(4250))
+
+    await vi.waitFor(() => expect(chosenAccount()).toBe('Current'))
+    await user.click(screen.getByRole('combobox', { name: 'Account' }))
+
+    expect(await screen.findByRole('option', { name: 'Current' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Savings/ })).not.toBeInTheDocument()
+  })
+
+  it("reads the amount in the archived account's own currency", async () => {
+    // The household keeps its books in euro, but this archived account holds
+    // yen. The currency is a property of the account, not of whether it still
+    // takes anything new, so the amount is read in it either way.
+    accountsAre(account(CURRENT, 'Current', 50000, 'JPY', ARCHIVED))
+    renderEditDialog(transaction(1000))
+
+    await waitFor(() => expect(screen.getByLabelText('Amount')).toHaveValue('1000'))
+    expect(amountCurrency()).toBe('JPY')
   })
 })
