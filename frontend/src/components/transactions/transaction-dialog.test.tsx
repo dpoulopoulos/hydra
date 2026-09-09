@@ -251,3 +251,43 @@ describe('editing an amount', () => {
     await waitFor(() => expect(sentAmountMinor()).toBe(1000))
   })
 })
+
+describe('a picker whose list will not load', () => {
+  /** The API refusing to list the accounts. */
+  function accountsFail(detail: string) {
+    vi.mocked(api.accountsListAccounts).mockResolvedValue({ error: { detail } } as never)
+  }
+
+  /** The API refusing to hand over the category tree. */
+  function categoriesFail(detail: string) {
+    vi.mocked(api.categoriesGetCategoryTree).mockResolvedValue({ error: { detail } } as never)
+  }
+
+  it('says why the account picker has nothing to offer', async () => {
+    accountsFail('Accounts are down.')
+    renderDialog()
+
+    expect(
+      await screen.findByText('Could not load your accounts. Accounts are down.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Account' })).toBeDisabled()
+  })
+
+  it('says why the category picker has nothing to offer', async () => {
+    categoriesFail('Categories are down.')
+    renderDialog()
+
+    expect(
+      await screen.findByText('Could not load your categories. Categories are down.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Category' })).toBeDisabled()
+  })
+
+  it('leaves the pickers alone when both lists arrive', async () => {
+    renderDialog()
+
+    await vi.waitFor(() => expect(chosenAccount()).toBe('Current'))
+    expect(screen.queryByText(/Could not load/)).not.toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Category' })).toBeEnabled()
+  })
+})
