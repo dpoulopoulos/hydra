@@ -41,6 +41,7 @@ import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { toMajor } from '@/lib/money'
 import { today } from '@/lib/month'
+import { optionSource } from '@/lib/option-source'
 
 const NO_CATEGORY = 'none'
 
@@ -101,7 +102,7 @@ export function TransactionDialog({
   const schema = useMemo(() => buildSchema(currency), [currency])
   const queryClient = useQueryClient()
   const isEdit = transaction !== null
-  const { data: accounts } = useAccounts()
+  const accountsQuery = useAccounts()
 
   const form = useForm<Values, unknown, Parsed>({
     resolver: zodResolver(schema),
@@ -123,15 +124,20 @@ export function TransactionDialog({
 
   // An expense needs an expense category and income needs an income one, so
   // the picker only offers the matching kind.
-  const { data: categoryTree } = useCategoryTree({
+  const categoriesQuery = useCategoryTree({
     kind: kind === TransactionKind.INCOME ? CategoryKind.INCOME : CategoryKind.EXPENSE,
   })
+
+  // A picker with nothing in it says the household has no accounts. When the
+  // list was refused rather than empty, the field says so instead.
+  const accountSource = optionSource(accountsQuery, 'accounts')
+  const categorySource = optionSource(categoriesQuery, 'categories')
 
   // A balance is computed from the ledger, so the account list comes back as a
   // new object whenever anything in the household moves. Keeping the payload
   // out of the effects below means a refetch behind an open dialog never
   // reaches the form the user is filling in.
-  const defaultAccountId = accounts?.data[0]?.id ?? ''
+  const defaultAccountId = accountSource.options[0]?.id ?? ''
 
   useEffect(() => {
     if (!open) return
@@ -198,7 +204,7 @@ export function TransactionDialog({
     },
   })
 
-  const accountOptions = accounts?.data ?? []
+  const accountOptions = accountSource.options
   const errors = form.formState.errors
 
   return (
@@ -258,12 +264,13 @@ export function TransactionDialog({
           <Field
             id="account_id"
             label={isTransfer ? 'From account' : 'Account'}
-            error={errors.account_id?.message}
+            error={errors.account_id?.message ?? accountSource.error}
           >
             {(props) => (
               <Select
                 value={accountId}
                 onValueChange={(value) => form.setValue('account_id', value)}
+                disabled={accountSource.unavailable}
               >
                 <SelectTrigger id={props.id} className="w-full">
                   <SelectValue placeholder="Choose an account" />
@@ -283,12 +290,13 @@ export function TransactionDialog({
             <Field
               id="counter_account_id"
               label="To account"
-              error={errors.counter_account_id?.message}
+              error={errors.counter_account_id?.message ?? accountSource.error}
             >
               {(props) => (
                 <Select
                   value={form.watch('counter_account_id')}
                   onValueChange={(value) => form.setValue('counter_account_id', value)}
+                  disabled={accountSource.unavailable}
                 >
                   <SelectTrigger id={props.id} className="w-full">
                     <SelectValue placeholder="Choose an account" />
@@ -306,18 +314,23 @@ export function TransactionDialog({
               )}
             </Field>
           ) : (
-            <Field id="category_id" label="Category" error={errors.category_id?.message}>
+            <Field
+              id="category_id"
+              label="Category"
+              error={errors.category_id?.message ?? categorySource.error}
+            >
               {(props) => (
                 <Select
                   value={form.watch('category_id')}
                   onValueChange={(value) => form.setValue('category_id', value)}
+                  disabled={categorySource.unavailable}
                 >
                   <SelectTrigger id={props.id} className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NO_CATEGORY}>Leave uncategorised</SelectItem>
-                    {(categoryTree?.data ?? []).map((parent) => (
+                    {categorySource.options.map((parent) => (
                       <SelectGroupOptions key={parent.id} parent={parent} />
                     ))}
                   </SelectContent>
