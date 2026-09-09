@@ -4,8 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { RecurringRulePublic } from '@/api'
 import { RuleDialog } from '@/components/recurring/rule-dialog'
 import { useAccounts } from '@/hooks/use-accounts'
+import { formatMoney } from '@/lib/money'
 
 // The dialog reads its pickers through the generated client, so the tests stand
 // in for the endpoints: what matters here is what the form holds after the
@@ -27,13 +29,13 @@ const api = await import('@/api')
 const CURRENT = '11111111-1111-1111-1111-111111111111'
 const SAVINGS = '22222222-2222-2222-2222-222222222222'
 
-function account(id: string, name: string, balanceMinor: number) {
+function account(id: string, name: string, balanceMinor: number, currencyCode = 'EUR') {
   return {
     id,
     name,
     type: 'current',
     household_id: 'h',
-    currency_code: 'EUR',
+    currency_code: currencyCode,
     opening_balance_minor: 0,
     opening_balance_date: '2026-01-01',
     current_balance_minor: balanceMinor,
@@ -71,6 +73,38 @@ function Harness() {
   )
 }
 
+function rule(amountMinor: number): RecurringRulePublic {
+  return {
+    id: 'rule',
+    household_id: 'h',
+    name: 'Rent',
+    kind: 'expense',
+    amount_minor: amountMinor,
+    frequency: 'monthly',
+    interval: 1,
+    day_of_month: 1,
+    start_date: '2026-01-01',
+    end_date: null,
+    account_id: CURRENT,
+    counter_account_id: null,
+    category_id: null,
+    merchant: null,
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+  } as RecurringRulePublic
+}
+
+/** The currency the amount field says it is in. */
+function amountCurrency() {
+  return screen.getByLabelText('Amount').previousSibling?.textContent
+}
+
+/** The amount the last save sent to the API. */
+function sentAmountMinor() {
+  const call = vi.mocked(api.recurringRulesUpdateRecurringRule).mock.calls.at(-1)
+  return (call?.[0] as { body: { amount_minor: number } }).body.amount_minor
+}
+
 function renderDialog() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -81,6 +115,18 @@ function renderDialog() {
     </QueryClientProvider>,
   )
   return client
+}
+
+/** The dialog opened on a rule that already exists. */
+function renderEditDialog(existing: RecurringRulePublic) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+  render(
+    <QueryClientProvider client={client}>
+      <RuleDialog open rule={existing} onOpenChange={() => {}} />
+    </QueryClientProvider>,
+  )
 }
 
 /** A refetch of the account list, the way returning to the tab triggers one. */
@@ -106,6 +152,57 @@ beforeEach(() => {
   vi.mocked(api.householdsGetHouseholdMe).mockResolvedValue({
     data: { id: 'h', name: 'Home', currency_code: 'EUR' },
   } as never)
+  vi.mocked(api.recurringRulesUpdateRecurringRule).mockResolvedValue({ data: {} } as never)
+})
+
+describe('an account with a currency of its own', () => {
+  it('reads a rule already recorded in it, not in the household one', async () => {
+    // The household keeps its books in euro, but this account holds yen: 1000
+    // minor units is ¥1000, not €10.00.
+    accountsAre(account(CURRENT, 'Current', 50000, 'JPY'))
+    renderEditDialog(rule(1000))
+
+    await vi.waitFor(() => expect(screen.getByLabelText('Amount')).toHaveValue('1000'))
+    expect(amountCurrency()).toBe('JPY')
+  })
+
+  it('says the rule back in that currency', async () => {
+    accountsAre(account(CURRENT, 'Current', 50000, 'JPY'))
+    renderEditDialog(rule(1000))
+
+    await vi.waitFor(() =>
+      expect(screen.getByText(new RegExp(`^${formatMoney(1000, 'JPY')} leaves`))).toBeVisible(),
+    )
+  })
+
+  it('sends a typed amount as that account decides', async () => {
+    accountsAre(account(CURRENT, 'Current', 50000, 'JPY'))
+    const user = userEvent.setup()
+    renderEditDialog(rule(1000))
+
+    await vi.waitFor(() => expect(amountCurrency()).toBe('JPY'))
+    await user.clear(screen.getByLabelText('Amount'))
+    await user.type(screen.getByLabelText('Amount'), '2500')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await vi.waitFor(() => expect(sentAmountMinor()).toBe(2500))
+  })
+
+  it('follows the account the picker moves to, keeping what was typed', async () => {
+    accountsAre(account(CURRENT, 'Current', 50000), account(SAVINGS, 'Savings', 900000, 'JPY'))
+    const user = userEvent.setup()
+    renderDialog()
+
+    await vi.waitFor(() => expect(chosenAccount()).toBe('Current'))
+    expect(amountCurrency()).toBe('EUR')
+
+    await user.type(await screen.findByLabelText('Amount'), '2500')
+    await user.click(screen.getByRole('combobox', { name: 'Account' }))
+    await user.click(await screen.findByRole('option', { name: 'Savings' }))
+
+    await vi.waitFor(() => expect(amountCurrency()).toBe('JPY'))
+    expect(screen.getByLabelText('Amount')).toHaveValue('2500')
+  })
 })
 
 describe('a background account refetch', () => {
