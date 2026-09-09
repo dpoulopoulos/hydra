@@ -29,8 +29,9 @@ import {
 } from '@/components/ui/select'
 import { useCategoryTree } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
+import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
-import { toMajor, toMinor } from '@/lib/money'
+import { toMajor } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
 
 /**
@@ -83,16 +84,13 @@ function BudgetForm({
   const { data: tree } = useCategoryTree({ kind: CategoryKind.EXPENSE })
   const [categoryId, setCategoryId] = useState(row?.category_id ?? '')
   const [limit, setLimit] = useState(row ? String(toMajor(row.limit_minor, currency)) : '')
+  // What a field got wrong. Filled on a save attempt rather than while typing,
+  // since a half-typed amount is not a mistake.
+  const [fieldErrors, setFieldErrors] = useState<{ category?: string; limit?: string }>({})
   const isEdit = row !== null
 
   const save = useMutation({
-    mutationFn: async () => {
-      const limitMinor = toMinor(Number(limit.replace(',', '.')), currency)
-
-      if (!Number.isFinite(limitMinor) || limitMinor < 0) {
-        throw new Error('Enter an amount of zero or more.')
-      }
-
+    mutationFn: async (limitMinor: number) => {
       if (row) {
         const { error } = await budgetsUpdateBudget({
           path: { budget_id: row.budget_id },
@@ -101,8 +99,6 @@ function BudgetForm({
         if (error) throw error
         return
       }
-
-      if (!categoryId) throw new Error('Choose a category.')
 
       const { error } = await budgetsCreateBudget({
         body: { category_id: categoryId, month, limit_minor: limitMinor },
@@ -116,6 +112,26 @@ function BudgetForm({
       onDone()
     },
   })
+
+  /**
+   * Send the limit, unless a field cannot be read.
+   *
+   * The amount goes through the shared schema, which takes "1 000" and "42,50"
+   * as people type them, so the only values reported back are ones nobody
+   * could read as a number, and they are reported on the field that holds them
+   * rather than as a complaint about the whole form.
+   */
+  const attemptSave = () => {
+    const amount = amountSchema(currency, { allowZero: true }).safeParse(limit)
+    const errors = {
+      category: !isEdit && !categoryId ? 'Choose a category.' : undefined,
+      limit: amount.success ? undefined : amount.error.issues[0].message,
+    }
+
+    setFieldErrors(errors)
+    if (!amount.success || errors.category) return
+    save.mutate(amount.data)
+  }
 
   return (
     <>
@@ -133,9 +149,15 @@ function BudgetForm({
         <FormError message={save.isError ? errorMessage(save.error) : null} />
 
         {!isEdit ? (
-          <Field id="budget-category" label="Category">
+          <Field id="budget-category" label="Category" error={fieldErrors.category}>
             {(props) => (
-              <Select value={categoryId} onValueChange={setCategoryId}>
+              <Select
+                value={categoryId}
+                onValueChange={(value) => {
+                  setCategoryId(value)
+                  setFieldErrors((current) => ({ ...current, category: undefined }))
+                }}
+              >
                 <SelectTrigger id={props.id} className="w-full">
                   <SelectValue placeholder="Choose a category" />
                 </SelectTrigger>
@@ -156,13 +178,16 @@ function BudgetForm({
           </Field>
         ) : null}
 
-        <Field id="budget-limit" label="Monthly limit">
+        <Field id="budget-limit" label="Monthly limit" error={fieldErrors.limit}>
           {(props) => (
             <MoneyInput
               {...props}
               currency={currency}
               value={limit}
-              onChange={(event) => setLimit(event.target.value)}
+              onChange={(event) => {
+                setLimit(event.target.value)
+                setFieldErrors((current) => ({ ...current, limit: undefined }))
+              }}
               autoFocus
             />
           )}
@@ -173,7 +198,7 @@ function BudgetForm({
         <Button variant="outline" onClick={onDone}>
           Cancel
         </Button>
-        <SubmitButton pending={save.isPending} onClick={() => save.mutate()} type="button">
+        <SubmitButton pending={save.isPending} onClick={attemptSave} type="button">
           {isEdit ? 'Change limit' : 'Set limit'}
         </SubmitButton>
       </DialogFooter>
