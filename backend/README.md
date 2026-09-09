@@ -523,8 +523,10 @@ def test_get_user_me(client: TestClient, auth_headers: dict[str, str]) -> None:
 ### Integration tests
 
 A mock enforces no constraint and runs no query, so anything that lives in SQL is invisible to the tier above it:
-household scoping, the `CHECK`, `RESTRICT` and `UNIQUE` constraints, and the money arithmetic the reports and the
-computed balances are built from. [tests/integration/](tests/integration/) covers those against a real server.
+household scoping, the `CHECK`, `RESTRICT` and `UNIQUE` constraints -- including the unique index that makes
+a materialization pass idempotent -- the composite foreign keys that pin a row to its household, and the money
+arithmetic the reports and the computed balances are built from. [tests/integration/](tests/integration/)
+covers those against a real server.
 
 ```bash
 # Needs a Postgres. `make dev` from the repository root is enough.
