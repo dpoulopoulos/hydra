@@ -112,4 +112,18 @@ describe('the "Still to come" card', () => {
 
     expect(await upcomingRow('Salary')).toHaveTextContent('+€3,000.00')
   })
+
+  // A transfer moves money between the household's own accounts, so it is
+  // neither spending nor income. The month's net leaves it out; a minus in
+  // the row would read as spending and disagree with the total above it.
+  it('draws a transfer plain, with no sign at all', async () => {
+    renderPage([
+      anOccurrence({ name: 'To savings', kind: TransactionKind.TRANSFER, amount_minor: 50_000 }),
+    ])
+
+    const row = await upcomingRow('To savings')
+    expect(row).toHaveTextContent('€500.00')
+    expect(row).not.toHaveTextContent('-€500.00')
+    expect(row).not.toHaveTextContent('+€500.00')
+  })
 })
