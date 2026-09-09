@@ -88,7 +88,7 @@ function renderSignedOutGate(value: AuthValue, entry = '/login') {
   return render(
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
-        <Route element={<RedirectIfSignedIn />}>
+        <Route element={<RedirectIfSignedIn orInDoubt />}>
           <Route path="/login" element={<p>Sign in</p>} />
           <Route path="/signup" element={<p>Create an account</p>} />
         </Route>
@@ -149,4 +149,16 @@ describe('the gate on the signed-out part of the app', () => {
 
     expect(screen.getByText('Send a reset link')).toBeInTheDocument()
   })
+
+  it.each(['/Login', '/login/'])(
+    'does not show the sign-in screen at %s either when the check failed',
+    (entry) => {
+      // The router reaches the same screen from any of these, so the gate in
+      // front of it has to answer the same way at all of them.
+      renderSignedOutGate(session({ error: { status: 502 } }), entry)
+
+      expect(screen.queryByText('Sign in')).not.toBeInTheDocument()
+      expect(screen.getByText('Home')).toBeInTheDocument()
+    },
+  )
 })

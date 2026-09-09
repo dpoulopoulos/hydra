@@ -51,18 +51,18 @@ export function RequireAuth() {
 }
 
 /**
- * Screens a session in doubt is not worth taking someone off.
+ * Keeps a signed-in person out of a screen meant for a signed-out one.
  *
- * The others behind this gate — a forgotten password, a password reset — need
- * no session at all, and a reset link carries its token in the URL, which a
- * redirect would throw away. A check that merely failed does not earn that.
+ * `orInDoubt` marks the screens a session in doubt is worth taking someone off
+ * as well: the sign-in and sign-up forms, which have nothing to say to someone
+ * who never signed out. The rest — a forgotten password, a password reset —
+ * need no session at all, and a reset link carries its token in the URL, which
+ * a redirect would throw away. Which screen is which is a question the route
+ * tree already answers, so it is asked there rather than guessed from the URL:
+ * the router reaches the same screen from `/login`, `/Login` and `/login/`.
  */
-const signedOutOnly = ['/login', '/signup']
-
-/** Keeps a signed-in person out of the sign-in and sign-up screens. */
-export function RedirectIfSignedIn() {
+export function RedirectIfSignedIn({ orInDoubt = false }: { orInDoubt?: boolean }) {
   const { isAuthenticated, isUnauthenticated, isLoading, error } = useAuth()
-  const location = useLocation()
 
   if (isLoading) return null
   if (isAuthenticated) return <Navigate to="/" replace />
@@ -70,9 +70,7 @@ export function RedirectIfSignedIn() {
   // A check that failed is not a session that ended, so it does not earn the
   // sign-in form either. The gate on the app owns that case, where it can be
   // reported and retried; send them there and let it do the talking.
-  if (error && !isUnauthenticated && signedOutOnly.includes(location.pathname)) {
-    return <Navigate to="/" replace />
-  }
+  if (orInDoubt && error && !isUnauthenticated) return <Navigate to="/" replace />
 
   return <Outlet />
 }
