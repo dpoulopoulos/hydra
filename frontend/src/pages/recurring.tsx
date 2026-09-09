@@ -362,11 +362,14 @@ export function Component() {
                             {formatDate(occurrence.occurs_on, { day: 'numeric' })}
                           </span>
                           <span className="flex-1 font-medium">{occurrence.name}</span>
+                          {/* A transfer is neither spending nor income, so
+                              it is drawn plain: negating it would print a
+                              minus the switched-off sign cannot take back. */}
                           <Money
                             minor={
-                              occurrence.kind === TransactionKind.INCOME
-                                ? occurrence.amount_minor
-                                : -occurrence.amount_minor
+                              occurrence.kind === TransactionKind.EXPENSE
+                                ? -occurrence.amount_minor
+                                : occurrence.amount_minor
                             }
                             currency={currency}
                             signed={occurrence.kind !== TransactionKind.TRANSFER}
