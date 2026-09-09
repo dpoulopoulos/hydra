@@ -81,3 +81,23 @@ describe('formatCompactAmount', () => {
     expect(formatCompactAmount(12_000_000, 'BHD')).toBe('12K')
   })
 })
+
+// The currency is required, not an option with a default: a caller that does
+// not say which currency it renders is a type error, so a new money surface
+// cannot be silently wrong the moment a second currency exists.
+describe('the currency parameter', () => {
+  it('is required by every helper', () => {
+    // @ts-expect-error the currency is required
+    expect(() => toMajor(4250)).toThrow()
+    // @ts-expect-error the currency is required
+    expect(() => toMinor(42.5)).toThrow()
+    // @ts-expect-error the currency is required
+    expect(() => formatMoney(4250)).toThrow()
+    // @ts-expect-error the currency is required
+    expect(() => formatSignedMoney(4250)).toThrow()
+    // @ts-expect-error the currency is required
+    expect(() => formatAmount(4250)).toThrow()
+    // @ts-expect-error the currency is required
+    expect(() => formatCompactAmount(4250)).toThrow()
+  })
+})
