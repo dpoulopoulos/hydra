@@ -43,7 +43,7 @@ import { today } from '@/lib/month'
  * The form's rules.
  *
  * A function of the currency, because how many minor units a typed amount
- * stands for is a property of the currency the household keeps its books in.
+ * stands for is a property of the currency the account is kept in.
  */
 function buildSchema(currency: string) {
   return z.object({
@@ -85,7 +85,11 @@ export function AccountDialog({
   account: AccountPublic | null
   onOpenChange: (open: boolean) => void
 }) {
-  const currency = useCurrency()
+  const householdCurrency = useCurrency()
+  // The balance belongs to the account, so it is read and checked in the
+  // account's own currency. A new account has none yet: the API opens it in
+  // the household's, which is what the field then asks for.
+  const currency = account?.currency_code ?? householdCurrency
   const schema = useMemo(() => buildSchema(currency), [currency])
   const queryClient = useQueryClient()
   const isEdit = account !== null
@@ -111,7 +115,7 @@ export function AccountDialog({
             type: account.type,
             institution: account.institution ?? '',
             iban: account.iban ? formatIban(account.iban) : '',
-            opening_balance: formatMajorInput(account.opening_balance_minor, account.currency_code),
+            opening_balance: formatMajorInput(account.opening_balance_minor, currency),
             opening_balance_date: account.opening_balance_date,
           }
         : {
@@ -123,7 +127,7 @@ export function AccountDialog({
             opening_balance_date: today(),
           },
     )
-  }, [open, account, form])
+  }, [open, account, currency, form])
 
   // Cash is money in a pocket: it sits at no institution, so it is asked for
   // neither. A credit card sits at one, but what it has is a card number, not
