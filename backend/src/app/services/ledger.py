@@ -59,6 +59,7 @@ class LedgerReferenceResolver:
         counter_account_id: uuid.UUID | None,
         category_id: uuid.UUID | None,
         check_accounts: bool = True,
+        settled_account_ids: frozenset[uuid.UUID] = frozenset(),
     ) -> None:
         """Check every reference of an entry, as it will stand once written.
 
@@ -77,10 +78,15 @@ class LedgerReferenceResolver:
                 still take transactions. An edit that names no account leaves
                 this off, so an unrelated change still saves once an account
                 the entry already points at has been archived.
+            settled_account_ids: The accounts the stored entry already draws on.
+                Each is still looked up, but not held to being open: an edit
+                that leaves the entry where it is adds nothing to that account,
+                so archiving an account must not freeze the history it already
+                holds. Only an account the edit moves the entry onto is gated.
 
         Raises:
             AccountNotFoundError: If an account does not exist in the household.
-            AccountArchivedError: If an account is archived.
+            AccountArchivedError: If an archived account has to be open.
             CategoryNotFoundError: If the category does not exist in the household.
             SameAccountTransferError: If a transfer names the same account twice.
             TransferShapeError: If the fields do not match the kind.
@@ -93,10 +99,18 @@ class LedgerReferenceResolver:
         )
 
         if check_accounts:
-            self.resolve_account(household=household, account_id=account_id)
+            self.resolve_account(
+                household=household,
+                account_id=account_id,
+                require_open=account_id not in settled_account_ids,
+            )
 
             if counter_account_id is not None:
-                self.resolve_account(household=household, account_id=counter_account_id)
+                self.resolve_account(
+                    household=household,
+                    account_id=counter_account_id,
+                    require_open=counter_account_id not in settled_account_ids,
+                )
 
         # After the lookups rather than before: an account that is not there is
         # a missing reference first and a badly shaped transfer second, so
@@ -142,26 +156,29 @@ class LedgerReferenceResolver:
                 "Only a transfer has a destination account. Set the kind to transfer, or remove it."
             ) from None
 
-    def resolve_account(self, household: HouseholdContext, account_id: uuid.UUID) -> Account:
+    def resolve_account(self, household: HouseholdContext, account_id: uuid.UUID, require_open: bool = True) -> Account:
         """Load an account of the household and check it can take transactions.
 
         Args:
             household: The household context.
             account_id: The ID of the account.
+            require_open: Whether the account has to be able to take something
+                new. An edit that leaves the entry on an account it already
+                draws on turns this off: see `resolve`.
 
         Returns:
             The account.
 
         Raises:
             AccountNotFoundError: If the account does not exist in the household.
-            AccountArchivedError: If the account is archived.
+            AccountArchivedError: If the account is archived and has to be open.
         """
         account = self.account_repository.get_for_household(entity_id=account_id, household_id=household.household_id)
 
         if not account:
             raise AccountNotFoundError from None
 
-        if account.archived_at is not None:
+        if require_open and account.archived_at is not None:
             raise AccountArchivedError(name=account.name) from None
 
         return account
