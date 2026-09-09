@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import { budgetsBulkUpsertBudgets, budgetsListBudgets, CategoryKind } from '@/api'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ErrorState, LoadingRows } from '@/components/data-state'
 import { FormError } from '@/components/form-field'
 import { MoneyInput } from '@/components/money-input'
@@ -22,6 +23,7 @@ import { useCategoryTree } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
+import { removedLimits } from '@/lib/budgets'
 import { toMajor } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
 import { cn } from '@/lib/utils'
@@ -87,6 +89,13 @@ export function BudgetEditor({
   // What a field got wrong, by category. Filled on a save attempt rather than
   // while typing, since half-typed amounts are not mistakes.
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  // A save held back until the removals it carries are confirmed. Holding the
+  // entries alongside the names means the set that was described is the set
+  // that gets sent.
+  const [pendingSave, setPendingSave] = useState<{
+    entries: BudgetEntry[]
+    removing: string[]
+  } | null>(null)
 
   const existing = useQuery({
     queryKey: ['budgets', month],
@@ -121,6 +130,7 @@ export function BudgetEditor({
   const valueFor = (categoryId: string) => edits[categoryId] ?? saved[categoryId] ?? ''
 
   const limits = { ...saved, ...edits }
+  const parents = tree?.data ?? []
 
   /**
    * Close the dialog and forget what was typed.
@@ -132,6 +142,7 @@ export function BudgetEditor({
   const close = () => {
     setEdits({})
     setFieldErrors({})
+    setPendingSave(null)
     onOpenChange(false)
   }
 
@@ -146,101 +157,145 @@ export function BudgetEditor({
       toast.success(`Budgets set for ${formatMonth(month)}`)
       close()
     },
+    // A toast rather than the editor's own error line: when a save fails
+    // behind the confirmation, the editor is covered and an inline message
+    // would never be seen.
+    onError: (error) => toast.error(errorMessage(error)),
   })
 
   /**
-   * Send the month, unless a field cannot be read.
+   * Send the month, unless a field cannot be read or a limit would be lost.
    *
    * An amount that does not parse is reported rather than skipped: skipping it
    * would drop the category from the set, and a category left out of the set
    * has its limit deleted.
+   *
+   * Emptying a field is a request to delete, so the removals it adds up to are
+   * put back to the user first. The set is worked out once and kept, so the
+   * confirmation and the request cannot describe different months.
    */
   const attemptSave = () => {
     const { entries, errors } = readLimits(limits, currency)
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
+
+    const removing = removedLimits(
+      parents,
+      Object.keys(saved),
+      entries.map((entry) => entry.category_id),
+    )
+    if (removing.length > 0) {
+      setPendingSave({ entries, removing })
+      return
+    }
+
     save.mutate(entries)
   }
 
-  const parents = tree?.data ?? []
-
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (next) onOpenChange(true)
-        else close()
-      }}
-    >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Budgets for {formatMonth(month)}</DialogTitle>
-          <DialogDescription>
-            A limit on a parent covers everything under it, so budget the parent or its
-            subcategories, not both. Leave a field empty to stop budgeting it.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (next) onOpenChange(true)
+          else close()
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Budgets for {formatMonth(month)}</DialogTitle>
+            <DialogDescription>
+              A limit on a parent covers everything under it, so budget the parent or its
+              subcategories, not both. Leave a field empty to stop budgeting it.
+            </DialogDescription>
+          </DialogHeader>
 
-        <FormError
-          message={
-            Object.keys(fieldErrors).length > 0
-              ? 'Some amounts could not be read. Check the fields marked below.'
-              : save.isError
-                ? errorMessage(save.error)
+          <FormError
+            message={
+              Object.keys(fieldErrors).length > 0
+                ? 'Some amounts could not be read. Check the fields marked below.'
                 : null
-          }
-        />
+            }
+          />
 
-        {existing.isPending ? (
-          <LoadingRows rows={5} />
-        ) : existing.isError ? (
-          <ErrorState error={existing.error} title="These budgets did not load" />
-        ) : (
-          <ScrollArea className="-mx-2 max-h-[50vh] px-2">
-            <div className="space-y-4">
-              {parents.map((parent) => (
-                <div key={parent.id} className="space-y-2">
-                  <LimitRow
-                    categoryId={parent.id}
-                    name={parent.name}
-                    currency={currency}
-                    value={valueFor(parent.id)}
-                    error={fieldErrors[parent.id]}
-                    onChange={(value) => setLimit(parent.id, value)}
-                  />
-                  {(parent.children ?? []).map((child) => (
+          {existing.isPending ? (
+            <LoadingRows rows={5} />
+          ) : existing.isError ? (
+            <ErrorState error={existing.error} title="These budgets did not load" />
+          ) : (
+            <ScrollArea className="-mx-2 max-h-[50vh] px-2">
+              <div className="space-y-4">
+                {parents.map((parent) => (
+                  <div key={parent.id} className="space-y-2">
                     <LimitRow
-                      key={child.id}
-                      categoryId={child.id}
-                      name={child.name}
+                      categoryId={parent.id}
+                      name={parent.name}
                       currency={currency}
-                      value={valueFor(child.id)}
-                      error={fieldErrors[child.id]}
-                      onChange={(value) => setLimit(child.id, value)}
-                      nested
+                      value={valueFor(parent.id)}
+                      error={fieldErrors[parent.id]}
+                      onChange={(value) => setLimit(parent.id, value)}
                     />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
+                    {(parent.children ?? []).map((child) => (
+                      <LimitRow
+                        key={child.id}
+                        categoryId={child.id}
+                        name={child.name}
+                        currency={currency}
+                        value={valueFor(child.id)}
+                        error={fieldErrors[child.id]}
+                        onChange={(value) => setLimit(child.id, value)}
+                        nested
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={close}>
-            Cancel
-          </Button>
-          {/* Saving replaces the month with what is on screen, so there is
-              nothing safe to send until the saved limits are here: a set built
-              from an empty or failed load would delete every one of them. */}
-          {existing.isSuccess ? (
-            <SubmitButton pending={save.isPending} onClick={attemptSave} type="button">
-              Save budgets
-            </SubmitButton>
-          ) : null}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button variant="outline" onClick={close}>
+              Cancel
+            </Button>
+            {/* Saving replaces the month with what is on screen, so there is
+                nothing safe to send until the saved limits are here: a set
+                built from an empty or failed load would delete every one of
+                them. */}
+            {existing.isSuccess ? (
+              <SubmitButton pending={save.isPending} onClick={attemptSave} type="button">
+                Save budgets
+              </SubmitButton>
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Outside the editor rather than inside it, so the two dialogs do not
+          fight over the focus trap while both are on screen. */}
+      <ConfirmDialog
+        open={pendingSave !== null}
+        onOpenChange={(next) => {
+          if (!next) setPendingSave(null)
+        }}
+        title={
+          pendingSave?.removing.length === 1
+            ? `Stop budgeting ${pendingSave.removing[0]}?`
+            : `Stop budgeting ${pendingSave?.removing.length ?? 0} categories?`
+        }
+        description={
+          <>
+            {formatMonth(month)} keeps no limit for{' '}
+            <strong className="font-medium">{pendingSave?.removing.join(', ')}</strong>. Spending
+            there is still recorded, it is simply no longer measured against a budget.
+          </>
+        }
+        confirmLabel="Remove and save"
+        pending={save.isPending}
+        onConfirm={() => {
+          if (pendingSave) save.mutate(pendingSave.entries)
+        }}
+      />
+    </>
   )
 }
 
