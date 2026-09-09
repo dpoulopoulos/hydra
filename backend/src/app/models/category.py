@@ -2,9 +2,10 @@ import datetime
 import uuid
 from enum import StrEnum
 
-from sqlalchemy import Index, UniqueConstraint, text
+from sqlalchemy import CheckConstraint, Index, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
+from .fields import within_cap_sql
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
 # The ordering column is a plain integer, which Postgres tops out at 2**31 - 1,
@@ -72,6 +73,7 @@ class CategoryTreePublic(SQLModel):
 
 class Category(CategoryBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=True):
     __table_args__ = (
+        CheckConstraint(within_cap_sql("sort_order", MAX_SORT_ORDER, floor=0), name="ck_category_sort_order_range"),
         # Composite foreign key target. Transactions, budgets and recurring
         # rules reference (category_id, household_id), which makes a
         # cross-household reference impossible even from a buggy service.

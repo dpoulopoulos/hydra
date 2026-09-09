@@ -42,6 +42,40 @@ Password = Annotated[str, AfterValidator(_within_bcrypt_limit)]
 MAX_AMOUNT_MINOR = 2**62
 
 
+def within_cap_sql(column: str, cap: int, *, floor: int | None = None, nullable: bool = False) -> str:
+    """Build the SQL that mirrors a numeric bound on a column.
+
+    A bound on an input model only holds for what arrives through the API. A
+    script, a data migration or a service that writes a row directly reaches
+    the column with no validator in between, which is the gap the floors
+    already in SQL — ``ck_transaction_amount_positive`` and its siblings — were
+    added to close. Rendering the expression from the constant is what keeps
+    the number in Python and the number in the constraint from drifting, which
+    is why every cap in the app comes through here rather than being written
+    out by hand beside the column.
+
+    Args:
+        column: The name of the column to bound.
+        cap: The largest value the column may hold. Pass the constant the input
+            models validate against, never a literal.
+        floor: The smallest value the column may hold, for a column that does
+            not already carry a floor of its own: a signed money column needs
+            ``-cap``, an unsigned one that has no floor constraint needs zero.
+        nullable: Whether the column may be null. A comparison against null is
+            unknown rather than true, so an optional column has to say so or
+            the constraint refuses every row that leaves it out.
+
+    Returns:
+        The check constraint expression.
+    """
+    expression = f"{column} <= {cap}"
+
+    if floor is not None:
+        expression = f"{column} >= {floor} AND {expression}"
+
+    return f"{column} IS NULL OR ({expression})" if nullable else expression
+
+
 # An IBAN is at most 34 characters: two letters for the country, two check
 # digits, then up to 30 characters of account number. People write it in
 # groups of four, so the value is normalized before it is stored and the

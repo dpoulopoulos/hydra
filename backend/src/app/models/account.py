@@ -5,7 +5,7 @@ from enum import StrEnum
 from sqlalchemy import BigInteger, CheckConstraint, Date, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from .fields import IBAN_MAX_LENGTH, MAX_AMOUNT_MINOR, Iban
+from .fields import IBAN_MAX_LENGTH, MAX_AMOUNT_MINOR, Iban, within_cap_sql
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
 
@@ -77,6 +77,13 @@ class Account(AccountBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, tabl
         # account belonging to a different household.
         UniqueConstraint("id", "household_id", name="uq_account_id_household"),
         CheckConstraint("length(currency_code) = 3", name="ck_account_currency_code_len"),
+        # An opening balance is the only money column that may be negative: an
+        # overdraft or a card balance starts below zero. So it is bounded on
+        # both sides rather than capped alone.
+        CheckConstraint(
+            within_cap_sql("opening_balance_minor", MAX_AMOUNT_MINOR, floor=-MAX_AMOUNT_MINOR),
+            name="ck_account_opening_balance_within_cap",
+        ),
     )
 
     household_id: uuid.UUID = Field(foreign_key="household.id", ondelete="CASCADE", index=True)

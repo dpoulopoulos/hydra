@@ -46,7 +46,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, SQLModel
 
-from .fields import MAX_AMOUNT_MINOR, MonthKey
+from .fields import MAX_AMOUNT_MINOR, MonthKey, within_cap_sql
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 from .recurring_rule import MAX_RECURRENCE_INTERVAL, RecurrenceFrequency
 
@@ -257,7 +257,15 @@ class IncomeClientFilters(SQLModel):
 class IncomeClient(IncomeClientBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=True):
     __table_args__ = (
         CheckConstraint("default_rate_minor >= 0", name="ck_incomeclient_rate_non_negative"),
+        CheckConstraint(
+            within_cap_sql("default_rate_minor", MAX_AMOUNT_MINOR),
+            name="ck_incomeclient_rate_within_cap",
+        ),
         CheckConstraint("cadence_interval >= 1", name="ck_incomeclient_cadence_interval_positive"),
+        CheckConstraint(
+            within_cap_sql("cadence_interval", MAX_RECURRENCE_INTERVAL),
+            name="ck_incomeclient_cadence_interval_within_cap",
+        ),
         # A pattern with nothing to pin it to is not a pattern: "every week"
         # cannot say which day without an anchor. Either both are set or
         # neither is, and the row can never be half a schedule.
@@ -404,6 +412,7 @@ class IncomeSessionFilters(SQLModel):
 class IncomeSession(IncomeSessionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=True):
     __table_args__ = (
         CheckConstraint("fee_minor >= 0", name="ck_incomesession_fee_non_negative"),
+        CheckConstraint(within_cap_sql("fee_minor", MAX_AMOUNT_MINOR), name="ck_incomesession_fee_within_cap"),
         # `paid_on` is the date of a payment, so it exists exactly when there
         # was one. Without this, a row could claim to be paid on no date, or
         # carry a payment date while sitting in the debtors list.
