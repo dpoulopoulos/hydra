@@ -29,12 +29,16 @@ export function useAccounts(options?: { includeArchived?: boolean }) {
  *
  * A reader rather than the currency itself, because one form can hold several
  * accounts at once: the one a picker shows, the one the record being edited
- * hangs off, the one a submitted set of values names. It reads the account
- * list every picker already has, so an answer costs no extra request.
+ * hangs off, the one a submitted set of values names.
+ *
+ * Archived accounts are read too. Archiving an account stops it taking
+ * anything new; it does not change the currency of what it already holds, and
+ * a record on one is still shown and edited. Leaving them out would answer the
+ * household's currency for such a record and show its amount in the wrong one.
  */
 export function useAccountCurrency(): (accountId: string | null | undefined) => string {
   const householdCurrency = useCurrency()
-  const { data } = useAccounts()
+  const { data } = useAccounts({ includeArchived: true })
 
   return (accountId) =>
     (accountId ? data?.data.find((account) => account.id === accountId)?.currency_code : null) ??
