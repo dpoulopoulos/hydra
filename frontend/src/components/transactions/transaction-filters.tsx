@@ -13,8 +13,9 @@ import {
 } from '@/components/ui/select'
 import { useAccounts } from '@/hooks/use-accounts'
 import { useCategoryTree } from '@/hooks/use-categories'
-import { ANY, emptyFilters, hasActiveFilters, type Filters } from '@/lib/transaction-filters'
 import { TRANSACTION_KIND_LABELS } from '@/lib/labels'
+import { optionSource } from '@/lib/option-source'
+import { ANY, emptyFilters, hasActiveFilters, type Filters } from '@/lib/transaction-filters'
 
 /** Row counts to choose from. Thirty fills a screen without a long scroll. */
 const PAGE_SIZES = [10, 30, 50, 100]
@@ -31,8 +32,13 @@ export function TransactionFilters({
   pageSize: number
   onPageSizeChange: (pageSize: number) => void
 }) {
-  const { data: accounts } = useAccounts({ includeArchived: true })
-  const { data: categories } = useCategoryTree({ includeArchived: true })
+  const accountsQuery = useAccounts({ includeArchived: true })
+  const categoriesQuery = useCategoryTree({ includeArchived: true })
+
+  // A filter offering nothing looks like a household with nothing to filter
+  // by, so a refused list says so instead of quietly narrowing the choice.
+  const accountSource = optionSource(accountsQuery, 'accounts')
+  const categorySource = optionSource(categoriesQuery, 'categories')
 
   const set = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     onChange({ ...filters, [key]: value })
@@ -68,30 +74,47 @@ export function TransactionFilters({
 
       <div className="space-y-2">
         <Label htmlFor="account">Account</Label>
-        <Select value={filters.account_id} onValueChange={(value) => set('account_id', value)}>
-          <SelectTrigger id="account" className="w-full">
+        <Select
+          value={filters.account_id}
+          onValueChange={(value) => set('account_id', value)}
+          disabled={accountSource.unavailable}
+        >
+          <SelectTrigger
+            id="account"
+            className="w-full"
+            aria-describedby={accountSource.error ? 'account-error' : undefined}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ANY}>Any account</SelectItem>
-            {(accounts?.data ?? []).map((account) => (
+            {accountSource.options.map((account) => (
               <SelectItem key={account.id} value={account.id}>
                 {account.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        <FilterError id="account-error" message={accountSource.error} />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="category">Category</Label>
-        <Select value={filters.category_id} onValueChange={(value) => set('category_id', value)}>
-          <SelectTrigger id="category" className="w-full">
+        <Select
+          value={filters.category_id}
+          onValueChange={(value) => set('category_id', value)}
+          disabled={categorySource.unavailable}
+        >
+          <SelectTrigger
+            id="category"
+            className="w-full"
+            aria-describedby={categorySource.error ? 'category-error' : undefined}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ANY}>Any category</SelectItem>
-            {(categories?.data ?? []).map((parent) => (
+            {categorySource.options.map((parent) => (
               <div key={parent.id}>
                 <SelectItem value={parent.id}>{parent.name}</SelectItem>
                 {(parent.children ?? []).map((child) => (
@@ -103,6 +126,7 @@ export function TransactionFilters({
             ))}
           </SelectContent>
         </Select>
+        <FilterError id="category-error" message={categorySource.error} />
       </div>
 
       <div className="space-y-2">
@@ -168,5 +192,21 @@ export function TransactionFilters({
         </div>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * Why a filter has nothing to offer.
+ *
+ * These controls are laid out as a label and a control rather than through
+ * `Field`, which is for a form the user submits, so the message is rendered
+ * here in the same voice and tied to the control by id.
+ */
+function FilterError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null
+  return (
+    <p id={id} className="text-destructive text-sm">
+      {message}
+    </p>
   )
 }
