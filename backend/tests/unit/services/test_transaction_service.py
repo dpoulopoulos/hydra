@@ -527,6 +527,88 @@ class TestUpdateTransaction:
                 transaction_update=TransactionUpdate(counter_account_id=account.id),
             )
 
+    def test_edits_a_transaction_on_an_archived_account(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        """Otherwise archiving an account would freeze the history it holds."""
+        account = make_account(archived=True)
+        transaction = make_transaction(account_id=account.id)
+        mock_transaction_service.session.exec = MagicMock()
+        # The account is offered, so an edit that gated on it would be refused.
+        mock_transaction_service.session.exec.return_value.first.side_effect = [transaction, account]
+
+        result = mock_transaction_service.update_transaction(
+            household=household_context,
+            transaction_id=transaction.id,
+            transaction_update=TransactionUpdate(merchant="Corrected"),
+        )
+
+        assert result.merchant == "Corrected"
+
+    def test_edits_a_transfer_whose_destination_has_been_archived(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        """The destination is where it already was, so the edit adds nothing to it."""
+        account = make_account("Current")
+        destination = make_account("Savings", archived=True)
+        transaction = make_transaction(
+            kind=TransactionKind.TRANSFER, account_id=account.id, counter_account_id=destination.id
+        )
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [
+            transaction,
+            account,
+            destination,
+        ]
+
+        result = mock_transaction_service.update_transaction(
+            household=household_context,
+            transaction_id=transaction.id,
+            transaction_update=TransactionUpdate(amount_minor=7500),
+        )
+
+        assert result.amount_minor == 7500
+
+    def test_moves_a_transfer_off_an_account_while_its_destination_is_archived(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        """Only the account the edit moves the row onto is gated, not every account it names."""
+        source = make_account("Joint")
+        destination = make_account("Savings", archived=True)
+        transaction = make_transaction(
+            kind=TransactionKind.TRANSFER, account_id=uuid.uuid4(), counter_account_id=destination.id
+        )
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [
+            transaction,
+            source,
+            destination,
+        ]
+
+        result = mock_transaction_service.update_transaction(
+            household=household_context,
+            transaction_id=transaction.id,
+            transaction_update=TransactionUpdate(account_id=source.id),
+        )
+
+        assert result.account_id == source.id
+
+    def test_rejects_moving_a_transaction_onto_an_archived_account(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        """An archived account still takes nothing new, however the row gets there."""
+        account = make_account(archived=True)
+        transaction = make_transaction()
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [transaction, account]
+
+        with pytest.raises(AccountArchivedError):
+            mock_transaction_service.update_transaction(
+                household=household_context,
+                transaction_id=transaction.id,
+                transaction_update=TransactionUpdate(account_id=account.id),
+            )
+
     def test_rejects_moving_a_transaction_to_a_foreign_account(
         self, mock_transaction_service: TransactionService, household_context: HouseholdContext
     ) -> None:
