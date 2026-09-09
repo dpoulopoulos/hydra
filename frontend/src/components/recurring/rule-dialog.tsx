@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -38,9 +38,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useAccounts } from '@/hooks/use-accounts'
+import { useAccountCurrency, useAccounts } from '@/hooks/use-accounts'
 import { useCategoryTree } from '@/hooks/use-categories'
-import { useCurrency } from '@/hooks/use-household'
 import { amountSchema, parseMajor } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { describeSchedule, FREQUENCY_LABELS } from '@/lib/labels'
@@ -55,7 +54,7 @@ const NO_CATEGORY = 'none'
  * The form's rules.
  *
  * A function of the currency, because how many minor units a typed amount
- * stands for is a property of the currency the household keeps its books in.
+ * stands for is a property of the currency the account is kept in.
  */
 function buildSchema(currency: string) {
   return z
@@ -173,15 +172,18 @@ export function RuleDialog({
   rule: RecurringRulePublic | null
   onOpenChange: (open: boolean) => void
 }) {
-  const currency = useCurrency()
-  const schema = useMemo(() => buildSchema(currency), [currency])
   const queryClient = useQueryClient()
   const isEdit = rule !== null
   const accountsQuery = useAccounts()
+  const currencyOf = useAccountCurrency()
   const [showMore, setShowMore] = useState(false)
 
   const form = useForm<Values, unknown, Parsed>({
-    resolver: zodResolver(schema),
+    // The money moves in the account the values name, so that is the currency
+    // the typed amount is read in. Reading it here rather than from a schema
+    // fixed at mount keeps the parsing with the account the user has chosen.
+    resolver: (values, context, options) =>
+      zodResolver(buildSchema(currencyOf(values.account_id)))(values, context, options),
     defaultValues: {
       name: '',
       kind: TransactionKind.EXPENSE,
@@ -200,6 +202,12 @@ export function RuleDialog({
 
   const kind = form.watch('kind')
   const frequency = form.watch('frequency')
+  // What the amount field says it is in, so the account and the figure next to
+  // it never disagree about what was typed.
+  const currency = currencyOf(form.watch('account_id'))
+  // The rule being edited holds its amount in its own account, which the form
+  // cannot move once the rule exists.
+  const recordedCurrency = currencyOf(rule?.account_id)
   const isTransfer = kind === TransactionKind.TRANSFER
   const isMonthly = frequency !== RecurrenceFrequency.WEEKLY
 
@@ -224,7 +232,7 @@ export function RuleDialog({
     form.reset({
       name: rule?.name ?? '',
       kind: rule?.kind ?? TransactionKind.EXPENSE,
-      amount: rule ? formatMajorInput(rule.amount_minor, currency) : '',
+      amount: rule ? formatMajorInput(rule.amount_minor, recordedCurrency) : '',
       frequency: rule?.frequency ?? RecurrenceFrequency.MONTHLY,
       interval: rule?.interval ?? 1,
       day_of_month: rule?.day_of_month ? String(rule.day_of_month) : '',
@@ -235,7 +243,7 @@ export function RuleDialog({
       category_id: rule?.category_id ?? NO_CATEGORY,
       merchant: rule?.merchant ?? '',
     })
-  }, [open, rule, currency, form])
+  }, [open, rule, recordedCurrency, form])
 
   // The accounts can still be on their way when the dialog opens, so the first
   // one is offered as soon as they land. Only the empty picker is filled in: a
