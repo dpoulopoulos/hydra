@@ -123,3 +123,41 @@ class TestMaterializeTwice:
         assert result.created_count == 0
         assert result.skipped_count == OCCURRENCES_IN_WINDOW
         assert count_generated(db_session, rule.id) == OCCURRENCES_IN_WINDOW
+
+
+class TestMaterializeArchivedAccount:
+    """Tests for a rule whose account can no longer take a transaction."""
+
+    def test_a_rule_on_an_archived_account_is_reported_as_skipped(
+        self,
+        db_session: Session,
+        recurring_rule_service: RecurringRuleService,
+        recurring_rule_repository: RecurringRuleRepository,
+        household_a: HouseholdContext,
+    ) -> None:
+        """Archiving the account stops the rule instead of writing behind it.
+
+        The ledger refuses an archived account by hand, so a rule must not put
+        rows into one either. The occurrences are counted as skipped and the
+        cursor stays where it was, so putting the account back picks the rule
+        up where it stopped.
+        """
+        account = make_account(db_session, household_id=household_a.household_id)
+        rule = make_monthly_rule(recurring_rule_service, household_a, account.id)
+
+        # Archived after the rule was written, which is the only order the
+        # services allow: a rule cannot be created on an archived account.
+        account.archived_at = datetime.datetime(2024, 1, 1, tzinfo=datetime.UTC)
+        db_session.add(account)
+        db_session.flush()
+
+        result = recurring_rule_service.materialize_due(household=household_a, until=UNTIL)
+
+        assert result.created_count == 0
+        assert result.skipped_count == OCCURRENCES_IN_WINDOW
+        assert result.rules_advanced == 0
+        assert count_generated(db_session, rule.id) == 0
+
+        stored = recurring_rule_repository.get_for_household(entity_id=rule.id, household_id=household_a.household_id)
+        assert stored is not None
+        assert stored.next_occurrence_on == START
