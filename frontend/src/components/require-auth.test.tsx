@@ -80,6 +80,9 @@ describe('the gate on the signed-in part of the app', () => {
   })
 })
 
+// Mirrors the route tree: the sign-in and sign-up forms are the screens a
+// session in doubt is worth taking someone off, and the password screens are
+// the ones it is not.
 function renderSignedOutGate(value: AuthValue, entry = '/login') {
   vi.mocked(useAuth).mockReturnValue(value)
   return render(
@@ -87,6 +90,10 @@ function renderSignedOutGate(value: AuthValue, entry = '/login') {
       <Routes>
         <Route element={<RedirectIfSignedIn />}>
           <Route path="/login" element={<p>Sign in</p>} />
+          <Route path="/signup" element={<p>Create an account</p>} />
+        </Route>
+        <Route element={<RedirectIfSignedIn />}>
+          <Route path="/forgot-password" element={<p>Send a reset link</p>} />
           <Route path="/reset-password" element={<p>Choose a new password</p>} />
         </Route>
         <Route path="/" element={<p>Home</p>} />
@@ -115,10 +122,31 @@ describe('the gate on the signed-out part of the app', () => {
     expect(screen.getByText('Home')).toBeInTheDocument()
   })
 
+  it('sends a signed-in person off the sign-up screen too', () => {
+    renderSignedOutGate(session({ isAuthenticated: true }), '/signup')
+
+    expect(screen.getByText('Home')).toBeInTheDocument()
+  })
+
+  it('does not show the sign-up screen when the check merely failed', () => {
+    // Offering to create an account is the wrong thing to say to someone who
+    // already has one and never signed out.
+    renderSignedOutGate(session({ error: { status: 502 } }), '/signup')
+
+    expect(screen.queryByText('Create an account')).not.toBeInTheDocument()
+    expect(screen.getByText('Home')).toBeInTheDocument()
+  })
+
   it('still shows a password reset when the check failed', () => {
     // The reset token is in the URL, and the page needs no session anyway.
     renderSignedOutGate(session({ error: { status: 502 } }), '/reset-password')
 
     expect(screen.getByText('Choose a new password')).toBeInTheDocument()
+  })
+
+  it('still shows the forgot-password screen when the check failed', () => {
+    renderSignedOutGate(session({ error: { status: 502 } }), '/forgot-password')
+
+    expect(screen.getByText('Send a reset link')).toBeInTheDocument()
   })
 })
