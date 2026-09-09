@@ -127,3 +127,72 @@ describe('changing a limit', () => {
     expect(updatedBody()).toEqual({ limit_minor: 25000 })
   })
 })
+
+describe('reading the amount', () => {
+  it('takes an amount typed with a thousands space', async () => {
+    const user = userEvent.setup()
+    renderDialog(progressRow(30000))
+
+    const field = await screen.findByLabelText('Monthly limit')
+    await user.clear(field)
+    await user.type(field, '1 000')
+    await user.click(screen.getByRole('button', { name: 'Change limit' }))
+
+    await vi.waitFor(() => expect(api.budgetsUpdateBudget).toHaveBeenCalled())
+    expect(updatedBody()).toEqual({ limit_minor: 100000 })
+  })
+
+  it('takes an amount typed with a comma for the decimals', async () => {
+    const user = userEvent.setup()
+    renderDialog(progressRow(30000))
+
+    const field = await screen.findByLabelText('Monthly limit')
+    await user.clear(field)
+    await user.type(field, '42,50')
+    await user.click(screen.getByRole('button', { name: 'Change limit' }))
+
+    await vi.waitFor(() => expect(api.budgetsUpdateBudget).toHaveBeenCalled())
+    expect(updatedBody()).toEqual({ limit_minor: 4250 })
+  })
+
+  it('takes a zero limit, which is what a budget of nothing means', async () => {
+    const user = userEvent.setup()
+    renderDialog(progressRow(30000))
+
+    const field = await screen.findByLabelText('Monthly limit')
+    await user.clear(field)
+    await user.type(field, '0')
+    await user.click(screen.getByRole('button', { name: 'Change limit' }))
+
+    await vi.waitFor(() => expect(api.budgetsUpdateBudget).toHaveBeenCalled())
+    expect(updatedBody()).toEqual({ limit_minor: 0 })
+  })
+
+  it('reports an amount it cannot read on the field itself', async () => {
+    const user = userEvent.setup()
+    renderDialog(progressRow(30000))
+
+    const field = await screen.findByLabelText('Monthly limit')
+    await user.clear(field)
+    await user.type(field, 'abc')
+    await user.click(screen.getByRole('button', { name: 'Change limit' }))
+
+    expect(await screen.findByText('Enter a number.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Monthly limit')).toBeInvalid()
+    expect(api.budgetsUpdateBudget).not.toHaveBeenCalled()
+  })
+
+  it('clears the complaint once the amount is retyped', async () => {
+    const user = userEvent.setup()
+    renderDialog(progressRow(30000))
+
+    const field = await screen.findByLabelText('Monthly limit')
+    await user.clear(field)
+    await user.click(screen.getByRole('button', { name: 'Change limit' }))
+    expect(await screen.findByText('Enter an amount.')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Monthly limit'), '250')
+
+    expect(screen.queryByText('Enter an amount.')).not.toBeInTheDocument()
+  })
+})
