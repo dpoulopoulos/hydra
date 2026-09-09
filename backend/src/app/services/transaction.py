@@ -168,6 +168,11 @@ class TransactionService:
         transfer to a different account, changes which shape rules apply, so
         checking the fields in isolation would let an invalid row through.
 
+        The archived check is the exception: it only applies to an account the
+        edit moves the row onto. An account archived after the transaction was
+        recorded would otherwise block every edit of it, correcting a typo
+        included, leaving deletion as the only way to act on the row.
+
         Args:
             household: The household context.
             transaction_id: The ID of the transaction to edit.
@@ -179,7 +184,7 @@ class TransactionService:
         Raises:
             TransactionNotFoundError: If the transaction does not exist in the household.
             AccountNotFoundError: If an account does not exist in the household.
-            AccountArchivedError: If an account is archived.
+            AccountArchivedError: If an account the edit moves the row onto is archived.
             CategoryNotFoundError: If the category does not exist in the household.
             SameAccountTransferError: If a transfer names the same account twice.
             TransferShapeError: If the change does not match the kind.
@@ -204,12 +209,17 @@ class TransactionService:
         if kind is not TransactionKind.TRANSFER and "counter_account_id" not in fields:
             counter_account_id = None
 
+        # An account the row already draws on is looked up, but not held to
+        # being open: an edit that leaves the row where it is adds nothing to
+        # that account, so archiving an account must not freeze the history it
+        # already holds. Only an account the edit moves the row onto is gated.
         self.reference_resolver.resolve(
             household=household,
             kind=kind,
             account_id=account_id,
             counter_account_id=counter_account_id,
             category_id=category_id,
+            settled_account_ids=self._accounts_already_used(transaction),
         )
 
         transaction.sqlmodel_update(
@@ -266,6 +276,21 @@ class TransactionService:
         """
         if transaction.income_session_id is not None:
             raise TransactionFromSessionError from None
+
+    def _accounts_already_used(self, transaction: Transaction) -> frozenset[uuid.UUID]:
+        """Collect the accounts a stored transaction already draws on.
+
+        Args:
+            transaction: The stored transaction, before the edit is applied.
+
+        Returns:
+            The IDs of the accounts the row names today.
+        """
+        return frozenset(
+            account_id
+            for account_id in (transaction.account_id, transaction.counter_account_id)
+            if account_id is not None
+        )
 
     def _require_transaction(self, household: HouseholdContext, transaction_id: uuid.UUID) -> Transaction:
         """Load a transaction of the household.
