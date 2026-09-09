@@ -29,13 +29,13 @@ const api = await import('@/api')
 const CURRENT = '11111111-1111-1111-1111-111111111111'
 const SAVINGS = '22222222-2222-2222-2222-222222222222'
 
-function account(id: string, name: string, balanceMinor: number) {
+function account(id: string, name: string, balanceMinor: number, currencyCode = 'EUR') {
   return {
     id,
     name,
     type: 'current',
     household_id: 'h',
-    currency_code: 'EUR',
+    currency_code: currencyCode,
     opening_balance_minor: 0,
     opening_balance_date: '2026-01-01',
     current_balance_minor: balanceMinor,
@@ -71,6 +71,11 @@ function transaction(amountMinor: number): TransactionPublic {
     note: null,
     created_at: '2026-03-04T00:00:00Z',
   } as TransactionPublic
+}
+
+/** The currency the amount field says it is in. */
+function amountCurrency() {
+  return screen.getByLabelText('Amount').previousSibling?.textContent
 }
 
 /** The amount the last save sent to the API. */
@@ -233,7 +238,6 @@ describe('seeding the form', () => {
 
 describe('editing an amount', () => {
   it('sends back what a two-decimal amount was opened with', async () => {
-    householdSpends('EUR')
     renderEditDialog(transaction(4250))
 
     await waitFor(() => expect(screen.getByLabelText('Amount')).toHaveValue('42.5'))
@@ -243,7 +247,7 @@ describe('editing an amount', () => {
   })
 
   it('sends back what a zero-decimal amount was opened with', async () => {
-    householdSpends('JPY')
+    accountsAre(account(CURRENT, 'Current', 50000, 'JPY'))
     renderEditDialog(transaction(1000))
 
     await waitFor(() => expect(screen.getByLabelText('Amount')).toHaveValue('1000'))
@@ -390,5 +394,46 @@ describe('recording a transfer', () => {
       counter_account_id: SAVINGS,
       category_id: null,
     })
+  })
+})
+
+describe('an account with a currency of its own', () => {
+  it('reads an amount already recorded in it, not in the household one', async () => {
+    // The household keeps its books in euro, but this account holds yen: 1000
+    // minor units is ¥1000, not €10.00.
+    accountsAre(account(CURRENT, 'Current', 50000, 'JPY'))
+    renderEditDialog(transaction(1000))
+
+    await waitFor(() => expect(screen.getByLabelText('Amount')).toHaveValue('1000'))
+    expect(amountCurrency()).toBe('JPY')
+  })
+
+  it('sends a typed amount as that account decides', async () => {
+    accountsAre(account(CURRENT, 'Current', 50000, 'JPY'))
+    const user = userEvent.setup()
+    renderEditDialog(transaction(1000))
+
+    await waitFor(() => expect(amountCurrency()).toBe('JPY'))
+    await user.clear(screen.getByLabelText('Amount'))
+    await user.type(screen.getByLabelText('Amount'), '2500')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => expect(sentAmountMinor()).toBe(2500))
+  })
+
+  it('follows the account the picker moves to, keeping what was typed', async () => {
+    accountsAre(account(CURRENT, 'Current', 50000), account(SAVINGS, 'Savings', 900000, 'JPY'))
+    const user = userEvent.setup()
+    renderDialog()
+
+    await vi.waitFor(() => expect(chosenAccount()).toBe('Current'))
+    expect(amountCurrency()).toBe('EUR')
+
+    await user.type(await screen.findByLabelText('Amount'), '2500')
+    await user.click(screen.getByRole('combobox', { name: 'Account' }))
+    await user.click(await screen.findByRole('option', { name: 'Savings' }))
+
+    await vi.waitFor(() => expect(amountCurrency()).toBe('JPY'))
+    expect(screen.getByLabelText('Amount')).toHaveValue('2500')
   })
 })
