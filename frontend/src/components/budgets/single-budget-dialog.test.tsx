@@ -8,7 +8,8 @@ import { SingleBudgetDialog } from '@/components/budgets/single-budget-dialog'
 
 // The dialog talks to the generated client directly, so the tests stand in for
 // the endpoints rather than for the component's own hooks: what matters here is
-// the limit that reaches the API, in minor units.
+// the limit that reaches the API, in minor units, and what the category
+// picker says when the tree never arrives.
 vi.mock('@/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api')>()
   return {
@@ -194,5 +195,27 @@ describe('reading the amount', () => {
     await user.type(screen.getByLabelText('Monthly limit'), '250')
 
     expect(screen.queryByText('Enter an amount.')).not.toBeInTheDocument()
+  })
+})
+
+describe('the category picker', () => {
+  it('says why it has nothing to offer when the tree will not load', async () => {
+    vi.mocked(api.categoriesGetCategoryTree).mockResolvedValue({
+      error: { detail: 'Categories are down.' },
+    } as never)
+    renderDialog()
+
+    expect(
+      await screen.findByText('Could not load your categories. Categories are down.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Category' })).toBeDisabled()
+  })
+
+  it('is left alone when the tree arrives', async () => {
+    renderDialog()
+
+    const picker = await screen.findByRole('combobox', { name: 'Category' })
+    expect(picker).toBeEnabled()
+    expect(screen.queryByText(/Could not load/)).not.toBeInTheDocument()
   })
 })
