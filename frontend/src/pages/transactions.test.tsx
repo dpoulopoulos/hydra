@@ -26,7 +26,8 @@ vi.mock('@/hooks/use-household', () => ({
 }))
 
 vi.mock('@/hooks/use-accounts', () => ({
-  useAccounts: () => ({ data: { data: [{ id: 'a1', name: 'Current' }] } }),
+  useAccounts: () => ({ data: { data: [{ id: 'a1', name: 'Current', currency_code: 'EUR' }] } }),
+  useAccountCurrency: () => () => 'EUR',
 }))
 
 vi.mock('@/hooks/use-categories', () => ({

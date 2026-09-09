@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -34,9 +34,8 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { useAccounts } from '@/hooks/use-accounts'
+import { useAccountCurrency, useAccounts } from '@/hooks/use-accounts'
 import { useCategoryTree } from '@/hooks/use-categories'
-import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { formatMajorInput } from '@/lib/money'
@@ -49,7 +48,7 @@ const NO_CATEGORY = 'none'
  * The form's rules.
  *
  * A function of the currency, because how many minor units a typed amount
- * stands for is a property of the currency the household keeps its books in.
+ * stands for is a property of the currency the account is kept in.
  */
 function buildSchema(currency: string) {
   return z
@@ -106,14 +105,17 @@ export function TransactionDialog({
   transaction: TransactionPublic | null
   onOpenChange: (open: boolean) => void
 }) {
-  const currency = useCurrency()
-  const schema = useMemo(() => buildSchema(currency), [currency])
   const queryClient = useQueryClient()
   const isEdit = transaction !== null
   const accountsQuery = useAccounts()
+  const currencyOf = useAccountCurrency()
 
   const form = useForm<Values, unknown, Parsed>({
-    resolver: zodResolver(schema),
+    // The money moves in the account the values name, so that is the currency
+    // the typed amount is read in. Reading it here rather than from a schema
+    // fixed at mount keeps the parsing with the account the user has chosen.
+    resolver: (values, context, options) =>
+      zodResolver(buildSchema(currencyOf(values.account_id)))(values, context, options),
     defaultValues: {
       kind: TransactionKind.EXPENSE,
       amount: '',
@@ -129,6 +131,12 @@ export function TransactionDialog({
   const kind = form.watch('kind')
   const accountId = form.watch('account_id')
   const isTransfer = kind === TransactionKind.TRANSFER
+  // What the amount field says it is in, so the account and the figure next to
+  // it never disagree about what was typed.
+  const currency = currencyOf(accountId)
+  // The transaction being edited holds its amount in its own account, which is
+  // the one it was recorded against rather than whichever the picker shows.
+  const recordedCurrency = currencyOf(transaction?.account_id)
 
   // An expense needs an expense category and income needs an income one, so
   // the picker only offers the matching kind.
@@ -151,7 +159,7 @@ export function TransactionDialog({
     if (!open) return
     form.reset({
       kind: transaction?.kind ?? TransactionKind.EXPENSE,
-      amount: transaction ? formatMajorInput(transaction.amount_minor, currency) : '',
+      amount: transaction ? formatMajorInput(transaction.amount_minor, recordedCurrency) : '',
       occurred_on: transaction?.occurred_on ?? today(),
       account_id: transaction?.account_id ?? '',
       counter_account_id: transaction?.counter_account_id ?? '',
@@ -159,7 +167,7 @@ export function TransactionDialog({
       merchant: transaction?.merchant ?? '',
       note: transaction?.note ?? '',
     })
-  }, [open, transaction, currency, form])
+  }, [open, transaction, recordedCurrency, form])
 
   // The accounts can still be on their way when the dialog opens, so the first
   // one is offered as soon as they land. Only the empty picker is filled in:
