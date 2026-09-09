@@ -161,3 +161,52 @@ class TestMaterializeArchivedAccount:
         stored = recurring_rule_repository.get_for_household(entity_id=rule.id, household_id=household_a.household_id)
         assert stored is not None
         assert stored.next_occurrence_on == START
+
+
+class TestMaterializeAcrossHouseholds:
+    """Tests for the household a materialized transaction belongs to."""
+
+    def test_a_generated_transaction_carries_the_household_of_its_rule(
+        self,
+        db_session: Session,
+        recurring_rule_service: RecurringRuleService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """Every row the pass writes is stamped with the rule's household.
+
+        The composite foreign keys on the ledger only hold a transaction to an
+        account of its own household, so a generated row that carried the
+        wrong household would be refused rather than leak. Pinning the value
+        keeps the constraint from being the only thing that notices.
+        """
+        account = make_account(db_session, household_id=household_a.household_id)
+        rule = make_monthly_rule(recurring_rule_service, household_a, account.id)
+
+        recurring_rule_service.materialize_due(household=household_a, until=UNTIL)
+
+        generated = db_session.exec(select(Transaction).where(Transaction.recurring_rule_id == rule.id)).all()
+        assert len(generated) == OCCURRENCES_IN_WINDOW
+        assert {row.household_id for row in generated} == {household_a.household_id}
+        assert {row.account_id for row in generated} == {account.id}
+
+    def test_a_rule_of_another_household_is_not_materialized_into_this_one(
+        self,
+        db_session: Session,
+        recurring_rule_service: RecurringRuleService,
+        household_a: HouseholdContext,
+        household_b: HouseholdContext,
+    ) -> None:
+        """A pass is scoped to the household that asked for it.
+
+        Materialization runs from the read paths, so an unscoped pass would
+        write another household's rules into the ledger of whoever happened to
+        open the app first.
+        """
+        foreign_account = make_account(db_session, household_id=household_b.household_id)
+        foreign_rule = make_monthly_rule(recurring_rule_service, household_b, foreign_account.id)
+
+        result = recurring_rule_service.materialize_due(household=household_a, until=UNTIL)
+
+        assert result.created_count == 0
+        assert result.rules_advanced == 0
+        assert count_generated(db_session, foreign_rule.id) == 0
