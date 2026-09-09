@@ -5,7 +5,7 @@ from enum import StrEnum
 from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, Index
 from sqlmodel import Field, SQLModel
 
-from .fields import MAX_AMOUNT_MINOR
+from .fields import MAX_AMOUNT_MINOR, within_cap_sql
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 from .transaction import TransactionKind
 
@@ -115,7 +115,12 @@ class RecurringRunResult(SQLModel):
 class RecurringRule(RecurringRuleBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=True):
     __table_args__ = (
         CheckConstraint("amount_minor > 0", name="ck_recurringrule_amount_positive"),
+        CheckConstraint(within_cap_sql("amount_minor", MAX_AMOUNT_MINOR), name="ck_recurringrule_amount_within_cap"),
         CheckConstraint("interval >= 1", name="ck_recurringrule_interval_positive"),
+        CheckConstraint(
+            within_cap_sql("interval", MAX_RECURRENCE_INTERVAL),
+            name="ck_recurringrule_interval_within_cap",
+        ),
         CheckConstraint("end_date IS NULL OR end_date >= start_date", name="ck_recurringrule_date_order"),
         CheckConstraint(
             "day_of_month IS NULL OR (day_of_month >= 1 AND day_of_month <= 31)",

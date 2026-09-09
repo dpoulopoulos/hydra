@@ -4,7 +4,7 @@ import uuid
 from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, Index, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from .fields import MAX_AMOUNT_MINOR, MonthKey
+from .fields import MAX_AMOUNT_MINOR, MonthKey, within_cap_sql
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
 # How many category limits one bulk update may carry. Every entry becomes a
@@ -73,6 +73,7 @@ class Budget(PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, SQLModel, table=Tr
         # month" rather than one per category per arbitrary day.
         CheckConstraint("EXTRACT(DAY FROM period_month) = 1", name="ck_budget_period_month_first"),
         CheckConstraint("limit_minor >= 0", name="ck_budget_limit_non_negative"),
+        CheckConstraint(within_cap_sql("limit_minor", MAX_AMOUNT_MINOR), name="ck_budget_limit_within_cap"),
         ForeignKeyConstraint(
             ["category_id", "household_id"],
             ["category.id", "category.household_id"],

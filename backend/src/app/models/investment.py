@@ -5,7 +5,7 @@ from enum import StrEnum
 from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, Index, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from .fields import MAX_AMOUNT_MINOR, MAX_FX_RATE_MICRO, MAX_PRICE_MICRO, MAX_QUANTITY_MICRO
+from .fields import MAX_AMOUNT_MINOR, MAX_FX_RATE_MICRO, MAX_PRICE_MICRO, MAX_QUANTITY_MICRO, within_cap_sql
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
 
@@ -307,6 +307,10 @@ class Instrument(InstrumentBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin
         UniqueConstraint("id", "household_id", name="uq_instrument_id_household"),
         CheckConstraint("length(currency_code) = 3", name="ck_instrument_currency_code_len"),
         CheckConstraint("last_price_micro IS NULL OR last_price_micro >= 0", name="ck_instrument_price_non_negative"),
+        CheckConstraint(
+            within_cap_sql("last_price_micro", MAX_PRICE_MICRO, nullable=True),
+            name="ck_instrument_price_within_cap",
+        ),
     )
 
     household_id: uuid.UUID = Field(foreign_key="household.id", ondelete="CASCADE", index=True)
@@ -333,9 +337,23 @@ class Instrument(InstrumentBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin
 class Trade(TradeBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=True):
     __table_args__ = (
         CheckConstraint("quantity_micro > 0", name="ck_trade_quantity_positive"),
+        # The quantity cap and the price cap are a pair: their product, in
+        # minor units, has to stay below MAX_AMOUNT_MINOR or a position's
+        # market value overflows the column it is summed into. That promise
+        # only held for writes that came through the API until these.
+        CheckConstraint(
+            within_cap_sql("quantity_micro", MAX_QUANTITY_MICRO),
+            name="ck_trade_quantity_within_cap",
+        ),
         CheckConstraint("price_micro >= 0", name="ck_trade_price_non_negative"),
+        CheckConstraint(within_cap_sql("price_micro", MAX_PRICE_MICRO), name="ck_trade_price_within_cap"),
         CheckConstraint("fee_minor >= 0", name="ck_trade_fee_non_negative"),
+        CheckConstraint(within_cap_sql("fee_minor", MAX_AMOUNT_MINOR), name="ck_trade_fee_within_cap"),
         CheckConstraint("cash_amount_minor IS NULL OR cash_amount_minor >= 0", name="ck_trade_cash_non_negative"),
+        CheckConstraint(
+            within_cap_sql("cash_amount_minor", MAX_AMOUNT_MINOR, nullable=True),
+            name="ck_trade_cash_within_cap",
+        ),
         # The cash side is both or neither: an account with no amount does not
         # say how much moved, and an amount with no account has nowhere to move
         # from. Either alone describes no movement at all.
@@ -398,6 +416,7 @@ class FxRate(SQLModel, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=Tr
         CheckConstraint("length(base_code) = 3", name="ck_fx_rate_base_code_len"),
         CheckConstraint("length(quote_code) = 3", name="ck_fx_rate_quote_code_len"),
         CheckConstraint("rate_micro > 0", name="ck_fx_rate_positive"),
+        CheckConstraint(within_cap_sql("rate_micro", MAX_FX_RATE_MICRO), name="ck_fx_rate_within_cap"),
     )
 
     base_code: str = Field(min_length=3, max_length=3)

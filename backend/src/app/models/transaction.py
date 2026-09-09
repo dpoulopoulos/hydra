@@ -6,7 +6,7 @@ from pydantic import ConfigDict
 from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, Index, text
 from sqlmodel import Field, SQLModel
 
-from .fields import MAX_AMOUNT_MINOR
+from .fields import MAX_AMOUNT_MINOR, within_cap_sql
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
 # The unique index that makes a recurring occurrence impossible to write
@@ -106,6 +106,7 @@ class TransactionFilters(SQLModel):
 class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=True):
     __table_args__ = (
         CheckConstraint("amount_minor > 0", name="ck_transaction_amount_positive"),
+        CheckConstraint(within_cap_sql("amount_minor", MAX_AMOUNT_MINOR), name="ck_transaction_amount_within_cap"),
         # A transfer is one row: source account, destination account, no
         # category. Two mirrored rows would make every edit a two-row
         # invariant that no constraint can express. As one row, the shape is
