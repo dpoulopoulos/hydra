@@ -363,7 +363,7 @@ household — being removed, leaving, accepting an invite elsewhere, or deleting
 same path, which takes a row lock on the household first so two members going at once cannot both conclude
 the other is still there.
 
-Three conventions run through the domain and are worth knowing before changing it:
+Four conventions run through the domain and are worth knowing before changing it:
 
 - **Money is an integer count of minor units**, on `BigInteger` columns, and every such field is named
   `*_minor`. Amounts are exact, so a budget comparison needs no tolerance, and nothing arrives at the
@@ -377,6 +377,13 @@ Three conventions run through the domain and are worth knowing before changing i
 - **Account balances are computed, never stored.** A stored balance is a cache with no invalidation story
   that survives back-dated edits, re-pointed transfers and recurring runs, and a balance that has quietly
   drifted is the most damaging bug a finance app can have.
+- **Every numeric bound is mirrored in SQL.** A bound on an input model turns a driver error into a 422 on
+  the request path and does nothing for a script, a data migration or a service that writes a row itself.
+  So each one has a `CHECK` beside it, and the expression comes from `within_cap_sql` in
+  [models/fields.py](src/app/models/fields.py), rendered from the same constant the model validates
+  against — so raising a bound in Python cannot leave the database on the old number. This is a rule
+  rather than a habit: `tests/unit/models/test_numeric_ceilings.py` walks the models and fails on a
+  bounded column with no constraint behind it.
 
 ## Authentication
 
