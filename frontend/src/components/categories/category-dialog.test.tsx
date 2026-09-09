@@ -89,3 +89,24 @@ describe('CategoryDialog', () => {
     await waitFor(() => expect(reportIsStale(client)).toBe(true))
   })
 })
+
+describe('the parent picker', () => {
+  it('says why it has nothing to offer when the tree will not load', async () => {
+    vi.mocked(api.categoriesGetCategoryTree).mockResolvedValue({
+      error: { detail: 'Categories are down.' },
+    } as never)
+    renderDialog(GROCERIES)
+
+    expect(
+      await screen.findByText('Could not load your categories. Categories are down.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Sits under' })).toBeDisabled()
+  })
+
+  it('keeps its hint and stays usable when the tree arrives', async () => {
+    renderDialog(GROCERIES)
+
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Sits under' })).toBeEnabled())
+    expect(screen.getByText('Leave as a top-level category, or file it under one.')).toBeVisible()
+  })
+})

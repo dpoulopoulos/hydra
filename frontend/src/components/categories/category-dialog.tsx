@@ -33,6 +33,7 @@ import {
 import { useCategoryTree, useInvalidateCategories } from '@/hooks/use-categories'
 import { errorMessage } from '@/lib/api'
 import { CATEGORY_KIND_LABELS } from '@/lib/labels'
+import { optionSource } from '@/lib/option-source'
 
 const NO_PARENT = 'none'
 
@@ -59,7 +60,11 @@ export function CategoryDialog({
 }) {
   const invalidate = useInvalidateCategories()
   const isEdit = category !== null
-  const { data: tree } = useCategoryTree()
+  const categoriesQuery = useCategoryTree()
+  // Without the tree there is no telling which categories could be a parent,
+  // nor whether this one already has children of its own, so the picker says
+  // that rather than offering a list it cannot vouch for.
+  const categorySource = optionSource(categoriesQuery, 'categories')
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -79,12 +84,14 @@ export function CategoryDialog({
   }, [open, category, defaultParent, form])
 
   // Only top-level categories can be parents: the tree is two levels deep.
-  const parents = (tree?.data ?? []).filter(
+  const parents = categorySource.options.filter(
     (node) => node.kind === kind && node.id !== category?.id,
   )
 
   // A category that already has subcategories cannot become one itself.
-  const hasChildren = Boolean(tree?.data.find((node) => node.id === category?.id)?.children?.length)
+  const hasChildren = Boolean(
+    categorySource.options.find((node) => node.id === category?.id)?.children?.length,
+  )
 
   const save = useMutation({
     mutationFn: async (values: Values) => {
@@ -174,13 +181,13 @@ export function CategoryDialog({
                 ? 'This category has subcategories, so it has to stay at the top level.'
                 : 'Leave as a top-level category, or file it under one.'
             }
-            error={form.formState.errors.parent_id?.message}
+            error={form.formState.errors.parent_id?.message ?? categorySource.error}
           >
             {(props) => (
               <Select
                 value={parentId}
                 onValueChange={(value) => form.setValue('parent_id', value)}
-                disabled={hasChildren}
+                disabled={hasChildren || categorySource.unavailable}
               >
                 <SelectTrigger id={props.id} className="w-full">
                   <SelectValue />
