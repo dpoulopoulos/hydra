@@ -1,0 +1,125 @@
+"""A materialization pass, against the ledger it writes into.
+
+``materialize_due`` runs from the read paths, so anything it gets wrong lands
+on an ordinary page load. One of its guarantees exists only in the database:
+``uq_transaction_rule_occurrence``, the unique index that stops two requests
+writing the same occurrence. A mocked session enforces no index, so the only
+way to tell "already there" from a 500 is to run the pass twice against a real
+server.
+"""
+
+import datetime
+import uuid
+
+from sqlmodel import Session, func, select
+
+from app.models import (
+    HouseholdContext,
+    RecurrenceFrequency,
+    RecurringRuleCreate,
+    RecurringRulePublic,
+    Transaction,
+    TransactionKind,
+)
+from app.repositories import RecurringRuleRepository
+from app.services import RecurringRuleService
+from tests.integration.conftest import make_account
+
+# The window every pass in this module runs over. Fixed rather than relative to
+# today, so which occurrences fall due does not depend on the day the suite is
+# run: the first of January, February and March.
+START = datetime.date(2024, 1, 1)
+UNTIL = datetime.date(2024, 3, 31)
+OCCURRENCES_IN_WINDOW = 3
+
+
+def make_monthly_rule(
+    service: RecurringRuleService, household: HouseholdContext, account_id: uuid.UUID
+) -> RecurringRulePublic:
+    """Create a monthly expense rule that is due three times in the window.
+
+    Args:
+        service: The recurring rule service.
+        household: The household the rule belongs to.
+        account_id: The account the rule draws on.
+
+    Returns:
+        The created rule.
+    """
+    return service.create_rule(
+        household=household,
+        rule_create=RecurringRuleCreate(
+            name="Rent",
+            kind=TransactionKind.EXPENSE,
+            amount_minor=80_000,
+            start_date=START,
+            frequency=RecurrenceFrequency.MONTHLY,
+            account_id=account_id,
+        ),
+    )
+
+
+def count_generated(session: Session, rule_id: uuid.UUID) -> int:
+    """Count the transactions a rule has generated.
+
+    Args:
+        session: The database session.
+        rule_id: The ID of the rule.
+
+    Returns:
+        How many rows in the ledger name the rule.
+    """
+    statement = select(func.count()).select_from(Transaction).where(Transaction.recurring_rule_id == rule_id)
+    return session.exec(statement).one()
+
+
+class TestMaterializeTwice:
+    """Tests for running the same window through a second pass."""
+
+    def test_a_second_pass_over_the_same_window_creates_nothing(
+        self,
+        db_session: Session,
+        recurring_rule_service: RecurringRuleService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """The cursor has moved on, so the second pass finds nothing due."""
+        account = make_account(db_session, household_id=household_a.household_id)
+        rule = make_monthly_rule(recurring_rule_service, household_a, account.id)
+
+        first = recurring_rule_service.materialize_due(household=household_a, until=UNTIL)
+        second = recurring_rule_service.materialize_due(household=household_a, until=UNTIL)
+
+        assert first.created_count == OCCURRENCES_IN_WINDOW
+        assert second.created_count == 0
+        assert second.rules_advanced == 0
+        assert count_generated(db_session, rule.id) == OCCURRENCES_IN_WINDOW
+
+    def test_an_occurrence_already_in_the_ledger_is_skipped(
+        self,
+        db_session: Session,
+        recurring_rule_service: RecurringRuleService,
+        recurring_rule_repository: RecurringRuleRepository,
+        household_a: HouseholdContext,
+    ) -> None:
+        """A pass over occurrences that already exist counts them, not a 500.
+
+        This is the race the unique index is there for: two members opening
+        the app at the same moment read the same cursor, and the request that
+        loses gets an integrity error on the insert. Rewinding the cursor is
+        the same starting position as losing that race, without needing two
+        connections to arrange it.
+        """
+        account = make_account(db_session, household_id=household_a.household_id)
+        rule = make_monthly_rule(recurring_rule_service, household_a, account.id)
+        recurring_rule_service.materialize_due(household=household_a, until=UNTIL)
+
+        stored = recurring_rule_repository.get_for_household(entity_id=rule.id, household_id=household_a.household_id)
+        assert stored is not None
+        stored.next_occurrence_on = START
+        recurring_rule_repository.save(stored)
+
+        result = recurring_rule_service.materialize_due(household=household_a, until=UNTIL)
+
+        assert result.created_count == 0
+        assert result.skipped_count == OCCURRENCES_IN_WINDOW
+        assert count_generated(db_session, rule.id) == OCCURRENCES_IN_WINDOW
