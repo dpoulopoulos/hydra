@@ -46,6 +46,7 @@ import { errorMessage } from '@/lib/api'
 import { describeSchedule, FREQUENCY_LABELS } from '@/lib/labels'
 import { formatMoney, toMajor, toMinor } from '@/lib/money'
 import { formatDate, today } from '@/lib/month'
+import { optionSource } from '@/lib/option-source'
 import { cn } from '@/lib/utils'
 
 const NO_CATEGORY = 'none'
@@ -166,7 +167,7 @@ export function RuleDialog({
   const schema = useMemo(() => buildSchema(currency), [currency])
   const queryClient = useQueryClient()
   const isEdit = rule !== null
-  const { data: accounts } = useAccounts()
+  const accountsQuery = useAccounts()
   const [showMore, setShowMore] = useState(false)
 
   const form = useForm<Values, unknown, Parsed>({
@@ -192,15 +193,20 @@ export function RuleDialog({
   const isTransfer = kind === TransactionKind.TRANSFER
   const isMonthly = frequency !== RecurrenceFrequency.WEEKLY
 
-  const { data: categoryTree } = useCategoryTree({
+  const categoriesQuery = useCategoryTree({
     kind: kind === TransactionKind.INCOME ? CategoryKind.INCOME : CategoryKind.EXPENSE,
   })
+
+  // A picker with nothing in it says the household has no accounts. When the
+  // list was refused rather than empty, the field says so instead.
+  const accountSource = optionSource(accountsQuery, 'accounts')
+  const categorySource = optionSource(categoriesQuery, 'categories')
 
   // A balance is computed from the ledger, so the account list comes back as a
   // new object whenever anything in the household moves. Keeping the payload
   // out of the effects below means a refetch behind an open dialog never
   // reaches the form the user is filling in.
-  const defaultAccountId = accounts?.data[0]?.id ?? ''
+  const defaultAccountId = accountSource.options[0]?.id ?? ''
 
   useEffect(() => {
     if (!open) return
@@ -284,12 +290,12 @@ export function RuleDialog({
   })
 
   const errors = form.formState.errors
-  const accountOptions = accounts?.data ?? []
+  const accountOptions = accountSource.options
   const nameOf = (id: string) => accountOptions.find((account) => account.id === id)?.name
   const categoryName = (() => {
     const id = form.watch('category_id')
     if (id === NO_CATEGORY) return undefined
-    for (const parent of categoryTree?.data ?? []) {
+    for (const parent of categorySource.options) {
       if (parent.id === id) return parent.name
       const child = (parent.children ?? []).find((candidate) => candidate.id === id)
       if (child) return `${parent.name} › ${child.name}`
@@ -375,13 +381,13 @@ export function RuleDialog({
               <Field
                 id="account_id"
                 label={isTransfer ? 'From account' : 'Account'}
-                error={errors.account_id?.message}
+                error={errors.account_id?.message ?? accountSource.error}
               >
                 {(props) => (
                   <Select
                     value={form.watch('account_id')}
                     onValueChange={(value) => form.setValue('account_id', value)}
-                    disabled={isEdit}
+                    disabled={isEdit || accountSource.unavailable}
                   >
                     <SelectTrigger id={props.id} className="w-full">
                       <SelectValue placeholder="Choose an account" />
@@ -401,13 +407,13 @@ export function RuleDialog({
                 <Field
                   id="counter_account_id"
                   label="To account"
-                  error={errors.counter_account_id?.message}
+                  error={errors.counter_account_id?.message ?? accountSource.error}
                 >
                   {(props) => (
                     <Select
                       value={form.watch('counter_account_id')}
                       onValueChange={(value) => form.setValue('counter_account_id', value)}
-                      disabled={isEdit}
+                      disabled={isEdit || accountSource.unavailable}
                     >
                       <SelectTrigger id={props.id} className="w-full">
                         <SelectValue placeholder="Choose an account" />
@@ -425,18 +431,23 @@ export function RuleDialog({
                   )}
                 </Field>
               ) : (
-                <Field id="category_id" label="Category" error={errors.category_id?.message}>
+                <Field
+                  id="category_id"
+                  label="Category"
+                  error={errors.category_id?.message ?? categorySource.error}
+                >
                   {(props) => (
                     <Select
                       value={form.watch('category_id')}
                       onValueChange={(value) => form.setValue('category_id', value)}
+                      disabled={categorySource.unavailable}
                     >
                       <SelectTrigger id={props.id} className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value={NO_CATEGORY}>Leave uncategorised</SelectItem>
-                        {(categoryTree?.data ?? []).map((parent) => (
+                        {categorySource.options.map((parent) => (
                           <div key={parent.id}>
                             <SelectItem value={parent.id}>{parent.name}</SelectItem>
                             {(parent.children ?? []).map((child) => (

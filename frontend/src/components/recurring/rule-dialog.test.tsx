@@ -210,3 +210,37 @@ describe('seeding the form', () => {
     await vi.waitFor(() => expect(chosenAccount()).toBe('Current'))
   })
 })
+
+describe('a picker whose list will not load', () => {
+  it('says why the account picker has nothing to offer', async () => {
+    vi.mocked(api.accountsListAccounts).mockResolvedValue({
+      error: { detail: 'Accounts are down.' },
+    } as never)
+    renderDialog()
+
+    expect(
+      await screen.findByText('Could not load your accounts. Accounts are down.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Account' })).toBeDisabled()
+  })
+
+  it('says why the category picker has nothing to offer', async () => {
+    vi.mocked(api.categoriesGetCategoryTree).mockResolvedValue({
+      error: { detail: 'Categories are down.' },
+    } as never)
+    renderDialog()
+
+    expect(
+      await screen.findByText('Could not load your categories. Categories are down.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Category' })).toBeDisabled()
+  })
+
+  it('leaves the pickers alone when both lists arrive', async () => {
+    renderDialog()
+
+    await vi.waitFor(() => expect(chosenAccount()).toBe('Current'))
+    expect(screen.queryByText(/Could not load/)).not.toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Category' })).toBeEnabled()
+  })
+})
