@@ -33,6 +33,7 @@ import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { toMajor } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
+import { optionSource } from '@/lib/option-source'
 
 /**
  * Set or change one category's limit.
@@ -81,7 +82,10 @@ function BudgetForm({
 }) {
   const currency = useCurrency()
   const queryClient = useQueryClient()
-  const { data: tree } = useCategoryTree({ kind: CategoryKind.EXPENSE })
+  const categoriesQuery = useCategoryTree({ kind: CategoryKind.EXPENSE })
+  // A picker with nothing in it says the household has no categories. When the
+  // tree was refused rather than empty, the field says so instead.
+  const categorySource = optionSource(categoriesQuery, 'categories')
   const [categoryId, setCategoryId] = useState(row?.category_id ?? '')
   const [limit, setLimit] = useState(row ? String(toMajor(row.limit_minor, currency)) : '')
   // What a field got wrong. Filled on a save attempt rather than while typing,
@@ -149,7 +153,11 @@ function BudgetForm({
         <FormError message={save.isError ? errorMessage(save.error) : null} />
 
         {!isEdit ? (
-          <Field id="budget-category" label="Category" error={fieldErrors.category}>
+          <Field
+            id="budget-category"
+            label="Category"
+            error={fieldErrors.category ?? categorySource.error}
+          >
             {(props) => (
               <Select
                 value={categoryId}
@@ -157,12 +165,13 @@ function BudgetForm({
                   setCategoryId(value)
                   setFieldErrors((current) => ({ ...current, category: undefined }))
                 }}
+                disabled={categorySource.unavailable}
               >
                 <SelectTrigger id={props.id} className="w-full">
                   <SelectValue placeholder="Choose a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(tree?.data ?? []).map((parent) => (
+                  {categorySource.options.map((parent) => (
                     <div key={parent.id}>
                       <SelectItem value={parent.id}>{parent.name}</SelectItem>
                       {(parent.children ?? []).map((child) => (
