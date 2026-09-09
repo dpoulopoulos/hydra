@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 import {
+  type AccountPublic,
   CategoryKind,
   transactionsCreateTransaction,
   transactionsUpdateTransaction,
@@ -43,6 +44,11 @@ import { today } from '@/lib/month'
 import { optionSource } from '@/lib/option-source'
 
 const NO_CATEGORY = 'none'
+
+/** How an account reads in a picker, saying so when it is archived. */
+function accountLabel(account: AccountPublic) {
+  return account.archived_at ? `${account.name} (archived)` : account.name
+}
 
 /**
  * The form's rules.
@@ -107,7 +113,9 @@ export function TransactionDialog({
 }) {
   const queryClient = useQueryClient()
   const isEdit = transaction !== null
-  const accountsQuery = useAccounts()
+  // Archived accounts come back too when editing, so a transaction that sits
+  // on one can still be shown and corrected. See `accountOptions` below.
+  const accountsQuery = useAccounts({ includeArchived: isEdit })
   const currencyOf = useAccountCurrency()
 
   const form = useForm<Values, unknown, Parsed>({
@@ -153,7 +161,9 @@ export function TransactionDialog({
   // new object whenever anything in the household moves. Keeping the payload
   // out of the effects below means a refetch behind an open dialog never
   // reaches the form the user is filling in.
-  const defaultAccountId = accountSource.options[0]?.id ?? ''
+  // The first *open* account: an archived one takes nothing new, so it is no
+  // use as the account a fresh transaction defaults to.
+  const defaultAccountId = accountSource.options.find((account) => !account.archived_at)?.id ?? ''
 
   useEffect(() => {
     if (!open) return
@@ -220,7 +230,17 @@ export function TransactionDialog({
     },
   })
 
-  const accountOptions = accountSource.options
+  // An archived account takes nothing new, so the pickers only offer the open
+  // ones. The accounts this transaction already sits on are the exception:
+  // they stay on offer, and say they are archived, so archiving an account
+  // does not leave the transactions it holds uneditable.
+  const accountOptions = accountSource.options.filter(
+    (account) =>
+      !account.archived_at ||
+      account.id === transaction?.account_id ||
+      account.id === transaction?.counter_account_id,
+  )
+
   const errors = form.formState.errors
 
   return (
@@ -294,7 +314,7 @@ export function TransactionDialog({
                 <SelectContent>
                   {accountOptions.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
-                      {account.name}
+                      {accountLabel(account)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -322,7 +342,7 @@ export function TransactionDialog({
                       .filter((account) => account.id !== accountId)
                       .map((account) => (
                         <SelectItem key={account.id} value={account.id}>
-                          {account.name}
+                          {accountLabel(account)}
                         </SelectItem>
                       ))}
                   </SelectContent>
