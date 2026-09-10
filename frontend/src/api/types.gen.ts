@@ -1957,6 +1957,22 @@ export const PaymentStatus = {
 export type PaymentStatus = typeof PaymentStatus[keyof typeof PaymentStatus];
 
 /**
+ * PendingEmailChange
+ *
+ * A change of address an account has asked for and not yet proved.
+ */
+export type PendingEmailChange = {
+    /**
+     * New Email
+     */
+    new_email: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+};
+
+/**
  * PortfolioPublic
  *
  * The whole portfolio, valued in the household's currency.
@@ -5710,6 +5726,40 @@ export type EmailVerificationSendVerificationEmailMeResponses = {
 };
 
 export type EmailVerificationSendVerificationEmailMeResponse = EmailVerificationSendVerificationEmailMeResponses[keyof EmailVerificationSendVerificationEmailMeResponses];
+
+export type EmailVerificationCancelPendingEmailChangeMeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/email-verification/me/email-change';
+};
+
+export type EmailVerificationCancelPendingEmailChangeMeResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type EmailVerificationCancelPendingEmailChangeMeResponse = EmailVerificationCancelPendingEmailChangeMeResponses[keyof EmailVerificationCancelPendingEmailChangeMeResponses];
+
+export type EmailVerificationGetPendingEmailChangeMeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/email-verification/me/email-change';
+};
+
+export type EmailVerificationGetPendingEmailChangeMeResponses = {
+    /**
+     * Response Email-Verification-Get Pending Email Change Me
+     *
+     * Successful Response
+     */
+    200: PendingEmailChange | null;
+};
+
+export type EmailVerificationGetPendingEmailChangeMeResponse = EmailVerificationGetPendingEmailChangeMeResponses[keyof EmailVerificationGetPendingEmailChangeMeResponses];
 
 export type EmailVerificationVerifyEmailData = {
     body: EmailVerificationConfirm;
