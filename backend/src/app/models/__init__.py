@@ -41,6 +41,7 @@ from .email_verification import (
     EmailVerificationPublic,
     EmailVerificationRequest,
     EmailVerificationStatus,
+    PendingEmailChange,
 )
 from .household import (
     Household,
@@ -215,6 +216,7 @@ __all__ = [
     "EmailVerificationPublic",
     "EmailVerificationRequest",
     "EmailVerificationStatus",
+    "PendingEmailChange",
     "Household",
     "HouseholdBase",
     "HouseholdContext",

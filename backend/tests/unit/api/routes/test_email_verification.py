@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
@@ -11,7 +12,7 @@ from app.exceptions import (
     EmailVerificationUsedError,
 )
 from app.main import app
-from app.models import Message, User
+from app.models import Message, PendingEmailChange, User
 from app.services import EmailVerificationService
 
 
@@ -202,6 +203,88 @@ class TestSendVerificationEmailMe:
         """Test that the endpoint refuses a caller with no token."""
         # Act: Ask for a confirmation without signing in
         response = client.post("/api/v1/email-verification/me/send")
+
+        # Assert: Verify 401 unauthorized response
+        assert response.status_code == 401
+
+
+class TestGetPendingEmailChangeMe:
+    """Tests for the get_pending_email_change_me endpoint (GET /email-verification/me/email-change)."""
+
+    def test_get_pending_email_change_me_reports_the_address_waited_on(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test the screen can find out which address a change is waiting on."""
+
+        # Arrange: Set up dependency overrides with an authenticated user
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        pending = PendingEmailChange(
+            new_email="moving-to@example.com",
+            expires_at=datetime(2026, 1, 2, tzinfo=UTC),
+        )
+
+        try:
+            with patch.object(
+                EmailVerificationService,
+                "get_pending_email_change",
+                return_value=pending,
+            ) as get_pending:
+                # Act: Ask what the caller's own account is waiting on
+                response = client.get("/api/v1/email-verification/me/email-change")
+
+                # Assert: The answer is about the caller, never an account it names
+                assert response.status_code == 200
+                assert response.json()["new_email"] == "moving-to@example.com"
+                assert get_pending.call_args.kwargs["user"] == test_user
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+    def test_get_pending_email_change_me_without_anything_pending(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test an account with nothing outstanding is answered, not refused."""
+
+        # Arrange: Set up dependency overrides with an authenticated user
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        try:
+            with patch.object(EmailVerificationService, "get_pending_email_change", return_value=None):
+                # Act: Ask what the caller's own account is waiting on
+                response = client.get("/api/v1/email-verification/me/email-change")
+
+                # Assert: Nothing pending is an ordinary answer
+                assert response.status_code == 200
+                assert response.json() is None
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+    def test_get_pending_email_change_me_requires_authentication(self, client: TestClient) -> None:
+        """Test that the endpoint refuses a caller with no token."""
+        # Act: Ask without signing in
+        response = client.get("/api/v1/email-verification/me/email-change")
 
         # Assert: Verify 401 unauthorized response
         assert response.status_code == 401

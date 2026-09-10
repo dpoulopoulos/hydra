@@ -9,7 +9,7 @@ from app.exceptions import (
     ServiceError,
     UserExistsError,
 )
-from app.models import EmailVerificationConfirm, EmailVerificationRequest, Message
+from app.models import EmailVerificationConfirm, EmailVerificationRequest, Message, PendingEmailChange
 
 router = APIRouter(prefix="/email-verification", tags=["email-verification"])
 
@@ -88,6 +88,34 @@ def send_verification_email_me(
             or the user is inactive (403).
     """
     return email_verification_service.send_verification_email(user_service=user_service, user_email=current_user.email)
+
+
+@router.get("/me/email-change", response_model=PendingEmailChange | None)
+def get_pending_email_change_me(
+    *,
+    email_verification_service: EmailVerificationServiceDep,
+    current_user: CurrentUser,
+) -> PendingEmailChange | None:
+    """Report the change of address the current account is waiting on.
+
+    Asking to change the address does not move the account: it mails a link to
+    the new address and waits. Nothing else says so once the reply to that
+    request is gone, which leaves an account that mistyped the address with no
+    sign that the link went somewhere it cannot read.
+
+    Args:
+        email_verification_service: The email verification service dependency.
+        current_user: The current authenticated user.
+
+    Returns:
+        The address the account is waiting on, or null when no change is
+        outstanding.
+
+    Raises:
+        HTTPException: If the user's token is invalid (401), the user is not found (404),
+            or the user is inactive (403).
+    """
+    return email_verification_service.get_pending_email_change(user=current_user)
 
 
 @router.post("/verify", response_model=Message)
