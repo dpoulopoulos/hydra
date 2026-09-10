@@ -1025,11 +1025,11 @@ def _date_or_now(value: Any) -> datetime.datetime:
     """
     if isinstance(value, str):
         try:
-            return datetime.datetime.combine(datetime.date.fromisoformat(value), datetime.time())
+            return datetime.datetime.combine(datetime.date.fromisoformat(value), datetime.time(), tzinfo=datetime.UTC)
         except ValueError:
             pass
 
-    return datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    return datetime.datetime.now(datetime.UTC)
 
 
 def _decimal(value: Any) -> Decimal | None:
@@ -1077,8 +1077,8 @@ def _timestamp(value: Any) -> datetime.datetime:
     """
     if isinstance(value, int | float) and not isinstance(value, bool):
         try:
-            return datetime.datetime.fromtimestamp(float(value), tz=datetime.UTC).replace(tzinfo=None)
+            return datetime.datetime.fromtimestamp(float(value), tz=datetime.UTC)
         except (OverflowError, OSError, ValueError):
             pass
 
-    return datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    return datetime.datetime.now(datetime.UTC)

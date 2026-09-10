@@ -753,7 +753,7 @@ class TestPriceCache:
     ) -> None:
         """Test that a second refresh inside the window costs nothing."""
         # Arrange: Set up an instrument priced one minute ago
-        recent = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1)
+        recent = datetime.now(UTC) - timedelta(minutes=1)
         instrument = make_instrument(last_price_micro=12_845 * MICRO, last_priced_at=recent)
         mock_investment_service.household_repository.get_by_id = MagicMock(return_value=household)
         mock_investment_service.instrument_repository.list_for_household = MagicMock(return_value=([instrument], 1))
@@ -776,7 +776,7 @@ class TestPriceCache:
     ) -> None:
         """Test that the cache expires rather than pinning a stale price forever."""
         # Arrange: Set up an instrument priced three hours ago, past the two hour window
-        stale = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=3)
+        stale = datetime.now(UTC) - timedelta(hours=3)
         instrument = make_instrument(last_price_micro=12_845 * MICRO, last_priced_at=stale)
         mock_investment_service.household_repository.get_by_id = MagicMock(return_value=household)
         mock_investment_service.instrument_repository.list_for_household = MagicMock(return_value=([instrument], 1))
@@ -814,7 +814,7 @@ class TestPriceCache:
         should cost one API call, not ten.
         """
         # Arrange: Set up one fresh instrument and one stale one
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = datetime.now(UTC)
         fresh = make_instrument(symbol="VWCE.DE", last_priced_at=now - timedelta(minutes=5))
         stale = make_instrument(symbol="VOO.US", currency_code="USD", last_priced_at=now - timedelta(days=1))
         stale.id = uuid.UUID("44444444-4444-4444-4444-444444444444")
@@ -883,11 +883,9 @@ class TestPriceCache:
     ) -> None:
         """Test that a recent exchange rate is reused."""
         # Arrange: Set up a dollar holding and a dollar rate stored a minute ago
-        instrument = make_instrument(
-            symbol="VOO.US", currency_code="USD", last_priced_at=datetime.now(UTC).replace(tzinfo=None)
-        )
+        instrument = make_instrument(symbol="VOO.US", currency_code="USD", last_priced_at=datetime.now(UTC))
         rate = FxRate(base_code="USD", quote_code="EUR", rate_micro=900_000, as_of=datetime(2026, 9, 5, 0, 0))
-        rate.created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1)
+        rate.created_at = datetime.now(UTC) - timedelta(minutes=1)
         mock_investment_service.household_repository.get_by_id = MagicMock(return_value=household)
         mock_investment_service.instrument_repository.list_for_household = MagicMock(return_value=([instrument], 1))
         mock_investment_service.fx_rate_repository.rates_into = MagicMock(return_value={"USD": rate})
@@ -907,11 +905,9 @@ class TestPriceCache:
     ) -> None:
         """Test that a day-old rate is refreshed."""
         # Arrange: Set up a dollar holding and a rate stored yesterday
-        instrument = make_instrument(
-            symbol="VOO.US", currency_code="USD", last_priced_at=datetime.now(UTC).replace(tzinfo=None)
-        )
+        instrument = make_instrument(symbol="VOO.US", currency_code="USD", last_priced_at=datetime.now(UTC))
         rate = FxRate(base_code="USD", quote_code="EUR", rate_micro=900_000, as_of=datetime(2026, 9, 4, 0, 0))
-        rate.created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
+        rate.created_at = datetime.now(UTC) - timedelta(days=1)
         mock_investment_service.household_repository.get_by_id = MagicMock(return_value=household)
         mock_investment_service.instrument_repository.list_for_household = MagicMock(return_value=([instrument], 1))
         mock_investment_service.fx_rate_repository.rates_into = MagicMock(return_value={"USD": rate})
@@ -1235,7 +1231,7 @@ class TestSetInstrumentPrice:
         # Arrange: Set up an instrument holding a typed price from long ago
         instrument = make_instrument(
             last_price_micro=12_500 * MICRO,
-            last_priced_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1),
+            last_priced_at=datetime.now(UTC) - timedelta(days=1),
         )
         instrument.last_price_is_manual = True
         mock_investment_service.household_repository.get_by_id = MagicMock(return_value=household)
@@ -1581,14 +1577,15 @@ class TestSameDayTrades:
     ) -> None:
         """Test that a stored timestamp and a fresh one can be ordered together.
 
-        Timestamps are stored without a zone, so a row read back is naive while
-        one just built in Python carries UTC. They are only ever compared when
-        two trades share a date, which is what buying and selling on one day
-        does, and comparing them raises.
+        Two timestamps are only ever compared when two trades share a date,
+        which is what buying and selling on one day does. Both carry a zone —
+        the column is ``timestamptz`` — and a comparison between an aware
+        moment and a naive one raises, so this is what a regression to a naive
+        column or a stripped offset trips over.
         """
-        # Arrange: Set up a stored buy with a naive timestamp, as the database returns
+        # Arrange: Set up a stored buy with the timestamp the database returns
         stored = make_trade(TradeSide.BUY, units=10, price_major=100, traded_on=date(2026, 9, 5))
-        stored.created_at = datetime(2026, 9, 5, 9, 0)
+        stored.created_at = datetime(2026, 9, 5, 9, 0, tzinfo=UTC)
         instrument = make_instrument()
         mock_investment_service.instrument_repository.get_for_household = MagicMock(return_value=instrument)
         mock_investment_service.trade_repository.history_for_instrument = MagicMock(return_value=[stored])
@@ -1613,14 +1610,14 @@ class TestSameDayTrades:
         mock_investment_service: InvestmentService,
         household_context: HouseholdContext,
     ) -> None:
-        """Test that ordering survives the timezone fix.
+        """Test that ordering puts the stored trade first.
 
         If the fresh trade sorted first, a same-day sell would be replayed
         before the buy that supplied its units and be refused as an oversell.
         """
         # Arrange: Set up a buy stored earlier today, with only enough units
         stored = make_trade(TradeSide.BUY, units=4, price_major=100, traded_on=date(2026, 9, 5))
-        stored.created_at = datetime(2026, 9, 5, 9, 0)
+        stored.created_at = datetime(2026, 9, 5, 9, 0, tzinfo=UTC)
         instrument = make_instrument()
         mock_investment_service.instrument_repository.get_for_household = MagicMock(return_value=instrument)
         mock_investment_service.trade_repository.history_for_instrument = MagicMock(return_value=[stored])

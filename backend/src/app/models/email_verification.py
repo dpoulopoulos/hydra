@@ -5,7 +5,7 @@ from enum import StrEnum
 from pydantic import EmailStr
 from sqlmodel import Field, SQLModel
 
-from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
+from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
 
 
 class EmailVerificationStatus(StrEnum):
@@ -16,7 +16,7 @@ class EmailVerificationStatus(StrEnum):
 
 class EmailVerificationBase(SQLModel):
     email: EmailStr = Field(index=True, max_length=255)
-    expires_at: datetime.datetime
+    expires_at: datetime.datetime = Field(sa_type=UtcDateTime)
     status: EmailVerificationStatus = EmailVerificationStatus.PENDING
 
 

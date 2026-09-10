@@ -6,7 +6,7 @@ from sqlalchemy import BigInteger, CheckConstraint, Date, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from .fields import IBAN_MAX_LENGTH, MAX_AMOUNT_MINOR, Iban, within_cap_sql
-from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
+from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
 
 
 class AccountType(StrEnum):
@@ -92,4 +92,4 @@ class Account(AccountBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, tabl
     currency_code: str = Field(default="EUR", min_length=3, max_length=3)
     opening_balance_minor: int = Field(default=0, sa_type=BigInteger)
     opening_balance_date: datetime.date = Field(sa_type=Date)
-    archived_at: datetime.datetime | None = Field(default=None)
+    archived_at: datetime.datetime | None = Field(default=None, sa_type=UtcDateTime)

@@ -6,7 +6,7 @@ from enum import StrEnum
 from pydantic import EmailStr
 from sqlmodel import Field, SQLModel
 
-from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
+from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
 from .user import User
 
 
@@ -88,7 +88,7 @@ class HouseholdMember(HouseholdMemberBase, PrimaryKeyMixin, CreatedAtMixin, Upda
 class HouseholdInviteBase(SQLModel):
     email: EmailStr = Field(index=True, max_length=255)
     role: HouseholdRole = HouseholdRole.MEMBER
-    expires_at: datetime.datetime
+    expires_at: datetime.datetime = Field(sa_type=UtcDateTime)
     status: HouseholdInviteStatus = HouseholdInviteStatus.PENDING
 
 
