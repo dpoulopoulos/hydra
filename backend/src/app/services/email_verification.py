@@ -111,24 +111,27 @@ class EmailVerificationService:
         """
         return self.email_verification_repository.get_pending_by_user_id(user_id)
 
-    def get_pending_email_change(self, user: User) -> PendingEmailChange | None:
-        """Report the change of address a user is waiting on, if any.
+    def _outstanding_email_change(self, user: User) -> EmailVerification | None:
+        """Find the change of address a user could still finish, if any.
 
         Only a change the user could still finish counts. A verification of
         the address the account already holds moves nothing, a link whose
         deadline has gone by cannot be redeemed, and a row asked for from an
         address the account has since left is refused at redemption time, so
-        none of them is something to say the account is waiting on.
+        none of them is something to say the account is waiting on. Reporting
+        and cancelling both answer for the same row, so they ask the same
+        question here rather than each keeping its own idea of what is
+        outstanding.
 
         Args:
             user: The account being asked about.
 
         Returns:
-            The address the account is waiting on and the deadline on its
-            link, or None when no change is outstanding.
+            The pending verification that would move the account, or None.
         """
         pending_verification = self.email_verification_repository.get_pending_by_user_id(user.id)
 
+        # An activation is pending too, and it moves no address of its own.
         if not pending_verification or not pending_verification.new_email:
             return None
 
@@ -138,7 +141,54 @@ class EmailVerificationService:
         if pending_verification.expires_at < datetime.now(UTC):
             return None
 
+        return pending_verification
+
+    def get_pending_email_change(self, user: User) -> PendingEmailChange | None:
+        """Report the change of address a user is waiting on, if any.
+
+        Args:
+            user: The account being asked about.
+
+        Returns:
+            The address the account is waiting on and the deadline on its
+            link, or None when no change is outstanding.
+        """
+        pending_verification = self._outstanding_email_change(user)
+
+        if not pending_verification or not pending_verification.new_email:
+            return None
+
         return PendingEmailChange(new_email=pending_verification.new_email, expires_at=pending_verification.expires_at)
+
+    def cancel_pending_email_change(self, user: User) -> Message:
+        """Call off the change of address a user is waiting on.
+
+        Expiring the row is all it takes: the account never moved, so there is
+        nothing to put back, and the link that was mailed out stops working.
+        Only a change the screen would have reported can be called off, so a
+        pending activation is deliberately left alone: withdrawing one would
+        leave an account with no way left to prove the address it holds.
+
+        Args:
+            user: The account calling the change off.
+
+        Returns:
+            Success message.
+
+        Raises:
+            EmailVerificationNotFoundError: If the account has no change of
+                address outstanding.
+        """
+        pending_verification = self._outstanding_email_change(user)
+
+        if not pending_verification:
+            raise EmailVerificationNotFoundError from None
+
+        self._mark_email_verification(
+            email_verification_id=pending_verification.id, status=EmailVerificationStatus.EXPIRED
+        )
+
+        return Message(message="Email change cancelled.")
 
     def invalidate_pending_for_user(self, user_id: uuid.UUID) -> None:
         """Expire the pending email verification of a user, if there is one.

@@ -118,6 +118,32 @@ def get_pending_email_change_me(
     return email_verification_service.get_pending_email_change(user=current_user)
 
 
+@router.delete("/me/email-change", response_model=Message)
+def cancel_pending_email_change_me(
+    *,
+    email_verification_service: EmailVerificationServiceDep,
+    current_user: CurrentUser,
+) -> Message:
+    """Call off the change of address the current account is waiting on.
+
+    Until now the only ways out of a change asked for by mistake were to ask
+    for another one or to wait the link out. Cancelling expires the pending
+    row, so the link stops working straight away.
+
+    Args:
+        email_verification_service: The email verification service dependency.
+        current_user: The current authenticated user.
+
+    Returns:
+        A message indicating that the pending change was called off.
+
+    Raises:
+        HTTPException: If the account has no change of address outstanding (404),
+            the user's token is invalid (401), or the user is inactive (403).
+    """
+    return email_verification_service.cancel_pending_email_change(user=current_user)
+
+
 @router.post("/verify", response_model=Message)
 def verify_email(
     *,
