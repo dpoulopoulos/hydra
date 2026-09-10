@@ -290,6 +290,86 @@ class TestGetPendingEmailChangeMe:
         assert response.status_code == 401
 
 
+class TestCancelPendingEmailChangeMe:
+    """Tests for the cancel_pending_email_change_me endpoint (DELETE /email-verification/me/email-change)."""
+
+    def test_cancel_pending_email_change_me_calls_the_change_off(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test the screen can call off a change the account is waiting on."""
+
+        # Arrange: Set up dependency overrides with an authenticated user
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        try:
+            with patch.object(
+                EmailVerificationService,
+                "cancel_pending_email_change",
+                return_value=Message(message="Email change cancelled."),
+            ) as cancel:
+                # Act: Call off the change on the caller's own account
+                response = client.delete("/api/v1/email-verification/me/email-change")
+
+                # Assert: The change called off is the caller's, never one it names
+                assert response.status_code == 200
+                assert response.json()["message"] == "Email change cancelled."
+                assert cancel.call_args.kwargs["user"] == test_user
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+    def test_cancel_pending_email_change_me_without_anything_pending(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test there is nothing to call off when no change is outstanding."""
+
+        # Arrange: Set up dependency overrides with an authenticated user
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        try:
+            with patch.object(
+                EmailVerificationService,
+                "cancel_pending_email_change",
+                side_effect=EmailVerificationNotFoundError(),
+            ):
+                # Act: Call off a change that is not there
+                response = client.delete("/api/v1/email-verification/me/email-change")
+
+                # Assert: Verify 404 not found response
+                assert response.status_code == 404
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+    def test_cancel_pending_email_change_me_requires_authentication(self, client: TestClient) -> None:
+        """Test that the endpoint refuses a caller with no token."""
+        # Act: Call off a change without signing in
+        response = client.delete("/api/v1/email-verification/me/email-change")
+
+        # Assert: Verify 401 unauthorized response
+        assert response.status_code == 401
+
+
 class TestVerifyEmail:
     """Tests for the verify_email endpoint (POST /email-verification/verify)."""
 

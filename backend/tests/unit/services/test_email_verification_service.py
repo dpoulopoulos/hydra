@@ -273,6 +273,123 @@ class TestGetPendingEmailChange:
         assert result is None
 
 
+class TestCancelPendingEmailChange:
+    """Tests for the cancel_pending_email_change method."""
+
+    @pytest.fixture
+    def pending_change(self, test_user: User) -> EmailVerification:
+        """Create a pending change of address for the test user.
+
+        Args:
+            test_user: The test user.
+
+        Returns:
+            A pending verification of an address the user asked to move to.
+        """
+        verification = EmailVerification(
+            email=test_user.email,
+            new_email="moving-to@example.com",
+            user_id=test_user.id,
+            status=EmailVerificationStatus.PENDING,
+            expires_at=datetime.now(UTC) + timedelta(hours=24),
+            token="cancel_change_token",
+        )
+        verification.id = uuid.UUID("88888888-8888-8888-8888-888888888888")
+        return verification
+
+    def test_cancel_pending_email_change_expires_the_row(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        pending_change: EmailVerification,
+    ) -> None:
+        """Test calling off a change makes its link unredeemable."""
+        # Arrange: The user asked to move to another address
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = pending_change
+        mock_email_verification_service.session.get.return_value = pending_change
+
+        # Act
+        result = mock_email_verification_service.cancel_pending_email_change(user=test_user)
+
+        # Assert
+        assert isinstance(result, Message)
+        assert pending_change.status == EmailVerificationStatus.EXPIRED
+        assert test_user.email != "moving-to@example.com"
+
+    def test_cancel_pending_email_change_without_anything_pending(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+    ) -> None:
+        """Test there is nothing to call off when no change is outstanding."""
+        # Arrange: The user has no pending verification
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationNotFoundError):
+            mock_email_verification_service.cancel_pending_email_change(user=test_user)
+
+    def test_cancel_pending_email_change_leaves_an_activation_alone(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test calling off a change does not withdraw an account's own activation."""
+        # Arrange: The pending verification activates the account. Expiring it
+        # would leave an account that cannot be activated and never asked to move
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        mock_email_verification_service.session.get.return_value = test_email_verification
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationNotFoundError):
+            mock_email_verification_service.cancel_pending_email_change(user=test_user)
+
+        assert test_email_verification.status == EmailVerificationStatus.PENDING
+
+    def test_cancel_pending_email_change_refuses_a_change_whose_link_has_lapsed(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        pending_change: EmailVerification,
+    ) -> None:
+        """Test a change nobody can finish is not a change there is anything to call off."""
+        # Arrange: The deadline on the link has gone by, so the report says
+        # nothing is outstanding and cancelling has to agree
+        pending_change.expires_at = datetime.now(UTC) - timedelta(hours=1)
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = pending_change
+        mock_email_verification_service.session.get.return_value = pending_change
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationNotFoundError):
+            mock_email_verification_service.cancel_pending_email_change(user=test_user)
+
+    def test_cancel_pending_email_change_refuses_a_change_the_account_has_moved_past(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        pending_change: EmailVerification,
+    ) -> None:
+        """Test a change asked for from an address the account no longer holds cannot be called off."""
+        # Arrange: The account moved elsewhere after this change was asked for.
+        # The report ignores the row, so cancelling it would answer for
+        # something the screen never claimed was outstanding
+        test_user.email = "already-moved@example.com"
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = pending_change
+        mock_email_verification_service.session.get.return_value = pending_change
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationNotFoundError):
+            mock_email_verification_service.cancel_pending_email_change(user=test_user)
+
+        assert pending_change.status == EmailVerificationStatus.PENDING
+
+
 class TestInvalidatePendingForUser:
     """Tests for the invalidate_pending_for_user method."""
 
