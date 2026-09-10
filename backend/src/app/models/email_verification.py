@@ -33,6 +33,13 @@ class EmailVerificationPublic(EmailVerificationBase):
     created_at: datetime.datetime
 
 
+class PendingEmailChange(SQLModel):
+    """A change of address an account has asked for and not yet proved."""
+
+    new_email: EmailStr
+    expires_at: datetime.datetime
+
+
 class EmailVerification(EmailVerificationBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=True):
     token: str = Field(unique=True, index=True)
     user_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
