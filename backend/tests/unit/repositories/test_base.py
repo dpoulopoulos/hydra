@@ -6,7 +6,7 @@ import pytest
 from sqlmodel import Field, Session, SQLModel, select
 
 from app.models.mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
-from app.repositories.base import BaseRepository, HouseholdScopedRepository
+from app.repositories.base import BaseRepository, HouseholdScopedRepository, contains_pattern
 
 
 class ScopedThing(PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, SQLModel, table=True):
@@ -153,3 +153,17 @@ class UnscopedThing(PrimaryKeyMixin, SQLModel, table=True):
 def test_rejects_a_model_without_a_household_column(mock_db_session: MagicMock) -> None:
     with pytest.raises(TypeError, match="household_id"):
         HouseholdScopedRepository(session=mock_db_session, model_class=UnscopedThing)
+
+
+@pytest.mark.parametrize(
+    ("term", "pattern"),
+    [
+        ("acme", "%acme%"),
+        ("50%", "%50\\%%"),
+        ("ACME_LTD", "%ACME\\_LTD%"),
+        ("a\\_b", "%a\\\\\\_b%"),
+    ],
+    ids=["plain term", "percent sign", "underscore", "backslash before a metacharacter"],
+)
+def test_a_term_is_wrapped_in_wildcards_with_its_metacharacters_escaped(term: str, pattern: str) -> None:
+    assert contains_pattern(term) == pattern

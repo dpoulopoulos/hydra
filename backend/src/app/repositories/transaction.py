@@ -5,7 +5,7 @@ from typing import Any
 from sqlmodel import Session, col, func, or_, select
 
 from app.models import Category, Transaction, TransactionFilters, TransactionSort
-from app.repositories.base import HouseholdScopedRepository
+from app.repositories.base import LIKE_ESCAPE, HouseholdScopedRepository, contains_pattern
 
 
 class TransactionRepository(HouseholdScopedRepository[Transaction]):
@@ -169,8 +169,13 @@ class TransactionRepository(HouseholdScopedRepository[Transaction]):
             conditions.append(Transaction.amount_minor <= filters.max_amount_minor)
 
         if filters.q:
-            pattern = f"%{filters.q}%"
-            conditions.append(or_(col(Transaction.merchant).ilike(pattern), col(Transaction.note).ilike(pattern)))
+            pattern = contains_pattern(filters.q)
+            conditions.append(
+                or_(
+                    col(Transaction.merchant).ilike(pattern, escape=LIKE_ESCAPE),
+                    col(Transaction.note).ilike(pattern, escape=LIKE_ESCAPE),
+                )
+            )
 
         return conditions
 
