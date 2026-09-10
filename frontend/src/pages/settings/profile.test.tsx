@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { UserPublic } from '@/api'
+import type { PendingEmailChange, UserPublic } from '@/api'
+import { formatDateTime } from '@/lib/month'
 import { Component as Profile } from '@/pages/settings/profile'
 
 // `useAuth` reads the cached current user, which the page mirrors into its
@@ -48,6 +49,7 @@ vi.mock('@/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api')>()
   return {
     ...actual,
+    emailVerificationGetPendingEmailChangeMe: vi.fn(),
     usersUpdateUserMe: vi.fn(),
     usersUpdatePasswordMe: vi.fn(),
     usersDeleteUserMe: vi.fn(),
@@ -55,6 +57,11 @@ vi.mock('@/api', async (importOriginal) => {
 })
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+
+const pendingChange: PendingEmailChange = {
+  new_email: 'moving-to@example.com',
+  expires_at: '2026-01-02T00:00:00Z',
+}
 
 const api = await import('@/api')
 const { toast } = await import('sonner')
@@ -93,6 +100,9 @@ describe('profile page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(api.usersUpdateUserMe).mockResolvedValue({ data: user() } as never)
+    vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+      data: null,
+    } as never)
     authStore.publish(user())
   })
 
@@ -196,5 +206,70 @@ describe('profile page', () => {
     // The account still holds the address it has proven, and the form is what
     // says which one that is.
     await waitFor(() => expect(emailField()).toHaveValue('alex@example.com'))
+  })
+})
+
+describe('a pending change of address', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+      data: pendingChange,
+    } as never)
+    authStore.publish(user())
+  })
+
+  it('says which address the account is waiting on', async () => {
+    renderProfile()
+
+    // The toast that said so is long gone by the time the page is reloaded.
+    expect(await screen.findByRole('alert')).toHaveTextContent('moving-to@example.com')
+  })
+
+  it('says how long the link has left', async () => {
+    renderProfile()
+
+    // A change with a deadline nobody can see is one you cannot tell is still
+    // worth waiting on.
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      formatDateTime(pendingChange.expires_at),
+    )
+  })
+
+  it('says nothing when no change is outstanding', async () => {
+    vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+      data: null,
+    } as never)
+    renderProfile()
+
+    await waitFor(() => expect(api.emailVerificationGetPendingEmailChangeMe).toHaveBeenCalled())
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('says when it could not find out whether a change is outstanding', async () => {
+    // Staying quiet would be the same screen as no change at all, which tells
+    // an account waiting on a link that it is waiting on nothing.
+    vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+      error: { detail: 'Boom.', status: 500 },
+    } as never)
+    renderProfile()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not check for a pending email change',
+    )
+  })
+
+  it('asks again when the failed lookup is retried', async () => {
+    vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+      error: { detail: 'Boom.', status: 500 },
+    } as never)
+    renderProfile()
+    const person = userEvent.setup()
+
+    vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+      data: pendingChange,
+    } as never)
+    await person.click(await screen.findByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('moving-to@example.com')
   })
 })
