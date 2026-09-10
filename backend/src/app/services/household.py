@@ -867,9 +867,7 @@ class HouseholdService:
         if invite.status is not HouseholdInviteStatus.PENDING:
             raise HouseholdInviteUsedError from None
 
-        # The stored column is naive, matching the timestamps the rest of the
-        # schema uses, so compare against a naive now.
-        if invite.expires_at < datetime.now(UTC).replace(tzinfo=None):
+        if invite.expires_at < datetime.now(UTC):
             invite.status = HouseholdInviteStatus.EXPIRED
             # Flushed, not committed: this runs inside the caller's
             # transaction, which may be signing a user up.

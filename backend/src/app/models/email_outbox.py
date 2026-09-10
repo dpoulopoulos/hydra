@@ -4,7 +4,7 @@ from enum import StrEnum
 from pydantic import EmailStr
 from sqlmodel import Field, SQLModel
 
-from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
+from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
 
 # Subjects live in a bounded column, so one that is too long is trimmed to fit
 # rather than costing the request that asked for the mail.
@@ -33,8 +33,10 @@ class EmailOutbox(PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, SQLModel, tab
     attempts: int = 0
     # When the dispatcher may next try. A fresh row is due immediately; a failed
     # attempt pushes it into the future by the backoff.
-    next_attempt_at: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.UTC), index=True)
+    next_attempt_at: datetime.datetime = Field(
+        default_factory=lambda: datetime.datetime.now(datetime.UTC), sa_type=UtcDateTime, index=True
+    )
     # The last provider error, truncated: it is a breadcrumb for whoever reads
     # the row, not a place to keep a whole traceback.
     last_error: str | None = Field(default=None, max_length=500)
-    sent_at: datetime.datetime | None = None
+    sent_at: datetime.datetime | None = Field(default=None, sa_type=UtcDateTime)

@@ -47,7 +47,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, SQLModel
 
 from .fields import MAX_AMOUNT_MINOR, MonthKey, within_cap_sql
-from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
+from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
 from .recurring_rule import MAX_RECURRENCE_INTERVAL, RecurrenceFrequency
 
 # Ciphertext is base64 of a 12 byte nonce, the AES-GCM ciphertext and its 16
@@ -318,7 +318,7 @@ class IncomeClient(IncomeClientBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtM
     # Archived rather than deleted, and stamped rather than flagged: a client
     # you stop seeing is like an account you close, and the date is worth
     # keeping.
-    archived_at: datetime.datetime | None = Field(default=None)
+    archived_at: datetime.datetime | None = Field(default=None, sa_type=UtcDateTime)
 
 
 # --------------------------------------------------------------------------- #

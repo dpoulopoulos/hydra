@@ -6,7 +6,7 @@ from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, 
 from sqlmodel import Field, SQLModel
 
 from .fields import MAX_AMOUNT_MINOR, MAX_FX_RATE_MICRO, MAX_PRICE_MICRO, MAX_QUANTITY_MICRO, within_cap_sql
-from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
+from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
 
 
 class InstrumentKind(StrEnum):
@@ -322,12 +322,12 @@ class Instrument(InstrumentBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin
     # anything here and there is nothing to recompute it from: caching it is
     # the only way to show a value when the provider is unreachable.
     last_price_micro: int | None = Field(default=None, sa_type=BigInteger)
-    last_price_at: datetime.datetime | None = Field(default=None)
+    last_price_at: datetime.datetime | None = Field(default=None, sa_type=UtcDateTime)
     # When the provider was last asked, as opposed to what moment the price it
     # returned refers to. The two are days apart over a weekend, and it is this
     # one that decides whether asking again is worth an API call. Reading
     # `last_price_at` instead would re-fetch every closed market forever.
-    last_priced_at: datetime.datetime | None = Field(default=None)
+    last_priced_at: datetime.datetime | None = Field(default=None, sa_type=UtcDateTime)
     # Whether the price on this row was typed in rather than fetched. A number
     # someone entered and a number a market reported are both useful and are
     # not the same claim, so the row says which it is holding.
@@ -424,4 +424,4 @@ class FxRate(SQLModel, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=Tr
     # How many units of the quote currency one unit of the base currency buys,
     # times MICRO.
     rate_micro: int = Field(sa_type=BigInteger, le=MAX_FX_RATE_MICRO)
-    as_of: datetime.datetime
+    as_of: datetime.datetime = Field(sa_type=UtcDateTime)

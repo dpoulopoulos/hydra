@@ -597,7 +597,7 @@ def make_invite(
         email=email,
         role=role,
         status=status,
-        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=expires_in_hours),
+        expires_at=datetime.now(UTC) + timedelta(hours=expires_in_hours),
         token="a-token",
     )
     invite.invited_user_id = invited_user_id
@@ -610,7 +610,7 @@ def make_verification(user_id: uuid.UUID, email: str) -> EmailVerification:
         email=email,
         user_id=user_id,
         status=EmailVerificationStatus.VERIFIED,
-        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=24),
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
         token="a-verification-token",
     )
 

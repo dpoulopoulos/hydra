@@ -6,7 +6,7 @@ from sqlalchemy import CheckConstraint, Index, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 from .fields import within_cap_sql
-from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
+from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
 
 # The ordering column is a plain integer, which Postgres tops out at 2**31 - 1,
 # and it is only a display hint on a list a household edits by hand. A small
@@ -106,7 +106,7 @@ class Category(CategoryBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, ta
     # System categories are the guaranteed landing zone for a transaction with
     # no category, so they cannot be renamed away, archived or deleted.
     is_system: bool = Field(default=False)
-    archived_at: datetime.datetime | None = Field(default=None)
+    archived_at: datetime.datetime | None = Field(default=None, sa_type=UtcDateTime)
     # Set only on a subcategory that an archive of its parent took down with
     # it. A child archived on its own keeps this False, so restoring the parent
     # can put back exactly the branch the cascade retired and leave that child

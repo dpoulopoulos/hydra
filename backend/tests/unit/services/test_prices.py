@@ -385,12 +385,12 @@ class TestTimestamp:
         moment = prices._timestamp(1_788_000_000)
 
         # Assert: Verify it became the moment it stands for
-        assert moment == datetime.datetime.fromtimestamp(1_788_000_000, tz=datetime.UTC).replace(tzinfo=None)
+        assert moment == datetime.datetime.fromtimestamp(1_788_000_000, tz=datetime.UTC)
 
     def test_a_missing_timestamp_becomes_now(self) -> None:
         """Test that no timestamp does not make a fresh price look ancient."""
         # Arrange: Note the time before the call
-        before = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+        before = datetime.datetime.now(datetime.UTC)
 
         # Act: Read a missing timestamp
         moment = prices._timestamp(None)
@@ -479,7 +479,7 @@ class TestFrankfurterFxProvider:
         found, _ = fx.fx_rates([("USD", "EUR")])
 
         # Assert: Verify the date came from the response
-        assert found[("USD", "EUR")].as_of == datetime.datetime(2026, 9, 4, 0, 0)
+        assert found[("USD", "EUR")].as_of == datetime.datetime(2026, 9, 4, 0, 0, tzinfo=datetime.UTC)
 
 
 class TestEodhdProvider:

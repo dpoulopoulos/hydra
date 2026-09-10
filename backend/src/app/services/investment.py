@@ -62,14 +62,15 @@ MAX_INSTRUMENTS = 500
 def _recorded_order(trade: Trade) -> tuple[datetime.date, datetime.datetime]:
     """Sort key putting a day's trades in the order they were recorded.
 
-    Timestamps are stored without a zone, so a row read back from the database
-    is naive, while one just built in Python carries UTC. Comparing the two
-    raises, and it only happens when two trades share a date, which is exactly
-    what a second trade in the same instrument on the same day does. So every
-    timestamp is brought to naive UTC before it is compared.
+    Two timestamps are only ever compared when two trades share a date, which
+    is exactly what a second trade in the same instrument on the same day
+    does. Both carry a zone, since the column is ``timestamptz`` and everything
+    the app builds is tz-aware, so they compare as the moments they are.
 
     A trade with no timestamp at all sorts last on its day: not having been
-    written yet makes it the most recent thing to have happened on it.
+    written yet makes it the most recent thing to have happened on it. The
+    stand-in has to carry a zone too, or that comparison is the one that
+    raises.
 
     Args:
         trade: The trade to place.
@@ -80,10 +81,7 @@ def _recorded_order(trade: Trade) -> tuple[datetime.date, datetime.datetime]:
     created_at = trade.created_at
 
     if created_at is None:
-        return trade.traded_on, datetime.datetime.max
-
-    if created_at.tzinfo is not None:
-        created_at = created_at.astimezone(datetime.UTC).replace(tzinfo=None)
+        return trade.traded_on, datetime.datetime.max.replace(tzinfo=datetime.UTC)
 
     return trade.traded_on, created_at
 
@@ -209,7 +207,7 @@ class InvestmentService:
                 ),
                 "last_price_micro": quote.price_micro if quote else None,
                 "last_price_at": quote.as_of if quote else None,
-                "last_priced_at": (datetime.datetime.now(datetime.UTC).replace(tzinfo=None) if quote else None),
+                "last_priced_at": (datetime.datetime.now(datetime.UTC) if quote else None),
             },
         )
         self.instrument_repository.save(instrument)
@@ -339,7 +337,7 @@ class InvestmentService:
             InstrumentNotFoundError: If it does not exist in the household.
         """
         instrument = self.require_instrument(household, instrument_id)
-        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+        now = datetime.datetime.now(datetime.UTC)
 
         instrument.last_price_micro = price_update.price_micro
         instrument.last_price_at = price_update.as_of or now
@@ -665,7 +663,7 @@ class InvestmentService:
         instruments, _ = self.instrument_repository.list_for_household(
             household_id=household.household_id, limit=MAX_INSTRUMENTS
         )
-        refreshed_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+        refreshed_at = datetime.datetime.now(datetime.UTC)
 
         if not instruments:
             return PriceRefreshResult(updated_count=0, cached_count=0, failures=[], refreshed_at=refreshed_at)
