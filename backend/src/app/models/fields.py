@@ -1,5 +1,5 @@
 import re
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 
 from pydantic import AfterValidator, StringConstraints
@@ -119,6 +119,27 @@ def _normalize_iban(value: str) -> str:
 
 
 Iban = Annotated[str, AfterValidator(_normalize_iban)]
+
+
+def _as_utc(value: datetime) -> datetime:
+    """Read a moment as UTC, whether or not the caller named a zone.
+
+    Args:
+        value: The moment, as it was sent.
+
+    Returns:
+        The same instant, carrying UTC.
+    """
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+# A moment arriving from a caller. Every timestamp column is `timestamptz`,
+# which reads a value naming no zone in whatever zone the database session
+# happens to carry: what gets stored would depend on the server's
+# configuration rather than on what was sent. UTC is what the rest of the app
+# means by a moment, so that is what a naive input is taken as, and an input
+# that does name a zone is converted rather than ignored.
+UtcMoment = Annotated[datetime, AfterValidator(_as_utc)]
 
 
 # A calendar month, as used by budgets and by the report endpoints. Budgets are

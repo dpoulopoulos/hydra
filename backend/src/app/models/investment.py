@@ -5,7 +5,14 @@ from enum import StrEnum
 from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, Index, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from .fields import MAX_AMOUNT_MINOR, MAX_FX_RATE_MICRO, MAX_PRICE_MICRO, MAX_QUANTITY_MICRO, within_cap_sql
+from .fields import (
+    MAX_AMOUNT_MINOR,
+    MAX_FX_RATE_MICRO,
+    MAX_PRICE_MICRO,
+    MAX_QUANTITY_MICRO,
+    UtcMoment,
+    within_cap_sql,
+)
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
 
 
@@ -66,7 +73,7 @@ class InstrumentPriceUpdate(SQLModel):
     price_micro: int = Field(ge=0, le=MAX_PRICE_MICRO)
     # What moment the price refers to, if the caller knows. Left out, it is
     # taken as now, which is what typing today's screen price means.
-    as_of: datetime.datetime | None = Field(default=None)
+    as_of: UtcMoment | None = Field(default=None)
 
 
 class InstrumentPublic(InstrumentBase):
