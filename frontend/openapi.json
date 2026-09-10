@@ -4931,6 +4931,66 @@
         ]
       }
     },
+    "/api/v1/email-verification/me/email-change": {
+      "get": {
+        "tags": [
+          "email-verification"
+        ],
+        "summary": "Get Pending Email Change Me",
+        "description": "Report the change of address the current account is waiting on.\n\nAsking to change the address does not move the account: it mails a link to\nthe new address and waits. Nothing else says so once the reply to that\nrequest is gone, which leaves an account that mistyped the address with no\nsign that the link went somewhere it cannot read.\n\nArgs:\n    email_verification_service: The email verification service dependency.\n    current_user: The current authenticated user.\n\nReturns:\n    The address the account is waiting on, or null when no change is\n    outstanding.\n\nRaises:\n    HTTPException: If the user's token is invalid (401), the user is not found (404),\n        or the user is inactive (403).",
+        "operationId": "email-verification-get_pending_email_change_me",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PendingEmailChange"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Email-Verification-Get Pending Email Change Me"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "email-verification"
+        ],
+        "summary": "Cancel Pending Email Change Me",
+        "description": "Call off the change of address the current account is waiting on.\n\nUntil now the only ways out of a change asked for by mistake were to ask\nfor another one or to wait the link out. Cancelling expires the pending\nrow, so the link stops working straight away.\n\nArgs:\n    email_verification_service: The email verification service dependency.\n    current_user: The current authenticated user.\n\nReturns:\n    A message indicating that the pending change was called off.\n\nRaises:\n    HTTPException: If the account has no change of address outstanding (404),\n        the user's token is invalid (401), or the user is inactive (403).",
+        "operationId": "email-verification-cancel_pending_email_change_me",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/email-verification/verify": {
       "post": {
         "tags": [
@@ -8251,6 +8311,27 @@
         ],
         "title": "PaymentStatus",
         "description": "Whether the money arrived."
+      },
+      "PendingEmailChange": {
+        "properties": {
+          "new_email": {
+            "type": "string",
+            "format": "email",
+            "title": "New Email"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "new_email",
+          "expires_at"
+        ],
+        "title": "PendingEmailChange",
+        "description": "A change of address an account has asked for and not yet proved."
       },
       "PortfolioPublic": {
         "properties": {
