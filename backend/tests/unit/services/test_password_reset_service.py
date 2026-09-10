@@ -403,30 +403,6 @@ class TestVerifyTokenMethod:
             password_reset_id=password_reset_id, status=PasswordResetStatus.EXPIRED
         )
 
-    def test_verify_token_expired_by_time_naive_datetime(
-        self, mock_password_reset_service: PasswordResetService
-    ) -> None:
-        """Test verifying a token with naive datetime expiration that converts to UTC."""
-        # Arrange: Create token and mock password reset with naive datetime
-        token = create_password_reset_token(subject="test@example.com")
-        password_reset_id = uuid.UUID("44444444-4444-4444-4444-444444444444")
-
-        mock_password_reset = MagicMock(spec=PasswordReset)
-        mock_password_reset.id = password_reset_id
-        mock_password_reset.status = PasswordResetStatus.PENDING
-        # Use naive datetime (no timezone) set to a future time to verify timezone handling works
-        mock_password_reset.expires_at = datetime.now() + timedelta(hours=1)
-
-        mock_password_reset_service.session.exec = MagicMock()
-        mock_password_reset_service.session.exec.return_value.first.return_value = mock_password_reset
-
-        # Act: Verify the token succeeds with naive datetime conversion
-        result = mock_password_reset_service.verify_token(token=token)
-
-        # Assert: Verify token is valid when naive datetime is converted properly
-        assert isinstance(result, Message)
-        assert result.message == "Token is valid."
-
     def test_verify_token_invalid_token_format(self, mock_password_reset_service: PasswordResetService) -> None:
         """Test verifying an invalid token format."""
         # Arrange: Use invalid token

@@ -142,11 +142,7 @@ class PasswordResetService:
             raise PasswordResetExpiredError from None
 
         # Check if token has expired
-        expires_at = password_reset.expires_at
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=UTC)
-
-        if expires_at < datetime.now(UTC):
+        if password_reset.expires_at < datetime.now(UTC):
             self._mark_password_reset(password_reset_id=password_reset.id, status=PasswordResetStatus.EXPIRED)
             raise PasswordResetExpiredError from None
 
