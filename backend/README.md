@@ -159,6 +159,16 @@ Password fields use the `Password` type from [models/fields.py](src/app/models/f
 bytes bcrypt is able to hash. The bound is checked against the UTF-8 encoded length as well as the character count,
 since non-ASCII characters encode to more than one byte.
 
+Timestamp columns use the `UtcDateTime` type from [models/mixins.py](src/app/models/mixins.py), which is
+`timestamptz`. Every moment the app stores is UTC and tz-aware, and the column has to record that: a plain
+`DateTime` keeps the wall clock and drops the offset, so the API serialises a moment with nothing saying which zone
+it is in, and ECMAScript reads a date-time in that shape as *local* time. A new timestamp column names this type,
+never `datetime` on its own.
+
+> **Convention:** a moment arriving from a caller is typed `UtcMoment` from [models/fields.py](src/app/models/fields.py),
+> which reads an input naming no zone as UTC. Without it, what gets stored depends on the zone the database session
+> happens to carry rather than on what was sent.
+
 ## Getting Started
 
 ### Prerequisites
