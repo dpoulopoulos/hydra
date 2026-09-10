@@ -770,32 +770,6 @@ class TestVerifyEmail:
         with pytest.raises(EmailVerificationExpiredError):
             mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
 
-    def test_verify_email_expired_time_naive_datetime(
-        self,
-        mock_email_verification_service: EmailVerificationService,
-        mock_user_service: UserService,
-        test_user: User,
-        test_email_verification: EmailVerification,
-    ) -> None:
-        """Test verifying email when expiration time is naive datetime."""
-        # Arrange
-        token = create_email_verification_token(subject=test_user.email)
-        test_email_verification.token = token
-        # Create a naive datetime (no timezone) that's expired
-        # Remove timezone info and subtract hours to ensure it's expired
-        naive_now = datetime.now(UTC).replace(tzinfo=None)
-        test_email_verification.expires_at = naive_now - timedelta(hours=1)
-        test_email_verification.status = EmailVerificationStatus.PENDING
-
-        mock_email_verification_service.session.exec = MagicMock()
-        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
-        mock_email_verification_service.session.get.return_value = test_email_verification
-
-        # Act & Assert
-        with patch.object(mock_user_service.user_repository, "get_by_id", return_value=test_user):
-            with pytest.raises(EmailVerificationExpiredError):
-                mock_email_verification_service.verify_email(user_service=mock_user_service, token=token)
-
     def test_verify_email_user_not_found(
         self,
         mock_email_verification_service: EmailVerificationService,

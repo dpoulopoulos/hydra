@@ -307,11 +307,7 @@ class EmailVerificationService:
             raise EmailVerificationExpiredError from None
 
         # Check if token has expired
-        expires_at = email_verification.expires_at
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=UTC)
-
-        if expires_at < datetime.now(UTC):
+        if email_verification.expires_at < datetime.now(UTC):
             self._mark_email_verification(
                 email_verification_id=email_verification.id, status=EmailVerificationStatus.EXPIRED
             )
