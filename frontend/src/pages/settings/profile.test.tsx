@@ -49,7 +49,9 @@ vi.mock('@/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api')>()
   return {
     ...actual,
+    emailVerificationCancelPendingEmailChangeMe: vi.fn(),
     emailVerificationGetPendingEmailChangeMe: vi.fn(),
+    emailVerificationSendVerificationEmailMe: vi.fn(),
     usersUpdateUserMe: vi.fn(),
     usersUpdatePasswordMe: vi.fn(),
     usersDeleteUserMe: vi.fn(),
@@ -216,6 +218,12 @@ describe('a pending change of address', () => {
       data: pendingChange,
     } as never)
     authStore.publish(user())
+    vi.mocked(api.emailVerificationCancelPendingEmailChangeMe).mockResolvedValue({
+      data: { message: 'Email change cancelled.' },
+    } as never)
+    vi.mocked(api.emailVerificationSendVerificationEmailMe).mockResolvedValue({
+      data: { message: 'Verification email sent successfully.' },
+    } as never)
   })
 
   it('says which address the account is waiting on', async () => {
@@ -271,5 +279,103 @@ describe('a pending change of address', () => {
     await person.click(await screen.findByRole('button', { name: 'Try again' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('moving-to@example.com')
+  })
+
+  it('calls the change off when asked to', async () => {
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Cancel the change' }))
+
+    // Nothing to put back: the account never left the address it holds.
+    await waitFor(() => expect(api.emailVerificationCancelPendingEmailChangeMe).toHaveBeenCalled())
+    expect(toast.success).toHaveBeenCalledWith('Email change cancelled')
+  })
+
+  it('drops the notice once the change is called off', async () => {
+    renderProfile()
+    const person = userEvent.setup()
+
+    // Once the change is called off, the refetch that follows finds nothing
+    // outstanding.
+    vi.mocked(api.emailVerificationCancelPendingEmailChangeMe).mockImplementation(() => {
+      vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+        data: null,
+      } as never)
+      return Promise.resolve({ data: { message: 'Email change cancelled.' } }) as never
+    })
+
+    await person.click(await screen.findByRole('button', { name: 'Cancel the change' }))
+
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
+
+  it('owns up when asking for a confirmation calls the change off', async () => {
+    renderProfile()
+    const person = userEvent.setup()
+
+    // Issuing a confirmation expires the account's pending row, change of
+    // address and all, so the button drops the change without being asked to.
+    await person.click(await screen.findByRole('button', { name: 'Send confirmation email' }))
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Confirmation email sent. The change to moving-to@example.com was cancelled.',
+      ),
+    )
+  })
+
+  it('drops the notice once a confirmation is asked for', async () => {
+    renderProfile()
+    const person = userEvent.setup()
+
+    vi.mocked(api.emailVerificationSendVerificationEmailMe).mockImplementation(() => {
+      vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+        data: null,
+      } as never)
+      return Promise.resolve({
+        data: { message: 'Verification email sent successfully.' },
+      }) as never
+    })
+
+    await person.click(await screen.findByRole('button', { name: 'Send confirmation email' }))
+
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
+
+  it('treats a change that has already gone as called off', async () => {
+    // The link was opened, or the change lapsed, between the notice being
+    // drawn and the button being pressed. The account wanted it gone and it is
+    // gone, so say so in the screen's words rather than the backend's.
+    vi.mocked(api.emailVerificationCancelPendingEmailChangeMe).mockImplementation(() => {
+      vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+        data: null,
+      } as never)
+      return Promise.resolve({
+        error: { detail: 'Email verification not found.', status: 404 },
+      }) as never
+    })
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Cancel the change' }))
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('That change is no longer outstanding.'),
+    )
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('says why calling the change off failed', async () => {
+    vi.mocked(api.emailVerificationCancelPendingEmailChangeMe).mockResolvedValue({
+      error: { detail: 'Email verification not found.' },
+    } as never)
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Cancel the change' }))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled())
   })
 })

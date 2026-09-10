@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 import {
+  emailVerificationCancelPendingEmailChangeMe,
   emailVerificationGetPendingEmailChangeMe,
   emailVerificationSendVerificationEmailMe,
   usersDeleteUserMe,
@@ -22,7 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
-import { errorMessage } from '@/lib/api'
+import { errorMessage, errorStatus } from '@/lib/api'
 import { formatDateTime } from '@/lib/month'
 import { PASSWORD_HINT, passwordSchema } from '@/lib/password'
 import { useEffect, useState } from 'react'
@@ -77,6 +78,34 @@ export function Component() {
     },
   })
 
+  // A change asked for by mistake was otherwise only shaken off by asking for
+  // another one or by waiting the link out, which leaves it live in a mailbox
+  // the account holder may not read.
+  const cancelChange = useMutation({
+    mutationFn: async () => {
+      const { error } = await emailVerificationCancelPendingEmailChangeMe()
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['pendingEmailChange'] })
+      toast.success('Email change cancelled')
+    },
+    onError: (error) => {
+      // A 404 means the change went while the notice was on screen: the link
+      // was opened, it lapsed, or asking for a confirmation email expired it.
+      // The outcome is the one that was asked for, so say so in the screen's
+      // own words rather than the backend's, and clear the notice that is now
+      // describing a change nobody is waiting on.
+      if (errorStatus(error) === 404) {
+        void queryClient.invalidateQueries({ queryKey: ['pendingEmailChange'] })
+        toast.success('That change is no longer outstanding.')
+        return
+      }
+
+      toast.error(errorMessage(error))
+    },
+  })
+
   const saveDetails = useMutation({
     mutationFn: async (values: z.infer<typeof detailsSchema>) => {
       const { error } = await usersUpdateUserMe({
@@ -115,10 +144,26 @@ export function Component() {
   // so both need a way to ask for one.
   const confirmEmail = useMutation({
     mutationFn: async () => {
+      // Issuing a confirmation expires whatever verification the account had
+      // outstanding, so asking for one here quietly calls off a change of
+      // address that was still waiting on its link. Note which address that
+      // was before the row is gone, so the reply can say what it cost.
+      const calledOff = pendingChange.data?.new_email ?? null
       const { error } = await emailVerificationSendVerificationEmailMe()
       if (error) throw error
+      return calledOff
     },
-    onSuccess: () => toast.success('Confirmation email sent. Check your inbox.'),
+    onSuccess: (calledOff) => {
+      // The notice above is now describing a change the server has expired.
+      void queryClient.invalidateQueries({ queryKey: ['pendingEmailChange'] })
+
+      if (calledOff) {
+        toast.success(`Confirmation email sent. The change to ${calledOff} was cancelled.`)
+        return
+      }
+
+      toast.success('Confirmation email sent. Check your inbox.')
+    },
     onError: (error) => toast.error(errorMessage(error)),
   })
 
@@ -194,9 +239,20 @@ export function Component() {
             <Alert className="max-w-md">
               <Mail />
               <AlertTitle>Waiting on {pendingChange.data.new_email}</AlertTitle>
-              <AlertDescription>
-                Open the link we sent there by {formatDateTime(pendingChange.data.expires_at)} to
-                finish the change. Until you do, this account keeps the address below.
+              <AlertDescription className="space-y-3">
+                <p>
+                  Open the link we sent there by {formatDateTime(pendingChange.data.expires_at)} to
+                  finish the change. Until you do, this account keeps the address below.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  disabled={cancelChange.isPending}
+                  onClick={() => cancelChange.mutate()}
+                >
+                  Cancel the change
+                </Button>
               </AlertDescription>
             </Alert>
           ) : null}
