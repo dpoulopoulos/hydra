@@ -1,10 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Mail, TriangleAlert } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
 import {
+  emailVerificationGetPendingEmailChangeMe,
   emailVerificationSendVerificationEmailMe,
   usersDeleteUserMe,
   usersUpdatePasswordMe,
@@ -15,11 +17,13 @@ import { Field, FormError } from '@/components/form-field'
 import { PageHeader } from '@/components/layout/page-header'
 import { SettingsNav } from '@/components/layout/settings-nav'
 import { SubmitButton } from '@/components/submit-button'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
 import { errorMessage } from '@/lib/api'
+import { formatDateTime } from '@/lib/month'
 import { PASSWORD_HINT, passwordSchema } from '@/lib/password'
 import { useEffect, useState } from 'react'
 
@@ -60,6 +64,19 @@ export function Component() {
     resetDetails({ full_name: user.full_name ?? '', email: user.email }, { keepDirtyValues: true })
   }, [user, resetDetails])
 
+  // The account does not move to a new address until the link sent there is
+  // opened, and the reply that said so is gone by the next reload. Asking the
+  // API is the only way the screen can say a change is still outstanding, and
+  // which address it went to.
+  const pendingChange = useQuery({
+    queryKey: ['pendingEmailChange'],
+    queryFn: async () => {
+      const { data, error } = await emailVerificationGetPendingEmailChangeMe()
+      if (error) throw error
+      return data ?? null
+    },
+  })
+
   const saveDetails = useMutation({
     mutationFn: async (values: z.infer<typeof detailsSchema>) => {
       const { error } = await usersUpdateUserMe({
@@ -74,6 +91,7 @@ export function Component() {
       detailsForm.resetField('full_name', { defaultValue: values.full_name })
 
       void queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+      void queryClient.invalidateQueries({ queryKey: ['pendingEmailChange'] })
 
       // A new address is not the account's until the link sent to it is
       // followed, so the form goes back to saying which address the account
@@ -147,7 +165,42 @@ export function Component() {
             A new email address becomes yours once you open the link we send to it.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {pendingChange.isError ? (
+            // A lookup that failed is not the same answer as no change at all,
+            // and staying quiet about it tells the account it is waiting on
+            // nothing. Say the screen could not find out, and offer another go.
+            <Alert variant="destructive" className="max-w-md">
+              <TriangleAlert />
+              <AlertTitle>Could not check for a pending email change</AlertTitle>
+              <AlertDescription className="space-y-3">
+                <p>
+                  If you asked to change your address, the change may still be waiting on its link.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  disabled={pendingChange.isFetching}
+                  onClick={() => void pendingChange.refetch()}
+                >
+                  Try again
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {pendingChange.data ? (
+            <Alert className="max-w-md">
+              <Mail />
+              <AlertTitle>Waiting on {pendingChange.data.new_email}</AlertTitle>
+              <AlertDescription>
+                Open the link we sent there by {formatDateTime(pendingChange.data.expires_at)} to
+                finish the change. Until you do, this account keeps the address below.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           <form
             onSubmit={detailsForm.handleSubmit((values) => saveDetails.mutate(values))}
             className="max-w-md space-y-4"
