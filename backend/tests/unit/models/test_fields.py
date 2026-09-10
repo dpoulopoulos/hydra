@@ -1,13 +1,14 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from app.models import UserCreate
+from app.models import InstrumentPriceUpdate, UserCreate
 from app.models.fields import (
     BCRYPT_MAX_PASSWORD_BYTES,
     Iban,
     MonthKey,
+    UtcMoment,
     month_bounds,
     month_key_of,
     month_start,
@@ -144,3 +145,47 @@ class TestIban:
             self.adapter.validate_python(written)
 
         assert "country code" in str(exc_info.value)
+
+
+class TestUtcMoment:
+    """Test the UtcMoment field type.
+
+    A moment typed in by a caller reaches a ``timestamptz`` column, which reads
+    a value that names no zone in whatever zone the database session carries.
+    That makes what gets stored depend on the server's configuration rather
+    than on what was sent, so a naive input is read as the UTC the rest of the
+    app is written in before it gets anywhere near the column.
+    """
+
+    adapter = TypeAdapter(UtcMoment)
+
+    def test_a_moment_with_no_zone_is_read_as_utc(self):
+        """Test that a naive input is not left for the session zone to decide."""
+        # Arrange: Set up a timestamp with no offset, as a caller may send one
+        written = "2026-09-08T15:30:00"
+
+        # Act: Validate it
+        moment = self.adapter.validate_python(written)
+
+        # Assert: Verify it names UTC and keeps the wall time it was sent with
+        assert moment == datetime(2026, 9, 8, 15, 30, tzinfo=UTC)
+
+    def test_a_moment_in_another_zone_is_converted(self):
+        """Test that an offset the caller did send is honoured, not ignored."""
+        # Arrange: Set up the same instant, written in a zone two hours ahead
+        written = "2026-09-08T17:30:00+02:00"
+
+        # Act: Validate it
+        moment = self.adapter.validate_python(written)
+
+        # Assert: Verify it is the instant the offset names, in UTC
+        assert moment == datetime(2026, 9, 8, 15, 30, tzinfo=UTC)
+        assert moment.utcoffset() == timedelta(0)
+
+    def test_a_typed_price_is_dated_in_utc(self):
+        """Test that the one input model carrying a moment applies the rule."""
+        # Arrange & Act: Type in a price dated with no zone
+        price_update = InstrumentPriceUpdate(price_micro=12_845_670_000, as_of="2026-09-08T15:30:00")
+
+        # Assert: Verify the moment it will be stored as names UTC
+        assert price_update.as_of == datetime(2026, 9, 8, 15, 30, tzinfo=UTC)
