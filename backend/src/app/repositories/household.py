@@ -6,6 +6,7 @@ from sqlmodel import Session, col, func, select
 from app.models import (
     Account,
     Budget,
+    Category,
     Household,
     HouseholdInvite,
     HouseholdInviteStatus,
@@ -49,6 +50,23 @@ class HouseholdRepository(BaseRepository[Household]):
                 return True
 
         return False
+
+    def list_ids_without_categories(self) -> Sequence[uuid.UUID]:
+        """List the households that hold no categories at all.
+
+        Every household is seeded with the default categories when it is
+        created, so an empty one is a household whose seeding never ran. Used
+        by the startup routine to repair those.
+
+        Returns:
+            The IDs of the households with no category rows.
+        """
+        statement = (
+            select(col(Household.id))
+            .outerjoin(Category, col(Category.household_id) == col(Household.id))
+            .where(col(Category.id).is_(None))
+        )
+        return self.session.exec(statement).all()
 
     def get_by_id_for_update(self, household_id: uuid.UUID) -> Household | None:
         """Get a household, holding a row lock on it until the transaction ends.
