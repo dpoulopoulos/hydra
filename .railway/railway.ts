@@ -39,7 +39,7 @@ const MCP_PORT = '8002'
 // directly, and it is not behind the web service's proxy. Everything it
 // serves is gated on a hydra API token, which is the only thing standing
 // between that address and somebody's finances.
-const MCP_DOMAIN = 'mcp.dimpo.dev'
+const MCP_DOMAIN = 'mcp.hydra.dimpo.dev'
 
 export default defineRailway((ctx) => {
   const db = postgres('postgres')
@@ -119,9 +119,9 @@ export default defineRailway((ctx) => {
       // What a client connects to, which is this service's own public address.
       MCP_RESOURCE_URL: `https://${MCP_DOMAIN}/mcp`,
 
-      // HYDRA_API_TOKEN is deliberately absent. A token here would make the
-      // whole deployment act as one person: every client that connected would
-      // read that household, whoever they were. Each client sends its own.
+      // No credential is set here, and the server reads none: each client
+      // sends its own. A token on the service would make the whole deployment
+      // act as one person, whoever connected.
     },
   })
 
