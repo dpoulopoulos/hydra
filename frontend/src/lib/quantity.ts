@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { parseMajor } from '@/lib/amount'
-import { fractionDigits } from '@/lib/money'
+import { fractionDigits, numberSeparators } from '@/lib/money'
 
 /**
  * Quantity and unit price helpers.
@@ -76,6 +76,25 @@ export function formatPrice(micro: number, currency = 'EUR'): string {
     minimumFractionDigits: digits,
     maximumFractionDigits: Math.max(digits, 4),
   }).format(fromPriceMicro(micro, currency))
+}
+
+/**
+ * Write a price the way its field is edited, e.g. 100500000 -> "1.005" in
+ * en-US and "1,005" in de-DE.
+ *
+ * The sibling of `formatMajorInput` for the scale a price carries. A field
+ * filled with a bare `String(fromPriceMicro(...))` writes the decimal point as
+ * a dot whatever the reader's locale is, and whoever reads the field back has
+ * only the characters to go on: in a locale that groups with a dot, a price of
+ * 1.005 round-trips as a thousand and five.
+ */
+export function formatPriceInput(micro: number, currency: string, locale?: string): string {
+  // Plain `String`, not `Intl`, so the digits are the ASCII ones every field
+  // takes and no group mark is written for the parser to be unsure about; only
+  // the character between them is the reader's.
+  const text = String(fromPriceMicro(micro, currency))
+  const { decimal } = numberSeparators(locale)
+  return decimal === '.' ? text : text.replace('.', decimal)
 }
 
 /**

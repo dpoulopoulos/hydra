@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   formatPrice,
+  formatPriceInput,
   formatQuantity,
   formatRate,
   fromPriceMicro,
@@ -212,5 +213,35 @@ describe('separators in a price', () => {
 
   it('reads the decimal point ar-EG writes', () => {
     expect(price('1200\u066b45', 'EUR', 'ar-EG')).toBe(120_045_000_000)
+  })
+})
+
+describe('formatPriceInput', () => {
+  it.each([
+    [120_045_670_000, 'EUR', 'en-US', '1200.4567'],
+    [120_045_670_000, 'EUR', 'de-DE', '1200,4567'],
+    [100_500_000, 'EUR', 'de-DE', '1,005'],
+    [3200 * MICRO, 'JPY', 'de-DE', '3200'],
+    // No group marks, so nothing in the field is ambiguous to read back.
+    [123_456_700_000_000, 'EUR', 'en-IN', '1234567'],
+    // A decimal point that is neither "." nor ",".
+    [120_045_670_000, 'EUR', 'ar-EG', '1200\u066b4567'],
+  ])('writes %i %s as %j in %s', (micro, currency, locale, text) => {
+    expect(formatPriceInput(micro, currency, locale)).toBe(text)
+  })
+
+  it.each([
+    [120_045_670_000, 'EUR', 'en-US'],
+    [120_045_670_000, 'EUR', 'de-DE'],
+    // A price whose fraction is a group's worth of digits: written with a dot,
+    // a locale that groups with one read it back a thousand times over.
+    [100_500_000, 'EUR', 'de-DE'],
+    [100_500_000, 'EUR', 'en-US'],
+    [100_500_000, 'EUR', 'ar-EG'],
+    [3200 * MICRO, 'JPY', 'de-DE'],
+    [123_456_700_000_000, 'EUR', 'en-IN'],
+  ])('round-trips %i %s through the schema in %s', (micro, currency, locale) => {
+    const text = formatPriceInput(micro, currency, locale)
+    expect(priceSchema(currency, { locale }).parse(text)).toBe(micro)
   })
 })
