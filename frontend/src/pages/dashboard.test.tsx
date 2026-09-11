@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { TransactionKind, type TransactionPublic } from '@/api'
 import { AuthContext } from '@/lib/auth-context'
 import { Component as Dashboard } from '@/pages/dashboard'
 import { session } from '@/test/auth'
@@ -125,5 +126,47 @@ describe('the Saved tile', () => {
 
     await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Year' })).toBeEnabled())
     expect(screen.getByText('12 transactions this month')).toBeInTheDocument()
+  })
+})
+
+describe('a recent activity row', () => {
+  // The row's sign is the only thing that says which way the money went, so
+  // it has to agree with the kind the transaction was recorded under.
+  function aTransaction(overrides: Partial<TransactionPublic> = {}): TransactionPublic {
+    return {
+      id: 't1',
+      household_id: 'h',
+      account_id: 'a1',
+      kind: TransactionKind.EXPENSE,
+      amount_minor: 50_000,
+      occurred_on: '2026-09-08',
+      is_generated: false,
+      created_at: '2026-01-01T00:00:00Z',
+      ...overrides,
+    }
+  }
+
+  function withRecent(transaction: TransactionPublic) {
+    vi.mocked(api.transactionsListTransactions).mockResolvedValue({
+      data: { data: [transaction], count: 1 },
+    } as never)
+  }
+
+  async function rowFor(label: string) {
+    return (await screen.findByText(label)).closest('li')
+  }
+
+  it('draws spending with a minus', async () => {
+    withRecent(aTransaction({ merchant: 'Groceries' }))
+    renderDashboard()
+
+    expect(await rowFor('Groceries')).toHaveTextContent('-€500.00')
+  })
+
+  it('draws income with a plus', async () => {
+    withRecent(aTransaction({ merchant: 'Salary', kind: TransactionKind.INCOME }))
+    renderDashboard()
+
+    expect(await rowFor('Salary')).toHaveTextContent('+€500.00')
   })
 })
