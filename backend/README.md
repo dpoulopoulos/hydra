@@ -487,6 +487,40 @@ no extra hash and no repeated write, and the news about it rides on the verifica
 message. Every signup therefore does one bcrypt hash, one account write and one blocking send to the mail provider
 whatever the answer is, and cannot be told apart by the clock either.
 
+Every reply about mail says what became of the send rather than what was hoped for. Signup and the resend
+endpoints answer with a `delivery` of `sent`, `queued` or `not_configured` beside the message, because a
+message the provider has not taken yet is written to the outbox and goes out minutes later: a screen that says
+"check your email" while it is still there sends somebody to an inbox with nothing in it. The screens word
+themselves from that field.
+
+Reporting it gives nothing away, because every request sends exactly one message and reports the fate of that
+one. Both paths through a signup mail the address: a free one gets the verification link, a taken one gets the
+notice that somebody tried to sign up with it. The unauthenticated resend endpoint does the same — an address
+with an account waiting to be activated gets a fresh link, and an address with nothing to verify (no account, an
+account that is already active, one an administrator disabled) gets a notice saying somebody asked, carrying no
+token and telling its holder nothing they did not already know. What the provider did with that message is a
+fact about the provider, not about the address.
+
+Sending on both paths is what makes the field safe, and nothing weaker does. An endpoint that sends
+conditionally has to report something else, and everything else is either useless or writable: the state of the
+outbox looks like a fact about the server, but the only mail such an endpoint can be made to queue belongs to an
+address that has an account waiting, so a caller can ask for one address, wait for the message it may have
+queued to age, and read the difference off the outbox afterwards — under any address they like, which is why
+leaving their own out of the answer does not close it either. A message that always goes out leaves nothing to
+tell apart.
+
+The costs are the ones that come with mailing the address either way, and signup already pays them. An
+unauthenticated caller can make the server send one message per request to any address they can type, so the
+resend endpoint is as much of an amplifier as signup is and wants the same rate limiting in front of it. And
+a message the provider refuses for reasons that depend on its content — a size limit, a filter that dislikes a
+link — is a message whose delivery differs between the two paths; that is tracked in #230 for signup and applies
+here in the same way.
+
+An error raised while issuing the link is answered with `queued` rather than allowed out: nothing is known about
+where that message got to, so the caller is told it is still on its way, which is the answer that promises
+nothing. A server with no provider configured says so before it looks anything up, since it sends nothing for
+any address and has nothing to tell apart.
+
 ### Password Management
 
 - Passwords are hashed with bcrypt (cost factor 12) via pwdlib
