@@ -9,6 +9,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/lib/auth'
 import { applyCspNonce } from '@/lib/csp-nonce'
 import { queryClient } from '@/lib/query-client'
+import { configureZod } from '@/lib/zod-config'
 import { router } from '@/routes'
 
 // sonner's own stylesheet, which it would otherwise append to the head as a
@@ -19,6 +20,10 @@ import './index.css'
 // Before anything renders, so the first stylesheet a component builds already
 // carries the nonce the policy asks for.
 applyCspNonce()
+
+// Before the first schema is used, which is what makes zod probe for the
+// compiler the policy refuses.
+configureZod()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
