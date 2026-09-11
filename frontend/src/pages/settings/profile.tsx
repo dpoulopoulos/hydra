@@ -8,6 +8,7 @@ import { z } from 'zod'
 import {
   emailVerificationCancelPendingEmailChangeMe,
   emailVerificationGetPendingEmailChangeMe,
+  emailVerificationResendPendingEmailChangeMe,
   emailVerificationSendVerificationEmailMe,
   usersDeleteUserMe,
   usersUpdatePasswordMe,
@@ -96,6 +97,34 @@ export function Component() {
       // The outcome is the one that was asked for, so say so in the screen's
       // own words rather than the backend's, and clear the notice that is now
       // describing a change nobody is waiting on.
+      if (errorStatus(error) === 404) {
+        void queryClient.invalidateQueries({ queryKey: ['pendingEmailChange'] })
+        toast.success('That change is no longer outstanding.')
+        return
+      }
+
+      toast.error(errorMessage(error))
+    },
+  })
+
+  // A link that went to a mistyped address, or to a mailbox that swallowed it,
+  // left retyping the same address into the form below as the only way to prod
+  // it. Asking again here sends to the address already asked for, so the change
+  // cannot be re-aimed somewhere new without going through the form.
+  const resendChange = useMutation({
+    mutationFn: async () => {
+      const { error } = await emailVerificationResendPendingEmailChangeMe()
+      if (error) throw error
+    },
+    onSuccess: () => {
+      // A fresh link comes with a fresh deadline, so the one on screen is now
+      // describing a link that has been replaced.
+      void queryClient.invalidateQueries({ queryKey: ['pendingEmailChange'] })
+      toast.success('Link sent again. Check the new address.')
+    },
+    onError: (error) => {
+      // A 404 means the change went while the notice was on screen, the same
+      // way cancelling can find it gone.
       if (errorStatus(error) === 404) {
         void queryClient.invalidateQueries({ queryKey: ['pendingEmailChange'] })
         toast.success('That change is no longer outstanding.')
@@ -244,15 +273,26 @@ export function Component() {
                   Open the link we sent there by {formatDateTime(pendingChange.data.expires_at)} to
                   finish the change. Until you do, this account keeps the address below.
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  disabled={cancelChange.isPending}
-                  onClick={() => cancelChange.mutate()}
-                >
-                  Cancel the change
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    disabled={resendChange.isPending}
+                    onClick={() => resendChange.mutate()}
+                  >
+                    Send the link again
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    disabled={cancelChange.isPending}
+                    onClick={() => cancelChange.mutate()}
+                  >
+                    Cancel the change
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
           ) : null}

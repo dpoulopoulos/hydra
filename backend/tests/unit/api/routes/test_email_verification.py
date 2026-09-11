@@ -370,8 +370,8 @@ class TestCancelPendingEmailChangeMe:
         assert response.status_code == 401
 
 
-class TestResendEmailChangeVerification:
-    """Tests for the resend endpoint (POST /email-verification/me/pending-change/resend)."""
+class TestResendPendingEmailChangeMe:
+    """Tests for the resend endpoint (POST /email-verification/me/email-change/resend)."""
 
     def test_resends_the_change_without_being_told_an_address(
         self,
@@ -394,11 +394,11 @@ class TestResendEmailChangeVerification:
         try:
             with patch.object(
                 EmailVerificationService,
-                "resend_email_change_verification",
+                "resend_pending_email_change",
                 return_value=Message(message="Verification email sent to the new address."),
             ) as resend:
                 # Act
-                response = client.post("/api/v1/email-verification/me/pending-change/resend")
+                response = client.post("/api/v1/email-verification/me/email-change/resend")
 
                 # Assert
                 assert response.status_code == 200
@@ -429,11 +429,11 @@ class TestResendEmailChangeVerification:
         try:
             with patch.object(
                 EmailVerificationService,
-                "resend_email_change_verification",
+                "resend_pending_email_change",
                 side_effect=EmailVerificationNotFoundError,
             ):
                 # Act
-                response = client.post("/api/v1/email-verification/me/pending-change/resend")
+                response = client.post("/api/v1/email-verification/me/email-change/resend")
 
                 # Assert
                 assert response.status_code == 404
@@ -444,7 +444,7 @@ class TestResendEmailChangeVerification:
     def test_requires_authentication(self, client: TestClient) -> None:
         """Test the endpoint refuses a caller with no token."""
         # Act
-        response = client.post("/api/v1/email-verification/me/pending-change/resend")
+        response = client.post("/api/v1/email-verification/me/email-change/resend")
 
         # Assert
         assert response.status_code == 401

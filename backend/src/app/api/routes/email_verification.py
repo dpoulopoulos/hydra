@@ -144,8 +144,8 @@ def cancel_pending_email_change_me(
     return email_verification_service.cancel_pending_email_change(user=current_user)
 
 
-@router.post("/me/pending-change/resend", response_model=Message)
-def resend_email_change_verification(
+@router.post("/me/email-change/resend", response_model=Message)
+def resend_pending_email_change_me(
     *,
     email_verification_service: EmailVerificationServiceDep,
     current_user: CurrentUser,
@@ -169,7 +169,7 @@ def resend_email_change_verification(
     Raises:
         HTTPException: If the account has asked for no change of address (404).
     """
-    return email_verification_service.resend_email_change_verification(user=current_user)
+    return email_verification_service.resend_pending_email_change(user=current_user)
 
 
 @router.post("/verify", response_model=Message)

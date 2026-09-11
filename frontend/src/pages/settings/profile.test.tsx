@@ -51,6 +51,7 @@ vi.mock('@/api', async (importOriginal) => {
     ...actual,
     emailVerificationCancelPendingEmailChangeMe: vi.fn(),
     emailVerificationGetPendingEmailChangeMe: vi.fn(),
+    emailVerificationResendPendingEmailChangeMe: vi.fn(),
     emailVerificationSendVerificationEmailMe: vi.fn(),
     usersUpdateUserMe: vi.fn(),
     usersUpdatePasswordMe: vi.fn(),
@@ -224,6 +225,9 @@ describe('a pending change of address', () => {
     vi.mocked(api.emailVerificationSendVerificationEmailMe).mockResolvedValue({
       data: { message: 'Verification email sent successfully.' },
     } as never)
+    vi.mocked(api.emailVerificationResendPendingEmailChangeMe).mockResolvedValue({
+      data: { message: 'Verification email sent to the new address.' },
+    } as never)
   })
 
   it('says which address the account is waiting on', async () => {
@@ -375,6 +379,75 @@ describe('a pending change of address', () => {
     const person = userEvent.setup()
 
     await person.click(await screen.findByRole('button', { name: 'Cancel the change' }))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled())
+  })
+
+  it('sends the link again without being told where to', async () => {
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Send the link again' }))
+
+    // No address is passed: the pending change is what says where it goes, so
+    // the button cannot re-aim it at a mailbox nobody asked for.
+    await waitFor(() =>
+      expect(api.emailVerificationResendPendingEmailChangeMe).toHaveBeenCalledWith(),
+    )
+    expect(toast.success).toHaveBeenCalledWith('Link sent again. Check the new address.')
+  })
+
+  it('says how long the new link has, not how long the old one had', async () => {
+    const resent = { ...pendingChange, expires_at: '2026-03-11T14:30:00Z' }
+    vi.mocked(api.emailVerificationResendPendingEmailChangeMe).mockImplementation(() => {
+      vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+        data: resent,
+      } as never)
+      return Promise.resolve({
+        data: { message: 'Verification email sent to the new address.' },
+      }) as never
+    })
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Send the link again' }))
+
+    // A fresh link comes with a fresh deadline, and a notice still quoting the
+    // old one is describing a link that no longer exists.
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(formatDateTime(resent.expires_at)),
+    )
+  })
+
+  it('treats a change that has gone as nothing left to send', async () => {
+    vi.mocked(api.emailVerificationResendPendingEmailChangeMe).mockImplementation(() => {
+      vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+        data: null,
+      } as never)
+      return Promise.resolve({
+        error: { detail: 'Email verification not found.', status: 404 },
+      }) as never
+    })
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Send the link again' }))
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('That change is no longer outstanding.'),
+    )
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('says why sending the link again failed', async () => {
+    vi.mocked(api.emailVerificationResendPendingEmailChangeMe).mockResolvedValue({
+      error: { detail: 'Boom.' },
+    } as never)
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Send the link again' }))
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled())
   })

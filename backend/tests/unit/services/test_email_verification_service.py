@@ -829,8 +829,8 @@ class TestResendVerificationEmail:
         assert "If an account exists" in result.message
 
 
-class TestResendEmailChangeVerification:
-    """Tests for the resend_email_change_verification method."""
+class TestResendPendingEmailChange:
+    """Tests for the resend_pending_email_change method."""
 
     def test_sends_again_to_the_address_already_asked_for(
         self,
@@ -840,8 +840,8 @@ class TestResendEmailChangeVerification:
     ) -> None:
         """Test the destination comes off the pending row, never off the caller."""
         # Arrange
-        repository = mock_email_verification_service.email_verification_repository
-        repository.get_pending_change_by_user_id = MagicMock(return_value=pending_email_change)
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = pending_email_change
 
         # Act
         with patch.object(
@@ -849,7 +849,7 @@ class TestResendEmailChangeVerification:
             "send_email_change_verification",
             return_value=Message(message="Verification email sent to the new address."),
         ) as mock_send:
-            result = mock_email_verification_service.resend_email_change_verification(user=test_user)
+            result = mock_email_verification_service.resend_pending_email_change(user=test_user)
 
         # Assert
         assert result.message == "Verification email sent to the new address."
@@ -862,12 +862,12 @@ class TestResendEmailChangeVerification:
     ) -> None:
         """Test a resend of nothing is an error rather than a fresh activation."""
         # Arrange
-        repository = mock_email_verification_service.email_verification_repository
-        repository.get_pending_change_by_user_id = MagicMock(return_value=None)
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
 
         # Act & Assert
         with pytest.raises(EmailVerificationNotFoundError):
-            mock_email_verification_service.resend_email_change_verification(user=test_user)
+            mock_email_verification_service.resend_pending_email_change(user=test_user)
 
     def test_a_pending_activation_is_not_a_change_to_resend(
         self,
@@ -876,13 +876,30 @@ class TestResendEmailChangeVerification:
         test_email_verification: EmailVerification,
     ) -> None:
         """Test a row naming no new address cannot be mailed as a change."""
-        # Arrange
-        repository = mock_email_verification_service.email_verification_repository
-        repository.get_pending_change_by_user_id = MagicMock(return_value=test_email_verification)
+        # Arrange: a row that stands for an activation, so it names no new address
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
 
         # Act & Assert
         with pytest.raises(EmailVerificationNotFoundError):
-            mock_email_verification_service.resend_email_change_verification(user=test_user)
+            mock_email_verification_service.resend_pending_email_change(user=test_user)
+
+    def test_a_lapsed_change_is_nothing_to_send_again(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        pending_email_change: EmailVerification,
+    ) -> None:
+        """Test a row whose deadline has gone by is not sent again."""
+        # Arrange: the link this row stands for can no longer be redeemed, so
+        # mailing it again would send the account to a dead end
+        pending_email_change.expires_at = datetime.now(UTC) - timedelta(hours=1)
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = pending_email_change
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationNotFoundError):
+            mock_email_verification_service.resend_pending_email_change(user=test_user)
 
 
 class TestAResendIsNotAWayBackToActive:
