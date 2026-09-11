@@ -3,13 +3,14 @@ import { NavLink } from 'react-router'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 
-/** The three settings screens, with the admin one only where it applies. */
+/** The settings screens, with the admin one only where it applies. */
 export function SettingsNav() {
   const { user } = useAuth()
 
   const items = [
     { to: '/settings/household', label: 'Household' },
     { to: '/settings/profile', label: 'Your profile' },
+    { to: '/settings/api-tokens', label: 'API tokens' },
     ...(user?.is_superuser ? [{ to: '/settings/users', label: 'All users' }] : []),
   ]
 
