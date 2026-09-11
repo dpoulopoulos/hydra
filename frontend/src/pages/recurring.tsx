@@ -227,6 +227,20 @@ export function Component() {
                     <div className="flex items-center gap-2 font-medium">
                       {rule.name}
                       {!rule.is_active ? <Badge variant="secondary">Paused</Badge> : null}
+                      {/* Not a pause the household chose: the rule is willing
+                          and the account it draws on has gone. Without it the
+                          only symptom is the date below, stuck in the past.
+                          A paused or finished rule was not going to record
+                          anything anyway, so the archived account is not what
+                          stopped it and saying so would be untrue. */}
+                      {rule.is_blocked && rule.is_active && rule.next_occurrence_on ? (
+                        <Badge
+                          variant="destructive"
+                          title="Nothing is recorded while the account this rule draws on is archived. Restore the account, and the rule picks up where it stopped."
+                        >
+                          Account archived
+                        </Badge>
+                      ) : null}
                       {rule.kind === TransactionKind.INCOME ? (
                         <Badge variant="outline">Income</Badge>
                       ) : rule.kind === TransactionKind.TRANSFER ? (

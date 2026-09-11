@@ -71,6 +71,15 @@ function renderPage(occurrences: UpcomingOccurrence[], netMinor = 0) {
   const rules = occurrences.map((occurrence, index) =>
     aRule({ id: `r${index}`, name: occurrence.name, kind: occurrence.kind }),
   )
+  return renderWith(rules, occurrences, netMinor)
+}
+
+/** Render the page for a set of rules, with nothing projected for them. */
+function renderRules(rules: RecurringRulePublic[]) {
+  return renderWith(rules, [])
+}
+
+function renderWith(rules: RecurringRulePublic[], occurrences: UpcomingOccurrence[], netMinor = 0) {
   vi.mocked(api.recurringRulesListRecurringRules).mockResolvedValue({
     data: { data: rules, count: rules.length },
   } as never)
@@ -105,6 +114,50 @@ async function monthHeading(month: string) {
   const label = await screen.findByText(formatMonth(month))
   return label.parentElement as HTMLElement
 }
+
+/** The table row of a rule, by its name. */
+async function ruleRow(name: string) {
+  const cell = await screen.findByText(name)
+  return cell.closest('tr') as HTMLElement
+}
+
+describe('a rule an archived account has stalled', () => {
+  // The pass leaves such a rule where it stands, so the only visible symptom
+  // is a next occurrence sitting in the past, which reads as a rendering
+  // fault rather than as an explanation.
+  it('says why its next date has stopped moving', async () => {
+    renderRules([aRule({ name: 'Rent', is_blocked: true, next_occurrence_on: '2026-07-01' })])
+
+    expect(await ruleRow('Rent')).toHaveTextContent('Account archived')
+  })
+
+  it('says nothing on a rule whose account is still open', async () => {
+    renderRules([aRule({ name: 'Rent', is_blocked: false })])
+
+    expect(await ruleRow('Rent')).not.toHaveTextContent('Account archived')
+  })
+
+  // The badge says the archived account is what stopped the rule recording,
+  // and on a rule the household paused itself that is simply not true: it
+  // would still be stopped with the account restored.
+  it('says nothing on a rule the household paused itself', async () => {
+    renderRules([aRule({ name: 'Rent', is_blocked: true, is_active: false })])
+
+    const row = await ruleRow('Rent')
+    expect(row).toHaveTextContent('Paused')
+    expect(row).not.toHaveTextContent('Account archived')
+  })
+
+  // Nor on one that has run out of dates: there is nothing left for a
+  // restored account to pick up.
+  it('says nothing on a rule that has finished', async () => {
+    renderRules([aRule({ name: 'Rent', is_blocked: true, next_occurrence_on: null })])
+
+    const row = await ruleRow('Rent')
+    expect(row).toHaveTextContent('Finished')
+    expect(row).not.toHaveTextContent('Account archived')
+  })
+})
 
 describe('the "Still to come" card', () => {
   it('draws money out with a minus', async () => {
