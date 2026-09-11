@@ -174,6 +174,12 @@ describe('the "Still to come" card', () => {
     expect(await upcomingRow('Salary')).toHaveTextContent('+€3,000.00')
   })
 
+  it('says of a blocked occurrence that nothing will record it', async () => {
+    renderPage([anOccurrence({ name: 'Rent', is_blocked: true })])
+
+    expect(await upcomingRow('Rent')).toHaveTextContent('Account archived')
+  })
+
   // A transfer moves money between the household's own accounts, so it is
   // neither spending nor income. The month's net leaves it out; a minus in
   // the row would read as spending and disagree with the total above it.
@@ -225,6 +231,25 @@ describe('the total the "Still to come" card heads the window with', () => {
     await screen.findByText(formatSignedMoney(60_000, 'EUR'))
     expect(screen.queryByText(formatMoney(590_000, 'EUR'))).not.toBeInTheDocument()
     expect(screen.queryByText(formatSignedMoney(590_000, 'EUR'))).not.toBeInTheDocument()
+  })
+
+  it('leaves a blocked occurrence out of the month it falls in', async () => {
+    // The rule cannot record it while the account is archived, so counting it
+    // would put money in the total that is not going to move.
+    renderPage(
+      [
+        anOccurrence({ name: 'Rent', occurs_on: '2026-04-01', is_blocked: true }),
+        anOccurrence({
+          name: 'Salary',
+          kind: TransactionKind.INCOME,
+          amount_minor: 300_000,
+          occurs_on: '2026-04-25',
+        }),
+      ],
+      300_000,
+    )
+
+    expect(await monthHeading('2026-04')).toHaveTextContent(formatSignedMoney(300_000, 'EUR'))
   })
 
   it('nets each month the same way, transfers left out', async () => {
