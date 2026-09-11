@@ -9,11 +9,13 @@ from app.core.config import settings
 from app.core.db import engine
 from app.logging import get_logger
 from app.services.email_outbox import EmailOutboxService
+from app.services.mail_rate_limit import MailRateLimitService
 
 logger = get_logger(__name__)
 
 DISPATCHER_TASK_NAME = "email-outbox-dispatcher"
 PRUNER_TASK_NAME = "email-outbox-pruner"
+RATE_LIMIT_PRUNER_TASK_NAME = "mail-rate-limit-pruner"
 
 
 def dispatch_once() -> int:
@@ -34,6 +36,16 @@ def prune_once() -> int:
     """
     with Session(engine) as session:
         return EmailOutboxService.for_session(session).prune_expired()
+
+
+def prune_rate_limits_once() -> int:
+    """Run one round of retention: the mail budgets whose window has passed.
+
+    Returns:
+        The number of rows removed.
+    """
+    with Session(engine) as session:
+        return MailRateLimitService.for_session(session).prune_expired()
 
 
 async def run_rounds(round_: Callable[[], int], *, interval_seconds: int, failure: str, outcome: str) -> None:
@@ -96,6 +108,21 @@ async def run_outbox_pruner() -> None:
     )
 
 
+async def run_mail_rate_limit_pruner() -> None:
+    """Drop the spent mail budgets for as long as the application runs.
+
+    A counter is only a running total, and the request path never removes one:
+    without this the table keeps a row, holding an address, for every caller
+    the app has answered and every mailbox it has been asked to write to.
+    """
+    await run_rounds(
+        prune_rate_limits_once,
+        interval_seconds=settings.MAIL_RATE_LIMIT_PRUNE_INTERVAL_SECONDS,
+        failure="Could not prune the mail rate limit counters",
+        outcome="Removed %d expired mail rate limit counter(s)",
+    )
+
+
 @asynccontextmanager
 async def email_dispatcher_lifespan(_: FastAPI) -> AsyncIterator[None]:
     """Run the outbox background jobs alongside the application.
@@ -106,10 +133,13 @@ async def email_dispatcher_lifespan(_: FastAPI) -> AsyncIterator[None]:
     Yields:
         Nothing; the application runs inside the context.
     """
-    # The pruner runs whether or not mail is configured: a deployment that has
+    # Neither pruner depends on mail being configured. A deployment that has
     # turned delivery off still holds every row it wrote while it was on, and
-    # nothing else would ever remove them.
-    tasks = [asyncio.create_task(run_outbox_pruner(), name=PRUNER_TASK_NAME)]
+    # the budgets are counted before anything asks whether mail can be sent.
+    tasks = [
+        asyncio.create_task(run_outbox_pruner(), name=PRUNER_TASK_NAME),
+        asyncio.create_task(run_mail_rate_limit_pruner(), name=RATE_LIMIT_PRUNER_TASK_NAME),
+    ]
 
     if settings.emails_enabled:
         tasks.append(asyncio.create_task(run_email_dispatcher(), name=DISPATCHER_TASK_NAME))

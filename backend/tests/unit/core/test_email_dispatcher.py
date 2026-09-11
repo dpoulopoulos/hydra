@@ -9,7 +9,9 @@ from app.core.email_dispatcher import (
     dispatch_once,
     email_dispatcher_lifespan,
     prune_once,
+    prune_rate_limits_once,
     run_email_dispatcher,
+    run_mail_rate_limit_pruner,
     run_outbox_pruner,
 )
 
@@ -205,6 +207,80 @@ class TestPrunerLifespan:
             with patch("app.core.email_dispatcher.prune_once", return_value=0):
                 async with email_dispatcher_lifespan(MagicMock()):
                     return [task for task in asyncio.all_tasks() if task.get_name() == "email-outbox-pruner"]
+
+        # Act: Enter and leave the lifespan
+        running = asyncio.run(exercise())
+
+        # Assert: Verify the pruner was started anyway
+        assert len(running) == 1
+
+
+class TestPruneRateLimitsOnce:
+    """Test one round of dropping the mail budgets whose window has passed."""
+
+    def test_the_round_prunes_the_counters_in_its_own_session(self) -> None:
+        """The pruner runs outside any request, so it opens its own session."""
+        # Arrange: Watch the session and the service the round builds
+        with patch("app.core.email_dispatcher.Session") as mock_session_class:
+            with patch("app.core.email_dispatcher.MailRateLimitService") as mock_service_class:
+                mock_service_class.for_session.return_value.prune_expired.return_value = 3
+
+                # Act: Run one round
+                removed = prune_rate_limits_once()
+
+        # Assert: Verify the round pruned the counters and closed its session
+        assert removed == 3
+        session = mock_session_class.return_value.__enter__.return_value
+        mock_service_class.for_session.assert_called_once_with(session)
+        mock_session_class.return_value.__exit__.assert_called_once()
+
+
+class TestRunMailRateLimitPruner:
+    """Test the loop that drops the spent mail budgets."""
+
+    def test_the_loop_waits_before_its_first_round(self) -> None:
+        """Startup is the worst moment to take a lock on the whole table."""
+        # Arrange: Stop the loop on the first wait
+        with patch("app.core.email_dispatcher.asyncio.sleep", side_effect=asyncio.CancelledError):
+            with patch("app.core.email_dispatcher.prune_rate_limits_once") as mock_prune:
+                # Act: Run the loop until it is cancelled
+                with pytest.raises(asyncio.CancelledError):
+                    asyncio.run(run_mail_rate_limit_pruner())
+
+        # Assert: Verify the interval came first
+        mock_prune.assert_not_called()
+
+    def test_the_loop_survives_a_failed_round(self, caplog: pytest.LogCaptureFixture) -> None:
+        """A retention round that fails must not take the pruner with it."""
+        # Arrange: The first round fails, the second is cancelled
+        sleeps = [None, asyncio.CancelledError]
+
+        async def sleep(_: float) -> None:
+            outcome = sleeps.pop(0)
+            if outcome is not None:
+                raise outcome
+
+        with patch("app.core.email_dispatcher.asyncio.sleep", side_effect=sleep):
+            with patch("app.core.email_dispatcher.prune_rate_limits_once", side_effect=OSError("no route to host")):
+                # Act: Run the loop until it is cancelled
+                with caplog.at_level(logging.ERROR, logger="app.core.email_dispatcher"):
+                    with pytest.raises(asyncio.CancelledError):
+                        asyncio.run(run_mail_rate_limit_pruner())
+
+        # Assert: Verify the failure was reported and the loop went round again
+        assert "no route to host" in caplog.text
+        assert not sleeps
+
+    def test_the_pruner_runs_even_without_a_provider(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The budgets are counted before anything asks whether mail can be sent."""
+        # Arrange: Emails are not configured
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", None)
+
+        async def exercise() -> list[asyncio.Task[None]]:
+            with patch("app.core.email_dispatcher.prune_once", return_value=0):
+                with patch("app.core.email_dispatcher.prune_rate_limits_once", return_value=0):
+                    async with email_dispatcher_lifespan(MagicMock()):
+                        return [task for task in asyncio.all_tasks() if task.get_name() == "mail-rate-limit-pruner"]
 
         # Act: Enter and leave the lifespan
         running = asyncio.run(exercise())
