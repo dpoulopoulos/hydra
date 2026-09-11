@@ -40,10 +40,10 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAccountCurrency, useAccounts } from '@/hooks/use-accounts'
 import { useCategoryTree } from '@/hooks/use-categories'
-import { amountSchema, parseMajor } from '@/lib/amount'
+import { amountSchema, previewMinor } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { describeSchedule, FREQUENCY_LABELS } from '@/lib/labels'
-import { formatMajorInput, formatMoney, toMinor } from '@/lib/money'
+import { formatMajorInput, formatMoney } from '@/lib/money'
 import { formatDate, today } from '@/lib/month'
 import { optionSource } from '@/lib/option-source'
 import { cn } from '@/lib/utils'
@@ -134,12 +134,12 @@ function describeRule({
   to: string | undefined
   category: string | undefined
 }): string | null {
-  // The parser the field itself validates with, so the sentence quotes the
-  // figure that would be saved rather than one of its own reading.
-  const major = parseMajor(amount)
-  if (major === null || major <= 0 || !startDate) return null
+  // Read through the same schema the saved value is, so the sentence and the
+  // form never disagree about what was typed.
+  const minor = previewMinor(amount, currency)
+  if (minor === null || minor <= 0 || !startDate) return null
 
-  const money = formatMoney(toMinor(major, currency), currency)
+  const money = formatMoney(minor, currency)
   const schedule = describeSchedule(frequency, interval, dayOfMonth).toLowerCase()
   const head =
     kind === TransactionKind.TRANSFER
