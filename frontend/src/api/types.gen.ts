@@ -2443,6 +2443,10 @@ export type RecurringRulePublic = {
      */
     last_generated_on?: string | null;
     /**
+     * Is Blocked
+     */
+    is_blocked?: boolean;
+    /**
      * Created At
      */
     created_at: string;
@@ -3038,6 +3042,10 @@ export type UpcomingOccurrence = {
      * Category Id
      */
     category_id?: string | null;
+    /**
+     * Is Blocked
+     */
+    is_blocked?: boolean;
 };
 
 /**
