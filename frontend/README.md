@@ -258,7 +258,26 @@ its house patterns trip them: exporting a `cva` variants object beside a
 component, and priming state from a media query inside an effect. Fixing them
 in place would be undone by the next update.
 
-The React Compiler declines to compile the components that use React Hook Form,
-which it treats as an incompatible library. Those appear as
-`Compilation Skipped` warnings and mean those components are not automatically
-memoised. They are not defects.
+## Notes on the forms
+
+The React Compiler treats React Hook Form's `watch()` as an incompatible
+library: it returns a function that cannot be memoised safely, and rather than
+risk a stale UI the compiler skips the whole component. Watch fields with
+`useWatch({ control, name })` instead, which subscribes through the control and
+leaves nothing for the compiler to object to.
+
+A form that fills itself in from an effect has to go through `refill()` from
+`src/lib/form.ts` rather than call `reset()` itself. A plain `reset()` empties
+the field map and counts on the next render calling `register()` again, which a
+memoised render need never repeat: the fields stay unregistered and the form
+hands the mutation nothing, however full the dialog looks. `refill()` keeps the
+registrations and writes each value onto the field itself, so it does not
+matter how few times the form renders, or how often it is called. The one
+exception is a field that must not overwrite what is being typed, such as the
+household rename: that resets with `{ keepFieldsRef: true, keepDirtyValues: true }`.
+
+Nothing about this is enforced by types, so `src/test/react-compiler.test.ts`
+compiles the source the way the build does and fails on a component the compiler
+had to skip. The compiler runs over the tests too: its preset limits itself to
+the client environment, which Vitest is not, so `vite.config.ts` widens it and
+the tests render the same memoised components the browser does.
