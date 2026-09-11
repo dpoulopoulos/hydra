@@ -1,0 +1,32 @@
+name: Dev image
+
+on:
+  pull_request:
+
+# A new push to a pull request makes the run in progress obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dev-image:
+    name: Dev image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The same command `make web-test-dev` runs. It builds the `dev` stage of
+      # frontend/Dockerfile, which is the image `make dev` puts developers in,
+      # and checks the thing that is easy to break and impossible to see: that
+      # the container does not run as root, that everything the dev server
+      # writes to still belongs to the user it does run as, and that a file
+      # `docker compose watch` syncs in is served. Docker is all it needs, and
+      # ubuntu-latest already has it.
+      #
+      # Until now this ran only when someone remembered to, so an edit that
+      # took the USER line back out would reach main with a green CI.
+      - name: Check the dev image
+        run: bash frontend/scripts/test-dev-image.sh
