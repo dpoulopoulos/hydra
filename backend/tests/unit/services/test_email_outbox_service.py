@@ -439,6 +439,83 @@ class TestDispatchDue:
         assert entries[0].status == EmailOutboxStatus.SENT
 
 
+class TestSettledBodies:
+    """Test how long a message's rendered body stays in the table."""
+
+    def test_a_delivered_message_keeps_no_body(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """A reset, verification or invite link is gone as soon as it is sent."""
+        # Act: Send a message the provider accepts
+        with patch("app.services.email_outbox.send_email") as mock_send_email:
+            mock_email_outbox_service.deliver_or_queue(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>https://example.com/reset-password?token=secret</p>",
+            )
+
+        # Assert: Verify the provider got the body and the row kept none of it
+        assert "secret" in mock_send_email.call_args.kwargs["html_content"]
+        entry = mock_db_session.add.call_args.args[0]
+        assert entry.status == EmailOutboxStatus.SENT
+        assert entry.html_content == ""
+
+    def test_a_message_awaiting_a_retry_keeps_its_body(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """What still has to be sent cannot be sent without its body."""
+        # Act: Send a message the provider is refusing
+        with patch("app.services.email_outbox.send_email", side_effect=rate_limited()):
+            mock_email_outbox_service.deliver_or_queue(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>Test content</p>",
+            )
+
+        # Assert: Verify the row can still be attempted again
+        entry = mock_db_session.add.call_args.args[0]
+        assert entry.status == EmailOutboxStatus.PENDING
+        assert entry.html_content == "<p>Test content</p>"
+
+    def test_a_message_that_gave_up_keeps_no_body(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """A message nobody is going to send again has no use for its body."""
+        # Arrange: The message has one attempt left, and it fails
+        entry = EmailOutbox(
+            email_to="recipient@example.com",
+            subject="Test Subject",
+            html_content="<p>https://example.com/reset-password?token=secret</p>",
+            attempts=settings.EMAIL_OUTBOX_MAX_ATTEMPTS - 1,
+        )
+        mock_db_session.exec.return_value.all.side_effect = [[entry], []]
+
+        # Act: Drain the outbox
+        with patch("app.services.email_outbox.send_email", side_effect=rate_limited()):
+            mock_email_outbox_service.dispatch_due()
+
+        # Assert: Verify the closed row holds nothing anyone could redeem
+        assert entry.status == EmailOutboxStatus.FAILED
+        assert entry.html_content == ""
+
+    def test_an_unexpected_error_leaves_a_retryable_body_alone(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """A bug in our own code must not cost the message it was sending."""
+        # Act: Send a message while our own code is broken
+        with patch("app.services.email_outbox.send_email", side_effect=RuntimeError("boom")):
+            mock_email_outbox_service.deliver_or_queue(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>Test content</p>",
+            )
+
+        # Assert: Verify the message can still go out on a later round
+        entry = mock_db_session.add.call_args.args[0]
+        assert entry.status == EmailOutboxStatus.PENDING
+        assert entry.html_content == "<p>Test content</p>"
+
+
 class TestPruneExpired:
     """Test the retention windows the outbox is kept to."""
 

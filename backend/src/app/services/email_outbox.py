@@ -211,6 +211,7 @@ class EmailOutboxService:
         entry.status = EmailOutboxStatus.SENT
         entry.sent_at = datetime.now(UTC)
         entry.last_error = None
+        self._discard_body(entry)
         self.email_outbox_repository.save(entry)
 
         return True
@@ -227,6 +228,7 @@ class EmailOutboxService:
 
         if entry.attempts >= settings.EMAIL_OUTBOX_MAX_ATTEMPTS:
             entry.status = EmailOutboxStatus.FAILED
+            self._discard_body(entry)
             logger.error(
                 "Giving up on email %r to %s after %d attempts: %s",
                 entry.subject,
@@ -246,6 +248,22 @@ class EmailOutboxService:
             )
 
         self.email_outbox_repository.save(entry)
+
+    @staticmethod
+    def _discard_body(entry: EmailOutbox) -> None:
+        """Forget the rendered message now that nobody is going to send it again.
+
+        A reset, a verification and an invite are all links carrying a
+        single-use credential, and the rendered body is where that credential
+        is spelled out. Retention alone would leave it readable to anyone with
+        the database - or a dump of it - for days after the send, which is
+        longer than the credentials themselves live. A settled row is kept for
+        what it says about the delivery, not for what it was carrying.
+
+        Args:
+            entry: The message that has been sent or given up on.
+        """
+        entry.html_content = ""
 
     @staticmethod
     def _backoff(attempts: int) -> timedelta:
