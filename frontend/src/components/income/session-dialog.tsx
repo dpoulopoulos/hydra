@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -71,14 +71,6 @@ function usualPayment(status: IncomeSessionStatus): PaymentStatus {
   return PaymentStatus.WAIVED
 }
 
-// React Compiler will not memoize a component that calls React Hook Form's
-// `watch()`, and skips it whole. That skip is what this form relies on:
-// `form.reset()` empties the field map and counts on the next render calling
-// `register()` again, which a memoized render never repeats, leaving every
-// field unregistered and the form with nothing to save. Nothing goes stale in
-// return, since `watch()` re-renders this component and the controls under it
-// are handed the value from that render.
-/* eslint-disable react-hooks/incompatible-library -- skipping this one is the point; see above */
 export function SessionDialog({
   open,
   session,
@@ -120,9 +112,13 @@ export function SessionDialog({
     if (open) refill(form, defaults)
   }, [open, defaults, form])
 
-  const selectedClientId = form.watch('client_id')
-  const status = form.watch('status')
-  const paymentStatus = form.watch('payment_status')
+  // Watched through `useWatch()` rather than the form's own `watch()`, which
+  // hands back a function React Compiler will not memoize and skips the whole
+  // component over.
+  const [selectedClientId, status, paymentStatus] = useWatch({
+    control: form.control,
+    name: ['client_id', 'status', 'payment_status'],
+  })
   const selectedClient = clients.data?.data.find((one) => one.id === selectedClientId)
   const pickable = (clients.data?.data ?? []).filter(
     (one) => one.archived_at === null || one.id === selectedClientId,
