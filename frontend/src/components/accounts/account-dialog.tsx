@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -68,14 +68,6 @@ type Schema = ReturnType<typeof buildSchema>
 type Values = z.input<Schema>
 type Parsed = z.output<Schema>
 
-// React Compiler will not memoize a component that calls React Hook Form's
-// `watch()`, and skips it whole. That skip is what this form relies on:
-// `form.reset()` empties the field map and counts on the next render calling
-// `register()` again, which a memoized render never repeats, leaving every
-// field unregistered and the form with nothing to save. Nothing goes stale in
-// return, since `watch()` re-renders this component and the controls under it
-// are handed the value from that render.
-/* eslint-disable react-hooks/incompatible-library -- skipping this one is the point; see above */
 export function AccountDialog({
   open,
   account,
@@ -134,7 +126,10 @@ export function AccountDialog({
   // Cash is money in a pocket: it sits at no institution, so it is asked for
   // neither. A credit card sits at one, but what it has is a card number, not
   // an IBAN. Hiding a field beats leaving it there to be filled in wrongly.
-  const type = form.watch('type')
+  // Watched through `useWatch()` rather than the form's own `watch()`, which
+  // hands back a function React Compiler will not memoize and skips the whole
+  // component over.
+  const type = useWatch({ control: form.control, name: 'type' })
   const heldAtBank = type !== AccountType.CASH
   const hasIban = heldAtBank && type !== AccountType.CREDIT_CARD
 
