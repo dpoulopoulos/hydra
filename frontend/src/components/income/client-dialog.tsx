@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -76,14 +76,6 @@ type Parsed = z.output<ReturnType<typeof buildSchema>>
  * sent. That is why the dialog refuses to open while the vault is locked:
  * without the key there is nothing to encrypt with.
  */
-// React Compiler will not memoize a component that calls React Hook Form's
-// `watch()`, and skips it whole. That skip is what this form relies on:
-// `form.reset()` empties the field map and counts on the next render calling
-// `register()` again, which a memoized render never repeats, leaving every
-// field unregistered and the form with nothing to save. Nothing goes stale in
-// return, since `watch()` re-renders this component and the controls under it
-// are handed the value from that render.
-/* eslint-disable react-hooks/incompatible-library -- skipping this one is the point; see above */
 export function ClientDialog({
   open,
   client,
@@ -171,22 +163,36 @@ export function ClientDialog({
     onError: (error) => toast.error(errorMessage(error)),
   })
 
-  const preset = CADENCE_PRESETS.find((one) => one.value === form.watch('cadence'))
+  // Watched through `useWatch()` rather than the form's own `watch()`, which
+  // hands back a function React Compiler will not memoize and skips the whole
+  // component over.
+  const [cadence, anchor, weekdays, rate, accountId, categoryId] = useWatch({
+    control: form.control,
+    name: [
+      'cadence',
+      'cadence_anchor_on',
+      'cadence_weekdays',
+      'rate',
+      'default_account_id',
+      'default_category_id',
+    ],
+  })
+
+  const preset = CADENCE_PRESETS.find((one) => one.value === cadence)
   const openAccounts = (accounts.data?.data ?? []).filter((one) => one.archived_at === null)
 
   // What the form currently says, in one sentence. The same device the
   // recurring rule dialog uses: a schedule assembled from four controls is
   // hard to picture until something reads it back.
-  const anchor = form.watch('cadence_anchor_on')
   // The field holds whatever has been typed so far, so the fee is only shown
   // back once it reads as an amount. Read through the same schema the saved
   // value is, or the sentence and the form disagree about "1 000".
-  const typedRate = previewMinor(form.watch('rate'), currency)
+  const typedRate = previewMinor(rate, currency)
   const rateLabel =
     typedRate !== null && typedRate > 0 ? `, ${formatMoney(typedRate, currency)} a session` : ''
 
   const schedule = preset?.frequency
-    ? `${describeCadence(preset.frequency, preset.interval, anchor, form.watch('cadence_weekdays'))}${
+    ? `${describeCadence(preset.frequency, preset.interval, anchor, weekdays)}${
         anchor ? `, from ${formatDate(anchor)}` : ''
       }`
     : 'Seen as and when'
@@ -243,7 +249,7 @@ export function ClientDialog({
               <Field id="cadence" label="How often" error={form.formState.errors.cadence?.message}>
                 {(props) => (
                   <Select
-                    value={form.watch('cadence')}
+                    value={cadence}
                     onValueChange={(value) =>
                       form.setValue('cadence', value, { shouldDirty: true })
                     }
@@ -262,7 +268,7 @@ export function ClientDialog({
                 )}
               </Field>
 
-              {form.watch('cadence') !== AD_HOC ? (
+              {cadence !== AD_HOC ? (
                 <Field
                   id="cadence_anchor_on"
                   label="Starting from"
@@ -285,7 +291,7 @@ export function ClientDialog({
                 {(props) => (
                   <WeekdayPicker
                     id={props.id}
-                    value={form.watch('cadence_weekdays')}
+                    value={weekdays}
                     onChange={(value) =>
                       form.setValue('cadence_weekdays', value, { shouldDirty: true })
                     }
@@ -306,7 +312,7 @@ export function ClientDialog({
               >
                 {(props) => (
                   <Select
-                    value={form.watch('default_account_id')}
+                    value={accountId}
                     onValueChange={(value) =>
                       form.setValue('default_account_id', value, { shouldDirty: true })
                     }
@@ -332,7 +338,7 @@ export function ClientDialog({
               >
                 {(props) => (
                   <Select
-                    value={form.watch('default_category_id') || 'none'}
+                    value={categoryId || 'none'}
                     onValueChange={(value) =>
                       form.setValue('default_category_id', value === 'none' ? '' : value, {
                         shouldDirty: true,
