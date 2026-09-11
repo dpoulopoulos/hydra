@@ -107,4 +107,24 @@ describe('the fee the dialog echoes back', () => {
 
     expect(screen.queryByText(/a session/)).not.toBeInTheDocument()
   })
+
+  it('stays quiet about a fee the form will refuse to save', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    // Read as 12000 by a bare `Number()`, rejected by the form's schema. The
+    // sentence must not promise money the save will not send.
+    await user.type(await screen.findByLabelText('Usual fee'), '12e3')
+
+    expect(screen.queryByText(/a session/)).not.toBeInTheDocument()
+  })
+
+  it('stays quiet while the fee is still half typed', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Usual fee'), 'ab')
+
+    expect(screen.queryByText(/a session/)).not.toBeInTheDocument()
+  })
 })
