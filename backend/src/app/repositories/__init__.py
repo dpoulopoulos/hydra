@@ -20,6 +20,7 @@ from app.repositories.investment import (
     InstrumentRepository,
     TradeRepository,
 )
+from app.repositories.mail_rate_limit import MailRateLimitRepository
 from app.repositories.password_reset import PasswordResetRepository
 from app.repositories.recurring_rule import RecurringRuleRepository
 from app.repositories.report import ReportRepository
@@ -37,6 +38,7 @@ __all__ = [
     "CategoryRepository",
     "EmailOutboxRepository",
     "EmailVerificationRepository",
+    "MailRateLimitRepository",
     "HouseholdInviteRepository",
     "HouseholdMemberRepository",
     "HouseholdRepository",
