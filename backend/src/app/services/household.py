@@ -630,9 +630,15 @@ class HouseholdService:
                 household_name=entity.name,
                 inviter_name=household.user.full_name or household.user.email,
             )
-            EmailOutboxService.for_session(self.session).deliver_or_queue(
+            entry = EmailOutboxService.for_session(self.session).record_and_attempt(
                 email_to=email, subject=email_data.subject, html_content=email_data.html_content
             )
+            # Keep which message carried this invitation. Without it, an
+            # invitation the provider never accepted is indistinguishable from
+            # one the recipient is simply slow to answer.
+            invite.email_outbox_id = entry.id
+            self.household_invite_repository.save(invite)
+            self.session.commit()
 
         return HouseholdInvitePublic.model_validate(invite)
 

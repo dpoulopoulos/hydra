@@ -47,9 +47,6 @@ class EmailOutboxService:
     def deliver_or_queue(self, *, email_to: str, subject: str, html_content: str) -> bool:
         """Send a message now, keeping it for a retry if that does not work.
 
-        The message is committed before the provider is called, so it survives
-        an outage, a timeout or a process that is killed while sending.
-
         Args:
             email_to: The recipient's email address.
             subject: The subject of the email.
@@ -59,6 +56,29 @@ class EmailOutboxService:
             True if the provider took the message, False if it is queued for
             another attempt.
         """
+        return (
+            self.record_and_attempt(email_to=email_to, subject=subject, html_content=html_content).status
+            is EmailOutboxStatus.SENT
+        )
+
+    def record_and_attempt(self, *, email_to: str, subject: str, html_content: str) -> EmailOutbox:
+        """Write a message down and try it once, handing back its row.
+
+        The message is committed before the provider is called, so it survives
+        an outage, a timeout or a process that is killed while sending.
+
+        The row is what a caller keeps when it wants to be able to say later
+        whether the message reached the address, rather than only whether it
+        left on the first try.
+
+        Args:
+            email_to: The recipient's email address.
+            subject: The subject of the email.
+            html_content: The HTML content of the email.
+
+        Returns:
+            The outbox row, settled or waiting for another attempt.
+        """
         # The subject is stored in a bounded column, and the caller's write is
         # already committed by now: a name long enough to overflow it must cost
         # the tail of a subject line, not the whole request.
@@ -66,10 +86,10 @@ class EmailOutboxService:
         self.email_outbox_repository.save(entry)
         self.session.commit()
 
-        delivered = self._attempt_and_record(entry)
+        self._attempt_and_record(entry)
         self.session.commit()
 
-        return delivered
+        return entry
 
     def dispatch_due(self) -> int:
         """Attempt the queued messages that have come due, up to a batch.

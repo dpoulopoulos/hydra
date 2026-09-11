@@ -141,6 +141,13 @@ class HouseholdInvite(HouseholdInviteBase, PrimaryKeyMixin, CreatedAtMixin, Upda
     # invitation is redeemable by no one until the address is verified and the
     # invitation is claimed.
     invited_user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", ondelete="SET NULL", index=True)
+    # The outbox row that carries the invitation mail, so the listing can say
+    # whether the message actually reached the address. Null when mail is not
+    # configured, and again once the outbox row has been pruned: a delivery
+    # state is only reported for as long as the evidence for it is kept.
+    email_outbox_id: uuid.UUID | None = Field(
+        default=None, foreign_key="emailoutbox.id", ondelete="SET NULL", index=True
+    )
 
 
 @dataclass(frozen=True, slots=True)
