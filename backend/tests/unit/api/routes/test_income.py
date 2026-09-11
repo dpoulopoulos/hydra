@@ -292,6 +292,33 @@ class TestSummaryAndForecast:
         assert body["low_minor"] >= body["earned_so_far_minor"]
         assert body["expected_from_diary_minor"] < body["booked_minor"]
 
+    def test_the_forecast_says_how_much_of_the_roster_it_covers(
+        self, client: TestClient, auth_headers: dict[str, str], wire: MagicMock
+    ) -> None:
+        """A practice larger than the capped read has to be told the estimate is partial."""
+        wire.get_forecast.return_value = IncomeForecast(
+            month="2026-10",
+            currency_code="EUR",
+            likely_minor=1_966_00,
+            low_minor=1_663_00,
+            high_minor=2_269_00,
+            basis=ForecastBasis.HISTORY,
+            months_used=6,
+            history=[],
+            booked_minor=400_00,
+            booked_session_count=8,
+            earned_so_far_minor=0,
+            expected_from_diary_minor=360_00,
+            active_client_count=260,
+            priced_client_count=200,
+            clients=[],
+        )
+
+        body = client.get("/api/v1/income/forecast", headers=auth_headers).json()
+
+        assert body["priced_client_count"] == 200
+        assert body["active_client_count"] == 260
+
     def test_too_much_history_is_refused(
         self, client: TestClient, auth_headers: dict[str, str], wire: MagicMock
     ) -> None:

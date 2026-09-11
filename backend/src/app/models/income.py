@@ -558,6 +558,13 @@ class IncomeForecast(SQLModel):
     # total ever does.
     client_lifetime_value_minor: int | None = None
     average_sessions_per_month: float | None = None
+    # How many clients the practice still sees, and how many of them the
+    # estimate was able to price. They agree for every practice small enough to
+    # be read in one go. When they do not, the estimate covers `priced` of
+    # `active` clients and is low by whatever the rest would have brought, so
+    # the page has to be able to say that rather than show a bare figure.
+    active_client_count: int = 0
+    priced_client_count: int = 0
     clients: list[ClientForecastRow]
 
 
