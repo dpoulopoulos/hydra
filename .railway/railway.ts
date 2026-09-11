@@ -71,6 +71,14 @@ export default defineRailway((ctx) => {
       // One origin, so there is no cross-site request left to allow.
       BACKEND_CORS_ORIGINS: '',
 
+      // Nothing reaches this service except through the web service, which is
+      // reached through the platform's edge: the connection's peer is always
+      // the same address, so the budget that bounds how much mail one caller
+      // can ask for would be one budget for everybody. Both proxies record who
+      // they were talked to by in X-Forwarded-For, so the caller is two entries
+      // back from the end.
+      TRUSTED_PROXY_HOPS: '2',
+
       // Outgoing SMTP is blocked below Railway's Pro plan, so mail leaves over
       // HTTPS instead.
       EMAIL_PROVIDER: 'resend',
