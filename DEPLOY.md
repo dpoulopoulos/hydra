@@ -16,23 +16,33 @@ with your live project, and shows you the difference before it changes anything.
                                 │  /api  /assets
                                 │  private network
                     ┌───────────▼──────────────────┐
-                    │  backend    (no public URL)  │
-                    │  FastAPI                     │
-                    └───────────┬──────────────────┘
-                                │  private network
-                    ┌───────────▼──────────────────┐
-                    │  postgres   (no public URL)  │
-                    └──────────────────────────────┘
+  AI agent ────┐    │  backend    (no public URL)  │
+               │    │  FastAPI                     │
+               │    └───────────┬──────────────────┘
+               │                │  private network
+  ┌────────────▼─────────────┐  │
+  │  mcp   (public domain)   │──┘
+  │  tools over the API      │     private network
+  └──────────────────────────┘  ┌──────────────────┐
+                                │  postgres        │
+                                └──────────────────┘
 ```
 
 | Service    | What it is                                                                                  | Public                          |
 | ---------- | ------------------------------------------------------------------------------------------- | ------------------------------- |
 | `web`      | The compiled app, served by Caddy, which also forwards `/api` and `/assets` to the backend. | Yes. This is the app's address. |
+| `mcp`      | The MCP server, which gives an AI agent tools over the API.                                 | Yes, on its own domain.         |
 | `backend`  | The FastAPI app.                                                                            | No.                             |
 | `postgres` | Railway's managed Postgres.                                                                 | No.                             |
 
 The browser only ever talks to one origin, so it never makes a cross-site request. That is why there is no CORS
 configuration to get wrong, and why the API is not reachable except through the web service.
+
+The MCP server is the one other thing with a public address, because a client connects to it directly rather than
+through the app. It reaches the API over the private network like the web service does, and it holds no credential of
+its own: every request carries the caller's own hydra API token, minted in the app under Settings, and hydra decides
+from that token which household the request can reach. One deployment therefore serves everybody, each seeing only
+their own. See [mcp-server/README.md](mcp-server/README.md).
 
 ## Before you start
 
@@ -79,7 +89,7 @@ This makes the project and links this directory to it. Every command below then 
 
 Already have a Railway project you want to use instead? Run `railway link` and pick it from the list.
 
-## Step 4 — create the three services
+## Step 4 — create the four services
 
 Read the plan first. It is the list of changes, and nothing happens until you confirm it:
 
@@ -87,14 +97,15 @@ Read the plan first. It is the list of changes, and nothing happens until you co
 railway config plan
 ```
 
-You should see three additions: `postgres`, `backend`, and `web`. Then apply:
+You should see four additions: `postgres`, `backend`, `web`, and `mcp`. Then apply:
 
 ```bash
 railway config apply
 ```
 
-**The `backend` service fails to start at this point, and that is expected.** It has no configuration yet: no address to
-put in its email links, and none of its secrets. The next three steps are what give it those.
+**The `backend` and `mcp` services fail to start at this point, and that is expected.** The backend has no configuration yet: no address to
+put in its email links, and none of its secrets, and the MCP server has no backend to talk to. The next three steps
+are what give them those.
 
 ## Step 5 — give the web service a domain
 
@@ -201,6 +212,42 @@ Do not check `/health` here. The backend has one, and Railway uses it, but Caddy
 from outside that path is just another route of the app and answers with its HTML.
 
 Then open `https://YOUR-DOMAIN` and sign in with the `FIRST_SUPERUSER` address and password from step 6.
+
+## Step 9 — connect an AI agent (optional)
+
+Skip this if you do not want one. Nothing else depends on it.
+
+The `mcp` service carries its own domain, written in `.railway/railway.ts` as `MCP_DOMAIN`. Change it to one you own
+before you apply, and create both records Railway prints, the `CNAME` and the `_railway-verify` `TXT`, exactly as for
+the web domain in step 5. Check it answers:
+
+```bash
+curl -s https://YOUR-MCP-DOMAIN/health
+```
+
+`{"status":"ok"}`. That route is deliberately open: it is for Railway's health check, and it says nothing about
+anybody's money.
+
+Everything else needs a token. Mint one in the app, under **Settings → API tokens**, and copy it when it is shown:
+that is the only time it appears. **Access** on that form decides what the agent gets: read only answers questions,
+read and write also lets it record and delete transactions and set budgets. Then point a client at the server:
+
+```bash
+claude mcp add --transport http hydra https://YOUR-MCP-DOMAIN/mcp \
+  --header "Authorization: Bearer hyd_..."
+claude mcp list
+```
+
+Two things worth understanding before you leave this running.
+
+The endpoint is on the public internet, and a hydra API token is the only thing between it and a household's
+finances. That is the design: it is what lets one deployment serve everybody, each client sending its own token and
+hydra deciding what that token reaches. It is also why a leaked token matters, and why tokens are revocable from the
+same settings page. Mint read-only ones unless you actually want an agent recording transactions.
+
+The server holds no credential of its own, and there is nowhere to put one. That is deliberate: a token configured
+on the service would make the whole deployment act as one person, and every client that connected would read that
+household, whoever they were.
 
 Last, prove the email works: sign out, use **Forgot password**, and check that the message arrives. That exercises
 Resend, the from-address, and the links, which are the three things most likely to be misconfigured.
