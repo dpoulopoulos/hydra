@@ -15,9 +15,14 @@ mock.
 """
 
 import datetime
+import threading
+import time
 import uuid
+from collections.abc import Callable, Generator
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
+from sqlalchemy import Engine
 from sqlmodel import Session, select
 
 from app.exceptions import LastHouseholdOwnerError
@@ -31,8 +36,15 @@ from app.models import (
     TransactionKind,
     User,
 )
+from app.repositories import (
+    EmailVerificationRepository,
+    HouseholdInviteRepository,
+    HouseholdMemberRepository,
+    HouseholdRepository,
+    UserRepository,
+)
 from app.services import CategoryService, HouseholdService, UserService
-from tests.integration.conftest import make_account
+from tests.integration.conftest import make_account, make_household
 
 # The seniority the successor is picked by. Written explicitly rather than left
 # to the column default, which would give every membership of a test the same
@@ -302,3 +314,140 @@ class TestStartupRepair:
         assert household_service.ensure_every_household_has_an_owner() == 0
         assert role_of(db_session, household_a.user_id) is HouseholdRole.OWNER
         assert role_of(db_session, household_b.user_id) is HouseholdRole.OWNER
+
+
+# How long a thread may wait for the other one. Generous: the wait is only
+# there so a bug cannot hang the suite, never to time the threads against each
+# other.
+DEADLOCK_TIMEOUT = datetime.timedelta(seconds=30)
+
+
+def build_household_service(session: Session) -> HouseholdService:
+    """Wire a household service onto a session of its own.
+
+    The fixtures build one on the session the test shares, which is a single
+    connection inside a single transaction. Two members leaving at the same
+    time need two of them, one per connection.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A household service bound to that session.
+    """
+    return HouseholdService(
+        session=session,
+        household_repository=HouseholdRepository(session=session),
+        household_member_repository=HouseholdMemberRepository(session=session),
+        household_invite_repository=HouseholdInviteRepository(session=session),
+        user_repository=UserRepository(session=session),
+        email_verification_repository=EmailVerificationRepository(session=session),
+    )
+
+
+def delete_account(engine: Engine, user_id: uuid.UUID, before_commit: Callable[[], None] | None = None) -> None:
+    """Delete a user and release their household, in a transaction of its own.
+
+    Args:
+        engine: The engine to open a connection on.
+        user_id: The ID of the user to delete.
+        before_commit: An optional hook to run with the transaction still open,
+            which is where the household row lock is held.
+    """
+    with Session(engine) as session:
+        service = build_household_service(session)
+        user = session.get(User, user_id)
+        assert user is not None
+
+        service.release_for_user(user=user)
+        session.delete(user)
+        session.flush()
+
+        if before_commit:
+            before_commit()
+
+        session.commit()
+
+
+class TestTwoMembersLeavingAtOnce:
+    """The row lock keeps a household from being emptied behind its own back."""
+
+    @pytest.fixture
+    def two_members(self, engine: Engine) -> Generator[tuple[uuid.UUID, uuid.UUID, uuid.UUID]]:
+        """Seed a household of two owners, committed so a second connection sees it.
+
+        The rest of the suite works inside a transaction that is rolled back,
+        which no other connection could read. These rows are therefore
+        committed and cleaned up by hand.
+
+        Both members hold OWNER so that neither departure promotes the other:
+        the promotion writes to the membership row of the member who is still
+        there, and that write would serialise the two transactions on its own,
+        hiding whether the household row is being locked at all.
+
+        Args:
+            engine: The engine bound to the test database.
+
+        Yields:
+            The IDs of the household and of its two members.
+        """
+        with Session(engine) as session:
+            context = make_household(session, name="Both Leaving", email="leaver-one@example.com")
+            second, _ = add_member(
+                session, context.household_id, "leaver-two@example.com", JOINED_FIRST, HouseholdRole.OWNER
+            )
+            ids = (context.household_id, context.user.id, second.id)
+            session.commit()
+
+        yield ids
+
+        with Session(engine) as session:
+            for user_id in ids[1:]:
+                user = session.get(User, user_id)
+                if user:
+                    session.delete(user)
+
+            household = session.get(Household, ids[0])
+            if household:
+                session.delete(household)
+
+            session.commit()
+
+    def test_the_household_does_not_survive_both_of_them(
+        self,
+        engine: Engine,
+        two_members: tuple[uuid.UUID, uuid.UUID, uuid.UUID],
+    ) -> None:
+        """The second one out finds an empty household and deletes it.
+
+        Without the lock both transactions read the member count while the
+        other membership is still there, each concludes that somebody is left,
+        and the household survives with nobody in it and no way to reach it.
+        The first thread here holds its transaction open until the second has
+        asked for the same row, so the lock is what decides the order.
+        """
+        household_id, first_id, second_id = two_members
+        locked = threading.Event()
+        second_started = threading.Event()
+
+        def hold_the_lock() -> None:
+            locked.set()
+            assert second_started.wait(DEADLOCK_TIMEOUT.total_seconds())
+            # The event says the other thread is about to ask for the row, not
+            # that it is waiting on it yet.
+            time.sleep(0.2)
+
+        def leave_second() -> None:
+            assert locked.wait(DEADLOCK_TIMEOUT.total_seconds())
+            second_started.set()
+            delete_account(engine, second_id)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(delete_account, engine, first_id, hold_the_lock)
+            second = pool.submit(leave_second)
+            first.result(timeout=DEADLOCK_TIMEOUT.total_seconds())
+            second.result(timeout=DEADLOCK_TIMEOUT.total_seconds())
+
+        with Session(engine) as session:
+            assert session.get(Household, household_id) is None
+            assert session.exec(select(HouseholdMember).where(HouseholdMember.household_id == household_id)).all() == []
