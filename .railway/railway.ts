@@ -8,7 +8,7 @@
 //   railway config plan         # read only: what would change
 //   railway config apply        # do it, after you confirm
 //
-// Both services build from this repository, so a push to main redeploys them.
+// Every service builds from this repository, so a push to main redeploys them.
 // No secret is written here: preserve() means "keep the value already set in
 // Railway", so those are set once in the dashboard and stay out of git.
 
@@ -33,6 +33,13 @@ const PUBLIC_HOST = `https://${PUBLIC_DOMAIN}`
 // always pick one up on its own: check it with `railway domain list`.
 const BACKEND_PORT = '8000'
 const WEB_PORT = '8080'
+const MCP_PORT = '8002'
+
+// The MCP server needs its own public address: a client connects to it
+// directly, and it is not behind the web service's proxy. Everything it
+// serves is gated on a hydra API token, which is the only thing standing
+// between that address and somebody's finances.
+const MCP_DOMAIN = 'mcp.dimpo.dev'
 
 export default defineRailway((ctx) => {
   const db = postgres('postgres')
@@ -99,7 +106,26 @@ export default defineRailway((ctx) => {
     },
   })
 
+  const mcp = service('mcp', {
+    source: github(REPO, { rootDirectory: 'mcp-server' }),
+    healthcheck: '/health',
+    domains: [{ domain: MCP_DOMAIN, port: Number(MCP_PORT) }],
+    env: {
+      MCP_PORT,
+      // Private networking, for the same reason the web service uses it: the
+      // agent's traffic reaches the API inside the project rather than going
+      // out to the internet and back through Caddy.
+      HYDRA_API_BASE_URL: `http://\${{backend.RAILWAY_PRIVATE_DOMAIN}}:${BACKEND_PORT}`,
+      // What a client connects to, which is this service's own public address.
+      MCP_RESOURCE_URL: `https://${MCP_DOMAIN}/mcp`,
+
+      // HYDRA_API_TOKEN is deliberately absent. A token here would make the
+      // whole deployment act as one person: every client that connected would
+      // read that household, whoever they were. Each client sends its own.
+    },
+  })
+
   return project('hydra', {
-    resources: [db, backend, web],
+    resources: [db, backend, web, mcp],
   })
 })
