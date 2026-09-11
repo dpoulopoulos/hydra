@@ -40,11 +40,23 @@ function withoutSonnerStyleInjection(): Plugin {
 // which inotify does not always report through a bind mount or a synced path.
 const inContainer = process.env.VITE_IN_CONTAINER === 'true'
 
+// React Compiler, applied wherever the code runs.
+//
+// The preset ships with an environment hook that limits it to the client, and
+// Vitest transforms in the server environment: without this the tests would
+// render components the compiler never touched, and so could not see a
+// component behaving differently once it is memoized.
+const compilerPreset = reactCompilerPreset()
+const reactCompiler = {
+  ...compilerPreset,
+  rolldown: { ...compilerPreset.rolldown, applyToEnvironmentHook: () => true },
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    babel({ presets: [reactCompilerPreset()] }),
+    babel({ presets: [reactCompiler] }),
     tailwindcss(),
     withoutSonnerStyleInjection(),
   ],
