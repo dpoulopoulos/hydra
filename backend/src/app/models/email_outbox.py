@@ -17,6 +17,23 @@ class EmailOutboxStatus(StrEnum):
     FAILED = "failed"
 
 
+class EmailOutboxStats(SQLModel):
+    """What the outbox holds right now.
+
+    A message that gave up announces itself once, in the log, and after that
+    the only way to find out that somebody never got their invite is to query
+    the table by hand. This is that query, for whoever administers the
+    deployment.
+    """
+
+    pending: int = 0
+    failed: int = 0
+    # How long the oldest unresolved failure has been sitting there, which is
+    # what says whether this is a blip or a provider that has been refusing
+    # our mail all week. Null when nothing has failed.
+    oldest_failed_at: datetime.datetime | None = None
+
+
 class EmailOutbox(PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, SQLModel, table=True):
     """One outbound message, kept until the provider accepts it.
 

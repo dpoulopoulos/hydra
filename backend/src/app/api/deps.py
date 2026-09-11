@@ -30,6 +30,7 @@ from app.repositories import (
     ApiTokenRepository,
     BudgetRepository,
     CategoryRepository,
+    EmailOutboxRepository,
     EmailVerificationRepository,
     FxRateRepository,
     HouseholdInviteRepository,
@@ -51,6 +52,7 @@ from app.services import (
     ApiTokenService,
     BudgetService,
     CategoryService,
+    EmailOutboxService,
     EmailVerificationService,
     HouseholdService,
     IncomeService,
@@ -432,6 +434,39 @@ def get_api_token_service(
 
 
 ApiTokenServiceDep = Annotated[ApiTokenService, Depends(get_api_token_service)]
+
+
+def get_email_outbox_repository(session: SessionDep) -> EmailOutboxRepository:
+    """Get an email outbox repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        An email outbox repository instance.
+    """
+    return EmailOutboxRepository(session=session)
+
+
+EmailOutboxRepositoryDep = Annotated[EmailOutboxRepository, Depends(get_email_outbox_repository)]
+
+
+def get_email_outbox_service(
+    session: SessionDep, email_outbox_repository: EmailOutboxRepositoryDep
+) -> EmailOutboxService:
+    """Get an email outbox service instance.
+
+    Args:
+        session: The database session.
+        email_outbox_repository: The email outbox repository instance.
+
+    Returns:
+        An email outbox service instance.
+    """
+    return EmailOutboxService(session=session, email_outbox_repository=email_outbox_repository)
+
+
+EmailOutboxServiceDep = Annotated[EmailOutboxService, Depends(get_email_outbox_service)]
 
 
 TokenDep = Annotated[str, Depends(reusable_oauth2)]

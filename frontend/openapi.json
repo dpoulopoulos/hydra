@@ -5225,6 +5225,33 @@
           }
         }
       }
+    },
+    "/api/v1/email-outbox/stats": {
+      "get": {
+        "tags": [
+          "email-outbox"
+        ],
+        "summary": "Read Email Outbox Stats",
+        "description": "Report what the outbox is holding.\n\nA message that gives up says so once, in the log, and after that nothing\nsurfaces it. This is where a deployment can see that mail is not arriving\nwithout going to the table by hand.\n\nArgs:\n    email_outbox_service: The email outbox service dependency.\n\nReturns:\n    The backlog still owed to somebody and the messages that gave up.",
+        "operationId": "email-outbox-read_email_outbox_stats",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailOutboxStats"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -6586,6 +6613,35 @@
         ],
         "title": "ClientForecastRow",
         "description": "One client's contribution, and what they still owe."
+      },
+      "EmailOutboxStats": {
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "title": "Pending",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "default": 0
+          },
+          "oldest_failed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldest Failed At"
+          }
+        },
+        "type": "object",
+        "title": "EmailOutboxStats",
+        "description": "What the outbox holds right now.\n\nA message that gave up announces itself once, in the log, and after that\nthe only way to find out that somebody never got their invite is to query\nthe table by hand. This is that query, for whoever administers the\ndeployment."
       },
       "EmailVerificationConfirm": {
         "properties": {

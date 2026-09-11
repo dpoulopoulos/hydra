@@ -497,3 +497,64 @@ class TestPruneExpired:
 
         # Assert: Verify the removal was committed
         mock_db_session.commit.assert_called_once()
+
+
+class TestStats:
+    """Test the report of what the outbox is holding."""
+
+    def test_stats_counts_the_backlog_and_the_failures(
+        self, mock_email_outbox_service: EmailOutboxService, mock_email_outbox_repository: EmailOutboxRepository
+    ) -> None:
+        """These are the two figures somebody has to act on."""
+        # Arrange: The table holds a bit of everything
+        counts = {EmailOutboxStatus.PENDING: 2, EmailOutboxStatus.SENT: 40, EmailOutboxStatus.FAILED: 3}
+        with patch.object(mock_email_outbox_repository, "count_by_status", return_value=counts):
+            with patch.object(mock_email_outbox_repository, "oldest_created_at", return_value=None):
+                # Act: Ask what the outbox is holding
+                stats = mock_email_outbox_service.stats()
+
+        # Assert: Verify the report carries what is owed and what gave up
+        assert stats.pending == 2
+        assert stats.failed == 3
+
+    def test_stats_dates_the_oldest_failure(
+        self, mock_email_outbox_service: EmailOutboxService, mock_email_outbox_repository: EmailOutboxRepository
+    ) -> None:
+        """A week-old failure is a different problem from this morning's."""
+        # Arrange: The oldest failure is from a week ago
+        moment = datetime.now(UTC) - timedelta(days=7)
+        with patch.object(mock_email_outbox_repository, "count_by_status", return_value={EmailOutboxStatus.FAILED: 1}):
+            with patch.object(mock_email_outbox_repository, "oldest_created_at", return_value=moment) as mock_oldest:
+                # Act: Ask what the outbox is holding
+                stats = mock_email_outbox_service.stats()
+
+        # Assert: Verify the failures were dated, and only the failures
+        assert stats.oldest_failed_at == moment
+        mock_oldest.assert_called_once_with(status=EmailOutboxStatus.FAILED)
+
+    def test_stats_reports_an_empty_outbox_as_zeroes(
+        self, mock_email_outbox_service: EmailOutboxService, mock_email_outbox_repository: EmailOutboxRepository
+    ) -> None:
+        """A status with no rows is absent from the tally, not zero in it."""
+        # Arrange: Nothing has ever been queued
+        with patch.object(mock_email_outbox_repository, "count_by_status", return_value={}):
+            # Act: Ask what the outbox is holding
+            stats = mock_email_outbox_service.stats()
+
+        # Assert: Verify the report reads as empty rather than failing
+        assert stats.pending == 0
+        assert stats.failed == 0
+        assert stats.oldest_failed_at is None
+
+    def test_stats_does_not_date_failures_that_are_not_there(
+        self, mock_email_outbox_service: EmailOutboxService, mock_email_outbox_repository: EmailOutboxRepository
+    ) -> None:
+        """The healthy case is the common one, and should cost one query."""
+        # Arrange: Everything that was queued was delivered
+        with patch.object(mock_email_outbox_repository, "count_by_status", return_value={EmailOutboxStatus.SENT: 9}):
+            with patch.object(mock_email_outbox_repository, "oldest_created_at") as mock_oldest:
+                # Act: Ask what the outbox is holding
+                mock_email_outbox_service.stats()
+
+        # Assert: Verify the second query was never made
+        mock_oldest.assert_not_called()

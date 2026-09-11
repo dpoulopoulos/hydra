@@ -809,6 +809,31 @@ export type ClientForecastRow = {
 };
 
 /**
+ * EmailOutboxStats
+ *
+ * What the outbox holds right now.
+ *
+ * A message that gave up announces itself once, in the log, and after that
+ * the only way to find out that somebody never got their invite is to query
+ * the table by hand. This is that query, for whoever administers the
+ * deployment.
+ */
+export type EmailOutboxStats = {
+    /**
+     * Pending
+     */
+    pending?: number;
+    /**
+     * Failed
+     */
+    failed?: number;
+    /**
+     * Oldest Failed At
+     */
+    oldest_failed_at?: string | null;
+};
+
+/**
  * EmailVerificationConfirm
  */
 export type EmailVerificationConfirm = {
@@ -6023,3 +6048,19 @@ export type EmailVerificationVerifyEmailResponses = {
 };
 
 export type EmailVerificationVerifyEmailResponse = EmailVerificationVerifyEmailResponses[keyof EmailVerificationVerifyEmailResponses];
+
+export type EmailOutboxReadEmailOutboxStatsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/email-outbox/stats';
+};
+
+export type EmailOutboxReadEmailOutboxStatsResponses = {
+    /**
+     * Successful Response
+     */
+    200: EmailOutboxStats;
+};
+
+export type EmailOutboxReadEmailOutboxStatsResponse = EmailOutboxReadEmailOutboxStatsResponses[keyof EmailOutboxReadEmailOutboxStatsResponses];

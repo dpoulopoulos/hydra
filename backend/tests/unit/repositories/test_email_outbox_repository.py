@@ -118,3 +118,78 @@ class TestDeleteExpired:
         bound = set(statement.compile().params.values())
         assert EmailOutboxStatus.PENDING not in bound
         assert {EmailOutboxStatus.SENT, EmailOutboxStatus.FAILED} <= bound
+
+
+class TestCountByStatus:
+    """Test the tally the outbox is reported with."""
+
+    def test_count_by_status_maps_every_status_to_its_tally(
+        self, repository: EmailOutboxRepository, mock_db_session: MagicMock
+    ) -> None:
+        """The caller reads a status off the tally, so the rows come back keyed."""
+        # Arrange: Postgres grouped the table
+        mock_db_session.exec.return_value.all.return_value = [
+            (EmailOutboxStatus.SENT, 12),
+            (EmailOutboxStatus.FAILED, 3),
+        ]
+
+        # Act: Tally the table
+        counts = repository.count_by_status()
+
+        # Assert: Verify each status came back against its count
+        assert counts == {EmailOutboxStatus.SENT: 12, EmailOutboxStatus.FAILED: 3}
+
+    def test_count_by_status_counts_in_one_query(
+        self, repository: EmailOutboxRepository, mock_db_session: MagicMock
+    ) -> None:
+        """A tally per status would be a query per status."""
+        # Act: Tally the table
+        repository.count_by_status()
+
+        # Assert: Verify the server did the grouping
+        compiled = str(mock_db_session.exec.call_args.args[0])
+        assert "count(" in compiled
+        assert "GROUP BY emailoutbox.status" in compiled
+
+
+class TestOldestCreatedAt:
+    """Test the age of the longest-standing row of a status."""
+
+    def test_oldest_created_at_returns_the_moment(
+        self, repository: EmailOutboxRepository, mock_db_session: MagicMock
+    ) -> None:
+        """How long a failure has been sitting there is what says how bad it is."""
+        # Arrange: The oldest failure is from a week ago
+        moment = datetime.now(UTC)
+        mock_db_session.exec.return_value.one.return_value = moment
+
+        # Act: Ask how far back the failures go
+        oldest = repository.oldest_created_at(status=EmailOutboxStatus.FAILED)
+
+        # Assert: Verify the moment came back
+        assert oldest == moment
+
+    def test_oldest_created_at_is_none_when_there_are_no_such_rows(
+        self, repository: EmailOutboxRepository, mock_db_session: MagicMock
+    ) -> None:
+        """An outbox with nothing to report has no oldest anything."""
+        # Arrange: Nothing has failed
+        mock_db_session.exec.return_value.one.return_value = None
+
+        # Act: Ask how far back the failures go
+        oldest = repository.oldest_created_at(status=EmailOutboxStatus.FAILED)
+
+        # Assert: Verify nothing came back rather than an error
+        assert oldest is None
+
+    def test_oldest_created_at_asks_only_for_that_status(
+        self, repository: EmailOutboxRepository, mock_db_session: MagicMock
+    ) -> None:
+        """The oldest row overall is usually a delivered one, and says nothing."""
+        # Act: Ask how far back the failures go
+        repository.oldest_created_at(status=EmailOutboxStatus.FAILED)
+
+        # Assert: Verify the status is in the WHERE clause and the server picked the minimum
+        compiled = str(mock_db_session.exec.call_args.args[0])
+        assert "min(emailoutbox.created_at)" in compiled
+        assert "emailoutbox.status = " in compiled

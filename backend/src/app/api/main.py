@@ -5,6 +5,7 @@ from app.api.routes import (
     api_tokens,
     budgets,
     categories,
+    email_outbox,
     email_verification,
     households,
     income,
@@ -32,3 +33,4 @@ api_router.include_router(reports.router)
 api_router.include_router(login.router)
 api_router.include_router(password_reset.router)
 api_router.include_router(email_verification.router)
+api_router.include_router(email_outbox.router)
