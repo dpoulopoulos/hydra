@@ -7,6 +7,7 @@ from app.api.deps import (
     CurrentUser,
     EmailVerificationServiceDep,
     HouseholdServiceDep,
+    SessionUser,
     UserServiceDep,
     get_current_active_superuser,
 )
@@ -192,18 +193,22 @@ def update_user_me(
     user_service: UserServiceDep,
     email_verification_service: EmailVerificationServiceDep,
     user_in: UserUpdateMe,
-    current_user: CurrentUser,
+    current_user: SessionUser,
 ) -> UserPublic:
     """Update the current user's information.
 
     A new email address is not applied here: it is mailed a verification link
     and only becomes the account's address once that link is followed.
 
+    A browser session, not an API token: the verification link goes to the new
+    address, so whoever can change it can move the account to somewhere they
+    read and then reset the password from there.
+
     Args:
         user_service: The user service dependency.
         email_verification_service: The email verification service dependency.
         user_in: The user data to update.
-        current_user: The current authenticated user.
+        current_user: The signed-in user, from a browser session.
 
     Returns:
         The updated user information.
@@ -254,14 +259,17 @@ def update_password_me(
     *,
     user_service: UserServiceDep,
     password_in: PasswordUpdate,
-    current_user: CurrentUser,
+    current_user: SessionUser,
 ) -> Message:
     """Update the current user's password.
+
+    Requires a signed-in session. A leaked API token must not be able to change
+    the password behind it and lock its owner out.
 
     Args:
         user_service: The user service dependency.
         password_in: The current and new password.
-        current_user: The current authenticated user.
+        current_user: The signed-in user.
 
     Returns:
         A message indicating that the password was updated successfully.
@@ -276,15 +284,18 @@ def update_password_me(
 
 @router.delete("/me", response_model=Message)
 def delete_user_me(
-    *, user_service: UserServiceDep, household_service: HouseholdServiceDep, current_user: CurrentUser
+    *, user_service: UserServiceDep, household_service: HouseholdServiceDep, current_user: SessionUser
 ) -> Message:
     """Delete the current user.
+
+    Requires a signed-in session, like changing the password: deleting the
+    account is not something a machine credential should be able to reach.
 
     Args:
         user_service: The user service dependency.
         household_service: The household service dependency, used to release
             the household the user leaves behind.
-        current_user: The current authenticated user.
+        current_user: The signed-in user.
 
     Returns:
         A message indicating that the user was deleted successfully.

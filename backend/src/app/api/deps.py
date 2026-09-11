@@ -523,16 +523,23 @@ def get_session_user(request: Request, current_user: CurrentUser) -> User:
 SessionUser = Annotated[User, Depends(get_session_user)]
 
 
-def get_current_active_superuser(current_user: CurrentUser) -> User:
+def get_current_active_superuser(current_user: SessionUser) -> User:
     """Get the current active superuser.
 
+    A browser session, not an API token. These routes create users, set any
+    user's password and delete accounts, so a token that reached them could
+    mint a second superuser it knows the password of, or take its own owner's
+    account away. That is the entrenchment session-only exists to stop, and a
+    superuser's token is the one most worth stealing.
+
     Args:
-        current_user: The current user.
+        current_user: The signed-in user, from a browser session.
 
     Returns:
         The current active superuser.
 
     Raises:
+        ApiTokenNotPermittedError: If the request was authenticated with an API token.
         UserNotAuthorizedError: If the user is not a superuser.
     """
     if not current_user.is_superuser:
