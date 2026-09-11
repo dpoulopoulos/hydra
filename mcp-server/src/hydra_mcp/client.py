@@ -45,6 +45,59 @@ class HydraClient:
         """
         return await self._request("GET", path, token=token, subject=subject, params=params)
 
+    async def post(self, path: str, *, token: str, subject: str, json: dict[str, Any]) -> Any:
+        """Create something, and return what hydra made.
+
+        Args:
+            path: The path below the API root, starting with a slash.
+            token: The hydra API token to present.
+            subject: What is being created, used if hydra says it is missing.
+            json: The body to send.
+
+        Returns:
+            The decoded response body.
+
+        Raises:
+            MCPError: If the token was refused, or is read only.
+            ToolError: If the request failed in a way that could be retried.
+        """
+        return await self._request("POST", path, token=token, subject=subject, json=json)
+
+    async def patch(self, path: str, *, token: str, subject: str, json: dict[str, Any]) -> Any:
+        """Change something, and return it as it now stands.
+
+        Args:
+            path: The path below the API root, starting with a slash.
+            token: The hydra API token to present.
+            subject: What is being changed, used if hydra says it is missing.
+            json: The fields to change.
+
+        Returns:
+            The decoded response body.
+
+        Raises:
+            MCPError: If the token was refused, or is read only.
+            ToolError: If the request failed in a way that could be retried.
+        """
+        return await self._request("PATCH", path, token=token, subject=subject, json=json)
+
+    async def delete(self, path: str, *, token: str, subject: str) -> Any:
+        """Remove something.
+
+        Args:
+            path: The path below the API root, starting with a slash.
+            token: The hydra API token to present.
+            subject: What is being removed, used if hydra says it is missing.
+
+        Returns:
+            The decoded response body.
+
+        Raises:
+            MCPError: If the token was refused, or is read only.
+            ToolError: If the request failed in a way that could be retried.
+        """
+        return await self._request("DELETE", path, token=token, subject=subject)
+
     async def _request(
         self,
         method: str,

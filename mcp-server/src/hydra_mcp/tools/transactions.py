@@ -5,8 +5,8 @@ from mcp.server import MCPServer
 from pydantic import Field
 
 from ..money import money, to_minor
-from ..resolve import Named, accounts_of, bare_name, categories_of
-from ._common import READ_ONLY, current_token, hydra
+from ..resolve import Named, bare_name
+from ._common import READ_ONLY, as_str, current_token, household_context, hydra
 
 Kind = Literal["expense", "income", "transfer"]
 
@@ -64,7 +64,7 @@ def register(mcp: MCPServer) -> None:
             The matching transactions, and how many there are in total.
         """
         token = current_token()
-        accounts, categories, currency = await _context(token)
+        accounts, categories, currency = await household_context(token)
 
         payload = await hydra().get(
             "/transactions/",
@@ -73,8 +73,8 @@ def register(mcp: MCPServer) -> None:
             params={
                 "date_from": date_from.isoformat() if date_from else None,
                 "date_to": date_to.isoformat() if date_to else None,
-                "account_id": _as_str(accounts.id(account)),
-                "category_id": _as_str(categories.id(category)),
+                "account_id": as_str(accounts.id(account)),
+                "category_id": as_str(categories.id(category)),
                 "include_subcategories": include_subcategories,
                 "kind": kind,
                 "min_amount_minor": to_minor(min_amount, currency) if min_amount is not None else None,
@@ -86,7 +86,7 @@ def register(mcp: MCPServer) -> None:
         )
 
         return {
-            "transactions": [_transaction(t, accounts, categories, currency) for t in payload["data"]],
+            "transactions": [describe_transaction(t, accounts, categories, currency) for t in payload["data"]],
             # How many match the filters, which may be more than were returned.
             "total_matching": payload["count"],
             "currency": currency,
@@ -105,42 +105,16 @@ def register(mcp: MCPServer) -> None:
             The transaction.
         """
         token = current_token()
-        accounts, categories, currency = await _context(token)
+        accounts, categories, currency = await household_context(token)
 
         payload = await hydra().get(f"/transactions/{transaction_id}", token=token, subject="transaction")
 
-        return _transaction(payload, accounts, categories, currency)
+        return describe_transaction(payload, accounts, categories, currency)
 
 
-async def _context(token: str) -> tuple[Named, Named, str]:
-    """Fetch what is needed to turn ids into names and back.
-
-    Args:
-        token: The hydra API token to present.
-
-    Returns:
-        The accounts, the categories, and the household currency.
-    """
-    accounts = await accounts_of(token)
-    categories = await categories_of(token)
-    household = await hydra().get("/households/me", token=token, subject="household")
-
-    return accounts, categories, household["currency_code"]
-
-
-def _as_str(value: Any) -> str | None:
-    """Render a resolved id for a query string.
-
-    Args:
-        value: The id, or None.
-
-    Returns:
-        The id as text, or None.
-    """
-    return None if value is None else str(value)
-
-
-def _transaction(transaction: dict[str, Any], accounts: Named, categories: Named, currency: str) -> dict[str, Any]:
+def describe_transaction(
+    transaction: dict[str, Any], accounts: Named, categories: Named, currency: str
+) -> dict[str, Any]:
     """Describe one transaction.
 
     Args:

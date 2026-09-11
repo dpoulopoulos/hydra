@@ -82,6 +82,10 @@ class HydraTokenVerifier(TokenVerifier):
             token=token,
             client_id=str(user["id"]),
             subject=str(user["id"]),
+            # Connecting is all this scope asserts. Whether the token may
+            # change anything is hydra's to decide, from the scope stored
+            # against it, and asking here would be a second round trip to
+            # learn something the write itself is about to be told anyway.
             scopes=[READ_SCOPE],
             resource=str(settings.MCP_RESOURCE_URL),
         )
