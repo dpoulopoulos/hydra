@@ -528,6 +528,20 @@ at zero would have one caller budget for the whole internet; where the app is re
 the client cared to send, so it is ignored. The counters are only running totals and a background loop drops them once
 their window has passed, so the table does not keep a row for every address the app has ever answered.
 
+### What the Outbox Keeps of a Message
+
+Outbound mail is written to `emailoutbox` before it is attempted, so a provider outage or a process that dies mid-send
+delays a message rather than losing it. Three of those messages — a password reset, an email verification and a
+household invite — are links carrying a single-use credential, and the row holds the rendered body those links are
+spelled out in.
+
+A row therefore keeps its body only while the message may still have to be sent. The moment it settles — the provider
+took it, or it gave up after its last attempt — `html_content` is emptied, in the same transaction that records the
+outcome. What is left is the record of the delivery: who it was for, what it was about, what went wrong and when.
+Retention removes that record later, on the `EMAIL_OUTBOX_*_RETENTION_DAYS` windows, but the credential is gone long
+before then, and well inside the lifetime of the token itself. A row that is still `pending` keeps its body, because
+that is what the next attempt sends.
+
 ### API Tokens
 
 A session token is minted for a browser: it expires in eight days and cannot be withdrawn from one client without
