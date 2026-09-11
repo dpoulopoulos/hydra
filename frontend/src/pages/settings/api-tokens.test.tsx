@@ -99,7 +99,7 @@ describe('creating a token', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Create token' }))
 
     expect(await screen.findByText(SECRET)).toBeInTheDocument()
-    expect(screen.getByText(/only time it is shown/)).toBeInTheDocument()
+    expect(screen.getByText(/not be able to see it again/)).toBeInTheDocument()
   })
 
   it('the secret goes away when the dialog is dismissed', async () => {

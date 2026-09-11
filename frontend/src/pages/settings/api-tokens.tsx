@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, KeyRound, Trash2 } from 'lucide-react'
+import type { MouseEvent } from 'react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -313,40 +314,62 @@ function SecretDialog({
         }
       }}
     >
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl sm:p-6">
         <DialogHeader>
-          <DialogTitle>Copy your token now</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-full">
+              <KeyRound className="size-4" />
+            </span>
+            Copy your token now
+          </DialogTitle>
           <DialogDescription>
-            This is the only time it is shown. We keep only a hash of it, so if you lose it you will
-            have to create another.
+            You will not be able to see it again. Lose it and you will need a new one.
             {created?.token.scope === 'read_write'
               ? ' This one can change your data, not only read it.'
               : ''}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex items-start gap-2">
-          {/* The token is one long unbroken string. Wrapping it rather than
-              truncating keeps all of it selectable, and break-all stops it
-              forcing the dialog wider than the screen. */}
-          <code className="bg-muted min-w-0 flex-1 rounded-md px-3 py-2 font-mono text-sm break-all">
-            {secret}
-          </code>
+
+        {/* The token is one long unbroken string, and the dialog is sized so
+            that all 64 characters of it sit on one line. It never wraps: a
+            credential broken across two lines is harder to read and harder to
+            check against what you pasted. On a screen too narrow for the
+            dialog's full width it scrolls sideways instead, so none of it is
+            hidden either way. Clicking selects the lot, for anyone who would
+            rather drag than press the button. */}
+        <div className="bg-muted/60 ring-border relative rounded-lg ring-1">
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
-            className="shrink-0"
+            className="absolute top-1.5 right-1.5 size-7"
             onClick={() => void copy()}
-            aria-label="Copy token"
+            aria-label={copied ? 'Token copied' : 'Copy token'}
           >
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
           </Button>
+          <code
+            onClick={selectAll}
+            className="block cursor-text overflow-x-auto py-3 pr-11 pl-4 font-mono text-sm leading-relaxed whitespace-nowrap"
+          >
+            {secret}
+          </code>
         </div>
+
         <DialogFooter>
           <Button onClick={onDismiss}>Done</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
+}
+
+/** Select the whole token, so a click is as good as a careful drag. */
+function selectAll(event: MouseEvent<HTMLElement>) {
+  const range = document.createRange()
+  range.selectNodeContents(event.currentTarget)
+  const selection = window.getSelection()
+  selection?.removeAllRanges()
+  selection?.addRange(range)
 }
 
 /** The second line of a token: when it was last used, and when it runs out. */
