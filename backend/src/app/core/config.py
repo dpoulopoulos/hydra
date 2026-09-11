@@ -272,6 +272,24 @@ class Settings(BaseSettings):
     # How often the background pruner applies those windows.
     EMAIL_OUTBOX_PRUNE_INTERVAL_SECONDS: int = Field(default=3600, ge=1)  # 1 hour
 
+    # The endpoints that mail an address named by an unauthenticated request -
+    # signing up, asking for a password reset, asking for another verification
+    # - will send to whatever address they are given, as fast as they are
+    # asked. These bound that: how long a budget lasts, how much of it one
+    # caller may spend across every such endpoint, and how much of it may be
+    # aimed at one mailbox by however many callers.
+    #
+    # The per-recipient budget is the smaller of the two. It is what a person
+    # whose address somebody else is posting is protected by, and nobody signs
+    # up, resets a password and asks for a link more than a handful of times an
+    # hour.
+    MAIL_RATE_LIMIT_WINDOW_MINUTES: int = Field(default=60, ge=1)
+    MAIL_RATE_LIMIT_PER_SOURCE: int = Field(default=20, ge=1)
+    MAIL_RATE_LIMIT_PER_RECIPIENT: int = Field(default=5, ge=1)
+    # How often the background pruner drops the counters whose window has
+    # passed. Nothing else removes them, and each one holds an address.
+    MAIL_RATE_LIMIT_PRUNE_INTERVAL_SECONDS: int = Field(default=3600, ge=1)  # 1 hour
+
     EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 24  # 1 day
     EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 48  # 2 days
     HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS: int = 168  # 7 days

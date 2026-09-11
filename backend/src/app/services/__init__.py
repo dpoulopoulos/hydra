@@ -8,6 +8,7 @@ from .household import HouseholdService
 from .income import IncomeService
 from .investment import InvestmentService
 from .ledger import LedgerReferenceResolver
+from .mail_rate_limit import MailRateLimitService
 from .password_reset import PasswordResetService
 from .recurring_rule import RecurringRuleService
 from .report import ReportService
@@ -25,6 +26,7 @@ __all__ = [
     "IncomeService",
     "InvestmentService",
     "LedgerReferenceResolver",
+    "MailRateLimitService",
     "PasswordResetService",
     "RecurringRuleService",
     "ReportService",
