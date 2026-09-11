@@ -73,3 +73,27 @@ jobs:
 
       - name: Type check
         run: pnpm typecheck
+
+  lint-mcp:
+    name: mypy and ruff (MCP server)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp-server
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned exactly: setup-uv publishes no floating tag above v7.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: mcp-server/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # The same script `make mcp-lint` runs. Nothing here imports settings
+      # that need a .env, so none is created.
+      - name: Lint
+        run: bash scripts/lint.sh
