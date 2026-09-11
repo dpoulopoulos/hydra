@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from typing import Annotated
 
-from fastapi import Depends, Query
+from fastapi import Depends, Query, Request
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
@@ -9,8 +9,12 @@ from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.db import engine
-from app.core.security import TokenType, decode_token
-from app.exceptions import HouseholdRoleRequiredError, UserNotAuthorizedError
+from app.core.security import TokenType, decode_token, split_api_token
+from app.exceptions import (
+    ApiTokenNotPermittedError,
+    HouseholdRoleRequiredError,
+    UserNotAuthorizedError,
+)
 from app.exceptions.password_exceptions import InvalidCredentialsError
 from app.models import (
     HouseholdContext,
@@ -23,6 +27,7 @@ from app.models import (
 )
 from app.repositories import (
     AccountRepository,
+    ApiTokenRepository,
     BudgetRepository,
     CategoryRepository,
     EmailVerificationRepository,
@@ -43,6 +48,7 @@ from app.repositories import (
 )
 from app.services import (
     AccountService,
+    ApiTokenService,
     BudgetService,
     CategoryService,
     EmailVerificationService,
@@ -388,24 +394,92 @@ def get_email_verification_service(
 EmailVerificationServiceDep = Annotated[EmailVerificationService, Depends(get_email_verification_service)]
 
 
+def get_api_token_repository(session: SessionDep) -> ApiTokenRepository:
+    """Get an API token repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        An API token repository instance.
+    """
+    return ApiTokenRepository(session=session)
+
+
+ApiTokenRepositoryDep = Annotated[ApiTokenRepository, Depends(get_api_token_repository)]
+
+
+def get_api_token_service(
+    session: SessionDep,
+    api_token_repository: ApiTokenRepositoryDep,
+    user_repository: UserRepositoryDep,
+) -> ApiTokenService:
+    """Get an API token service instance.
+
+    Args:
+        session: The database session.
+        api_token_repository: The API token repository instance.
+        user_repository: The user repository instance.
+
+    Returns:
+        An API token service instance.
+    """
+    return ApiTokenService(
+        session=session,
+        api_token_repository=api_token_repository,
+        user_repository=user_repository,
+    )
+
+
+ApiTokenServiceDep = Annotated[ApiTokenService, Depends(get_api_token_service)]
+
+
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
 
 
-def get_current_user(user_service: UserServiceDep, token: TokenDep) -> User:
-    """Get the current authenticated user.
+def get_current_user(
+    request: Request,
+    user_service: UserServiceDep,
+    api_token_service: ApiTokenServiceDep,
+    token: TokenDep,
+) -> User:
+    """Get the current authenticated user, from a session token or an API token.
+
+    Two kinds of credential arrive at the same place, and which one was
+    presented is decided by the shape of the string rather than by a second
+    header: a JWT is base64url of a JSON header, so it cannot carry the API
+    token prefix.
+
+    Resolving both here is what lets every existing route accept an API token
+    without being edited, and keeps the household scope derived from the
+    membership row either way. It is also the one place a read scoped token can
+    be stopped from making a request that changes something, so a route added
+    later is covered without being told that scopes exist.
 
     Args:
+        request: The incoming request, whose method decides what a read scoped
+            token may do.
         user_service: The user service instance.
+        api_token_service: The API token service instance.
         token: The OAuth2 bearer token.
 
     Returns:
         The authenticated user.
 
     Raises:
-        InvalidCredentialsError: If the token is invalid or expired.
+        InvalidCredentialsError: If the session token is invalid or expired.
+        InvalidApiTokenError: If the API token does not check out.
+        ApiTokenReadOnlyError: If a read scoped token is changing something.
         UserNotFoundError: If the user associated with the token is not found.
         UserNotAuthorizedError: If the user is inactive.
     """
+    if split_api_token(token) is not None:
+        user = api_token_service.authenticate_request(credential=token, method=request.method)
+        request.state.api_token_authenticated = True
+        return user
+
+    request.state.api_token_authenticated = False
+
     try:
         payload = decode_token(token, expected_type=TokenType.SESSION)
         token_data = TokenPayload(**payload)
@@ -416,6 +490,37 @@ def get_current_user(user_service: UserServiceDep, token: TokenDep) -> User:
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def get_session_user(request: Request, current_user: CurrentUser) -> User:
+    """Require that the request was authenticated with a session, not an API token.
+
+    Minting a credential, revoking one, changing the password or the address
+    behind them, and giving somebody access to the household are the operations
+    that would let a leaked API token entrench itself, so they stay with the
+    browser session. Everything else a token may do is decided by its scope.
+
+    Which kind of credential arrived is read off the request rather than by
+    inspecting the bearer token a second time, so this depends on nothing but
+    the answer :func:`get_current_user` already worked out.
+
+    Args:
+        request: The incoming request, carrying how it was authenticated.
+        current_user: The current user.
+
+    Returns:
+        The current user.
+
+    Raises:
+        ApiTokenNotPermittedError: If the request was authenticated with an API token.
+    """
+    if getattr(request.state, "api_token_authenticated", False):
+        raise ApiTokenNotPermittedError from None
+
+    return current_user
+
+
+SessionUser = Annotated[User, Depends(get_session_user)]
 
 
 def get_current_active_superuser(current_user: CurrentUser) -> User:
