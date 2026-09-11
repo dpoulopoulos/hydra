@@ -10,7 +10,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 /**
@@ -28,6 +27,7 @@ export function ConfirmDialog({
   onConfirm,
   pending,
   destructive = true,
+  className,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -37,10 +37,12 @@ export function ConfirmDialog({
   onConfirm: () => void
   pending?: boolean
   destructive?: boolean
+  /** Widen the dialog where the description needs the room. */
+  className?: string
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className={cn(className)}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
@@ -48,6 +50,14 @@ export function ConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>Keep it</AlertDialogCancel>
           <AlertDialogAction
+            // Through the prop rather than by pushing buttonVariants() into
+            // className. AlertDialogAction renders a Button with asChild, so a
+            // variant passed as a class is concatenated with the default one
+            // rather than replacing it, and which of the two colours wins is
+            // then down to the order of the generated stylesheet. That is how
+            // this button ended up with the primary foreground on a
+            // destructive background, which reads as disabled.
+            variant={destructive ? 'destructive' : 'default'}
             disabled={pending}
             onClick={(event) => {
               // Closing is left to the caller, so the dialog can stay open if
@@ -55,7 +65,6 @@ export function ConfirmDialog({
               event.preventDefault()
               onConfirm()
             }}
-            className={cn(destructive && buttonVariants({ variant: 'destructive' }))}
           >
             {confirmLabel}
           </AlertDialogAction>
