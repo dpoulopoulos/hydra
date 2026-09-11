@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -58,16 +58,64 @@ describe('listing tokens', () => {
     vi.clearAllMocks()
   })
 
-  it('says what each token is for and when it runs out', async () => {
+  it('gives each token a column for what it is, what it may do, and when it runs out', async () => {
     vi.mocked(api.apiTokensListApiTokens).mockResolvedValue({
       data: { data: [token], count: 1 },
     } as never)
 
     renderPage()
 
-    expect(await screen.findByText('Claude')).toBeInTheDocument()
-    expect(screen.getByText(/Never used/)).toBeInTheDocument()
-    expect(screen.getByText(/0123456789abcdef/)).toBeInTheDocument()
+    // Scoped to the table: the form's own access picker reads "Read only" too.
+    const row = within(await screen.findByRole('table'))
+    expect(row.getByText('Claude')).toBeInTheDocument()
+    expect(row.getByText('Read only')).toBeInTheDocument()
+    expect(row.getByText('0123456789abcdef')).toBeInTheDocument()
+    expect(row.getByText('Never')).toBeInTheDocument()
+  })
+
+  it('says a read and write token is one', async () => {
+    // The column is what tells a write token apart from a read one after the
+    // secret has been shown and forgotten.
+    vi.mocked(api.apiTokensListApiTokens).mockResolvedValue({
+      data: { data: [{ ...token, scope: 'read_write' }], count: 1 },
+    } as never)
+
+    renderPage()
+
+    expect(await screen.findByText('Read and write')).toBeInTheDocument()
+  })
+
+  it('says when a token has already expired', async () => {
+    // The status stays active, since only a revoke flips it, so without this
+    // an expired token looks exactly like a working one.
+    vi.mocked(api.apiTokensListApiTokens).mockResolvedValue({
+      data: { data: [{ ...token, expires_at: '2020-01-01T00:00:00Z' }], count: 1 },
+    } as never)
+
+    renderPage()
+
+    expect(await screen.findByText(/Expired/)).toBeInTheDocument()
+  })
+
+  it('leaves a live expiry as a plain date', async () => {
+    vi.mocked(api.apiTokensListApiTokens).mockResolvedValue({
+      data: { data: [{ ...token, expires_at: '2099-12-10T00:00:00Z' }], count: 1 },
+    } as never)
+
+    renderPage()
+
+    expect(await screen.findByText('Dec 10, 2099')).toBeInTheDocument()
+    expect(screen.queryByText(/Expired/)).not.toBeInTheDocument()
+  })
+
+  it('shows a dash where a token never expires', async () => {
+    vi.mocked(api.apiTokensListApiTokens).mockResolvedValue({
+      data: { data: [{ ...token, expires_at: null }], count: 1 },
+    } as never)
+
+    renderPage()
+
+    expect(await screen.findByText('\u2014')).toBeInTheDocument()
   })
 
   it('invites you to make one when there are none', async () => {

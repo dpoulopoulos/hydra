@@ -20,7 +20,6 @@ import { Field, FormError } from '@/components/form-field'
 import { PageHeader } from '@/components/layout/page-header'
 import { SettingsNav } from '@/components/layout/settings-nav'
 import { SubmitButton } from '@/components/submit-button'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -39,7 +38,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { errorMessage } from '@/lib/api'
+import { formatDate } from '@/lib/month'
 
 const MIN_LIFETIME_DAYS = 1
 const MAX_LIFETIME_DAYS = 730
@@ -212,28 +220,73 @@ export function Component() {
               description="Create one above to let a program use hydra for you."
             />
           ) : (
-            <ul className="divide-y">
-              {tokens.data.data.map((token) => (
-                <li key={token.id} className="flex items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-2 truncate font-medium">
-                      {token.name}
-                      {token.scope === 'read' ? <Badge variant="secondary">Read only</Badge> : null}
-                    </p>
-                    <p className="text-muted-foreground truncate text-sm">{describe(token)}</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setRevoking(token)}
-                    aria-label={`Revoke ${token.name}`}
-                  >
-                    <Trash2 className="size-4" />
-                    Revoke
-                  </Button>
-                </li>
-              ))}
-            </ul>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[44rem]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-64">Name</TableHead>
+                    <TableHead className="w-28">Access</TableHead>
+                    <TableHead className="w-44">Identifier</TableHead>
+                    <TableHead className="w-36">Last used</TableHead>
+                    <TableHead className="w-36">Expires</TableHead>
+                    <TableHead className="w-12" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tokens.data.data.map((token) => (
+                    <TableRow key={token.id}>
+                      <TableCell className="font-medium">{token.name}</TableCell>
+                      {/* Plain text rather than a chip: a chip sits on its
+                          own baseline and would not line up with the cells
+                          either side of it. */}
+                      <TableCell className="text-muted-foreground">
+                        {token.scope === 'read' ? 'Read only' : 'Read and write'}
+                      </TableCell>
+                      <TableCell>
+                        {/* The lookup half of the credential. Useless on its
+                            own, and the way to match a row here to a line in
+                            a log. */}
+                        <span className="text-muted-foreground font-mono text-xs">
+                          {token.token_id}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {token.last_used_at ? (
+                          formatDate(token.last_used_at)
+                        ) : (
+                          <span className="text-muted-foreground">Never</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {/* An expired token keeps its active status, because
+                            only a revoke flips that. Without saying so the
+                            row looks exactly like a working one, with a date
+                            the reader has to compare against today. */}
+                        {!token.expires_at ? (
+                          <>&mdash;</>
+                        ) : hasExpired(token.expires_at) ? (
+                          <span className="text-destructive">
+                            Expired {formatDate(token.expires_at)}
+                          </span>
+                        ) : (
+                          formatDate(token.expires_at)
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setRevoking(token)}
+                          aria-label={`Revoke ${token.name}`}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -365,6 +418,17 @@ function SecretDialog({
   )
 }
 
+/**
+ * Whether a token has passed its expiry.
+ *
+ * The status column says nothing about this: it is flipped by a revoke and by
+ * nothing else, so an expired token is still `active` and the backend refuses
+ * it on the date instead.
+ */
+function hasExpired(expiresAt: string): boolean {
+  return new Date(expiresAt).getTime() <= Date.now()
+}
+
 /** Select the whole token, so a click is as good as a careful drag. */
 function selectAll(event: MouseEvent<HTMLElement>) {
   const range = document.createRange()
@@ -372,22 +436,4 @@ function selectAll(event: MouseEvent<HTMLElement>) {
   const selection = window.getSelection()
   selection?.removeAllRanges()
   selection?.addRange(range)
-}
-
-/** The second line of a token: when it was last used, and when it runs out. */
-function describe(token: ApiTokenPublic): string {
-  const used = token.last_used_at ? `Last used ${formatDate(token.last_used_at)}` : 'Never used'
-  const expires = token.expires_at ? `expires ${formatDate(token.expires_at)}` : 'no expiry'
-
-  return `${used} · ${expires} · ${token.token_id}`
-}
-
-function formatDate(value: string): string {
-  // The backend sends these without a zone; they are UTC.
-  const withZone = value.endsWith('Z') || value.includes('+') ? value : `${value}Z`
-  return new Date(withZone).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
 }
