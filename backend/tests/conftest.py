@@ -9,11 +9,19 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.core.security import ALGORITHM, create_access_token, get_password_hash
+from app.core.security import (
+    ALGORITHM,
+    API_TOKEN_PREFIX,
+    create_access_token,
+    generate_api_token,
+    get_password_hash,
+    hash_api_token_secret,
+)
 from app.main import app
-from app.models import HouseholdContext, HouseholdRole, User
+from app.models import ApiToken, ApiTokenScope, ApiTokenStatus, HouseholdContext, HouseholdRole, User
 from app.repositories import (
     AccountRepository,
+    ApiTokenRepository,
     BudgetRepository,
     CategoryRepository,
     EmailVerificationRepository,
@@ -34,6 +42,7 @@ from app.repositories import (
 )
 from app.services import (
     AccountService,
+    ApiTokenService,
     BudgetService,
     CategoryService,
     EmailVerificationService,
@@ -870,3 +879,89 @@ def mock_income_service(
         category_repository=mock_category_repository,
         household_repository=mock_household_repository,
     )
+
+
+@pytest.fixture
+def mock_api_token_repository(mock_db_session: MagicMock) -> ApiTokenRepository:
+    """Create an ApiTokenRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        An API token repository backed by the mock session.
+    """
+    return ApiTokenRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_api_token_service(
+    mock_db_session: MagicMock,
+    mock_api_token_repository: ApiTokenRepository,
+    mock_user_repository: UserRepository,
+) -> ApiTokenService:
+    """Create an ApiTokenService instance with mocked dependencies.
+
+    Args:
+        mock_db_session: The mock database session.
+        mock_api_token_repository: The mock API token repository.
+        mock_user_repository: The mock user repository.
+
+    Returns:
+        An API token service backed by the mock session.
+    """
+    return ApiTokenService(
+        session=mock_db_session,
+        api_token_repository=mock_api_token_repository,
+        user_repository=mock_user_repository,
+    )
+
+
+@pytest.fixture
+def api_token_credential() -> str:
+    """Create the credential a caller would present for the test API token.
+
+    Returns:
+        A full credential, of the shape "hyd_<token_id>_<secret>".
+    """
+    credential, _, _ = generate_api_token()
+    return credential
+
+
+@pytest.fixture
+def test_api_token(test_user: User, api_token_credential: str) -> ApiToken:
+    """Create an active, read scoped API token for the test user.
+
+    Built from the same credential the matching fixture hands out, so a test can
+    present that string and have this row be what it resolves to.
+
+    Args:
+        test_user: The user the token acts as.
+        api_token_credential: The credential this token was minted from.
+
+    Returns:
+        An API token instance.
+    """
+    token_id, _, secret = api_token_credential.removeprefix(API_TOKEN_PREFIX).partition("_")
+    return ApiToken(
+        name="Test client",
+        scope=ApiTokenScope.READ,
+        status=ApiTokenStatus.ACTIVE,
+        expires_at=None,
+        token_id=token_id,
+        secret_hash=hash_api_token_secret(secret),
+        user_id=test_user.id,
+    )
+
+
+@pytest.fixture
+def api_token_auth_headers(api_token_credential: str) -> dict[str, str]:
+    """Create authorization headers carrying an API token.
+
+    Args:
+        api_token_credential: The credential to present.
+
+    Returns:
+        A dictionary containing authorization headers.
+    """
+    return {"Authorization": f"Bearer {api_token_credential}"}

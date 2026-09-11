@@ -1,4 +1,5 @@
 from .account import AccountService
+from .api_token import ApiTokenService
 from .budget import BudgetService
 from .category import CategoryService
 from .email_outbox import EmailOutboxService
@@ -15,6 +16,7 @@ from .user import UserService
 
 __all__ = [
     "AccountService",
+    "ApiTokenService",
     "BudgetService",
     "CategoryService",
     "EmailOutboxService",
