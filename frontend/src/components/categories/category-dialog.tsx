@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -46,14 +46,6 @@ const schema = z.object({
 
 type Values = z.infer<typeof schema>
 
-// React Compiler will not memoize a component that calls React Hook Form's
-// `watch()`, and skips it whole. That skip is what this form relies on:
-// `form.reset()` empties the field map and counts on the next render calling
-// `register()` again, which a memoized render never repeats, leaving every
-// field unregistered and the form with nothing to save. Nothing goes stale in
-// return, since `watch()` re-renders this component and the controls under it
-// are handed the value from that render.
-/* eslint-disable react-hooks/incompatible-library -- skipping this one is the point; see above */
 export function CategoryDialog({
   open,
   category,
@@ -80,8 +72,12 @@ export function CategoryDialog({
     defaultValues: { name: '', kind: CategoryKind.EXPENSE, parent_id: NO_PARENT },
   })
 
-  const kind = form.watch('kind')
-  const parentId = form.watch('parent_id')
+  // Watched through `useWatch()` rather than the form's own `watch()`, which
+  // hands back a function React Compiler will not memoize and skips the whole
+  // component over.
+  const control = form.control
+  const kind = useWatch({ control, name: 'kind' })
+  const parentId = useWatch({ control, name: 'parent_id' })
 
   useEffect(() => {
     if (!open) return
