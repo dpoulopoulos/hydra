@@ -63,6 +63,8 @@ def register(mcp: MCPServer) -> None:
 
         Returns:
             Each occurrence that falls due, and what is leaving in total.
+            An occurrence marked blocked is not counted in the total: the
+            account it draws on is archived, so nothing will record it.
         """
         token = current_token()
         accounts, categories, currency = await household_context(token)
@@ -79,7 +81,12 @@ def register(mcp: MCPServer) -> None:
         # no question anybody asks, and the instructions tell a model to quote
         # the display string, so it would be quoted. Only what is going out is
         # summed here, because "what is coming out" is what this tool is for.
-        leaving = sum(item["amount_minor"] for item in payload["data"] if item["kind"] == "expense")
+        # A blocked occurrence is left out of the total as well: the account it
+        # draws on is archived, so nothing is going to record it, and counting
+        # it would tell the household money is leaving that is staying put.
+        leaving = sum(
+            item["amount_minor"] for item in payload["data"] if item["kind"] == "expense" and not item.get("is_blocked")
+        )
 
         return {
             "upcoming": [
@@ -90,6 +97,9 @@ def register(mcp: MCPServer) -> None:
                     "occurs_on": item["occurs_on"],
                     "account": accounts.name(item.get("account_id")),
                     "category": bare_name(categories.name(item.get("category_id"))),
+                    # Still listed, because it is what a restored account picks
+                    # up, but said to be going nowhere for now.
+                    "blocked": bool(item.get("is_blocked")),
                 }
                 for item in payload["data"]
             ],
