@@ -452,6 +452,17 @@ describe('the sentence under the fields', () => {
     expect(screen.queryByText(/leaves/)).not.toBeInTheDocument()
   })
 
+  it('stays away from an amount the form will refuse to save', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    // Read as 12000 by a bare `Number()`, rejected by the form's schema. The
+    // sentence must not promise money the save will not send.
+    await user.type(await screen.findByLabelText('Amount'), '12e3')
+
+    expect(screen.queryByText(/leaves Current/)).not.toBeInTheDocument()
+  })
+
   it('names both accounts of a transfer', async () => {
     const user = userEvent.setup()
     renderDialog()
