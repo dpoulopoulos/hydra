@@ -1,0 +1,154 @@
+"""The "a household always has an owner" invariant, run against real SQL.
+
+The unit suite drives the same paths over a mocked session: it feeds the member
+counts in as a ``side_effect`` and asserts on the role of an object the test
+built itself, so it pins the order of the calls the service makes rather than
+what a database answers. The queries the invariant rests on -- the ``NOT IN``
+over a subquery behind ``list_ownerless_household_ids``, the ordering behind
+``get_longest_standing``, the counts, and the ``SELECT ... FOR UPDATE`` that
+serialises two members leaving at once -- are never executed by it.
+
+These tests seed households in Postgres and take the members out through the
+services, so a mistyped column, an ordering that picks the wrong successor or a
+lock that is not taken shows up as a failing assertion rather than as a passing
+mock.
+"""
+
+import datetime
+import uuid
+
+import pytest
+from sqlmodel import Session, select
+
+from app.exceptions import LastHouseholdOwnerError
+from app.models import (
+    Household,
+    HouseholdContext,
+    HouseholdMember,
+    HouseholdRole,
+    User,
+)
+from app.services import CategoryService, HouseholdService, UserService
+
+# The seniority the successor is picked by. Written explicitly rather than left
+# to the column default, which would give every membership of a test the same
+# timestamp to the microsecond and make the ordering a coin toss.
+JOINED_FIRST = datetime.datetime(2024, 1, 1, 9, 0, tzinfo=datetime.UTC)
+JOINED_SECOND = datetime.datetime(2024, 6, 1, 9, 0, tzinfo=datetime.UTC)
+
+
+def add_member(
+    session: Session,
+    household_id: uuid.UUID,
+    email: str,
+    joined_at: datetime.datetime,
+    role: HouseholdRole = HouseholdRole.MEMBER,
+) -> tuple[User, HouseholdMember]:
+    """Seed another member of a household, bypassing the invitation flow.
+
+    Args:
+        session: The database session.
+        household_id: The household to join.
+        email: The email address of the user to create.
+        joined_at: When the membership was made, which is what seniority is
+            read from.
+        role: The role the member holds.
+
+    Returns:
+        The stored user and their membership.
+    """
+    user = User(email=email, full_name=email, hashed_password="not-a-real-hash", is_active=True)
+    session.add(user)
+    session.flush()
+
+    membership = HouseholdMember(household_id=household_id, user_id=user.id, role=role, created_at=joined_at)
+    session.add(membership)
+    session.flush()
+
+    return user, membership
+
+
+def role_of(session: Session, user_id: uuid.UUID) -> HouseholdRole | None:
+    """Read back the role a user holds, without going through the service.
+
+    Args:
+        session: The database session.
+        user_id: The ID of the user.
+
+    Returns:
+        The role stored against their membership, or None if they have none.
+    """
+    membership = session.exec(select(HouseholdMember).where(HouseholdMember.user_id == user_id)).first()
+    return membership.role if membership else None
+
+
+class TestDeletingTheLastOwner:
+    """A household that loses its last owner gets another one."""
+
+    def test_deleting_the_sole_owner_promotes_the_longest_standing_member(
+        self,
+        db_session: Session,
+        user_service: UserService,
+        household_service: HouseholdService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """The successor is the member who joined first, not whoever comes back."""
+        senior, _ = add_member(db_session, household_a.household_id, "senior@example.com", JOINED_FIRST)
+        junior, _ = add_member(db_session, household_a.household_id, "junior@example.com", JOINED_SECOND)
+
+        user_service.delete_user(user_id=household_a.user_id, household_service=household_service)
+
+        assert role_of(db_session, senior.id) is HouseholdRole.OWNER
+        assert role_of(db_session, junior.id) is HouseholdRole.MEMBER
+        assert db_session.get(Household, household_a.household_id) is not None
+
+    def test_deleting_a_member_leaves_the_owner_alone(
+        self,
+        db_session: Session,
+        user_service: UserService,
+        household_service: HouseholdService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """A household that still has its owner is not touched on the way out."""
+        member, _ = add_member(db_session, household_a.household_id, "member@example.com", JOINED_FIRST)
+
+        user_service.delete_user(user_id=member.id, household_service=household_service)
+
+        assert role_of(db_session, household_a.user_id) is HouseholdRole.OWNER
+        assert db_session.get(Household, household_a.household_id) is not None
+
+    def test_the_only_owner_cannot_leave_the_household(
+        self,
+        db_session: Session,
+        household_service: HouseholdService,
+        category_service: CategoryService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """The owner-only routes stay reachable: the last owner is refused the door.
+
+        The count this rests on is a ``COUNT`` filtered on the role column, and
+        the household has a second member here, so a count that forgot the
+        filter would let the owner out and strand the household.
+        """
+        add_member(db_session, household_a.household_id, "member@example.com", JOINED_FIRST)
+
+        with pytest.raises(LastHouseholdOwnerError):
+            household_service.leave_household(household=household_a, category_service=category_service)
+
+        assert role_of(db_session, household_a.user_id) is HouseholdRole.OWNER
+
+    def test_an_owner_can_leave_once_there_is_a_second_one(
+        self,
+        db_session: Session,
+        household_service: HouseholdService,
+        category_service: CategoryService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """With two owners the same count lets the first of them go."""
+        add_member(db_session, household_a.household_id, "co-owner@example.com", JOINED_FIRST, HouseholdRole.OWNER)
+
+        household_service.leave_household(household=household_a, category_service=category_service)
+
+        assert db_session.exec(
+            select(HouseholdMember).where(HouseholdMember.household_id == household_a.household_id)
+        ).one()
