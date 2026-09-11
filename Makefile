@@ -17,6 +17,7 @@ help:
 	@echo "  make web-format    - Format frontend files"
 	@echo "  make web-lint      - Scan frontend files for linting errors"
 	@echo "  make web-test      - Check the production server config against a real Caddy"
+	@echo "  make web-test-csp  - Build the app and serve it the way production does"
 	@echo "  make web-test-dev  - Check the dev image runs the web app unprivileged"
 	@echo "  make web-test-unit - Run the frontend unit tests"
 	@echo "  make web-api       - Regenerate the API client from the backend schema"
@@ -114,6 +115,13 @@ web-lint:
 .PHONY: web-test
 web-test:
 	bash ./frontend/scripts/test-caddyfile.sh
+
+# Builds the app and serves it with the production Caddyfile, with a stub
+# backend behind it, then checks it is served the way production serves it.
+# Needs Docker and the frontend dependencies; no backend.
+.PHONY: web-test-csp
+web-test-csp: web-install
+	bash ./frontend/scripts/test-csp.sh
 
 # Builds the dev image and checks who it runs as, and that the dev server still
 # serves what compose syncs into it. Needs Docker; the backend is not involved.
