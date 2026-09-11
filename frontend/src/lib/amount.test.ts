@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MAX_AMOUNT_MINOR, amountSchema } from '@/lib/amount'
+import { MAX_AMOUNT_MINOR, amountSchema, previewMinor } from '@/lib/amount'
 
 /** The minor units a typed string reaches the API as, or the message shown. */
 function parse(
@@ -191,4 +191,32 @@ describe('separators', () => {
       expect(parse(typed, 'EUR', { locale: 'en-US' })).toBe('Enter a number.')
     },
   )
+})
+
+// A preview reads the field while it is being typed, before the resolver has
+// had anything to say about it, so it needs the same reading of "1 000" the
+// saved value gets — and nothing to show while the field is still half typed.
+describe('previewMinor', () => {
+  it('reads what the schema would save', () => {
+    expect(previewMinor('42,50', 'EUR')).toBe(4250)
+    expect(previewMinor('1 000', 'EUR')).toBe(100000)
+  })
+
+  it('reads zero as zero rather than as nothing typed', () => {
+    expect(previewMinor('0', 'EUR')).toBe(0)
+  })
+
+  it('has nothing to show for an empty field', () => {
+    expect(previewMinor('', 'EUR')).toBeNull()
+    expect(previewMinor(undefined, 'EUR')).toBeNull()
+  })
+
+  it('has nothing to show for something that is not a number', () => {
+    expect(previewMinor('forty two', 'EUR')).toBeNull()
+    expect(previewMinor('.', 'EUR')).toBeNull()
+  })
+
+  it('has nothing to show for an amount past the ceiling', () => {
+    expect(previewMinor(String(MAX_AMOUNT_MINOR), 'EUR')).toBeNull()
+  })
 })

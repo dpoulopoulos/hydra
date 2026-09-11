@@ -176,3 +176,21 @@ export function amountSchema(currency: string, options?: { allowZero?: boolean; 
     })
     .refine((minor) => minor <= MAX_AMOUNT_MINOR, { message: 'Enter a smaller amount.' })
 }
+
+/**
+ * What a field holds so far, as minor units, or null while it does not read as
+ * an amount yet.
+ *
+ * A preview sentence reads the field as it is typed, before the resolver has
+ * had anything to say about it, so it has to make the same sense of "1 000" or
+ * "42,50" that the saved value does. Reading it through the same schema is what
+ * keeps the two in step; a `Number()` of its own drifts the moment either one
+ * learns a new separator.
+ *
+ * Zero is a value, not a blank: a caller that has nothing to say about zero
+ * decides that for itself.
+ */
+export function previewMinor(value: string | undefined, currency: string): number | null {
+  const parsed = amountSchema(currency, { allowZero: true }).safeParse(value ?? '')
+  return parsed.success ? parsed.data : null
+}
