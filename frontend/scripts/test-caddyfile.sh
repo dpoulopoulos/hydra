@@ -172,6 +172,22 @@ check "a path under /assets reaches the backend" "backend /assets/logo.svg" "$(b
 # app's entry page: a fallback here would hide a renamed route behind a 200.
 check "an unknown API path is not answered by the app" 404 "$(status /api/nothing-here)"
 
+# The policy a response carries, with the value of any nonce in it dropped:
+# every response is served a fresh one, so two policies are only ever
+# comparable with it out of the way.
+policy_of() {
+  header content-security-policy "$1" | sed "s/'nonce-[^']*'/'nonce-'/g"
+}
+
+# The header block sits above every handler, so it belongs to a proxied
+# response as much as to a file on disk. Nothing else checks that. The policy
+# is compared with the one a file on disk carries, which the checks above
+# spell out in full, rather than spelling it out a second time here.
+check "a proxied response carries the policy too" "$(policy_of /static/app.js)" "$(policy_of /api/ping)"
+check "a proxied response forbids MIME sniffing" "nosniff" "$(header x-content-type-options /api/ping)"
+check "a proxied response sends no referrer" "no-referrer" "$(header referrer-policy /api/ping)"
+check "a proxied response does not name the server" "" "$(header server /api/ping)"
+
 if [ "$failures" -ne 0 ]; then
   echo "$failures check(s) failed"
   exit 1
