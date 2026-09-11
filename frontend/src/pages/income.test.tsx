@@ -294,6 +294,24 @@ describe('the income page', () => {
     expect(await screen.findByText('The estimate is still settling')).toBeInTheDocument()
   })
 
+  it('says when the estimate could only price part of the practice', async () => {
+    // The server reads a capped page of the roster, and what is already booked
+    // is counted whole, so past the cap the two disagree and the estimate
+    // reads low. A bare figure could not say that.
+    renderPage({ forecast: { active_client_count: 260, priced_client_count: 200 } })
+
+    expect(await screen.findByText('The estimate covers part of your clients')).toBeInTheDocument()
+    expect(await screen.findByText(/200 of your 260 clients/)).toBeInTheDocument()
+  })
+
+  it('says nothing when every client was priced', async () => {
+    renderPage({ forecast: { active_client_count: 6, priced_client_count: 6 } })
+
+    await screen.findByText('Owed to you')
+
+    expect(screen.queryByText('The estimate covers part of your clients')).not.toBeInTheDocument()
+  })
+
   it('shows what happened and whether it was paid as two separate facts', async () => {
     // An attended session nobody has paid for is both at once, so one badge
     // could only ever tell half the truth.
