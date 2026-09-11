@@ -118,9 +118,11 @@ class EmailVerificationService:
         Returns:
             The pending verification that would move the account, or None.
         """
-        pending_verification = self.email_verification_repository.get_pending_by_user_id(user.id)
+        # Both kinds can be outstanding at once, so the lookup has to say
+        # which it means: asking for whatever is pending would hand back an
+        # activation as often as not, and call a live change of address none.
+        pending_verification = self.email_verification_repository.get_pending_change_by_user_id(user.id)
 
-        # An activation is pending too, and it moves no address of its own.
         if not pending_verification or not pending_verification.new_email:
             return None
 
@@ -251,6 +253,30 @@ class EmailVerificationService:
             self._issue_verification(user=user, address=new_email, new_email=new_email),
             destination=" to the new address",
         )
+
+    def resend_email_change_verification(self, user: User) -> Message:
+        """Send another link to the address a user has asked to move to.
+
+        The address is read from the pending row rather than taken from the
+        caller, so a resend can only ever reach the address the account already
+        asked for, and cannot be aimed somewhere new without going through the
+        profile form.
+
+        Args:
+            user: The account asking for another link.
+
+        Returns:
+            What became of the message.
+
+        Raises:
+            EmailVerificationNotFoundError: If the account has asked for no
+                change of address, so there is nothing to send again.
+        """
+        pending_change = self.email_verification_repository.get_pending_change_by_user_id(user.id)
+        if not pending_change or not pending_change.new_email:
+            raise EmailVerificationNotFoundError from None
+
+        return self.send_email_change_verification(user=user, new_email=pending_change.new_email)
 
     def _issue_verification(
         self, user: User, address: str, new_email: str | None = None, invite_unusable: bool = False
