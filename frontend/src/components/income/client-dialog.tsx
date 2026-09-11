@@ -38,11 +38,11 @@ import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
 import { useDecrypted, useVault } from '@/hooks/use-vault'
-import { amountSchema, parseMajor } from '@/lib/amount'
+import { amountSchema, previewMinor } from '@/lib/amount'
 import { WeekdayPicker } from '@/components/income/weekday-picker'
 import { AD_HOC, CADENCE_PRESETS, describeCadence, isWeekly, presetOf } from '@/lib/cadence'
 import { errorMessage } from '@/lib/api'
-import { formatMajorInput, formatMoney, toMinor } from '@/lib/money'
+import { formatMajorInput, formatMoney } from '@/lib/money'
 import { formatDate, today } from '@/lib/month'
 
 function buildSchema(currency: string) {
@@ -178,14 +178,11 @@ export function ClientDialog({
   // hard to picture until something reads it back.
   const anchor = form.watch('cadence_anchor_on')
   // The field holds whatever has been typed so far, so the fee is only shown
-  // back once it reads as a number. A half-typed "4" is not worth echoing.
-  // Read with the parser the field itself validates with, so the sentence
-  // quotes the figure that would be saved rather than one of its own reading.
-  const typedRate = parseMajor(String(form.watch('rate') ?? ''))
+  // back once it reads as an amount. Read through the same schema the saved
+  // value is, or the sentence and the form disagree about "1 000".
+  const typedRate = previewMinor(form.watch('rate'), currency)
   const rateLabel =
-    typedRate !== null && typedRate > 0
-      ? `, ${formatMoney(toMinor(typedRate, currency), currency)} a session`
-      : ''
+    typedRate !== null && typedRate > 0 ? `, ${formatMoney(typedRate, currency)} a session` : ''
 
   const schedule = preset?.frequency
     ? `${describeCadence(preset.frequency, preset.interval, anchor, form.watch('cadence_weekdays'))}${
