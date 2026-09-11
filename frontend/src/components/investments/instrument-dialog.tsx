@@ -55,6 +55,9 @@ const schema = z.object({
 type Values = z.input<typeof schema>
 type Parsed = z.output<typeof schema>
 
+/** Stands in for the instrument's id while the dialog is adding one. */
+const NEW_INSTRUMENT = 'new'
+
 const EMPTY: Values = {
   symbol: '',
   name: '',
@@ -87,7 +90,21 @@ export function InstrumentDialog({
   // What is actually searched for, which lags what is typed. The provider
   // charges one API call per search out of twenty a day, so typing "vuaa" must
   // cost one search rather than three.
-  const [settledQuery, setSettledQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  // Clearing the box takes effect at once, so a list the reader has just
+  // emptied never lingers for another 400ms. Read off the box rather than
+  // written to state from an effect, which would render the dialog twice with
+  // the stale matches still under it.
+  const settledQuery = query === '' ? '' : debouncedQuery
+
+  // The search box belongs to this opening of the dialog, not to the last one:
+  // a ticker typed and abandoned is not what the next instrument starts from.
+  const [searchedFor, setSearchedFor] = useState<string | null>(null)
+  const opening = open ? (instrument?.id ?? NEW_INSTRUMENT) : null
+  if (opening !== searchedFor) {
+    setSearchedFor(opening)
+    setQuery('')
+  }
 
   const form = useForm<Values, unknown, Parsed>({
     resolver: zodResolver(schema),
@@ -96,7 +113,6 @@ export function InstrumentDialog({
 
   useEffect(() => {
     if (!open) return
-    setQuery('')
     refill(
       form,
       instrument
@@ -111,15 +127,11 @@ export function InstrumentDialog({
     )
   }, [open, instrument, form])
 
-  // Nothing is searched for until typing has paused. Clearing the box takes
-  // effect at once, so a cleared list never lingers.
+  // Nothing is searched for until the typing has paused.
   useEffect(() => {
-    if (query === '') {
-      setSettledQuery('')
-      return
-    }
+    if (query === '') return
 
-    const timer = setTimeout(() => setSettledQuery(query), 400)
+    const timer = setTimeout(() => setDebouncedQuery(query), 400)
     return () => clearTimeout(timer)
   }, [query])
 
