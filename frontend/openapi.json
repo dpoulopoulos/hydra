@@ -7277,6 +7277,16 @@
             ],
             "title": "Average Sessions Per Month"
           },
+          "active_client_count": {
+            "type": "integer",
+            "title": "Active Client Count",
+            "default": 0
+          },
+          "priced_client_count": {
+            "type": "integer",
+            "title": "Priced Client Count",
+            "default": 0
+          },
           "clients": {
             "items": {
               "$ref": "#/components/schemas/ClientForecastRow"
