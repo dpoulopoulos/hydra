@@ -66,6 +66,7 @@ from app.services import (
     RecurringRuleService,
     ReportService,
     TransactionService,
+    UserService,
 )
 
 # The suite owns its database rather than the one the application uses, so
@@ -506,6 +507,20 @@ def household_service(
         user_repository=user_repository,
         email_verification_repository=email_verification_repository,
     )
+
+
+@pytest.fixture
+def user_service(db_session: Session, user_repository: UserRepository) -> UserService:
+    """Build a user service on the real session.
+
+    Args:
+        db_session: The database session.
+        user_repository: The user repository.
+
+    Returns:
+        A user service.
+    """
+    return UserService(session=db_session, user_repository=user_repository)
 
 
 @pytest.fixture
