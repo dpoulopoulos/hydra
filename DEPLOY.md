@@ -217,9 +217,17 @@ Then open `https://YOUR-DOMAIN` and sign in with the `FIRST_SUPERUSER` address a
 
 Skip this if you do not want one. Nothing else depends on it.
 
-The `mcp` service carries its own domain, written in `.railway/railway.ts` as `MCP_DOMAIN`. Change it to one you own
-before you apply, and create both records Railway prints, the `CNAME` and the `_railway-verify` `TXT`, exactly as for
-the web domain in step 5. Check it answers:
+The `mcp` service needs its own domain, and getting one is a three step job rather than a line in a file. Railway's
+configuration can describe a custom domain that already exists but cannot register a new one, and a domain cannot be
+registered against a service that does not exist yet. So:
+
+1. Comment out the `domains` line on the `mcp` service, and `railway config apply` to create the service.
+2. Add your domain to it in the dashboard, under **Settings → Networking → Custom Domain**, with port `8002`. Create
+   both records Railway prints, the `CNAME` and the `_railway-verify` `TXT`, exactly as for the web domain in step 5.
+3. Put the `domains` line back, with `MCP_DOMAIN` set to what you registered. `railway config plan` should then say
+   the configuration is already up to date. Declaring it keeps a later apply from removing it.
+
+Check it answers:
 
 ```bash
 curl -s https://YOUR-MCP-DOMAIN/health
