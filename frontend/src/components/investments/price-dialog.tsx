@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dialog'
 import { errorMessage } from '@/lib/api'
 import { showIssues } from '@/lib/form'
-import { formatPrice, fromPriceMicro, priceSchema } from '@/lib/quantity'
+import { formatPrice, formatPriceInput, priceSchema } from '@/lib/quantity'
 
 /**
  * The price is in the instrument's own currency, never the household's. A
@@ -63,12 +63,13 @@ export function PriceDialog({
   useEffect(() => {
     if (!open || !instrument) return
     // Seeded with the price already on the row, so correcting a figure does not
-    // mean retyping it. Blank when there has never been one.
+    // mean retyping it, and written with the separator this reader's locale
+    // reads back as a decimal point. Blank when there has never been one.
     form.reset({
       price:
         instrument.last_price_micro === null || instrument.last_price_micro === undefined
           ? ''
-          : String(fromPriceMicro(instrument.last_price_micro, instrument.currency_code)),
+          : formatPriceInput(instrument.last_price_micro, instrument.currency_code),
     })
   }, [open, instrument, form])
 
