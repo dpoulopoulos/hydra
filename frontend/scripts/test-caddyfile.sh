@@ -133,6 +133,12 @@ header() {
     | tail -1
 }
 
+# The body of a response, which for a proxied path is whatever the backend
+# sent: the stub answers with the name of the file the path asked for.
+body() {
+  curl --silent "$base$1"
+}
+
 check "the entry page is served" 200 "$(status /)"
 check "a bundle under /static is served" 200 "$(status /static/app.js)"
 # Client side routing: an unknown path is a page of the app, not a 404.
@@ -155,6 +161,16 @@ check "the server does not name itself" "" "$(header server /)"
 # and an app route are served by different handlers.
 check "a bundle carries the policy too" "$csp" "$(header content-security-policy /static/app.js)"
 check "an app route carries the policy too" "$csp" "$(header content-security-policy /budgets)"
+
+# The API and the images the emails point at are the browser's half of the
+# config that no static file can stand in for: they are forwarded, not served.
+# The stub answers a path with its own name, so a passing check says the
+# request arrived and arrived under the path it was sent to.
+check "a path under /api reaches the backend" "backend /api/ping" "$(body /api/ping)"
+check "a path under /assets reaches the backend" "backend /assets/logo.svg" "$(body /assets/logo.svg)"
+# A forwarded path that the backend does not know is the backend's 404, not the
+# app's entry page: a fallback here would hide a renamed route behind a 200.
+check "an unknown API path is not answered by the app" 404 "$(status /api/nothing-here)"
 
 if [ "$failures" -ne 0 ]; then
   echo "$failures check(s) failed"
