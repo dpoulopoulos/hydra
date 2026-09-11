@@ -812,6 +812,75 @@ class TestListUpcoming:
         assert not any(occurrence.is_blocked for occurrence in result.data)
 
 
+class TestBlockedRules:
+    """A rule an archived account has stalled says so on the way out."""
+
+    def test_a_listed_rule_says_its_account_is_archived(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """A next_occurrence_on stuck in the past reads as a rendering fault without it."""
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [make_rule()]
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account(archived=True)
+
+        result = mock_recurring_rule_service.list_rules(household=household_context)
+
+        assert [rule.is_blocked for rule in result.data] == [True]
+
+    def test_a_listed_rule_on_an_open_account_is_not_blocked(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [make_rule()]
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
+
+        result = mock_recurring_rule_service.list_rules(household=household_context)
+
+        assert [rule.is_blocked for rule in result.data] == [False]
+
+    def test_a_listing_asks_about_each_account_once(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """A page of rules drawing on one account is one lookup, not twenty-five."""
+        account = make_account()
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [
+            make_rule(name="Rent", account_id=account.id),
+            make_rule(name="Gym", account_id=account.id),
+        ]
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [account]
+
+        result = mock_recurring_rule_service.list_rules(household=household_context)
+
+        assert [rule.is_blocked for rule in result.data] == [False, False]
+
+    def test_one_rule_read_on_its_own_says_it_too(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        rule = make_rule()
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [
+            rule,
+            make_account(archived=True),
+        ]
+
+        result = mock_recurring_rule_service.get_rule(household=household_context, rule_id=rule.id)
+
+        assert result.is_blocked is True
+
+    def test_a_rule_whose_account_has_gone_is_blocked(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """Reading the rule must still work: it is the only way to see what it points at."""
+        rule = make_rule()
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule, None]
+
+        result = mock_recurring_rule_service.get_rule(household=household_context, rule_id=rule.id)
+
+        assert result.is_blocked is True
+
+
 class TestSchedulesPastTheCalendar:
     """A schedule that runs out of calendar ends, rather than raising a 500."""
 
@@ -877,7 +946,7 @@ class TestUpdateRule:
     ) -> None:
         rule = make_rule()
         mock_recurring_rule_service.session.exec = MagicMock()
-        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule]
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule, make_account()]
 
         result = mock_recurring_rule_service.update_rule(
             household=household_context,
@@ -886,13 +955,14 @@ class TestUpdateRule:
         )
 
         assert result.amount_minor == 130_000
+        assert result.is_blocked is False
 
     def test_pauses_a_rule(
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
     ) -> None:
         rule = make_rule()
         mock_recurring_rule_service.session.exec = MagicMock()
-        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule]
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule, make_account()]
 
         result = mock_recurring_rule_service.update_rule(
             household=household_context, rule_id=rule.id, rule_update=RecurringRuleUpdate(is_active=False)
@@ -915,6 +985,9 @@ class TestUpdateRule:
         )
 
         assert result.is_active is False
+        # Looked up for the reply rather than for the edit: the rule saves, and
+        # says the archived account is why it has stopped recording anything.
+        assert result.is_blocked is True
 
     def test_rejects_a_category_on_a_transfer_rule(
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
@@ -939,7 +1012,7 @@ class TestUpdateRule:
         """Otherwise the next pass would create a transaction that already exists."""
         rule = make_rule(next_occurrence_on=date(2026, 4, 1), last_generated_on=date(2026, 3, 1))
         mock_recurring_rule_service.session.exec = MagicMock()
-        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule]
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule, make_account()]
 
         result = mock_recurring_rule_service.update_rule(
             household=household_context,
@@ -958,7 +1031,7 @@ class TestUpdateRule:
             last_generated_on=None,
         )
         mock_recurring_rule_service.session.exec = MagicMock()
-        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule]
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [rule, make_account()]
 
         result = mock_recurring_rule_service.update_rule(
             household=household_context,

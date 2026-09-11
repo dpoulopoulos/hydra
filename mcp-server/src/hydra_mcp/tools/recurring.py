@@ -29,7 +29,8 @@ def register(mcp: MCPServer) -> None:
             include_inactive: Whether switched off rules are listed too.
 
         Returns:
-            The rules, with when each is next due.
+            The rules, with when each is next due, and whether an archived
+            account has stalled one.
         """
         # hydra filters on is_active, where leaving it out means "either".
         token = current_token()
@@ -131,6 +132,9 @@ def _rule(rule: dict[str, Any], accounts: Named, categories: Named, currency: st
         "to_account": accounts.name(rule.get("counter_account_id")),
         "category": bare_name(categories.name(rule.get("category_id"))),
         "active": rule["is_active"],
+        # An archived account has stalled the rule: it is willing, and the
+        # materialization pass steps over it until the account is restored.
+        "blocked": bool(rule.get("is_blocked")),
     }
 
 

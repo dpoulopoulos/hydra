@@ -353,3 +353,36 @@ class TestUpcomingRecurring:
         assert [item["blocked"] for item in due["upcoming"]] == [True, False]
 
 
+RULES = {
+    "data": [
+        {
+            "name": "Rent",
+            "kind": "expense",
+            "amount_minor": 90_000,
+            "frequency": "monthly",
+            "interval": 1,
+            "next_occurrence_on": "2026-10-01",
+            "account_id": ACCOUNT_ID,
+            "counter_account_id": None,
+            "category_id": CHILD_ID,
+            "is_active": True,
+            "is_blocked": True,
+        },
+    ],
+    "count": 1,
+}
+
+
+class TestRecurringRules:
+    """Tests for the standing payments themselves."""
+
+    async def test_a_stalled_rule_says_an_archived_account_stopped_it(
+        self, server: Any, authenticated: None
+    ) -> None:
+        # Otherwise the only symptom is a next_due drifting into the past,
+        # which reads as an error rather than an explanation.
+        rules = result_of(
+            await server(routes(**{"/recurring-rules/": RULES})).call_tool("list_recurring_rules", {})
+        )
+
+        assert rules["rules"][0]["blocked"] is True

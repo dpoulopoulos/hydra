@@ -135,6 +135,9 @@ class RecurringRuleService:
         self.recurring_rule_repository.save(rule)
         self.session.commit()
 
+        # Not blocked by construction: the resolve above refuses a rule whose
+        # accounts cannot take a transaction, so there is nothing to look up
+        # again here.
         return RecurringRulePublic.model_validate(rule)
 
     def list_rules(
@@ -153,12 +156,14 @@ class RecurringRuleService:
             limit: Maximum number of records to return.
 
         Returns:
-            The rules, soonest due first.
+            The rules, soonest due first, each saying whether an archived
+            account has stalled it.
         """
         rules, count = self.recurring_rule_repository.list_for_household(
             household_id=household.household_id, is_active=is_active, skip=skip, limit=limit
         )
-        data = [RecurringRulePublic.model_validate(rule) for rule in rules]
+        usable: dict[uuid.UUID, bool] = {}
+        data = [self._to_public(household=household, rule=rule, usable=usable) for rule in rules]
 
         return RecurringRulesPublic(data=data, count=count)
 
@@ -175,7 +180,7 @@ class RecurringRuleService:
         Raises:
             RecurringRuleNotFoundError: If the rule does not exist in the household.
         """
-        return RecurringRulePublic.model_validate(self._require_rule(household=household, rule_id=rule_id))
+        return self._to_public(household=household, rule=self._require_rule(household=household, rule_id=rule_id))
 
     def update_rule(
         self, household: HouseholdContext, rule_id: uuid.UUID, rule_update: RecurringRuleUpdate
@@ -239,7 +244,7 @@ class RecurringRuleService:
         self.recurring_rule_repository.save(rule)
         self.session.commit()
 
-        return RecurringRulePublic.model_validate(rule)
+        return self._to_public(household=household, rule=rule)
 
     def delete_rule(self, household: HouseholdContext, rule_id: uuid.UUID) -> Message:
         """Delete a recurring rule.
@@ -454,6 +459,28 @@ class RecurringRuleService:
         savepoint.commit()
 
         return True
+
+    def _to_public(
+        self, household: HouseholdContext, rule: RecurringRule, usable: dict[uuid.UUID, bool] | None = None
+    ) -> RecurringRulePublic:
+        """Read a stored rule as the API returns it.
+
+        Whether the rule is stalled is worked out here rather than left to the
+        client, which would have to fetch every account, including the archived
+        ones, and re-derive it for each rule.
+
+        Args:
+            household: The household context.
+            rule: The stored rule.
+            usable: An optional verdict per account, carried across the rules of
+                one listing. See `_accounts_can_take_transactions`.
+
+        Returns:
+            The rule, saying whether an archived account has stalled it.
+        """
+        is_blocked = not self._accounts_can_take_transactions(household=household, rule=rule, usable=usable)
+
+        return RecurringRulePublic.model_validate(rule, update={"is_blocked": is_blocked})
 
     def _accounts_can_take_transactions(
         self,
