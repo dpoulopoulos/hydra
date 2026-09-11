@@ -7,6 +7,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { useLocale } from '@/lib/locale-context'
 import { formatCompactAmount, formatMoney } from '@/lib/money'
 import { formatDate, formatMonth } from '@/lib/month'
 
@@ -25,6 +26,7 @@ export function SpendOverTimeChart({
   report: SpendOverTimeReport
   currency: string
 }) {
+  const locale = useLocale()
   const isMonthly = report.granularity === ('month' as TimeGranularity)
 
   const data = report.points.map((point) => ({
@@ -64,13 +66,13 @@ export function SpendOverTimeChart({
           width={56}
           tick={{ fontSize: 12 }}
           className="fill-muted-foreground"
-          tickFormatter={(value: number) => formatCompactAmount(value, currency)}
+          tickFormatter={(value: number) => formatCompactAmount(value, currency, locale)}
         />
         <ChartTooltip
           content={
             <ChartTooltipContent
               labelKey="label"
-              formatter={(value) => formatMoney(Number(value), currency)}
+              formatter={(value) => formatMoney(Number(value), currency, locale)}
             />
           }
         />

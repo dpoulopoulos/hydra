@@ -77,6 +77,7 @@ import { useVault } from '@/hooks/use-vault'
 import { errorMessage } from '@/lib/api'
 import { describeCadence } from '@/lib/cadence'
 import { PAYMENT_STATUS_LABELS, SESSION_STATUS_LABELS } from '@/lib/labels'
+import { useLocale } from '@/lib/locale-context'
 import { formatPercent } from '@/lib/money'
 import { currentMonth, formatDate, formatMonth, shiftMonth } from '@/lib/month'
 
@@ -100,6 +101,7 @@ const DEFAULT_PAGE_SIZE = 20
 export function Component() {
   const queryClient = useQueryClient()
   const currency = useCurrency()
+  const locale = useLocale()
   const vault = useVault()
   const household = useHousehold()
   const { user } = useAuth()
@@ -823,7 +825,7 @@ export function Component() {
                             {/* An em dash, never 0%: a client nobody has seen
                                 yet has not been unreliable. */}
                             {tally?.attendance_rate != null
-                              ? formatPercent(tally.attendance_rate)
+                              ? formatPercent(tally.attendance_rate, locale)
                               : '—'}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">

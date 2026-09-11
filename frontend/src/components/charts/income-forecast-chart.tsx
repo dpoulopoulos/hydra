@@ -9,6 +9,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { useLocale } from '@/lib/locale-context'
 import { formatMoney, toMajor, toMinor } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
 
@@ -66,6 +67,7 @@ export function IncomeForecastChart({
   /** Everything still owed today, so the debt line ends where the tile does. */
   totalOutstandingMinor?: number
 }) {
+  const locale = useLocale()
   const major = (minor: number) => toMajor(minor, currency)
 
   const lastMonth = forecast.history.length - 1
@@ -127,7 +129,7 @@ export function IncomeForecastChart({
           tick={{ fontSize: 12 }}
           className="fill-muted-foreground"
           tickFormatter={(value: number) =>
-            new Intl.NumberFormat(undefined, { notation: 'compact' }).format(value)
+            new Intl.NumberFormat(locale, { notation: 'compact' }).format(value)
           }
         />
         <ChartTooltip
@@ -142,8 +144,8 @@ export function IncomeForecastChart({
               formatter={(value, name) =>
                 Array.isArray(value) ? (
                   <span className="text-muted-foreground">
-                    {formatMoney(toMinor(Number(value[0]), currency), currency)} to{' '}
-                    {formatMoney(toMinor(Number(value[1]), currency), currency)}
+                    {formatMoney(toMinor(Number(value[0]), currency), currency, locale)} to{' '}
+                    {formatMoney(toMinor(Number(value[1]), currency), currency, locale)}
                   </span>
                 ) : (
                   <span className="flex w-full justify-between gap-3">
@@ -151,7 +153,7 @@ export function IncomeForecastChart({
                       {config[String(name)]?.label ?? name}
                     </span>
                     <span className="font-mono font-medium tabular-nums">
-                      {formatMoney(toMinor(Number(value), currency), currency)}
+                      {formatMoney(toMinor(Number(value), currency), currency, locale)}
                     </span>
                   </span>
                 )

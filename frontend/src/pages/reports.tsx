@@ -43,11 +43,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useCurrency } from '@/hooks/use-household'
+import { useLocale } from '@/lib/locale-context'
 import { formatPercent } from '@/lib/money'
 import { currentMonth, formatMonth, monthEnd, monthStart, shiftMonth } from '@/lib/month'
 
 export function Component() {
   const currency = useCurrency()
+  const locale = useLocale()
   const [month, setMonth] = useState(currentMonth)
   const [depth, setDepth] = useState<CategoryDepth>(CategoryDepth.PARENT)
   const [granularity, setGranularity] = useState<TimeGranularity>(TimeGranularity.DAY)
@@ -156,7 +158,7 @@ export function Component() {
                       {slice.transaction_count}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-right tabular-nums">
-                      {formatPercent(slice.share)}
+                      {formatPercent(slice.share, locale)}
                     </TableCell>
                     <TableCell className="text-right">
                       <Money minor={slice.amount_minor} currency={currency} />
@@ -297,7 +299,7 @@ export function Component() {
                         <TableCell className="text-muted-foreground text-right tabular-nums">
                           {row.savings_rate === null || row.savings_rate === undefined
                             ? '—'
-                            : formatPercent(row.savings_rate)}
+                            : formatPercent(row.savings_rate, locale)}
                         </TableCell>
                       </TableRow>
                     ))}

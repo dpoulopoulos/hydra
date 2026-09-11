@@ -1,6 +1,7 @@
 import type { BudgetProgressRow } from '@/api'
 import { Money } from '@/components/money'
 import { cn } from '@/lib/utils'
+import { useLocale } from '@/lib/locale-context'
 import { formatPercent } from '@/lib/money'
 
 /**
@@ -11,6 +12,7 @@ import { formatPercent } from '@/lib/money'
  * flattened against it.
  */
 export function BudgetBar({ row, currency }: { row: BudgetProgressRow; currency: string }) {
+  const locale = useLocale()
   // Leave room to see the overspend, so a 150% bar does not fill the track.
   const scale = Math.max(1, row.progress)
   const spentWidth = (Math.min(row.progress, scale) / scale) * 100
@@ -65,7 +67,9 @@ export function BudgetBar({ row, currency }: { row: BudgetProgressRow; currency:
             </>
           )}
         </span>
-        <span className="text-muted-foreground tabular-nums">{formatPercent(row.progress)}</span>
+        <span className="text-muted-foreground tabular-nums">
+          {formatPercent(row.progress, locale)}
+        </span>
       </div>
     </div>
   )

@@ -9,6 +9,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { useLocale } from '@/lib/locale-context'
 import { formatCompactAmount, formatMoney } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
 
@@ -27,6 +28,8 @@ export function IncomeExpenseChart({
   report: IncomeExpenseReport
   currency: string
 }) {
+  const locale = useLocale()
+
   const data = report.months.map((month) => ({
     label: formatMonth(month.month, { month: 'short', year: '2-digit' }),
     income: month.income_minor,
@@ -56,11 +59,13 @@ export function IncomeExpenseChart({
           width={56}
           tick={{ fontSize: 12 }}
           className="fill-muted-foreground"
-          tickFormatter={(value: number) => formatCompactAmount(value, currency)}
+          tickFormatter={(value: number) => formatCompactAmount(value, currency, locale)}
         />
         <ChartTooltip
           content={
-            <ChartTooltipContent formatter={(value) => formatMoney(Number(value), currency)} />
+            <ChartTooltipContent
+              formatter={(value) => formatMoney(Number(value), currency, locale)}
+            />
           }
         />
         <ChartLegend content={<ChartLegendContent />} />
@@ -86,6 +91,8 @@ export function SavingsTrendChart({
   report: IncomeExpenseReport
   currency: string
 }) {
+  const locale = useLocale()
+
   const data = report.months.map((month) => ({
     label: formatMonth(month.month, { month: 'short', year: '2-digit' }),
     cumulative: month.cumulative_net_minor,
@@ -113,13 +120,13 @@ export function SavingsTrendChart({
           width={56}
           tick={{ fontSize: 12 }}
           className="fill-muted-foreground"
-          tickFormatter={(value: number) => formatCompactAmount(value, currency)}
+          tickFormatter={(value: number) => formatCompactAmount(value, currency, locale)}
         />
         <ChartTooltip
           content={
             <ChartTooltipContent
               labelKey="label"
-              formatter={(value) => formatMoney(Number(value), currency)}
+              formatter={(value) => formatMoney(Number(value), currency, locale)}
             />
           }
         />
