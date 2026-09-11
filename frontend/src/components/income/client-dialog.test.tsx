@@ -61,6 +61,44 @@ describe('the fee the dialog echoes back', () => {
     expect(await screen.findByText(/€1,200\.00 a session/)).toBeInTheDocument()
   })
 
+  it('reads a fee typed plainly', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Usual fee'), '42.50')
+
+    expect(await screen.findByText(/€42\.50 a session/)).toBeInTheDocument()
+  })
+
+  it('reads a fee typed with a comma for the decimals', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Usual fee'), '42,50')
+
+    expect(await screen.findByText(/€42\.50 a session/)).toBeInTheDocument()
+  })
+
+  // The read-back used to run the field through a plain `Number()`, which a
+  // thousands space makes NaN, so this fee vanished from the sentence while
+  // the form was quite happily about to save it.
+  it('reads a fee typed with a thousands space', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Usual fee'), '1 000')
+
+    expect(await screen.findByText(/€1,000\.00 a session/)).toBeInTheDocument()
+  })
+
+  it('says nothing about the fee while the field is empty', async () => {
+    renderDialog()
+
+    await screen.findByLabelText('Usual fee')
+
+    expect(screen.queryByText(/a session/)).not.toBeInTheDocument()
+  })
+
   it('says nothing about a fee it cannot read', async () => {
     const user = userEvent.setup()
     renderDialog()
