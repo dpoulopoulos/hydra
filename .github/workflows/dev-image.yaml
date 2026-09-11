@@ -1,7 +1,20 @@
 name: Dev image
 
+# Building the image is minutes the rest of CI does not spend, so this runs
+# only for a pull request that touches what goes into it: the Dockerfile and
+# what it copies, the dependencies it installs, the Vite config the dev server
+# reads, the script that exercises it, or this workflow. An ordinary front end
+# change does not pay for it.
 on:
   pull_request:
+    paths:
+      - frontend/Dockerfile
+      - frontend/.dockerignore
+      - frontend/package.json
+      - frontend/pnpm-lock.yaml
+      - frontend/vite.config.ts
+      - frontend/scripts/test-dev-image.sh
+      - .github/workflows/dev-image.yaml
 
 # A new push to a pull request makes the run in progress obsolete.
 concurrency:
