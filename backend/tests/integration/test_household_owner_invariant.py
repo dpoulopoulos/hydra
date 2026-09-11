@@ -22,13 +22,17 @@ from sqlmodel import Session, select
 
 from app.exceptions import LastHouseholdOwnerError
 from app.models import (
+    Account,
     Household,
     HouseholdContext,
     HouseholdMember,
     HouseholdRole,
+    Transaction,
+    TransactionKind,
     User,
 )
 from app.services import CategoryService, HouseholdService, UserService
+from tests.integration.conftest import make_account
 
 # The seniority the successor is picked by. Written explicitly rather than left
 # to the column default, which would give every membership of a test the same
@@ -152,3 +156,71 @@ class TestDeletingTheLastOwner:
         assert db_session.exec(
             select(HouseholdMember).where(HouseholdMember.household_id == household_a.household_id)
         ).one()
+
+
+class TestDeletingTheLastMember:
+    """A household nobody is left in goes, and takes its ledger with it."""
+
+    def test_deleting_the_last_member_deletes_the_household(
+        self,
+        db_session: Session,
+        user_service: UserService,
+        household_service: HouseholdService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """Nothing could reach the household again, so it does not survive."""
+        user_service.delete_user(user_id=household_a.user_id, household_service=household_service)
+
+        assert db_session.get(Household, household_a.household_id) is None
+
+    def test_deleting_the_last_member_cascades_the_ledger(
+        self,
+        db_session: Session,
+        user_service: UserService,
+        household_service: HouseholdService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """The financial rows are keyed on the household, so they go with it.
+
+        The service deletes the household row and nothing else: what happens to
+        the account and the transaction hanging off it is decided by the
+        ``ON DELETE`` clauses, which only a database can answer.
+        """
+        account = make_account(db_session, household_id=household_a.household_id)
+        db_session.add(
+            Transaction(
+                household_id=household_a.household_id,
+                account_id=account.id,
+                kind=TransactionKind.EXPENSE,
+                amount_minor=1_500,
+                occurred_on=datetime.date(2024, 3, 1),
+            )
+        )
+        db_session.flush()
+
+        user_service.delete_user(user_id=household_a.user_id, household_service=household_service)
+
+        remaining_accounts = db_session.exec(
+            select(Account).where(Account.household_id == household_a.household_id)
+        ).all()
+        remaining_transactions = db_session.exec(
+            select(Transaction).where(Transaction.household_id == household_a.household_id)
+        ).all()
+        assert remaining_accounts == []
+        assert remaining_transactions == []
+
+    def test_the_household_of_another_member_is_left_standing(
+        self,
+        db_session: Session,
+        user_service: UserService,
+        household_service: HouseholdService,
+        household_a: HouseholdContext,
+        household_b: HouseholdContext,
+    ) -> None:
+        """Only the emptied household goes: the delete is not a table sweep."""
+        foreign_account = make_account(db_session, household_id=household_b.household_id)
+
+        user_service.delete_user(user_id=household_a.user_id, household_service=household_service)
+
+        assert db_session.get(Household, household_b.household_id) is not None
+        assert db_session.get(Account, foreign_account.id) is not None
