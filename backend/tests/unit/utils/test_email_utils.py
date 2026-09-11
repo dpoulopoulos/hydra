@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.utils.email_utils import (
     EmailData,
     generate_email_verification_email,
+    generate_household_ownership_email,
     generate_new_account_email,
     generate_password_reset_email,
     generate_signup_attempt_email,
@@ -194,6 +195,71 @@ class TestGenerateEmailVerificationEmailWithUnusableInvite:
 
         # Assert: Verify the invitation is not mentioned at all
         assert "invitation" not in result.html_content
+
+
+class TestGenerateHouseholdOwnershipEmail:
+    """Test the notice a member gets when a household becomes theirs."""
+
+    def test_generate_household_ownership_email_returns_email_data(self) -> None:
+        """The notice names the household and links to the page the new owner now runs it from."""
+        # Arrange: Set up test data
+        email = "member@example.com"
+        household_name = "The Smith household"
+
+        # Act: Generate the notice sent to the promoted member
+        result = generate_household_ownership_email(email=email, household_name=household_name)
+
+        # Assert: Verify email data is correct
+        assert isinstance(result, EmailData)
+        assert result.subject == f"You are now an owner of {household_name} - {settings.PROJECT_NAME}"
+        assert household_name in result.html_content
+        assert f"{settings.FRONTEND_HOST}/settings/household" in result.html_content
+        assert settings.PROJECT_NAME in result.html_content
+        assert settings.assets_base_url in result.html_content
+
+    def test_generate_household_ownership_email_names_who_left(self) -> None:
+        """The notice says whose departure handed the household over, when that is known."""
+        # Arrange: Set up test data
+        email = "member@example.com"
+
+        # Act: Generate the notice for a promotion that followed a known departure
+        result = generate_household_ownership_email(
+            email=email, household_name="The Smith household", former_owner_name="Ada Smith"
+        )
+
+        # Assert: Verify the departing owner is named
+        assert "Ada Smith" in result.html_content
+        assert "left" in result.html_content
+
+    def test_generate_household_ownership_email_without_a_named_departure(self) -> None:
+        """A promotion nobody can be named for still explains why the role changed."""
+        # Arrange: Set up test data
+        email = "member@example.com"
+
+        # Act: Generate the notice for a promotion made without a known departure
+        result = generate_household_ownership_email(email=email, household_name="The Smith household")
+
+        # Assert: Verify the household is said to have been left without an owner, and nobody is named
+        assert "was left without an owner" in result.html_content
+        assert "left the household" not in result.html_content
+
+    def test_generate_household_ownership_email_escapes_names(self) -> None:
+        """Names come from whoever typed them, so they reach the message as text, not markup."""
+        # Arrange: Set up test data
+        email = "member@example.com"
+
+        # Act: Generate the notice for names that would be markup if left alone
+        result = generate_household_ownership_email(
+            email=email,
+            household_name="<script>alert(1)</script>",
+            former_owner_name="Ada & <b>Bo</b>",
+        )
+
+        # Assert: Verify the names are escaped rather than rendered
+        assert "<script>" not in result.html_content
+        assert "&lt;script&gt;alert(1)&lt;/script&gt;" in result.html_content
+        assert "<b>Bo</b>" not in result.html_content
+        assert "Ada &amp; &lt;b&gt;Bo&lt;/b&gt;" in result.html_content
 
 
 class TestSendEmail:
