@@ -516,3 +516,74 @@ describe('saving a rule', () => {
     expect(screen.queryByRole('option', { name: 'Current' })).not.toBeInTheDocument()
   })
 })
+
+describe('reading a typed amount', () => {
+  beforeEach(() => {
+    pickersAreStocked()
+    vi.mocked(api.recurringRulesCreateRecurringRule).mockResolvedValue({ data: {} } as never)
+  })
+
+  /** Add a rule for the amount as typed, and hand back the user driving it. */
+  async function add(typed: string) {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Name'), 'Rent')
+    await user.type(screen.getByLabelText('Amount'), typed)
+    await user.click(screen.getByRole('button', { name: 'Add rule' }))
+    return user
+  }
+
+  it('takes an amount typed with a comma for the decimals', async () => {
+    await add('42,50')
+
+    await vi.waitFor(() => expect(api.recurringRulesCreateRecurringRule).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({ amount_minor: 4250 })
+  })
+
+  it('takes an amount typed with a thousands space', async () => {
+    await add('1 000')
+
+    await vi.waitFor(() => expect(api.recurringRulesCreateRecurringRule).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({ amount_minor: 100000 })
+  })
+
+  it('counts the minor units the chosen account currency uses', async () => {
+    vi.mocked(api.householdsGetHouseholdMe).mockResolvedValue({
+      data: { id: 'h', name: 'Home', currency_code: 'JPY' },
+    } as never)
+    accountsAre(
+      account(CURRENT, 'Current', 50000, 'JPY'),
+      account(SAVINGS, 'Savings', 900000, 'JPY'),
+    )
+    await add('1000')
+
+    await vi.waitFor(() => expect(api.recurringRulesCreateRecurringRule).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({ amount_minor: 1000 })
+  })
+
+  it('reports an amount it cannot read on the field itself, and sends nothing', async () => {
+    await add('abc')
+
+    expect(await screen.findByText('Enter a number.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Amount')).toBeInvalid()
+    expect(api.recurringRulesCreateRecurringRule).not.toHaveBeenCalled()
+  })
+
+  it('refuses a rule that moves nothing', async () => {
+    await add('0')
+
+    expect(await screen.findByText('Enter an amount above zero.')).toBeInTheDocument()
+    expect(api.recurringRulesCreateRecurringRule).not.toHaveBeenCalled()
+  })
+
+  it('clears the complaint once the amount is retyped', async () => {
+    const user = await add('abc')
+    expect(await screen.findByText('Enter a number.')).toBeInTheDocument()
+
+    await user.clear(screen.getByLabelText('Amount'))
+    await user.type(screen.getByLabelText('Amount'), '12')
+
+    expect(screen.queryByText('Enter a number.')).not.toBeInTheDocument()
+  })
+})
