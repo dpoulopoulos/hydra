@@ -12,6 +12,7 @@ from starlette.types import ExceptionHandler
 
 from app.api.main import api_router
 from app.api.routes.accounts import account_exception_mappings
+from app.api.routes.api_tokens import api_token_exception_mappings
 from app.api.routes.budgets import budget_exception_mappings
 from app.api.routes.categories import category_exception_mappings
 from app.api.routes.email_verification import email_verification_exception_mappings
@@ -112,6 +113,7 @@ if assets_dir.exists():
 
 exception_mappings = [
     user_exception_mappings(),
+    api_token_exception_mappings(),
     login_exception_mappings(),
     password_reset_exception_mappings(),
     email_verification_exception_mappings(),
