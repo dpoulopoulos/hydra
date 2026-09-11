@@ -382,7 +382,7 @@ export function Component() {
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}
         title={`Delete ${deleting?.name}?`}
-        description="This only works while the account has no transactions. Archive it instead to keep its history."
+        description="This only works while nothing else points at the account, such as transactions or recurring rules paid from it or into it. Archive it instead to keep its history."
         confirmLabel="Delete account"
         pending={remove.isPending}
         onConfirm={() => deleting && remove.mutate(deleting)}
