@@ -117,3 +117,59 @@ describe('the fee a saved session is filled with', () => {
     expect(sentFee(vi.mocked(api.incomeCreateSession).mock.calls.at(-1)?.[0] as never)).toBe(1005)
   })
 })
+
+describe('logging a session', () => {
+  /** The body the last create call sent. */
+  function loggedBody() {
+    const call = vi.mocked(api.incomeCreateSession).mock.calls.at(-1)
+    return (call?.[0] as { body: Record<string, unknown> }).body
+  }
+
+  it("starts from the client's usual fee, and sends what was typed over it", async () => {
+    const user = userEvent.setup()
+    renderDialog(null)
+
+    const fee = await screen.findByLabelText('Fee')
+    await vi.waitFor(() => expect(fee).toHaveValue('1,005'))
+
+    await user.clear(fee)
+    await user.type(fee, '2,5')
+    await user.click(screen.getByRole('button', { name: 'Log session' }))
+
+    await vi.waitFor(() => expect(api.incomeCreateSession).toHaveBeenCalled())
+    expect(loggedBody()).toMatchObject({
+      client_id: CLIENT,
+      fee_minor: 2500,
+      status: 'attended',
+      payment_status: 'paid',
+    })
+  })
+
+  // An attended session is normally paid for, a scheduled one is not yet, and
+  // one nobody turned up to is usually not charged for at all.
+  it('follows the outcome with the payment that usually goes with it', async () => {
+    const user = userEvent.setup()
+    renderDialog(null)
+
+    await user.click(await screen.findByRole('tab', { name: 'Cancelled' }))
+    await user.click(screen.getByRole('button', { name: 'Log session' }))
+
+    await vi.waitFor(() => expect(api.incomeCreateSession).toHaveBeenCalled())
+    expect(loggedBody()).toMatchObject({ status: 'cancelled', payment_status: 'waived' })
+  })
+
+  it('asks when the money arrived only while the session is paid', async () => {
+    const user = userEvent.setup()
+    renderDialog(null)
+
+    expect(await screen.findByLabelText('Day the money arrived')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'Unpaid' }))
+
+    expect(screen.queryByLabelText('Day the money arrived')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Log session' }))
+    await vi.waitFor(() => expect(api.incomeCreateSession).toHaveBeenCalled())
+    expect(loggedBody()).toMatchObject({ payment_status: 'pending', paid_on: null })
+  })
+})
