@@ -40,6 +40,17 @@ function householdIsNamed(name: string) {
   } as never)
 }
 
+/** One outstanding invitation, as the endpoint hands it back. */
+function pendingInvite() {
+  return {
+    id: 'i1',
+    email: 'ada@example.com',
+    role: HouseholdRole.MEMBER,
+    status: 'pending',
+    expires_at: '2026-10-01T10:00:00Z',
+  }
+}
+
 function renderHousehold() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -157,6 +168,46 @@ describe('the invitations list', () => {
   })
 
   it('still says so when there genuinely are none outstanding', async () => {
+    renderHousehold()
+
+    expect(await screen.findByText('No invitations outstanding.')).toBeInTheDocument()
+  })
+
+  it('asks for one page rather than every invitation ever sent', async () => {
+    renderHousehold()
+
+    await waitFor(() => expect(api.householdsListHouseholdInvites).toHaveBeenCalled())
+    const call = vi.mocked(api.householdsListHouseholdInvites).mock.calls[0][0] as {
+      query: { limit?: number }
+    }
+    expect(call.query.limit).toBeGreaterThan(0)
+  })
+
+  it('says how many outstanding invitations did not fit on the page', async () => {
+    vi.mocked(api.householdsListHouseholdInvites).mockResolvedValue({
+      data: { data: [pendingInvite()], count: 60 },
+    } as never)
+    renderHousehold()
+
+    expect(await screen.findByText('Showing 1 of 60 outstanding invitations.')).toBeInTheDocument()
+  })
+
+  it('says nothing about a page that holds everything outstanding', async () => {
+    vi.mocked(api.householdsListHouseholdInvites).mockResolvedValue({
+      data: { data: [pendingInvite()], count: 1 },
+    } as never)
+    renderHousehold()
+
+    expect(await screen.findByText('ada@example.com')).toBeInTheDocument()
+    expect(screen.queryByText(/Showing 1 of/)).not.toBeInTheDocument()
+  })
+
+  it('reads emptiness from the invitations it was handed, not from the count', async () => {
+    // The count reports the whole match now, so a page that came back empty
+    // is the only thing that can say there is nothing to show.
+    vi.mocked(api.householdsListHouseholdInvites).mockResolvedValue({
+      data: { data: [], count: 3 },
+    } as never)
     renderHousehold()
 
     expect(await screen.findByText('No invitations outstanding.')).toBeInTheDocument()
