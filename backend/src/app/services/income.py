@@ -1214,8 +1214,13 @@ class IncomeService:
         tallies = self.income_session_repository.client_tallies(
             household_id=household.household_id, date_from=date_from, date_to=date_to
         )
-        clients, _ = self.income_client_repository.list_for_household(
-            household_id=household.household_id, filters=IncomeClientFilters(limit=_MAX_CLIENTS)
+        # Fetched by id rather than by page. The table is exactly as long as
+        # the window's tallies, so that is the bound it should carry; reading a
+        # page of the roster instead would drop whoever fell past it while
+        # their figures still counted towards the totals above the table.
+        clients = self.income_client_repository.list_by_ids(
+            household_id=household.household_id,
+            client_ids=[tally.client_id for tally in tallies],
         )
         by_id = {client.id: client for client in clients}
 
