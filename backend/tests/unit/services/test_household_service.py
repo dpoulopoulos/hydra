@@ -204,6 +204,34 @@ class TestUpdateHousehold:
         assert result.name == "Renamed"
         mock_household_service.session.commit.assert_called_once()
 
+    def test_sets_the_locale(
+        self, mock_household_service: HouseholdService, context: HouseholdContext, household: Household
+    ) -> None:
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.one.return_value = 1
+
+        result = mock_household_service.update_household(
+            household=context, household_update=HouseholdUpdate(locale="de-DE")
+        )
+
+        assert result.locale == "de-DE"
+
+    def test_clears_the_locale(
+        self, mock_household_service: HouseholdService, context: HouseholdContext, household: Household
+    ) -> None:
+        """Null is asked for explicitly, so it has to survive `exclude_unset`."""
+        household.locale = "de-DE"
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.one.return_value = 1
+
+        result = mock_household_service.update_household(
+            household=context, household_update=HouseholdUpdate(locale=None)
+        )
+
+        assert result.locale is None
+
     def test_ignores_unset_fields(
         self, mock_household_service: HouseholdService, context: HouseholdContext, household: Household
     ) -> None:
