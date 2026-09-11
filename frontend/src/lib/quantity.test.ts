@@ -13,6 +13,18 @@ import {
   toQuantityMicro,
 } from '@/lib/quantity'
 
+/** The scaled units a typed string reaches the API as, or the message shown. */
+function quantity(value: string) {
+  const result = quantitySchema().safeParse(value)
+  return result.success ? result.data : result.error.issues[0].message
+}
+
+/** The scaled price a typed string reaches the API as, or the message shown. */
+function price(value: string, currency = 'EUR') {
+  const result = priceSchema(currency).safeParse(value)
+  return result.success ? result.data : result.error.issues[0].message
+}
+
 describe('quantities', () => {
   it('scales a whole number of units', () => {
     expect(toQuantityMicro(10)).toBe(10 * MICRO)
@@ -60,31 +72,71 @@ describe('prices', () => {
 })
 
 describe('quantitySchema', () => {
-  it('accepts a comma as the decimal separator', () => {
-    // Which separator a keyboard produces is a matter of locale, not of intent.
-    expect(quantitySchema().parse('1,5')).toBe(toQuantityMicro(1.5))
+  it.each([
+    ['10', 10 * MICRO],
+    ['1,5', 1_500_000],
+    ['1.5', 1_500_000],
+    ['0.253', 253_000],
+    ['.5', 500_000],
+    ['5.', 5 * MICRO],
+  ])('reads %j as %i scaled units', (value, expected) => {
+    expect(quantity(value)).toBe(expected)
   })
 
-  it('rejects zero units', () => {
-    expect(quantitySchema().safeParse('0').success).toBe(false)
+  it('ignores the space around and inside what was typed', () => {
+    expect(quantity('  1 0 0  ')).toBe(100 * MICRO)
   })
 
-  it('rejects something that is not a number', () => {
-    expect(quantitySchema().safeParse('ten').success).toBe(false)
+  it('rounds a fraction finer than the scale holds', () => {
+    expect(quantity('0.0000005')).toBe(1)
+  })
+
+  it.each([
+    ['', 'Enter how many units.'],
+    ['   ', 'Enter how many units.'],
+    ['ten', 'Enter a number.'],
+    ['1a5', 'Enter a number.'],
+    ['.', 'Enter a number.'],
+    ['1.5.5', 'Enter a number.'],
+    ['-5', 'Enter a number.'],
+    ['1e3', 'Enter a number.'],
+  ])('rejects %j with %j', (value, message) => {
+    expect(quantity(value)).toBe(message)
+  })
+
+  it.each(['0', '0.0'])('rejects %j, which is not a holding', (value) => {
+    expect(quantity(value)).toBe('Enter more than zero units.')
   })
 
   it('rejects a number too large to send exactly', () => {
-    expect(quantitySchema().safeParse('999999999999').success).toBe(false)
+    expect(quantity('999999999999')).toBe('Enter a smaller number.')
   })
 })
 
 describe('priceSchema', () => {
   it('scales against the instrument currency it was built for', () => {
-    expect(priceSchema('EUR').parse('128.4567')).toBe(12_845_670_000)
+    expect(price('128.4567')).toBe(12_845_670_000)
   })
 
-  it('rejects a price of zero', () => {
-    expect(priceSchema('EUR').safeParse('0').success).toBe(false)
+  it('reads a comma as the decimal separator', () => {
+    // Which separator a keyboard produces is a matter of locale, not of intent.
+    expect(price('128,4567')).toBe(12_845_670_000)
+  })
+
+  it('does not give a zero decimal currency cents it has no use for', () => {
+    expect(price('3200', 'JPY')).toBe(3200 * MICRO)
+  })
+
+  it.each([
+    ['', 'Enter the price per unit.'],
+    ['abc', 'Enter a number.'],
+    ['0', 'Enter a price above zero.'],
+  ])('rejects %j with %j', (value, message) => {
+    expect(price(value)).toBe(message)
+  })
+
+  it('rejects a price too large to send exactly', () => {
+    expect(price('999999999')).toBe('Enter a smaller number.')
   })
 })
 
