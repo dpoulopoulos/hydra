@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.api.deps import (
     CategoryServiceDep,
@@ -8,6 +8,7 @@ from app.api.deps import (
     CurrentUser,
     HouseholdServiceDep,
     OwnerHousehold,
+    get_session_user,
 )
 from app.exceptions import (
     HouseholdInviteEmailMismatchError,
@@ -125,7 +126,7 @@ def list_household_members(
 
 # Declared before the "/me/members/{user_id}" routes: FastAPI matches in
 # declaration order, so otherwise "me" would be parsed as a user ID and fail.
-@router.delete("/me/members/me", response_model=Message)
+@router.delete("/me/members/me", response_model=Message, dependencies=[Depends(get_session_user)])
 def leave_household(
     *,
     household_service: HouseholdServiceDep,
@@ -152,7 +153,7 @@ def leave_household(
     return household_service.leave_household(household=household, category_service=category_service)
 
 
-@router.patch("/me/members/{user_id}", response_model=HouseholdMemberPublic)
+@router.patch("/me/members/{user_id}", response_model=HouseholdMemberPublic, dependencies=[Depends(get_session_user)])
 def update_household_member(
     *,
     household_service: HouseholdServiceDep,
@@ -179,7 +180,7 @@ def update_household_member(
     return household_service.update_member(household=household, user_id=user_id, member_update=member_in)
 
 
-@router.delete("/me/members/{user_id}", response_model=Message)
+@router.delete("/me/members/{user_id}", response_model=Message, dependencies=[Depends(get_session_user)])
 def remove_household_member(
     *,
     household_service: HouseholdServiceDep,
@@ -236,7 +237,7 @@ def list_household_invites(
     return household_service.list_invites(household=household, status=invite_status, skip=skip, limit=limit)
 
 
-@router.post("/me/invites", response_model=HouseholdInvitePublic)
+@router.post("/me/invites", response_model=HouseholdInvitePublic, dependencies=[Depends(get_session_user)])
 def create_household_invite(
     *,
     household_service: HouseholdServiceDep,
@@ -261,7 +262,7 @@ def create_household_invite(
     return household_service.create_invite(household=household, invite_create=invite_in)
 
 
-@router.delete("/me/invites/{invite_id}", response_model=Message)
+@router.delete("/me/invites/{invite_id}", response_model=Message, dependencies=[Depends(get_session_user)])
 def revoke_household_invite(
     *, household_service: HouseholdServiceDep, household: OwnerHousehold, invite_id: uuid.UUID
 ) -> Message:
@@ -284,7 +285,7 @@ def revoke_household_invite(
 
 
 # Declared before "/invites/{token}" so "accept" is not read as a token.
-@router.post("/invites/accept", response_model=HouseholdPublic)
+@router.post("/invites/accept", response_model=HouseholdPublic, dependencies=[Depends(get_session_user)])
 def accept_household_invite(
     *,
     household_service: HouseholdServiceDep,

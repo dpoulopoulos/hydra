@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi.dependencies.utils import get_dependant
 from pydantic import ValidationError
 
 from app.api.deps import (
@@ -157,6 +158,19 @@ class TestGetCurrentActiveSuperuser:
         # Act & Assert: Verify UserNotAuthorizedError is raised for regular user
         with pytest.raises(UserNotAuthorizedError):
             get_current_active_superuser(test_user)
+
+    def test_the_superuser_guard_requires_a_session(self) -> None:
+        """Test that an API token cannot reach the routes behind this guard.
+
+        They create users, set any user's password and delete accounts, so a
+        token here could mint a second superuser it knows the password of.
+        Asserted on the dependency rather than on the body, because that is
+        where the restriction lives and where it would be lost.
+        """
+        dependency = get_dependant(path="/", call=get_current_active_superuser)
+        chain = [sub.call for sub in dependency.dependencies]
+
+        assert get_session_user in chain
 
 
 class TestGetHouseholdContext:
