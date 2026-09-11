@@ -14,8 +14,10 @@ from app.api.deps import (
     get_household_owner,
     get_password_reset_service,
     get_session_user,
+    get_source_address,
     get_user_service,
 )
+from app.core.config import settings
 from app.exceptions import (
     ApiTokenNotPermittedError,
     ApiTokenReadOnlyError,
@@ -383,3 +385,93 @@ class TestGetSessionUser:
         request.state = SimpleNamespace()
 
         assert get_session_user(request, test_user) == test_user
+
+
+class TestGetSourceAddress:
+    """Tests for the address a request is counted against."""
+
+    def build_request(self, *, peer: str | None, forwarded_for: str | None = None) -> MagicMock:
+        """Build a stand-in request with a peer and, if given, a forwarding header.
+
+        Args:
+            peer: The address of the connection's other end, or None when the
+                server does not know it.
+            forwarded_for: What X-Forwarded-For carries, if anything.
+
+        Returns:
+            A request the dependency can read.
+        """
+        request = MagicMock()
+        request.client = SimpleNamespace(host=peer) if peer is not None else None
+        request.headers = {"x-forwarded-for": forwarded_for} if forwarded_for is not None else {}
+        return request
+
+    def test_the_peer_is_the_source_by_default(self) -> None:
+        """Nothing is in front of the app, so the connection is what there is to go on."""
+        # Arrange: A request straight from a client
+        request = self.build_request(peer="203.0.113.7")
+
+        # Act: Work out where it came from
+        source = get_source_address(request)
+
+        # Assert: Verify the peer is used
+        assert source == "203.0.113.7"
+
+    def test_a_forwarding_header_is_ignored_unless_a_proxy_is_counted(self) -> None:
+        """A client can send the header itself, which would be a budget per request."""
+        # Arrange: A request that claims to have been forwarded
+        request = self.build_request(peer="203.0.113.7", forwarded_for="198.51.100.1")
+
+        # Act: Work out where it came from, with no proxy configured
+        with patch.object(settings, "TRUSTED_PROXY_HOPS", 0):
+            source = get_source_address(request)
+
+        # Assert: Verify the header was not believed
+        assert source == "203.0.113.7"
+
+    def test_one_hop_reads_the_entry_that_proxy_wrote(self) -> None:
+        """Behind a proxy the peer is the proxy, which would be one budget for everybody."""
+        # Arrange: A request the proxy appended the client it saw to
+        request = self.build_request(peer="10.0.0.1", forwarded_for="192.0.2.9, 198.51.100.1")
+
+        # Act: Work out where it came from, with one proxy in front
+        with patch.object(settings, "TRUSTED_PROXY_HOPS", 1):
+            source = get_source_address(request)
+
+        # Assert: Verify the entry the proxy wrote is used, not the one the client made up
+        assert source == "198.51.100.1"
+
+    def test_two_hops_look_past_the_second_proxy(self) -> None:
+        """A platform edge in front of the app's own proxy writes an entry of its own."""
+        # Arrange: A client, as the edge recorded it, with the edge appended by the proxy
+        request = self.build_request(peer="10.0.0.1", forwarded_for="198.51.100.1, 100.64.0.5")
+
+        # Act: Work out where it came from, with two proxies in front
+        with patch.object(settings, "TRUSTED_PROXY_HOPS", 2):
+            source = get_source_address(request)
+
+        # Assert: Verify the client is used rather than either proxy
+        assert source == "198.51.100.1"
+
+    def test_a_header_shorter_than_the_hops_falls_back_to_its_oldest_entry(self) -> None:
+        """The proxies the setting describes did not write this, so it is not read as if they had."""
+        # Arrange: A single entry where two hops were configured
+        request = self.build_request(peer="10.0.0.1", forwarded_for="198.51.100.1")
+
+        # Act: Work out where it came from
+        with patch.object(settings, "TRUSTED_PROXY_HOPS", 2):
+            source = get_source_address(request)
+
+        # Assert: Verify the oldest entry is used rather than nothing at all
+        assert source == "198.51.100.1"
+
+    def test_a_request_with_no_peer_has_no_source(self) -> None:
+        """An address that cannot be worked out is absent rather than made up."""
+        # Arrange: A request with no client, as a test transport can leave one
+        request = self.build_request(peer=None)
+
+        # Act: Work out where it came from
+        source = get_source_address(request)
+
+        # Assert: Verify nothing is invented
+        assert source is None

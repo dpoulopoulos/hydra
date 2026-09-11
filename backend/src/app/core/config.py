@@ -290,6 +290,19 @@ class Settings(BaseSettings):
     # passed. Nothing else removes them, and each one holds an address.
     MAIL_RATE_LIMIT_PRUNE_INTERVAL_SECONDS: int = Field(default=3600, ge=1)  # 1 hour
 
+    # How many entries at the end of X-Forwarded-For the proxies in front of
+    # this app put there. The earliest of those entries is the caller, since
+    # each proxy records the address it was talked to by.
+    #
+    # Zero, the default, ignores the header and uses the peer of the connection:
+    # where the app is reachable directly the header is whatever the client
+    # cared to send, and believing it would hand one caller a different budget
+    # on every request. Behind a proxy the peer is the proxy for every request,
+    # which is one budget for the whole internet, so count the hops instead. A
+    # single reverse proxy is one; a platform edge in front of that proxy is
+    # two.
+    TRUSTED_PROXY_HOPS: int = Field(default=0, ge=0)
+
     EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 24  # 1 day
     EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 48  # 2 days
     HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS: int = 168  # 7 days

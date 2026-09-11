@@ -1,6 +1,13 @@
 from fastapi import APIRouter, status
 
-from app.api.deps import CurrentUser, EmailVerificationServiceDep, HouseholdServiceDep, UserServiceDep
+from app.api.deps import (
+    CurrentUser,
+    EmailVerificationServiceDep,
+    HouseholdServiceDep,
+    MailRateLimitServiceDep,
+    SourceAddressDep,
+    UserServiceDep,
+)
 from app.exceptions import (
     EmailVerificationExpiredError,
     EmailVerificationNotFoundError,
@@ -10,6 +17,7 @@ from app.exceptions import (
     UserExistsError,
 )
 from app.models import EmailVerificationConfirm, EmailVerificationRequest, Message, PendingEmailChange
+from app.services.email_verification import VERIFICATION_RESEND_MESSAGE
 
 router = APIRouter(prefix="/email-verification", tags=["email-verification"])
 
@@ -34,6 +42,8 @@ def resend_verification_email(
     *,
     email_verification_service: EmailVerificationServiceDep,
     user_service: UserServiceDep,
+    mail_rate_limit_service: MailRateLimitServiceDep,
+    source_address: SourceAddressDep,
     email_verification_request: EmailVerificationRequest,
 ) -> Message:
     """Send or resend an email verification.
@@ -41,14 +51,25 @@ def resend_verification_email(
     For security reasons, this always returns success even if the email doesn't exist.
     This prevents user enumeration attacks.
 
+    Nobody is signed in and the body names the mailbox, so an unbounded endpoint would mail whoever
+    it was pointed at, as fast as it was asked. Once a budget is spent nothing is sent, and the
+    caller is told what it would have been told anyway: a refusal of its own would say that the
+    address had asked for a link recently, which the shared reply exists to keep quiet about.
+
     Args:
         email_verification_service: The email verification service dependency.
         user_service: The user service dependency.
+        mail_rate_limit_service: The mail rate limit service dependency, which
+            bounds how much mail this endpoint can be made to send.
+        source_address: The address the request came from.
         email_verification_request: The email verification request payload.
 
     Returns:
         A message indicating that the request was successful.
     """
+    if not mail_rate_limit_service.allows_mail(source=source_address, recipient=email_verification_request.email):
+        return Message(message=VERIFICATION_RESEND_MESSAGE)
+
     return email_verification_service.resend_verification_email(
         user_service=user_service, email=email_verification_request.email
     )

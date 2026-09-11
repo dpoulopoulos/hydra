@@ -13,7 +13,8 @@ from app.exceptions import (
 from app.main import app
 from app.models import Message
 from app.models.fields import BCRYPT_MAX_PASSWORD_BYTES
-from app.services import PasswordResetService
+from app.services import MailRateLimitService, PasswordResetService
+from app.services.password_reset import PASSWORD_RESET_REQUEST_MESSAGE
 
 
 class TestRequestPasswordReset:
@@ -148,6 +149,39 @@ class TestRequestPasswordReset:
 
             # Assert: Verify 422 validation error
             assert response.status_code == 422
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+
+class TestRequestPasswordResetRateLimit:
+    """Tests for the budget a reset request spends before it mails anybody."""
+
+    def test_a_spent_budget_sends_nothing_and_says_the_usual_thing(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """The reply is the constant one, so the throttle cannot be read as an answer."""
+
+        # Arrange: Set up database dependency override, with the budget already spent
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        try:
+            with (
+                patch.object(MailRateLimitService, "allows_mail", return_value=False),
+                patch.object(PasswordResetService, "request_password_reset") as mock_request_password_reset,
+            ):
+                # Act: Ask for a reset
+                response = client.post("/api/v1/password-reset/request", json={"email": "victim@example.com"})
+
+                # Assert: Verify nothing was sent and the usual reply came back
+                assert response.status_code == 200
+                assert response.json()["message"] == PASSWORD_RESET_REQUEST_MESSAGE
+                mock_request_password_reset.assert_not_called()
         finally:
             # Cleanup
             app.dependency_overrides.clear()

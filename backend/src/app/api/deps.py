@@ -40,6 +40,7 @@ from app.repositories import (
     IncomeSessionRepository,
     IncomeVaultRepository,
     InstrumentRepository,
+    MailRateLimitRepository,
     PasswordResetRepository,
     RecurringRuleRepository,
     ReportRepository,
@@ -58,6 +59,7 @@ from app.services import (
     IncomeService,
     InvestmentService,
     LedgerReferenceResolver,
+    MailRateLimitService,
     PasswordResetService,
     RecurringRuleService,
     ReportService,
@@ -467,6 +469,74 @@ def get_email_outbox_service(
 
 
 EmailOutboxServiceDep = Annotated[EmailOutboxService, Depends(get_email_outbox_service)]
+
+
+def get_mail_rate_limit_repository(session: SessionDep) -> MailRateLimitRepository:
+    """Get a mail rate limit repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A mail rate limit repository instance.
+    """
+    return MailRateLimitRepository(session=session)
+
+
+MailRateLimitRepositoryDep = Annotated[MailRateLimitRepository, Depends(get_mail_rate_limit_repository)]
+
+
+def get_mail_rate_limit_service(
+    session: SessionDep, mail_rate_limit_repository: MailRateLimitRepositoryDep
+) -> MailRateLimitService:
+    """Get a mail rate limit service instance.
+
+    Args:
+        session: The database session.
+        mail_rate_limit_repository: The mail rate limit repository instance.
+
+    Returns:
+        A mail rate limit service instance.
+    """
+    return MailRateLimitService(session=session, mail_rate_limit_repository=mail_rate_limit_repository)
+
+
+MailRateLimitServiceDep = Annotated[MailRateLimitService, Depends(get_mail_rate_limit_service)]
+
+
+def get_source_address(request: Request) -> str | None:
+    """Work out which client a request came from, for the budgets it spends.
+
+    The peer of the connection is the truth when the app is reachable
+    directly, and is the proxy for every request when it is not: a deployment
+    behind one would then have a single budget for the whole internet, and the
+    first script to spend it would lock everybody else out. So
+    ``TRUSTED_PROXY_HOPS`` says how many entries at the end of
+    ``X-Forwarded-For`` the proxies in front of this app put there. The
+    earliest of those is the caller: each proxy records the address it was
+    talked to by, and the one nearest the client was talked to by the client.
+
+    Counting from the end rather than taking the first entry is what keeps the
+    header from being a way around the budget: everything before the trusted
+    entries is whatever the client cared to send. A header too short to hold
+    that many hops was not written by the proxies the setting describes, so it
+    falls back to the oldest entry it does have.
+
+    Args:
+        request: The incoming request.
+
+    Returns:
+        The address the request came from, or None if there is none to be had.
+    """
+    if settings.TRUSTED_PROXY_HOPS:
+        entries = [entry.strip() for entry in request.headers.get("x-forwarded-for", "").split(",") if entry.strip()]
+        if entries:
+            return entries[max(len(entries) - settings.TRUSTED_PROXY_HOPS, 0)]
+
+    return request.client.host if request.client else None
+
+
+SourceAddressDep = Annotated[str | None, Depends(get_source_address)]
 
 
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
