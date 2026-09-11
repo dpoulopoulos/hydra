@@ -194,6 +194,18 @@ class Message(SQLModel):
     message: str
 
 
+class MessageWithDelivery(Message):
+    """A message about mail, and what became of the send it reports on.
+
+    The prose says what happened, but a screen cannot word itself around a
+    sentence. The field is what it branches on: mail that is still in the
+    outbox has reached nobody yet, and a screen that says otherwise sends
+    somebody to look in an inbox that has nothing in it.
+    """
+
+    delivery: EmailDelivery
+
+
 __all__ = [
     "MAX_ACTIVE_TOKENS_PER_USER",
     "ApiToken",
@@ -205,6 +217,7 @@ __all__ = [
     "ApiTokensPublic",
     "ApiTokenStatus",
     "Message",
+    "MessageWithDelivery",
     "Budget",
     "BudgetBulkUpsert",
     "BudgetCopyRequest",

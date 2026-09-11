@@ -12,7 +12,7 @@ from app.exceptions import (
     EmailVerificationUsedError,
 )
 from app.main import app
-from app.models import Message, PendingEmailChange, User
+from app.models import EmailDelivery, Message, MessageWithDelivery, PendingEmailChange, User
 from app.services import EmailVerificationService
 
 
@@ -186,7 +186,9 @@ class TestSendVerificationEmailMe:
             with patch.object(
                 EmailVerificationService,
                 "send_verification_email",
-                return_value=Message(message="Verification email sent successfully."),
+                return_value=MessageWithDelivery(
+                    message="Verification email sent successfully.", delivery=EmailDelivery.SENT
+                ),
             ) as send:
                 # Act: Ask for a confirmation of the caller's own address
                 response = client.post("/api/v1/email-verification/me/send")
@@ -194,6 +196,7 @@ class TestSendVerificationEmailMe:
                 # Assert: The caller's own address is the one confirmed, never one it names
                 assert response.status_code == 200
                 assert response.json()["message"] == "Verification email sent successfully."
+                assert response.json()["delivery"] == "sent"
                 assert send.call_args.kwargs["user_email"] == test_user.email
         finally:
             # Cleanup
@@ -395,7 +398,9 @@ class TestResendPendingEmailChangeMe:
             with patch.object(
                 EmailVerificationService,
                 "resend_pending_email_change",
-                return_value=Message(message="Verification email sent to the new address."),
+                return_value=MessageWithDelivery(
+                    message="Verification email sent to the new address.", delivery=EmailDelivery.QUEUED
+                ),
             ) as resend:
                 # Act
                 response = client.post("/api/v1/email-verification/me/email-change/resend")
@@ -403,6 +408,8 @@ class TestResendPendingEmailChangeMe:
                 # Assert
                 assert response.status_code == 200
                 assert response.json()["message"] == "Verification email sent to the new address."
+                # The screen has to be able to word a queued send differently.
+                assert response.json()["delivery"] == "queued"
                 assert resend.call_args.kwargs["user"] == test_user
         finally:
             # Cleanup

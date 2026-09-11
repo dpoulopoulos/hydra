@@ -17,7 +17,14 @@ from app.exceptions import (
     UserExistsError,
     UserNotFoundError,
 )
-from app.models import EmailVerification, EmailVerificationStatus, Message, User
+from app.models import (
+    EmailDelivery,
+    EmailVerification,
+    EmailVerificationStatus,
+    Message,
+    MessageWithDelivery,
+    User,
+)
 from app.services import EmailVerificationService, UserService
 
 
@@ -483,8 +490,9 @@ class TestSendVerificationEmail:
                     )
 
         # Assert
-        assert isinstance(result, Message)
+        assert isinstance(result, MessageWithDelivery)
         assert result.message == "Verification email sent."
+        assert result.delivery is EmailDelivery.SENT
         mock_outbox.for_session.return_value.deliver_or_queue.assert_called_once()
 
     def test_send_verification_email_survives_a_delivery_failure(
@@ -511,8 +519,9 @@ class TestSendVerificationEmail:
                     )
 
         # Assert: Verify the caller is told the truth and the log has the reason
-        assert isinstance(result, Message)
+        assert isinstance(result, MessageWithDelivery)
         assert result.message == "Verification email queued for delivery."
+        assert result.delivery is EmailDelivery.QUEUED
         assert test_user.email in caplog.text
         assert "HTTPStatusError" in caplog.text
 
@@ -538,8 +547,9 @@ class TestSendVerificationEmail:
                 )
 
         # Assert
-        assert isinstance(result, Message)
+        assert isinstance(result, MessageWithDelivery)
         assert result.message == "Email delivery is not configured, so no verification email was sent."
+        assert result.delivery is EmailDelivery.NOT_CONFIGURED
         mock_outbox.for_session.return_value.deliver_or_queue.assert_not_called()
 
     def test_send_verification_email_with_existing_pending_verification(

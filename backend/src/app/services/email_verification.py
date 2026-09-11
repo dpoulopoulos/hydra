@@ -19,6 +19,7 @@ from app.models import (
     EmailVerification,
     EmailVerificationStatus,
     Message,
+    MessageWithDelivery,
     PendingEmailChange,
     User,
 )
@@ -28,7 +29,7 @@ from app.services.user import UserService
 from app.utils import generate_email_verification_email
 
 
-def _delivery_message(delivery: EmailDelivery, destination: str = "") -> Message:
+def _delivery_message(delivery: EmailDelivery, destination: str = "") -> MessageWithDelivery:
     """Report what became of a verification message.
 
     Say what happened rather than what was hoped for: a message still in the
@@ -44,12 +45,14 @@ def _delivery_message(delivery: EmailDelivery, destination: str = "") -> Message
         The message the caller is answered with.
     """
     if delivery is EmailDelivery.NOT_CONFIGURED:
-        return Message(message="Email delivery is not configured, so no verification email was sent.")
+        return MessageWithDelivery(
+            message="Email delivery is not configured, so no verification email was sent.", delivery=delivery
+        )
 
     if delivery is EmailDelivery.QUEUED:
-        return Message(message=f"Verification email queued for delivery{destination}.")
+        return MessageWithDelivery(message=f"Verification email queued for delivery{destination}.", delivery=delivery)
 
-    return Message(message=f"Verification email sent{destination}.")
+    return MessageWithDelivery(message=f"Verification email sent{destination}.", delivery=delivery)
 
 
 class InviteClaimer(Protocol):
@@ -207,7 +210,7 @@ class EmailVerificationService:
 
     def send_verification_email(
         self, user_service: UserService, user_email: str, invite_unusable: bool = False
-    ) -> Message:
+    ) -> MessageWithDelivery:
         """Send an email verification to a user.
 
         Args:
@@ -233,7 +236,7 @@ class EmailVerificationService:
             self._issue_verification(user=user, address=user.email, invite_unusable=invite_unusable)
         )
 
-    def send_email_change_verification(self, user: User, new_email: str) -> Message:
+    def send_email_change_verification(self, user: User, new_email: str) -> MessageWithDelivery:
         """Send a verification to an address a user has asked to move to.
 
         The account keeps its current address until the token is redeemed, so
@@ -252,7 +255,7 @@ class EmailVerificationService:
             destination=" to the new address",
         )
 
-    def resend_pending_email_change(self, user: User) -> Message:
+    def resend_pending_email_change(self, user: User) -> MessageWithDelivery:
         """Send another link to the address a user has asked to move to.
 
         The address is read from the pending row rather than taken from the

@@ -9,7 +9,13 @@ from app.exceptions import (
     ServiceError,
     UserExistsError,
 )
-from app.models import EmailVerificationConfirm, EmailVerificationRequest, Message, PendingEmailChange
+from app.models import (
+    EmailVerificationConfirm,
+    EmailVerificationRequest,
+    Message,
+    MessageWithDelivery,
+    PendingEmailChange,
+)
 
 router = APIRouter(prefix="/email-verification", tags=["email-verification"])
 
@@ -54,13 +60,13 @@ def resend_verification_email(
     )
 
 
-@router.post("/me/send", response_model=Message)
+@router.post("/me/send", response_model=MessageWithDelivery)
 def send_verification_email_me(
     *,
     email_verification_service: EmailVerificationServiceDep,
     user_service: UserServiceDep,
     current_user: CurrentUser,
-) -> Message:
+) -> MessageWithDelivery:
     """Send a confirmation email for the address the current account holds.
 
     The public resend endpoint serves only accounts that are waiting to be
@@ -81,7 +87,8 @@ def send_verification_email_me(
         current_user: The current authenticated user.
 
     Returns:
-        A message indicating that the confirmation email was sent.
+        A message saying what became of the confirmation email: sent, queued
+        for another attempt, or not sent at all.
 
     Raises:
         HTTPException: If the user's token is invalid (401), the user is not found (404),
@@ -144,12 +151,12 @@ def cancel_pending_email_change_me(
     return email_verification_service.cancel_pending_email_change(user=current_user)
 
 
-@router.post("/me/email-change/resend", response_model=Message)
+@router.post("/me/email-change/resend", response_model=MessageWithDelivery)
 def resend_pending_email_change_me(
     *,
     email_verification_service: EmailVerificationServiceDep,
     current_user: CurrentUser,
-) -> Message:
+) -> MessageWithDelivery:
     """Send another link to the address the current account has asked to move to.
 
     The unauthenticated resend endpoint serves activations only: a change

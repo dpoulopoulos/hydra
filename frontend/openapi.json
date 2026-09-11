@@ -5076,7 +5076,7 @@
           "email-verification"
         ],
         "summary": "Send Verification Email Me",
-        "description": "Send a confirmation email for the address the current account holds.\n\nThe public resend endpoint serves only accounts that are waiting to be\nactivated, so an active account has no way to prove the address it holds\nnow. Two kinds of account need one: those an administrator created, which\nare active without ever having been sent a confirmation, and those that\nchanged their address, whose earlier confirmation proves an address they no\nlonger hold. Until they have a proof, anything that asks for one is out of\nreach, including redeeming a household invitation.\n\nRequesting it needs no payload: the address is the one on the caller's own\naccount, so this can neither be aimed at somebody else's mailbox nor used\nto find out whose addresses exist.\n\nArgs:\n    email_verification_service: The email verification service dependency.\n    user_service: The user service dependency.\n    current_user: The current authenticated user.\n\nReturns:\n    A message indicating that the confirmation email was sent.\n\nRaises:\n    HTTPException: If the user's token is invalid (401), the user is not found (404),\n        or the user is inactive (403).",
+        "description": "Send a confirmation email for the address the current account holds.\n\nThe public resend endpoint serves only accounts that are waiting to be\nactivated, so an active account has no way to prove the address it holds\nnow. Two kinds of account need one: those an administrator created, which\nare active without ever having been sent a confirmation, and those that\nchanged their address, whose earlier confirmation proves an address they no\nlonger hold. Until they have a proof, anything that asks for one is out of\nreach, including redeeming a household invitation.\n\nRequesting it needs no payload: the address is the one on the caller's own\naccount, so this can neither be aimed at somebody else's mailbox nor used\nto find out whose addresses exist.\n\nArgs:\n    email_verification_service: The email verification service dependency.\n    user_service: The user service dependency.\n    current_user: The current authenticated user.\n\nReturns:\n    A message saying what became of the confirmation email: sent, queued\n    for another attempt, or not sent at all.\n\nRaises:\n    HTTPException: If the user's token is invalid (401), the user is not found (404),\n        or the user is inactive (403).",
         "operationId": "email-verification-send_verification_email_me",
         "responses": {
           "200": {
@@ -5084,7 +5084,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Message"
+                  "$ref": "#/components/schemas/MessageWithDelivery"
                 }
               }
             }
@@ -5171,7 +5171,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Message"
+                  "$ref": "#/components/schemas/MessageWithDelivery"
                 }
               }
             }
@@ -6586,6 +6586,16 @@
         ],
         "title": "ClientForecastRow",
         "description": "One client's contribution, and what they still owe."
+      },
+      "EmailDelivery": {
+        "type": "string",
+        "enum": [
+          "not_configured",
+          "sent",
+          "queued"
+        ],
+        "title": "EmailDelivery",
+        "description": "What became of a message the outbox was handed.\n\nA request that asks for mail is answered before the mail necessarily\nleaves, so what it can honestly say depends on which of these happened.\nAnything built on top of a request - a screen, a log line - has to be able\nto name the difference, so the name lives here rather than inside one\nservice."
       },
       "EmailVerificationConfirm": {
         "properties": {
@@ -8468,6 +8478,24 @@
           "message"
         ],
         "title": "Message"
+      },
+      "MessageWithDelivery": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/EmailDelivery"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "delivery"
+        ],
+        "title": "MessageWithDelivery",
+        "description": "A message about mail, and what became of the send it reports on.\n\nThe prose says what happened, but a screen cannot word itself around a\nsentence. The field is what it branches on: mail that is still in the\noutbox has reached nobody yet, and a screen that says otherwise sends\nsomebody to look in an inbox that has nothing in it."
       },
       "MonthSummaryReport": {
         "properties": {

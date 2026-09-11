@@ -3189,7 +3189,8 @@ export const emailVerificationResendVerificationEmailMutation = (options?: Parti
  * current_user: The current authenticated user.
  *
  * Returns:
- * A message indicating that the confirmation email was sent.
+ * A message saying what became of the confirmation email: sent, queued
+ * for another attempt, or not sent at all.
  *
  * Raises:
  * HTTPException: If the user's token is invalid (401), the user is not found (404),

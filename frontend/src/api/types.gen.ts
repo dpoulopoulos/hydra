@@ -809,6 +809,36 @@ export type ClientForecastRow = {
 };
 
 /**
+ * EmailDelivery
+ *
+ * What became of a message the outbox was handed.
+ *
+ * A request that asks for mail is answered before the mail necessarily
+ * leaves, so what it can honestly say depends on which of these happened.
+ * Anything built on top of a request - a screen, a log line - has to be able
+ * to name the difference, so the name lives here rather than inside one
+ * service.
+ */
+export const EmailDelivery = {
+    NOT_CONFIGURED: 'not_configured',
+    SENT: 'sent',
+    QUEUED: 'queued'
+} as const;
+
+/**
+ * EmailDelivery
+ *
+ * What became of a message the outbox was handed.
+ *
+ * A request that asks for mail is answered before the mail necessarily
+ * leaves, so what it can honestly say depends on which of these happened.
+ * Anything built on top of a request - a screen, a log line - has to be able
+ * to name the difference, so the name lives here rather than inside one
+ * service.
+ */
+export type EmailDelivery = typeof EmailDelivery[keyof typeof EmailDelivery];
+
+/**
  * EmailVerificationConfirm
  */
 export type EmailVerificationConfirm = {
@@ -1928,6 +1958,24 @@ export type Message = {
      * Message
      */
     message: string;
+};
+
+/**
+ * MessageWithDelivery
+ *
+ * A message about mail, and what became of the send it reports on.
+ *
+ * The prose says what happened, but a screen cannot word itself around a
+ * sentence. The field is what it branches on: mail that is still in the
+ * outbox has reached nobody yet, and a screen that says otherwise sends
+ * somebody to look in an inbox that has nothing in it.
+ */
+export type MessageWithDelivery = {
+    /**
+     * Message
+     */
+    message: string;
+    delivery: EmailDelivery;
 };
 
 /**
@@ -5944,7 +5992,7 @@ export type EmailVerificationSendVerificationEmailMeResponses = {
     /**
      * Successful Response
      */
-    200: Message;
+    200: MessageWithDelivery;
 };
 
 export type EmailVerificationSendVerificationEmailMeResponse = EmailVerificationSendVerificationEmailMeResponses[keyof EmailVerificationSendVerificationEmailMeResponses];
@@ -5994,7 +6042,7 @@ export type EmailVerificationResendPendingEmailChangeMeResponses = {
     /**
      * Successful Response
      */
-    200: Message;
+    200: MessageWithDelivery;
 };
 
 export type EmailVerificationResendPendingEmailChangeMeResponse = EmailVerificationResendPendingEmailChangeMeResponses[keyof EmailVerificationResendPendingEmailChangeMeResponses];
