@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -25,31 +25,50 @@ def dispatch_once() -> int:
         return EmailOutboxService.for_session(session).dispatch_due()
 
 
-async def run_email_dispatcher() -> None:
-    """Drain the email outbox for as long as the application runs.
+async def run_rounds(round_: Callable[[], int], *, interval_seconds: int, failure: str, outcome: str) -> None:
+    """Run one piece of background work over and over, for as long as the app runs.
 
-    This is what turns a queued message into a delivered one: without it the
-    outbox only ever holds what the request path could not send. Rounds are
-    run in a worker thread, since sending mail blocks.
+    Args:
+        round_: The work to do once, returning how many rows it settled. It
+            talks to the database and may talk to a mail provider, both of
+            which block, so it is run in a worker thread.
+        interval_seconds: How long to wait between rounds.
+        failure: What to log when a round raises, as a sentence.
+        outcome: What to log when a round settled something, with one ``%d``
+            for the count. A round that settled nothing says nothing.
     """
     while True:
         # The wait comes first: a message queued by a request has already been
         # attempted by that request, and a process that exits immediately
         # should not have opened a session at all.
-        await asyncio.sleep(settings.EMAIL_OUTBOX_POLL_SECONDS)
+        await asyncio.sleep(interval_seconds)
 
         try:
-            delivered = await asyncio.to_thread(dispatch_once)
+            settled = await asyncio.to_thread(round_)
         except asyncio.CancelledError:
             raise
         except Exception:
             # A round that fails must not end the loop: the reason is usually
             # the database or the provider, and both come back.
-            logger.exception("Could not drain the email outbox")
+            logger.exception(failure)
             continue
 
-        if delivered:
-            logger.info("Delivered %d queued email(s)", delivered)
+        if settled:
+            logger.info(outcome, settled)
+
+
+async def run_email_dispatcher() -> None:
+    """Drain the email outbox for as long as the application runs.
+
+    This is what turns a queued message into a delivered one: without it the
+    outbox only ever holds what the request path could not send.
+    """
+    await run_rounds(
+        dispatch_once,
+        interval_seconds=settings.EMAIL_OUTBOX_POLL_SECONDS,
+        failure="Could not drain the email outbox",
+        outcome="Delivered %d queued email(s)",
+    )
 
 
 @asynccontextmanager
