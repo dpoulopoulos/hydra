@@ -131,6 +131,11 @@ from .investment import (
     TradesPublic,
     TradeUpdate,
 )
+from .mail_rate_limit import (
+    RATE_LIMIT_SUBJECT_MAX_LENGTH,
+    MailRateLimit,
+    MailRateLimitKind,
+)
 from .password import (
     PasswordReset,
     PasswordResetConfirm,
@@ -310,6 +315,9 @@ __all__ = [
     "TradeUpdate",
     "TradesPublic",
     "PasswordUpdate",
+    "RATE_LIMIT_SUBJECT_MAX_LENGTH",
+    "MailRateLimit",
+    "MailRateLimitKind",
     "PasswordReset",
     "PasswordResetConfirm",
     "PasswordResetPublic",
