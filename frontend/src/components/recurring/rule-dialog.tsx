@@ -51,6 +51,9 @@ import { cn } from '@/lib/utils'
 
 const NO_CATEGORY = 'none'
 
+/** Stands in for the rule's id while the dialog is adding one. */
+const NEW_RULE = 'new'
+
 /**
  * The form's rules.
  *
@@ -177,7 +180,18 @@ export function RuleDialog({
   const isEdit = rule !== null
   const accountsQuery = useAccounts()
   const currencyOf = useAccountCurrency()
+  // The extras start open for a rule that uses any of them, so nothing the
+  // rule already says is hidden behind a disclosure, and follow the reader
+  // from there. Worked out while rendering rather than in the effect below:
+  // an effect that sets state renders the dialog twice, the first time with
+  // the section in the wrong position.
   const [showMore, setShowMore] = useState(false)
+  const [showMoreFor, setShowMoreFor] = useState<string | null>(null)
+  const opening = open ? (rule?.id ?? NEW_RULE) : null
+  if (opening !== showMoreFor) {
+    setShowMoreFor(opening)
+    setShowMore(Boolean(rule && ((rule.interval ?? 1) > 1 || rule.end_date || rule.merchant)))
+  }
 
   const form = useForm<Values, unknown, Parsed>({
     // The money moves in the account the values name, so that is the currency
@@ -229,7 +243,6 @@ export function RuleDialog({
 
   useEffect(() => {
     if (!open) return
-    setShowMore(Boolean(rule && ((rule.interval ?? 1) > 1 || rule.end_date || rule.merchant)))
     refill(form, {
       name: rule?.name ?? '',
       kind: rule?.kind ?? TransactionKind.EXPENSE,
