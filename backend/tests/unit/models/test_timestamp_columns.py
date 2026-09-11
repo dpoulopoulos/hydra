@@ -15,8 +15,9 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import DateTime
+from sqlmodel import SQLModel
 
-from app.models import HouseholdInvitePublic, SQLModel
+from app.models import HouseholdInvitePublic
 
 # (table, column) for every timestamp in the schema, read off the metadata so a
 # column added later is covered without being listed here.

@@ -687,7 +687,7 @@ class TestFetchJson:
             def get(self, url: str, params: dict[str, str] | None = None) -> FakeResponse:
                 raise httpx.ConnectError(f"failed connecting to {url}?api_token=secret-key")
 
-        monkeypatch.setattr(prices.httpx, "Client", lambda **kwargs: Boom())
+        monkeypatch.setattr(httpx, "Client", lambda **kwargs: Boom())
 
         # Act: Make a request whose token is redacted
         with pytest.raises(PriceProviderError) as caught:
@@ -715,7 +715,7 @@ class TestFetchJson:
             def get(self, url: str, params: dict[str, str] | None = None) -> FakeResponse:
                 return FakeResponse({}, status_code=401)
 
-        monkeypatch.setattr(prices.httpx, "Client", lambda **kwargs: Refusing())
+        monkeypatch.setattr(httpx, "Client", lambda **kwargs: Refusing())
 
         # Act: Make the request
         with pytest.raises(PriceProviderError) as caught:
