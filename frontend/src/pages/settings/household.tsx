@@ -56,9 +56,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useAuth } from '@/hooks/use-auth'
-import { useHousehold } from '@/hooks/use-household'
+import { useCurrency, useHousehold } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
 import { refill } from '@/lib/form'
+import { describeLocale, HOUSEHOLD_LOCALES } from '@/lib/locales'
 import { formatDateTime } from '@/lib/month'
 
 /**
@@ -90,6 +91,11 @@ function DeliveryBadge({ status }: { status?: EmailOutboxStatus | null }) {
   return null
 }
 
+// What the picker calls "no locale of our own". Radix gives an option's value
+// to the DOM, where an empty string means "nothing selected" rather than a
+// choice, so the absence of a locale needs a name of its own.
+const NO_LOCALE = 'browser'
+
 const renameSchema = z.object({
   name: z.string().trim().min(1, 'Give the household a name.').max(255),
 })
@@ -109,6 +115,7 @@ export function Component() {
   const { user, signOut } = useAuth()
   const queryClient = useQueryClient()
   const household = useHousehold()
+  const currency = useCurrency()
   const [removing, setRemoving] = useState<HouseholdMemberPublic | null>(null)
   const [leaving, setLeaving] = useState(false)
   const [revoking, setRevoking] = useState<HouseholdInvitePublic | null>(null)
@@ -168,6 +175,18 @@ export function Component() {
       void queryClient.invalidateQueries({ queryKey: ['household'] })
       toast.success('Household renamed')
     },
+  })
+
+  const setLocale = useMutation({
+    mutationFn: async (locale: string | null) => {
+      const { error } = await householdsUpdateHouseholdMe({ body: { locale } })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['household'] })
+      toast.success('Number format saved')
+    },
+    onError: (error) => toast.error(errorMessage(error)),
   })
 
   const inviteForm = useForm<z.infer<typeof inviteSchema>>({
@@ -292,6 +311,36 @@ export function Component() {
             )}
           </form>
           <FormError message={rename.isError ? errorMessage(rename.error) : null} />
+
+          <Field
+            id="household-numbers"
+            label="Numbers"
+            hint="How amounts are written and read on every screen here, for everyone in the household."
+            className="mt-4 max-w-sm"
+          >
+            {(props) => (
+              <Select
+                value={household.data?.locale ?? NO_LOCALE}
+                onValueChange={(value) => setLocale.mutate(value === NO_LOCALE ? null : value)}
+                disabled={!isOwner || setLocale.isPending}
+              >
+                <SelectTrigger id={props.id} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* The first option is what every household had before it
+                      could choose: each person's own browser decides, so two
+                      people may be shown the same amount differently. */}
+                  <SelectItem value={NO_LOCALE}>Each reader&apos;s browser</SelectItem>
+                  {HOUSEHOLD_LOCALES.map((locale) => (
+                    <SelectItem key={locale} value={locale}>
+                      {describeLocale(locale, currency)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
         </CardContent>
       </Card>
 

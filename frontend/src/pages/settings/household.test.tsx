@@ -34,9 +34,9 @@ const auth = session({
   isAuthenticated: true,
 })
 
-function householdIsNamed(name: string) {
+function householdIsNamed(name: string, locale: string | null = null) {
   vi.mocked(api.householdsGetHouseholdMe).mockResolvedValue({
-    data: { id: 'h1', name, currency_code: 'EUR' },
+    data: { id: 'h1', name, currency_code: 'EUR', locale },
   } as never)
 }
 
@@ -301,5 +301,76 @@ describe('inviting someone', () => {
 
     await waitFor(() => expect(api.householdsCreateHouseholdInvite).toHaveBeenCalled())
     expect(invitedBody()).toEqual({ email: 'partner@example.com', role: 'owner' })
+  })
+})
+
+// A household picks one way of writing numbers for everyone in it, or leaves
+// every reader to their own browser, which is what it always did.
+describe('how the household writes numbers', () => {
+  const numbersField = () => screen.getByRole('combobox', { name: 'Numbers' })
+
+  it('starts on the browser for a household that has chosen nothing', async () => {
+    renderHousehold()
+
+    await waitFor(() => expect(numbersField()).toHaveTextContent("Each reader's browser"))
+  })
+
+  it('shows the locale the household has chosen, with an amount written its way', async () => {
+    householdIsNamed('Rivera', 'de-DE')
+    renderHousehold()
+
+    await waitFor(() => expect(numbersField()).toHaveTextContent('123.456,78'))
+  })
+
+  it('saves the locale the owner picks', async () => {
+    const person = userEvent.setup()
+    vi.mocked(api.householdsUpdateHouseholdMe).mockResolvedValue({ data: {} } as never)
+    renderHousehold()
+
+    await waitFor(() => expect(numbersField()).toBeEnabled())
+    await person.click(numbersField())
+    // Named rather than matched on the sample: more than one locale writes
+    // an amount this way, which is the point of showing the sample at all.
+    await person.click(await screen.findByRole('option', { name: /Deutsch \(Deutschland\)/ }))
+
+    await waitFor(() => expect(api.householdsUpdateHouseholdMe).toHaveBeenCalled())
+    expect(vi.mocked(api.householdsUpdateHouseholdMe).mock.calls[0][0]).toMatchObject({
+      body: { locale: 'de-DE' },
+    })
+  })
+
+  it('hands the choice back to the browser when that is what is picked', async () => {
+    const person = userEvent.setup()
+    vi.mocked(api.householdsUpdateHouseholdMe).mockResolvedValue({ data: {} } as never)
+    householdIsNamed('Rivera', 'de-DE')
+    renderHousehold()
+
+    await waitFor(() => expect(numbersField()).toHaveTextContent('123.456,78'))
+    await person.click(numbersField())
+    await person.click(await screen.findByRole('option', { name: /Each reader's browser/ }))
+
+    await waitFor(() => expect(api.householdsUpdateHouseholdMe).toHaveBeenCalled())
+    expect(vi.mocked(api.householdsUpdateHouseholdMe).mock.calls[0][0]).toMatchObject({
+      body: { locale: null },
+    })
+  })
+
+  it('is left to look at by a member who does not own the household', async () => {
+    vi.mocked(api.householdsListHouseholdMembers).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'm1',
+            user_id: OWNER,
+            email: 'owner@example.com',
+            role: HouseholdRole.MEMBER,
+          },
+        ],
+        count: 1,
+      },
+    } as never)
+    renderHousehold()
+
+    await waitFor(() => expect(numbersField()).toBeDisabled())
   })
 })
