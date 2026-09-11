@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog'
 import { errorMessage } from '@/lib/api'
 import { refill, showIssues } from '@/lib/form'
+import { useLocale } from '@/lib/locale-context'
 import { formatPrice, formatPriceInput, priceSchema } from '@/lib/quantity'
 
 /**
@@ -27,8 +28,8 @@ import { formatPrice, formatPriceInput, priceSchema } from '@/lib/quantity'
  * listing quotes in what its exchange says, and typing a converted number here
  * would be converted a second time on the way to the portfolio.
  */
-function buildSchema(currency: string) {
-  return z.object({ price: priceSchema(currency) })
+function buildSchema(currency: string, locale: string | undefined) {
+  return z.object({ price: priceSchema(currency, { locale }) })
 }
 
 type Values = z.input<ReturnType<typeof buildSchema>>
@@ -54,24 +55,25 @@ export function PriceDialog({
 }) {
   const queryClient = useQueryClient()
   const currency = instrument?.currency_code ?? 'EUR'
+  const locale = useLocale()
 
   const form = useForm<Values, unknown, Parsed>({
-    resolver: zodResolver(buildSchema(currency)),
+    resolver: zodResolver(buildSchema(currency, locale)),
     defaultValues: { price: '' },
   })
 
   useEffect(() => {
     if (!open || !instrument) return
     // Seeded with the price already on the row, so correcting a figure does not
-    // mean retyping it, and written with the separator this reader's locale
+    // mean retyping it, and written with the separator the household's locale
     // reads back as a decimal point. Blank when there has never been one.
     refill(form, {
       price:
         instrument.last_price_micro === null || instrument.last_price_micro === undefined
           ? ''
-          : formatPriceInput(instrument.last_price_micro, instrument.currency_code),
+          : formatPriceInput(instrument.last_price_micro, instrument.currency_code, locale),
     })
-  }, [open, instrument, form])
+  }, [open, instrument, locale, form])
 
   const save = useMutation({
     mutationFn: async (parsed: Parsed) => {
@@ -107,7 +109,7 @@ export function PriceDialog({
           // Re-parsed against the instrument's own currency, so a price in a
           // zero-decimal currency is not quietly given cents.
           onSubmit={form.handleSubmit(() => {
-            const parsed = buildSchema(currency).safeParse(form.getValues())
+            const parsed = buildSchema(currency, locale).safeParse(form.getValues())
             if (parsed.success) {
               save.mutate(parsed.data)
               return

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { BudgetProgressRow } from '@/api'
 import { SingleBudgetDialog } from '@/components/budgets/single-budget-dialog'
+import { LocaleContext } from '@/lib/locale-context'
 
 // The dialog talks to the generated client directly, so the tests stand in for
 // the endpoints rather than for the component's own hooks: what matters here is
@@ -37,13 +38,15 @@ function progressRow(limitMinor: number): BudgetProgressRow {
   } as BudgetProgressRow
 }
 
-function renderDialog(row: BudgetProgressRow | null = null) {
+function renderDialog(row: BudgetProgressRow | null = null, locale?: string) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return render(
     <QueryClientProvider client={client}>
-      <SingleBudgetDialog open month={MONTH} row={row} onOpenChange={() => {}} />
+      <LocaleContext value={locale}>
+        <SingleBudgetDialog open month={MONTH} row={row} onOpenChange={() => {}} />
+      </LocaleContext>
     </QueryClientProvider>,
   )
 }
@@ -242,5 +245,30 @@ describe('the category picker', () => {
     const picker = await screen.findByRole('combobox', { name: 'Category' })
     expect(picker).toBeEnabled()
     expect(screen.queryByText(/Could not load/)).not.toBeInTheDocument()
+  })
+})
+
+// The suite reads as en-US, so a household on de-DE is the field disagreeing
+// with the browser it is opened in. What the field is filled with and what it
+// accepts both have to follow the household, or the two halves of the round
+// trip answer to different locales.
+describe('in a household that writes numbers the German way', () => {
+  it('reads a limit typed with a dot for the thousands as thousands', async () => {
+    const user = userEvent.setup()
+    renderDialog(progressRow(30000), 'de-DE')
+
+    const field = await screen.findByLabelText('Monthly limit')
+    await user.clear(field)
+    await user.type(field, '1.200')
+    await user.click(screen.getByRole('button', { name: 'Change limit' }))
+
+    await vi.waitFor(() => expect(api.budgetsUpdateBudget).toHaveBeenCalled())
+    expect(updatedBody()).toEqual({ limit_minor: 120000 })
+  })
+
+  it('fills the field with the decimal point the household writes', async () => {
+    renderDialog(progressRow(120050), 'de-DE')
+
+    expect(await screen.findByLabelText('Monthly limit')).toHaveValue('1200,5')
   })
 })

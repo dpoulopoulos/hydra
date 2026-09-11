@@ -37,6 +37,7 @@ import { errorMessage } from '@/lib/api'
 import { refill } from '@/lib/form'
 import { compactIban, formatIban, isValidIban } from '@/lib/iban'
 import { ACCOUNT_TYPE_LABELS } from '@/lib/labels'
+import { useLocale } from '@/lib/locale-context'
 import { formatMajorInput } from '@/lib/money'
 import { today } from '@/lib/month'
 
@@ -44,9 +45,10 @@ import { today } from '@/lib/month'
  * The form's rules.
  *
  * A function of the currency, because how many minor units a typed amount
- * stands for is a property of the currency the account is kept in.
+ * stands for is a property of the currency the account is kept in, and of the
+ * locale, which says which character in "1.200" is the decimal point.
  */
-function buildSchema(currency: string) {
+function buildSchema(currency: string, locale: string | undefined) {
   return z.object({
     name: z.string().trim().min(1, 'Give the account a name.').max(255),
     type: z.enum(AccountType),
@@ -59,7 +61,7 @@ function buildSchema(currency: string) {
         message: 'Check the IBAN: that is not a valid one.',
       })
       .optional(),
-    opening_balance: amountSchema(currency, { allowZero: true }),
+    opening_balance: amountSchema(currency, { allowZero: true, locale }),
     opening_balance_date: z.string().min(1, 'Pick the date this balance was true.'),
   })
 }
@@ -83,7 +85,8 @@ export function AccountDialog({
   // account's own currency. A new account has none yet: the API opens it in
   // the household's, which is what the field then asks for.
   const currency = account?.currency_code ?? householdCurrency
-  const schema = useMemo(() => buildSchema(currency), [currency])
+  const locale = useLocale()
+  const schema = useMemo(() => buildSchema(currency, locale), [currency, locale])
   const queryClient = useQueryClient()
   const isEdit = account !== null
 
@@ -109,7 +112,7 @@ export function AccountDialog({
             type: account.type,
             institution: account.institution ?? '',
             iban: account.iban ? formatIban(account.iban) : '',
-            opening_balance: formatMajorInput(account.opening_balance_minor, currency),
+            opening_balance: formatMajorInput(account.opening_balance_minor, currency, locale),
             opening_balance_date: account.opening_balance_date,
           }
         : {
@@ -121,7 +124,7 @@ export function AccountDialog({
             opening_balance_date: today(),
           },
     )
-  }, [open, account, currency, form])
+  }, [open, account, currency, locale, form])
 
   // Cash is money in a pocket: it sits at no institution, so it is asked for
   // neither. A credit card sits at one, but what it has is a card number, not
