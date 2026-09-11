@@ -1,6 +1,5 @@
 import uuid
 from datetime import UTC, datetime, timedelta
-from enum import StrEnum
 from typing import Protocol
 
 from sqlmodel import Session
@@ -15,22 +14,21 @@ from app.exceptions import (
     UserExistsError,
     UserNotFoundError,
 )
-from app.models import EmailVerification, EmailVerificationStatus, Message, PendingEmailChange, User
+from app.models import (
+    EmailDelivery,
+    EmailVerification,
+    EmailVerificationStatus,
+    Message,
+    PendingEmailChange,
+    User,
+)
 from app.repositories.email_verification import EmailVerificationRepository
 from app.services.email_outbox import EmailOutboxService
 from app.services.user import UserService
 from app.utils import generate_email_verification_email
 
 
-class VerificationDelivery(StrEnum):
-    """What became of a verification message once the outbox had it."""
-
-    NOT_CONFIGURED = "not_configured"
-    SENT = "sent"
-    QUEUED = "queued"
-
-
-def _delivery_message(delivery: VerificationDelivery, destination: str = "") -> Message:
+def _delivery_message(delivery: EmailDelivery, destination: str = "") -> Message:
     """Report what became of a verification message.
 
     Say what happened rather than what was hoped for: a message still in the
@@ -45,10 +43,10 @@ def _delivery_message(delivery: VerificationDelivery, destination: str = "") -> 
     Returns:
         The message the caller is answered with.
     """
-    if delivery is VerificationDelivery.NOT_CONFIGURED:
+    if delivery is EmailDelivery.NOT_CONFIGURED:
         return Message(message="Email delivery is not configured, so no verification email was sent.")
 
-    if delivery is VerificationDelivery.QUEUED:
+    if delivery is EmailDelivery.QUEUED:
         return Message(message=f"Verification email queued for delivery{destination}.")
 
     return Message(message=f"Verification email sent{destination}.")
@@ -283,7 +281,7 @@ class EmailVerificationService:
 
     def _issue_verification(
         self, user: User, address: str, new_email: str | None = None, invite_unusable: bool = False
-    ) -> VerificationDelivery:
+    ) -> EmailDelivery:
         """Write a pending verification for a user and mail its token out.
 
         Args:
@@ -335,7 +333,7 @@ class EmailVerificationService:
         # it just created and write another one for mail that never leaves. The
         # outbox keeps the message instead, and it is retried from there.
         if not settings.emails_enabled:
-            return VerificationDelivery.NOT_CONFIGURED
+            return EmailDelivery.NOT_CONFIGURED
 
         email_data = generate_email_verification_email(email=address, token=token, invite_unusable=invite_unusable)
         delivered = EmailOutboxService.for_session(self.session).deliver_or_queue(
@@ -344,7 +342,7 @@ class EmailVerificationService:
             html_content=email_data.html_content,
         )
 
-        return VerificationDelivery.SENT if delivered else VerificationDelivery.QUEUED
+        return EmailDelivery.SENT if delivered else EmailDelivery.QUEUED
 
     def resend_verification_email(self, user_service: UserService, email: str) -> Message:
         """Resend verification email.

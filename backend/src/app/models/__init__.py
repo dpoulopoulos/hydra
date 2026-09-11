@@ -43,6 +43,7 @@ from .category import (
 )
 from .email_outbox import (
     SUBJECT_MAX_LENGTH,
+    EmailDelivery,
     EmailOutbox,
     EmailOutboxStatus,
 )
@@ -229,6 +230,7 @@ __all__ = [
     "CategoryTreePublic",
     "CategoryUpdate",
     "SUBJECT_MAX_LENGTH",
+    "EmailDelivery",
     "EmailOutbox",
     "EmailOutboxStatus",
     "EmailVerification",

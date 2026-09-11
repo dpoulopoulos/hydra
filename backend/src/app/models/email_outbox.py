@@ -17,6 +17,21 @@ class EmailOutboxStatus(StrEnum):
     FAILED = "failed"
 
 
+class EmailDelivery(StrEnum):
+    """What became of a message the outbox was handed.
+
+    A request that asks for mail is answered before the mail necessarily
+    leaves, so what it can honestly say depends on which of these happened.
+    Anything built on top of a request - a screen, a log line - has to be able
+    to name the difference, so the name lives here rather than inside one
+    service.
+    """
+
+    NOT_CONFIGURED = "not_configured"
+    SENT = "sent"
+    QUEUED = "queued"
+
+
 class EmailOutbox(PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, SQLModel, table=True):
     """One outbound message, kept until the provider accepts it.
 
