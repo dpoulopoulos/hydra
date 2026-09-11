@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 import {
+  type EmailDelivery,
   emailVerificationCancelPendingEmailChangeMe,
   emailVerificationGetPendingEmailChangeMe,
   emailVerificationResendPendingEmailChangeMe,
@@ -45,6 +46,22 @@ const passwordFormSchema = z
     message: 'Both passwords must match.',
     path: ['confirm'],
   })
+
+// A message the provider has not taken yet is written to the outbox and goes out minutes later,
+// so "check your inbox" can be a lie for as long as it sits there. Both buttons below say what
+// actually became of their message instead, in the same three branches the sign-up and resend
+// screens use.
+function deliveryToast(delivery: EmailDelivery, wordings: Record<EmailDelivery, string>): void {
+  const message = wordings[delivery]
+
+  // Nothing was sent and nothing is coming, so this is not good news to dress up as success.
+  if (delivery === 'not_configured') {
+    toast.warning(message)
+    return
+  }
+
+  toast.success(message)
+}
 
 export function Component() {
   const { user, signOut } = useAuth()
@@ -114,14 +131,20 @@ export function Component() {
   // cannot be re-aimed somewhere new without going through the form.
   const resendChange = useMutation({
     mutationFn: async () => {
-      const { error } = await emailVerificationResendPendingEmailChangeMe()
+      const { data, error } = await emailVerificationResendPendingEmailChangeMe()
       if (error) throw error
+      return (data?.delivery ?? 'sent') as EmailDelivery
     },
-    onSuccess: () => {
+    onSuccess: (delivery) => {
       // A fresh link comes with a fresh deadline, so the one on screen is now
-      // describing a link that has been replaced.
+      // describing a link that has been replaced. That holds however the send
+      // went: the row was written before the provider was called.
       void queryClient.invalidateQueries({ queryKey: ['pendingEmailChange'] })
-      toast.success('Link sent again. Check the new address.')
+      deliveryToast(delivery, {
+        sent: 'Link sent again. Check the new address.',
+        queued: 'Still sending the link to the new address. It should arrive shortly.',
+        not_configured: 'Email is not set up on this server, so no link was sent.',
+      })
     },
     onError: (error) => {
       // A 404 means the change went while the notice was on screen, the same
@@ -179,20 +202,25 @@ export function Component() {
       // address that was still waiting on its link. Note which address that
       // was before the row is gone, so the reply can say what it cost.
       const calledOff = pendingChange.data?.new_email ?? null
-      const { error } = await emailVerificationSendVerificationEmailMe()
+      const { data, error } = await emailVerificationSendVerificationEmailMe()
       if (error) throw error
-      return calledOff
+      return { calledOff, delivery: (data?.delivery ?? 'sent') as EmailDelivery }
     },
-    onSuccess: (calledOff) => {
+    onSuccess: ({ calledOff, delivery }) => {
       // The notice above is now describing a change the server has expired.
+      // Expiring it is a write, not a send, so it happened whatever the
+      // provider did with the message, and has to be reported either way.
       void queryClient.invalidateQueries({ queryKey: ['pendingEmailChange'] })
 
-      if (calledOff) {
-        toast.success(`Confirmation email sent. The change to ${calledOff} was cancelled.`)
-        return
-      }
+      const cancelled = calledOff ? ` The change to ${calledOff} was cancelled.` : ''
 
-      toast.success('Confirmation email sent. Check your inbox.')
+      deliveryToast(delivery, {
+        sent: calledOff
+          ? `Confirmation email sent.${cancelled}`
+          : 'Confirmation email sent. Check your inbox.',
+        queued: `Still sending the confirmation email. It should arrive shortly.${cancelled}`,
+        not_configured: `Email is not set up on this server, so no confirmation was sent.${cancelled}`,
+      })
     },
     onError: (error) => toast.error(errorMessage(error)),
   })

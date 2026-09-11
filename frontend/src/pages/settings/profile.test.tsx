@@ -59,7 +59,7 @@ vi.mock('@/api', async (importOriginal) => {
   }
 })
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
 
 const pendingChange: PendingEmailChange = {
   new_email: 'moving-to@example.com',
@@ -450,5 +450,78 @@ describe('a pending change of address', () => {
     await person.click(await screen.findByRole('button', { name: 'Send the link again' }))
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled())
+  })
+
+  it('does not send anyone to the new address while the link is still queued', async () => {
+    // The provider has not taken the message yet. It is written down and goes out minutes
+    // later, so "check the new address" would send somebody to look at nothing.
+    vi.mocked(api.emailVerificationResendPendingEmailChangeMe).mockResolvedValue({
+      data: { message: 'Verification email queued for delivery.', delivery: 'queued' },
+    } as never)
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Send the link again' }))
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Still sending the link to the new address. It should arrive shortly.',
+      ),
+    )
+  })
+
+  it('owns up when the server sends no link at all', async () => {
+    vi.mocked(api.emailVerificationResendPendingEmailChangeMe).mockResolvedValue({
+      data: { message: 'Email delivery is not configured.', delivery: 'not_configured' },
+    } as never)
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Send the link again' }))
+
+    // Nothing was sent and nothing is coming, so this is not success to dress up.
+    await waitFor(() =>
+      expect(toast.warning).toHaveBeenCalledWith(
+        'Email is not set up on this server, so no link was sent.',
+      ),
+    )
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('does not send anyone to their inbox while the confirmation is still queued', async () => {
+    vi.mocked(api.emailVerificationSendVerificationEmailMe).mockResolvedValue({
+      data: { message: 'Verification email queued for delivery.', delivery: 'queued' },
+    } as never)
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Send confirmation email' }))
+
+    // Whatever the provider did, the pending change is expired by the request, so the screen
+    // still has to say what asking for the confirmation cost.
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Still sending the confirmation email. It should arrive shortly.' +
+          ' The change to moving-to@example.com was cancelled.',
+      ),
+    )
+  })
+
+  it('owns up when no confirmation could be sent, change called off and all', async () => {
+    vi.mocked(api.emailVerificationSendVerificationEmailMe).mockResolvedValue({
+      data: { message: 'Email delivery is not configured.', delivery: 'not_configured' },
+    } as never)
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Send confirmation email' }))
+
+    await waitFor(() =>
+      expect(toast.warning).toHaveBeenCalledWith(
+        'Email is not set up on this server, so no confirmation was sent.' +
+          ' The change to moving-to@example.com was cancelled.',
+      ),
+    )
+    expect(toast.success).not.toHaveBeenCalled()
   })
 })

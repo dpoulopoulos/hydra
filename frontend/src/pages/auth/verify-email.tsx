@@ -1,12 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
-import { CheckCircle2, Loader2 } from 'lucide-react'
+import { CheckCircle2, Loader2, MailWarning, Send } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
-import { emailVerificationResendVerificationEmail, emailVerificationVerifyEmail } from '@/api'
+import {
+  type EmailDelivery,
+  emailVerificationResendVerificationEmail,
+  emailVerificationVerifyEmail,
+} from '@/api'
 import { Field, FormError } from '@/components/form-field'
 import { AuthLayout } from '@/components/layout/auth-layout'
 import { SubmitButton } from '@/components/submit-button'
@@ -33,10 +37,13 @@ export function Component() {
 
   const resend = useMutation({
     mutationFn: async (values: Values) => {
-      const { error } = await emailVerificationResendVerificationEmail({
+      const { data, error } = await emailVerificationResendVerificationEmail({
         body: { email: values.email },
       })
       if (error) throw error
+      // What the server is doing with outbound mail. It says the same thing for an address that
+      // has an account and one that does not, so wording the screen from it gives nothing away.
+      return (data?.delivery ?? 'sent') as EmailDelivery
     },
   })
 
@@ -86,6 +93,37 @@ export function Component() {
   }
 
   if (resend.isSuccess) {
+    if (resend.data === 'not_configured') {
+      return (
+        <AuthLayout title="Nothing to check for" description="No mail is going out.">
+          <Alert>
+            <MailWarning className="size-4" />
+            <AlertTitle>No message was sent</AlertTitle>
+            <AlertDescription>
+              Email is not set up on this server, so no link could be sent. Ask whoever runs it to
+              activate the account for you.
+            </AlertDescription>
+          </Alert>
+        </AuthLayout>
+      )
+    }
+
+    // A link the server has written down but not yet handed over is not a link in an inbox. Say
+    // so, rather than send somebody to look for something that is minutes away.
+    if (resend.data === 'queued') {
+      return (
+        <AuthLayout title="Check your email" description="A fresh link is on its way.">
+          <Alert>
+            <Send className="size-4" />
+            <AlertTitle>Still sending</AlertTitle>
+            <AlertDescription>
+              It should arrive shortly. Open the link in that email to activate your account.
+            </AlertDescription>
+          </Alert>
+        </AuthLayout>
+      )
+    }
+
     return (
       <AuthLayout title="Check your email" description="A fresh link is on its way.">
         <Alert>
