@@ -363,6 +363,22 @@ uv run alembic downgrade -1 # Rollback one version
   without this a downgrade followed by an upgrade fails with `DuplicateObject`
 - Never edit applied migrations
 
+### Data Migrations
+
+A revision that rewrites rows rather than the schema carries two extra obligations, because unlike a column
+its effect cannot be read back off the models.
+
+- Make the statement idempotent, by restricting it to the rows it has not already written. A deploy can be
+  retried, and a back-fill that doubles up on the second run is one nobody can re-run.
+- Put the statement in a module level constant and cover it in `tests/integration`, which has a real Postgres
+  to run it against. `d9f4c1b73a85_back_fill_the_category_cascade_mark.py` is the worked example: the test
+  imports the revision by path and executes the constant, so what is asserted is the statement a deployment
+  will run rather than a copy of it.
+
+A back-fill that guesses is usually not reversible — the rows it wrote are indistinguishable from the ones it
+left alone — so its `downgrade()` is a no-op with a comment saying why, not an inverse that would also clear
+what the application has recorded since.
+
 ## Domain
 
 The application is a personal finance manager. Everything below the household
