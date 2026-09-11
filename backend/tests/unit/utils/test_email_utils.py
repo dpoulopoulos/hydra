@@ -199,7 +199,7 @@ class TestGenerateEmailVerificationEmailWithUnusableInvite:
 class TestSendEmail:
     """Test the send_email function."""
 
-    def test_send_email_raises_assertion_error_when_emails_disabled(self, monkeypatch) -> None:
+    def test_send_email_raises_assertion_error_when_emails_disabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Send email raises AssertionError when emails are disabled."""
         # Arrange & Act & Assert: Verify assertion error is raised when emails are disabled
         monkeypatch.setattr(settings, "SMTP_HOST", None)
@@ -212,7 +212,7 @@ class TestSendEmail:
             )
 
     @patch("app.utils.email_utils.Message")
-    def test_send_email_with_tls(self, mock_message_class: MagicMock, monkeypatch) -> None:
+    def test_send_email_with_tls(self, mock_message_class: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
         """Send email with TLS enabled."""
         # Arrange: Set up email settings with TLS
         monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
@@ -254,7 +254,7 @@ class TestSendEmail:
 
     @patch("app.utils.email_utils.Message")
     def test_send_email_raises_what_the_mail_server_refused_with(
-        self, mock_message_class: MagicMock, monkeypatch
+        self, mock_message_class: MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A mail server that never took the message must not read as delivered."""
         # Arrange: The library reports a refusal in its return value, not by raising
@@ -276,7 +276,7 @@ class TestSendEmail:
 
     @patch("app.utils.email_utils.Message")
     def test_send_email_raises_when_the_mail_server_only_gives_a_status(
-        self, mock_message_class: MagicMock, monkeypatch
+        self, mock_message_class: MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A rejection without an exception behind it is still a rejection."""
         # Arrange: The server answered, and what it said was no
@@ -299,7 +299,7 @@ class TestSendEmail:
             )
 
     @patch("app.utils.email_utils.Message")
-    def test_send_email_with_ssl(self, mock_message_class: MagicMock, monkeypatch) -> None:
+    def test_send_email_with_ssl(self, mock_message_class: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
         """Send email with SSL enabled."""
         # Arrange: Set up email settings with SSL
         monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
@@ -334,7 +334,7 @@ class TestSendEmail:
         )
 
     @patch("app.utils.email_utils.Message")
-    def test_send_email_without_auth(self, mock_message_class: MagicMock, monkeypatch) -> None:
+    def test_send_email_without_auth(self, mock_message_class: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
         """Send email without SMTP authentication."""
         # Arrange: Set up email settings without authentication
         monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
@@ -366,7 +366,9 @@ class TestSendEmail:
         )
 
     @patch("app.utils.email_utils.Message")
-    def test_send_email_with_user_without_password(self, mock_message_class: MagicMock, monkeypatch) -> None:
+    def test_send_email_with_user_without_password(
+        self, mock_message_class: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Send email with SMTP user but no password."""
         # Arrange: Set up email settings with user but no password
         monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
@@ -404,14 +406,14 @@ class TestSendEmailViaResend:
     """Test send_email when the provider is Resend."""
 
     @pytest.fixture(autouse=True)
-    def _resend_settings(self, monkeypatch) -> None:
+    def _resend_settings(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Point the settings at Resend, with a key and a sender."""
         monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
         monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
         monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
         monkeypatch.setattr(settings, "EMAILS_FROM_NAME", "Test Sender")
 
-    def test_send_email_raises_assertion_error_without_api_key(self, monkeypatch) -> None:
+    def test_send_email_raises_assertion_error_without_api_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Send email raises AssertionError when the Resend key is missing."""
         # Arrange: Take the key away, which is all that enables the provider
         monkeypatch.setattr(settings, "RESEND_API_KEY", None)
@@ -449,7 +451,9 @@ class TestSendEmailViaResend:
         mock_post.return_value.raise_for_status.assert_called_once()
 
     @patch("app.utils.email_utils.httpx.post")
-    def test_send_email_omits_display_name_when_unset(self, mock_post: MagicMock, monkeypatch) -> None:
+    def test_send_email_omits_display_name_when_unset(
+        self, mock_post: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Send email sends a bare address when there is no display name."""
         # Arrange: Drop the display name
         monkeypatch.setattr(settings, "EMAILS_FROM_NAME", None)

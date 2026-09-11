@@ -24,7 +24,7 @@ from app.models.fields import BCRYPT_MAX_PASSWORD_BYTES
 class TestCreateAccessToken:
     """Test suite for create_access_token function."""
 
-    def test_create_session_token(self):
+    def test_create_session_token(self) -> None:
         """Test creating an access token with a UUID subject."""
         # Arrange: Set up test data
         subject = uuid.uuid4()
@@ -53,7 +53,7 @@ class TestCreateAccessToken:
             <= after_creation + timedelta(hours=settings.SESSION_TOKEN_EXPIRE_HOURS) + timedelta(seconds=5)
         )
 
-    def test_create_session_token_uses_correct_algorithm(self):
+    def test_create_session_token_uses_correct_algorithm(self) -> None:
         """Test that the token uses the HS256 algorithm."""
         # Arrange: Set up test data
         subject = uuid.uuid4()
@@ -73,7 +73,7 @@ class TestCreateAccessToken:
 class TestGetPasswordHash:
     """Test suite for get_password_hash function."""
 
-    def test_get_password_hash_returns_string(self):
+    def test_get_password_hash_returns_string(self) -> None:
         """Test that get_password_hash returns a string."""
         # Arrange: Set up test password
         password = "testpassword123"
@@ -85,7 +85,7 @@ class TestGetPasswordHash:
         assert isinstance(hashed, str)
         assert len(hashed) > 0
 
-    def test_get_password_hash_returns_different_hash_each_time(self):
+    def test_get_password_hash_returns_different_hash_each_time(self) -> None:
         """Test that hashing the same password twice produces different hashes (due to salt)."""
         # Arrange: Set up test password
         password = "testpassword123"
@@ -97,7 +97,7 @@ class TestGetPasswordHash:
         # Assert: Verify hashes are different due to random salt
         assert hash1 != hash2
 
-    def test_get_password_hash_produces_bcrypt_format(self):
+    def test_get_password_hash_produces_bcrypt_format(self) -> None:
         """Test that the hash is in bcrypt format."""
         # Arrange: Set up test password
         password = "testpassword123"
@@ -108,7 +108,7 @@ class TestGetPasswordHash:
         # Assert: Verify hash is in bcrypt format (starts with $2b$)
         assert hashed.startswith("$2b$")
 
-    def test_get_password_hash_with_empty_string(self):
+    def test_get_password_hash_with_empty_string(self) -> None:
         """Test hashing an empty string."""
         # Arrange: Set up empty password
         password = ""
@@ -120,7 +120,7 @@ class TestGetPasswordHash:
         assert isinstance(hashed, str)
         assert len(hashed) > 0
 
-    def test_get_password_hash_at_bcrypt_limit(self):
+    def test_get_password_hash_at_bcrypt_limit(self) -> None:
         """Test hashing a password of exactly the maximum length bcrypt accepts."""
         # Arrange: Set up a password of exactly 72 bytes
         password = "a" * BCRYPT_MAX_PASSWORD_BYTES
@@ -132,7 +132,7 @@ class TestGetPasswordHash:
         assert isinstance(hashed, str)
         assert len(hashed) > 0
 
-    def test_get_password_hash_rejects_password_over_bcrypt_limit(self):
+    def test_get_password_hash_rejects_password_over_bcrypt_limit(self) -> None:
         """Test that a password longer than bcrypt accepts is rejected, not truncated."""
         # Arrange: Set up a password one byte over the limit
         password = "a" * (BCRYPT_MAX_PASSWORD_BYTES + 1)
@@ -142,7 +142,7 @@ class TestGetPasswordHash:
         with pytest.raises(ValueError):
             get_password_hash(password)
 
-    def test_get_password_hash_with_special_characters(self):
+    def test_get_password_hash_with_special_characters(self) -> None:
         """Test hashing a password with special characters."""
         # Arrange: Set up password with special characters
         password = "p@ssw0rd!#$%^&*()_+-=[]{}|;:',.<>?/~`"
@@ -158,7 +158,7 @@ class TestGetPasswordHash:
 class TestDummyPasswordHash:
     """Test suite for dummy_password_hash function."""
 
-    def test_dummy_password_hash_produces_bcrypt_format(self):
+    def test_dummy_password_hash_produces_bcrypt_format(self) -> None:
         """Test that the dummy hash looks like any other stored hash."""
         # Act: Ask for the dummy hash
         hashed = dummy_password_hash()
@@ -167,7 +167,7 @@ class TestDummyPasswordHash:
         assert hashed.startswith("$2b$")
         assert hashed.split("$")[2] == get_password_hash("testpassword123").split("$")[2]
 
-    def test_dummy_password_hash_is_computed_once(self):
+    def test_dummy_password_hash_is_computed_once(self) -> None:
         """Test that repeated calls return the same hash rather than hashing again."""
         # Act: Ask for the dummy hash twice
         first = dummy_password_hash()
@@ -176,7 +176,7 @@ class TestDummyPasswordHash:
         # Assert: Verify the same hash comes back, so no request pays to build it
         assert first == second
 
-    def test_dummy_password_hash_matches_no_password(self):
+    def test_dummy_password_hash_matches_no_password(self) -> None:
         """Test that verifying against the dummy hash fails."""
         # Act: Verify a password against the dummy hash
         result = verify_password("testpassword123", dummy_password_hash())
@@ -188,7 +188,7 @@ class TestDummyPasswordHash:
 class TestVerifyPassword:
     """Test suite for verify_password function."""
 
-    def test_verify_password_returns_true_for_correct_password(self):
+    def test_verify_password_returns_true_for_correct_password(self) -> None:
         """Test that verify_password returns True for the correct password."""
         # Arrange: Set up password and hash
         plain_password = "testpassword123"
@@ -200,7 +200,7 @@ class TestVerifyPassword:
         # Assert: Verify result is True
         assert result is True
 
-    def test_verify_password_returns_false_for_incorrect_password(self):
+    def test_verify_password_returns_false_for_incorrect_password(self) -> None:
         """Test that verify_password returns False for an incorrect password."""
         # Arrange: Set up correct password hash and wrong password
         plain_password = "testpassword123"
@@ -213,7 +213,7 @@ class TestVerifyPassword:
         # Assert: Verify result is False
         assert result is False
 
-    def test_verify_password_with_empty_string(self):
+    def test_verify_password_with_empty_string(self) -> None:
         """Test verifying an empty password."""
         # Arrange: Set up empty password and its hash
         plain_password = ""
@@ -225,7 +225,7 @@ class TestVerifyPassword:
         # Act & Assert: Verify wrong password (non-empty) against empty hash returns False
         assert verify_password("nonempty", hashed_password) is False
 
-    def test_verify_password_case_sensitive(self):
+    def test_verify_password_case_sensitive(self) -> None:
         """Test that password verification is case-sensitive."""
         # Arrange: Set up password with mixed case and its hash
         plain_password = "TestPassword123"
@@ -240,7 +240,7 @@ class TestVerifyPassword:
         # Act & Assert: Verify uppercase version returns False
         assert verify_password("TESTPASSWORD123", hashed_password) is False
 
-    def test_verify_password_with_special_characters(self):
+    def test_verify_password_with_special_characters(self) -> None:
         """Test verifying passwords with special characters."""
         # Arrange: Set up password with special characters and its hash
         plain_password = "p@ssw0rd!#$%"
@@ -252,7 +252,7 @@ class TestVerifyPassword:
         # Act & Assert: Verify slightly different password returns False
         assert verify_password("p@ssw0rd!#$", hashed_password) is False
 
-    def test_verify_password_with_unicode_characters(self):
+    def test_verify_password_with_unicode_characters(self) -> None:
         """Test verifying passwords with unicode characters."""
         # Arrange: Set up password with unicode characters and its hash
         plain_password = "пароль密码🔐"
@@ -264,7 +264,7 @@ class TestVerifyPassword:
         # Act & Assert: Verify incomplete password returns False
         assert verify_password("пароль密码", hashed_password) is False
 
-    def test_verify_password_with_whitespace(self):
+    def test_verify_password_with_whitespace(self) -> None:
         """Test that whitespace in passwords is significant."""
         # Arrange: Set up password with whitespace and its hash
         plain_password = "password with spaces"
@@ -286,7 +286,7 @@ class TestVerifyPassword:
 class TestCreatePasswordResetToken:
     """Test suite for create_password_reset_token function."""
 
-    def test_create_password_reset_token(self):
+    def test_create_password_reset_token(self) -> None:
         """Test creating a password reset token."""
         # Arrange: Set up test data
         email = "user@example.com"
@@ -319,7 +319,7 @@ class TestCreatePasswordResetToken:
         # Verify nbf (not before) is set
         assert "nbf" in decoded
 
-    def test_create_password_reset_token_uses_correct_algorithm(self):
+    def test_create_password_reset_token_uses_correct_algorithm(self) -> None:
         """Test that password reset tokens use the HS256 algorithm."""
         # Arrange: Set up test data
         email = "user@example.com"
@@ -339,7 +339,7 @@ class TestCreatePasswordResetToken:
 class TestCreateEmailVerificationToken:
     """Test suite for create_email_verification_token function."""
 
-    def test_create_email_verification_token(self):
+    def test_create_email_verification_token(self) -> None:
         """Test creating an email verification token."""
         # Arrange: Set up test data
         email = "user@example.com"
@@ -372,7 +372,7 @@ class TestCreateEmailVerificationToken:
         # Verify nbf (not before) is set
         assert "nbf" in decoded
 
-    def test_create_email_verification_token_uses_correct_algorithm(self):
+    def test_create_email_verification_token_uses_correct_algorithm(self) -> None:
         """Test that email verification tokens use the HS256 algorithm."""
         # Arrange: Set up test data
         email = "user@example.com"
@@ -392,7 +392,7 @@ class TestCreateEmailVerificationToken:
 class TestVerifyTypedToken:
     """Test suite for verify_typed_token function."""
 
-    def test_verify_typed_token_success_returns_decoded_payload(self):
+    def test_verify_typed_token_success_returns_decoded_payload(self) -> None:
         """Test that verify_typed_token returns decoded payload on success."""
         # Arrange: Create a valid token
         email = "user@example.com"
@@ -411,7 +411,7 @@ class TestVerifyTypedToken:
         assert JWT.Claims.AUD in decoded
         assert JWT.Claims.EXP in decoded
 
-    def test_verify_typed_token_maps_invalid_token_to_custom_exception(self):
+    def test_verify_typed_token_maps_invalid_token_to_custom_exception(self) -> None:
         """Test that InvalidTokenError is mapped to custom exception."""
 
         # Arrange: Create a custom exception class
@@ -422,7 +422,7 @@ class TestVerifyTypedToken:
         with pytest.raises(CustomTokenError):
             verify_typed_token("invalid.token.here", TokenType.PASSWORD_RESET, CustomTokenError)
 
-    def test_verify_typed_token_preserves_exception_chain(self):
+    def test_verify_typed_token_preserves_exception_chain(self) -> None:
         """Test that exception chain is preserved (from exc)."""
 
         # Arrange: Create a custom exception class
@@ -437,7 +437,7 @@ class TestVerifyTypedToken:
         assert exc_info.value.__cause__ is not None
         assert isinstance(exc_info.value.__cause__, InvalidTokenError)
 
-    def test_verify_typed_token_wrong_token_type_raises_exception(self):
+    def test_verify_typed_token_wrong_token_type_raises_exception(self) -> None:
         """Test that wrong token type raises custom exception."""
         # Arrange: Create an email verification token but expect password reset
         email = "user@example.com"
@@ -450,7 +450,7 @@ class TestVerifyTypedToken:
         with pytest.raises(CustomTokenError):
             verify_typed_token(token, TokenType.PASSWORD_RESET, CustomTokenError)
 
-    def test_verify_typed_token_expired_token_raises_exception(self):
+    def test_verify_typed_token_expired_token_raises_exception(self) -> None:
         """Test that expired token raises custom exception."""
         # Arrange: Create an expired token
         email = "user@example.com"
@@ -473,7 +473,7 @@ class TestVerifyTypedToken:
         with pytest.raises(CustomTokenError):
             verify_typed_token(expired_token, TokenType.PASSWORD_RESET, CustomTokenError)
 
-    def test_verify_typed_token_works_for_all_token_types(self):
+    def test_verify_typed_token_works_for_all_token_types(self) -> None:
         """Test that verify_typed_token works for all TokenType variants."""
         # Arrange: Create tokens for each type
         email = "user@example.com"

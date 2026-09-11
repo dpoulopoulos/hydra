@@ -15,7 +15,7 @@ class TestInitDb:
         mock_household_service: HouseholdService,
         mock_category_service: CategoryService,
         test_superuser: User,
-    ):
+    ) -> None:
         """Test that init_db does not create a superuser when one already exists."""
         # Arrange: Mock the service to return an existing superuser
         mock_user_service.get_user_by_email = MagicMock(return_value=test_superuser)
@@ -42,7 +42,7 @@ class TestInitDb:
         mock_household_service: HouseholdService,
         mock_category_service: CategoryService,
         test_superuser: User,
-    ):
+    ) -> None:
         """Test that init_db creates a superuser when none exists."""
         # Arrange: Mock the service to return None (no existing superuser)
         mock_user_service.get_user_by_email = MagicMock(return_value=None)
@@ -79,7 +79,7 @@ class TestInitDb:
         mock_household_service: HouseholdService,
         mock_category_service: CategoryService,
         test_superuser: User,
-    ):
+    ) -> None:
         """Test that init_db repairs users that have no household."""
         # Arrange: A superuser already exists, but some accounts have no household
         mock_user_service.get_user_by_email = MagicMock(return_value=test_superuser)
@@ -105,7 +105,7 @@ class TestInitDb:
         mock_household_service: HouseholdService,
         mock_category_service: CategoryService,
         test_superuser: User,
-    ):
+    ) -> None:
         """Test that a newly created superuser gets a household in the same transaction."""
         # Arrange: Mock the service to return None (no existing superuser)
         mock_user_service.get_user_by_email = MagicMock(return_value=None)
@@ -132,7 +132,7 @@ class TestInitDb:
         mock_household_service: HouseholdService,
         mock_category_service: CategoryService,
         test_superuser: User,
-    ):
+    ) -> None:
         """Test that init_db gives an owner back to the households that lost theirs."""
         # Arrange: A superuser already exists, but a household has no owner left
         mock_user_service.get_user_by_email = MagicMock(return_value=test_superuser)

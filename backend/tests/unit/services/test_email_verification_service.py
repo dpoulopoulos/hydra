@@ -492,7 +492,7 @@ class TestSendVerificationEmail:
         mock_email_verification_service: EmailVerificationService,
         mock_user_service: UserService,
         test_user: User,
-        caplog,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test that a delivery failure is queued for a retry instead of failing the request."""
         # Arrange: The verification row is written, then the provider rate limits us
@@ -521,7 +521,7 @@ class TestSendVerificationEmail:
         mock_email_verification_service: EmailVerificationService,
         mock_user_service: UserService,
         test_user: User,
-        monkeypatch,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test sending verification email with emails disabled."""
         # Arrange

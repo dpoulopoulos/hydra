@@ -155,7 +155,10 @@ class TestAuthenticate:
                 mock_user_service.authenticate(email=test_inactive_user.email, password="password123")
 
     def test_authenticate_inactive_user_with_pending_verification(
-        self, mock_user_service: UserService, test_inactive_user: User, mock_email_verification_service
+        self,
+        mock_user_service: UserService,
+        test_inactive_user: User,
+        mock_email_verification_service: EmailVerificationService,
     ) -> None:
         """Test authentication with inactive user with pending email verification."""
         # Arrange: Mock database query to return inactive user
@@ -180,7 +183,10 @@ class TestAuthenticate:
             assert exc_info.value.is_verified is False
 
     def test_authenticate_inactive_user_without_pending_verification(
-        self, mock_user_service: UserService, test_inactive_user: User, mock_email_verification_service
+        self,
+        mock_user_service: UserService,
+        test_inactive_user: User,
+        mock_email_verification_service: EmailVerificationService,
     ) -> None:
         """Test authentication with inactive user without pending email verification."""
         # Arrange: Mock database query to return inactive user
@@ -202,7 +208,10 @@ class TestAuthenticate:
             assert exc_info.value.is_verified is True
 
     def test_a_pending_address_change_does_not_explain_a_disabled_account(
-        self, mock_user_service: UserService, test_inactive_user: User, mock_email_verification_service
+        self,
+        mock_user_service: UserService,
+        test_inactive_user: User,
+        mock_email_verification_service: EmailVerificationService,
     ) -> None:
         """An account disabled mid-change is disabled, not waiting to be confirmed."""
         # Arrange: the account has a pending change of address, but nothing to activate it
@@ -253,7 +262,7 @@ class TestCreateUser:
         mock_user_service.session.refresh.assert_called()
 
     def test_create_user_survives_a_failed_welcome_email(
-        self, mock_user_service: UserService, monkeypatch, caplog
+        self, mock_user_service: UserService, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test that a welcome email that cannot be delivered is queued for a retry."""
         # Arrange: Mock database operations and turn mail on

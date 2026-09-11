@@ -22,7 +22,9 @@ from app.services import PasswordResetService, UserService
 class TestGetUserService:
     """Test cases for get_user_service dependency."""
 
-    def test_get_user_service_returns_service(self, mock_db_session: MagicMock, mock_user_repository: UserRepository):
+    def test_get_user_service_returns_service(
+        self, mock_db_session: MagicMock, mock_user_repository: UserRepository
+    ) -> None:
         """Test that get_user_service returns a UserService instance."""
         # Act: Get user service with mock database session and repository
         result = get_user_service(mock_db_session, mock_user_repository)
@@ -38,7 +40,7 @@ class TestGetPasswordResetService:
 
     def test_get_password_reset_service_returns_service(
         self, mock_db_session: MagicMock, mock_password_reset_repository: PasswordResetRepository
-    ):
+    ) -> None:
         """Test that get_password_reset_service returns a PasswordResetService instance."""
         # Act: Get password reset service with mock database session and repository
         result = get_password_reset_service(mock_db_session, mock_password_reset_repository)
@@ -52,7 +54,9 @@ class TestGetPasswordResetService:
 class TestGetCurrentUser:
     """Test cases for get_current_user dependency."""
 
-    def test_get_current_user_with_valid_token(self, mock_user_service: UserService, user_token: str, test_user: User):
+    def test_get_current_user_with_valid_token(
+        self, mock_user_service: UserService, user_token: str, test_user: User
+    ) -> None:
         """Test get_current_user with a valid token."""
         # Arrange: Mock user service to return test user
         mock_user_service.get_authenticated_user = MagicMock(return_value=test_user)
@@ -64,7 +68,7 @@ class TestGetCurrentUser:
         assert result == test_user
         mock_user_service.get_authenticated_user.assert_called_once()
 
-    def test_get_current_user_with_malformed_token(self, mock_user_service: UserService):
+    def test_get_current_user_with_malformed_token(self, mock_user_service: UserService) -> None:
         """Test get_current_user with a malformed token."""
         # Arrange: Set up malformed token
         malformed_token = "not-a-jwt-token"
@@ -77,7 +81,7 @@ class TestGetCurrentUser:
     @patch("app.api.deps.decode_token")
     def test_get_current_user_with_validation_error(
         self, mock_jwt_decode: MagicMock, mock_token_payload: MagicMock, mock_user_service: UserService
-    ):
+    ) -> None:
         """Test get_current_user when token payload fails validation."""
         # Arrange: Mock decode_token to return a valid payload and TokenPayload to raise ValidationError
         mock_jwt_decode.decode_token = {"sub": "some-id"}
@@ -96,7 +100,7 @@ class TestGetCurrentUser:
         with pytest.raises(InvalidCredentialsError):
             get_current_user(mock_user_service, "some.token.here")
 
-    def test_get_current_user_with_expired_token(self, mock_user_service: UserService, expired_user_token: str):
+    def test_get_current_user_with_expired_token(self, mock_user_service: UserService, expired_user_token: str) -> None:
         """Test get_current_user with an expired JWT token."""
         # Act & Assert: Verify InvalidCredentialsError is raised for expired token
         with pytest.raises(InvalidCredentialsError):
@@ -106,7 +110,7 @@ class TestGetCurrentUser:
 class TestGetCurrentActiveSuperuser:
     """Test cases for get_current_active_superuser dependency."""
 
-    def test_get_current_active_superuser_with_superuser(self, test_superuser: User):
+    def test_get_current_active_superuser_with_superuser(self, test_superuser: User) -> None:
         """Test get_current_active_superuser with a valid superuser."""
         # Act: Get current active superuser with valid superuser
         result = get_current_active_superuser(test_superuser)
@@ -115,7 +119,7 @@ class TestGetCurrentActiveSuperuser:
         assert result == test_superuser
         assert result.is_superuser is True
 
-    def test_get_current_active_superuser_with_regular_user(self, test_user: User):
+    def test_get_current_active_superuser_with_regular_user(self, test_user: User) -> None:
         """Test get_current_active_superuser with a regular user raises error."""
         # Act & Assert: Verify UserNotAuthorizedError is raised for regular user
         with pytest.raises(UserNotAuthorizedError):

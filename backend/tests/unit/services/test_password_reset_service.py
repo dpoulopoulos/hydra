@@ -194,7 +194,7 @@ class TestRequestPasswordReset:
         mock_password_reset_service: PasswordResetService,
         mock_user_service: MagicMock,
         test_user: User,
-        caplog,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test that a delivery failure is queued for a retry and does not fail the request."""
         # Arrange: Mock user service to return test user

@@ -43,7 +43,7 @@ class TestRunEmailDispatcher:
         # Assert: Verify the poll interval came first
         mock_dispatch.assert_not_called()
 
-    def test_the_loop_survives_a_failed_round(self, caplog) -> None:
+    def test_the_loop_survives_a_failed_round(self, caplog: pytest.LogCaptureFixture) -> None:
         """A database that is briefly unreachable must not end the dispatcher."""
         # Arrange: The first round fails, the second is cancelled
         sleeps = [None, asyncio.CancelledError]
@@ -68,7 +68,7 @@ class TestRunEmailDispatcher:
 class TestEmailDispatcherLifespan:
     """Test what the application starts and stops around the dispatcher."""
 
-    def test_the_dispatcher_runs_while_the_app_does(self, monkeypatch) -> None:
+    def test_the_dispatcher_runs_while_the_app_does(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """The loop is started at startup and cancelled at shutdown."""
         # Arrange: Mail is configured, whatever the developer's .env happens to say
         monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "noreply@example.com")
@@ -89,7 +89,9 @@ class TestEmailDispatcherLifespan:
         # Assert: Verify the loop did not outlive the application
         assert task.cancelled() or task.done()
 
-    def test_the_dispatcher_does_not_run_without_a_provider(self, monkeypatch, caplog) -> None:
+    def test_the_dispatcher_does_not_run_without_a_provider(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """With no mail configured there is nothing to deliver."""
         # Arrange: Emails are not configured
         monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", None)

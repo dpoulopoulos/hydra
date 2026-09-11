@@ -1,4 +1,5 @@
 import datetime
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -59,8 +60,13 @@ def provider() -> YahooFinanceProvider:
     )
 
 
+# What the `wire` fixture hands a test: install a route table, get the client
+# that recorded the calls back.
+Wire = Callable[[dict[str, "FakeResponse"]], "FakeClient"]
+
+
 @pytest.fixture
-def wire(monkeypatch: pytest.MonkeyPatch):
+def wire(monkeypatch: pytest.MonkeyPatch) -> Wire:
     """Put a fake client behind the provider, and skip the token handshake."""
 
     def install(routes: dict[str, FakeResponse]) -> FakeClient:
@@ -80,7 +86,7 @@ def quote_body(rows: list[dict[str, Any]]) -> dict[str, Any]:
 class TestQuotes:
     """Tests for fetching prices."""
 
-    def test_reads_a_price_into_minor_units(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_reads_a_price_into_minor_units(self, provider: YahooFinanceProvider, wire: Wire) -> None:
         """Test that a decimal price lands as scaled minor units, exactly."""
         # Arrange: Set up a listing quoted at 128.4567 euro
         wire(
@@ -110,7 +116,7 @@ class TestQuotes:
         assert found["VWCE.DE"].currency_code == "EUR"
         assert found["VWCE.DE"].exchange == "XETRA"
 
-    def test_a_zero_decimal_currency_keeps_its_whole_units(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_a_zero_decimal_currency_keeps_its_whole_units(self, provider: YahooFinanceProvider, wire: Wire) -> None:
         """Test that the yen is not given cents it has no minor unit for."""
         # Arrange: Set up a listing quoted at 3200 yen
         wire(
@@ -127,7 +133,7 @@ class TestQuotes:
         # Assert: Verify the price is 3200 units rather than 320000 of anything
         assert found["7203.T"].price_micro == 3200 * MICRO
 
-    def test_asks_for_every_symbol_in_one_request(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_asks_for_every_symbol_in_one_request(self, provider: YahooFinanceProvider, wire: Wire) -> None:
         """Test that a portfolio costs one request rather than one per holding.
 
         This is what keeps the provider's rate limit from being tripped, so it
@@ -145,7 +151,7 @@ class TestQuotes:
         assert len(client.calls) == 1
         assert client.calls[0][1]["symbols"] == "A.DE,B.DE,C.DE"
 
-    def test_falls_back_per_symbol_for_what_the_batch_missed(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_falls_back_per_symbol_for_what_the_batch_missed(self, provider: YahooFinanceProvider, wire: Wire) -> None:
         """Test that a symbol the batch skipped is retried against the other endpoint."""
         # Arrange: Set up a batch that answers for one of two symbols, and a
         # chart endpoint that knows the other
@@ -173,7 +179,7 @@ class TestQuotes:
         assert found["B.DE"].price_micro == 2_000 * MICRO
         assert any("/v8/finance/chart/" in url for url, _ in client.calls)
 
-    def test_an_unknown_symbol_is_reported_rather_than_raised(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_an_unknown_symbol_is_reported_rather_than_raised(self, provider: YahooFinanceProvider, wire: Wire) -> None:
         """Test that one delisted ticker does not stop the rest being priced."""
         # Arrange: Set up a batch that skips the symbol and a chart that denies it
         wire(
@@ -192,7 +198,7 @@ class TestQuotes:
         assert found == {}
         assert failed["GONE.XX"] == "No data found"
 
-    def test_rate_limiting_says_what_to_do_about_it(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_rate_limiting_says_what_to_do_about_it(self, provider: YahooFinanceProvider, wire: Wire) -> None:
         """Test that a 429 is explained rather than surfacing as a bare status."""
         # Arrange: Set up a provider that is refusing this address
         wire(
@@ -210,7 +216,7 @@ class TestQuotes:
         assert "rate limiting" in str(exc_info.value)
 
     def test_a_rate_limited_retry_does_not_discard_what_the_batch_fetched(
-        self, provider: YahooFinanceProvider, wire
+        self, provider: YahooFinanceProvider, wire: Wire
     ) -> None:
         """Test that one refused retry keeps the prices already in hand.
 
@@ -236,7 +242,7 @@ class TestQuotes:
         assert found["A.DE"].price_micro == 1_000 * MICRO
         assert "rate limiting" in failed["B.DE"]
 
-    def test_a_row_with_no_price_is_not_treated_as_free(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_a_row_with_no_price_is_not_treated_as_free(self, provider: YahooFinanceProvider, wire: Wire) -> None:
         """Test that a missing price is a failure rather than a price of zero."""
         # Arrange: Set up a row the provider returned without a price
         wire(
@@ -257,7 +263,7 @@ class TestQuotes:
 class TestFxRates:
     """Tests for fetching exchange rates."""
 
-    def test_reads_a_rate_for_a_pair(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_reads_a_rate_for_a_pair(self, provider: YahooFinanceProvider, wire: Wire) -> None:
         """Test that a pair is priced as an instrument and read back as a rate."""
         # Arrange: Set up the dollar priced at 0.92 euro
         client = wire(
@@ -276,7 +282,7 @@ class TestFxRates:
         assert found[("USD", "EUR")].rate_micro == 920_000
         assert client.calls[0][1]["symbols"] == "USDEUR=X"
 
-    def test_a_pair_that_failed_is_named_as_a_pair(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_a_pair_that_failed_is_named_as_a_pair(self, provider: YahooFinanceProvider, wire: Wire) -> None:
         """Test that a failure reads as "USD/EUR" rather than as a ticker."""
         # Arrange: Set up a provider that knows nothing about the pair
         wire(
@@ -299,7 +305,7 @@ class TestFxRates:
 class TestSearch:
     """Tests for looking up listings."""
 
-    def test_maps_a_match(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_maps_a_match(self, provider: YahooFinanceProvider, wire: Wire) -> None:
         # Arrange: Set up one result from the search index
         wire(
             {
@@ -328,7 +334,7 @@ class TestSearch:
         assert matches[0].kind == InstrumentKind.ETF
         assert matches[0].currency_code is None
 
-    def test_drops_a_row_the_provider_does_not_own(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_drops_a_row_the_provider_does_not_own(self, provider: YahooFinanceProvider, wire: Wire) -> None:
         """Test that a match nothing could then price is never offered."""
         # Arrange: Set up a result the provider says is not its own
         wire(
@@ -345,7 +351,9 @@ class TestSearch:
         # Assert: Verify it was left out
         assert matches == []
 
-    def test_an_unexpected_body_is_no_matches_rather_than_a_crash(self, provider: YahooFinanceProvider, wire) -> None:
+    def test_an_unexpected_body_is_no_matches_rather_than_a_crash(
+        self, provider: YahooFinanceProvider, wire: Wire
+    ) -> None:
         # Arrange: Set up a body with nothing recognisable in it
         wire({"/v1/finance/search": FakeResponse({"unexpected": True})})
 

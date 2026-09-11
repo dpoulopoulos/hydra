@@ -19,7 +19,7 @@ from app.models.fields import (
 class TestPassword:
     """Test the Password field type."""
 
-    def test_password_at_byte_limit_is_accepted(self):
+    def test_password_at_byte_limit_is_accepted(self) -> None:
         """Test that a password of exactly the maximum length is accepted."""
         # Arrange: Set up a password of exactly the maximum number of bytes
         password = "a" * BCRYPT_MAX_PASSWORD_BYTES
@@ -30,7 +30,7 @@ class TestPassword:
         # Assert: Verify the password was accepted unchanged
         assert user.password == password
 
-    def test_password_over_character_limit_is_rejected(self):
+    def test_password_over_character_limit_is_rejected(self) -> None:
         """Test that a password with too many characters is rejected."""
         # Arrange: Set up a password one character over the limit
         password = "a" * (BCRYPT_MAX_PASSWORD_BYTES + 1)
@@ -41,7 +41,7 @@ class TestPassword:
 
         assert "at most" in str(exc_info.value)
 
-    def test_password_within_character_limit_but_over_byte_limit_is_rejected(self):
+    def test_password_within_character_limit_but_over_byte_limit_is_rejected(self) -> None:
         """Test that multi-byte characters are measured as encoded bytes, not characters."""
         # Arrange: Set up a password that fits the character limit but not the byte
         # limit, since each of these characters encodes to two bytes
@@ -102,7 +102,7 @@ class TestIban:
 
     adapter = TypeAdapter(Iban)
 
-    def test_spacing_and_case_are_normalized(self):
+    def test_spacing_and_case_are_normalized(self) -> None:
         """Test that an IBAN written in groups of four is stored compact."""
         # Arrange: Set up an IBAN the way a bank statement prints it
         written = "gr16 0110 1250 0000 0001 2300 695"
@@ -113,7 +113,7 @@ class TestIban:
         # Assert: Verify the spaces are gone and the letters are upper case
         assert iban == "GR1601101250000000012300695"
 
-    def test_valid_iban_is_accepted(self):
+    def test_valid_iban_is_accepted(self) -> None:
         """Test that a well formed IBAN passes the check digits."""
         # Arrange: Set up a valid IBAN
         written = "DE89370400440532013000"
@@ -124,7 +124,7 @@ class TestIban:
         # Assert: Verify it is returned unchanged
         assert iban == written
 
-    def test_mistyped_iban_is_rejected(self):
+    def test_mistyped_iban_is_rejected(self) -> None:
         """Test that a single wrong digit fails the check digits."""
         # Arrange: Set up a valid IBAN with one digit changed
         written = "DE89370400440532013001"
@@ -135,7 +135,7 @@ class TestIban:
 
         assert "check digits" in str(exc_info.value)
 
-    def test_malformed_iban_is_rejected(self):
+    def test_malformed_iban_is_rejected(self) -> None:
         """Test that something that is not shaped like an IBAN is rejected."""
         # Arrange: Set up a value that is too short and starts with digits
         written = "1234"
@@ -159,7 +159,7 @@ class TestUtcMoment:
 
     adapter = TypeAdapter(UtcMoment)
 
-    def test_a_moment_with_no_zone_is_read_as_utc(self):
+    def test_a_moment_with_no_zone_is_read_as_utc(self) -> None:
         """Test that a naive input is not left for the session zone to decide."""
         # Arrange: Set up a timestamp with no offset, as a caller may send one
         written = "2026-09-08T15:30:00"
@@ -170,7 +170,7 @@ class TestUtcMoment:
         # Assert: Verify it names UTC and keeps the wall time it was sent with
         assert moment == datetime(2026, 9, 8, 15, 30, tzinfo=UTC)
 
-    def test_a_moment_in_another_zone_is_converted(self):
+    def test_a_moment_in_another_zone_is_converted(self) -> None:
         """Test that an offset the caller did send is honoured, not ignored."""
         # Arrange: Set up the same instant, written in a zone two hours ahead
         written = "2026-09-08T17:30:00+02:00"
@@ -182,7 +182,7 @@ class TestUtcMoment:
         assert moment == datetime(2026, 9, 8, 15, 30, tzinfo=UTC)
         assert moment.utcoffset() == timedelta(0)
 
-    def test_a_typed_price_is_dated_in_utc(self):
+    def test_a_typed_price_is_dated_in_utc(self) -> None:
         """Test that the one input model carrying a moment applies the rule."""
         # Arrange & Act: Type in a price dated with no zone
         price_update = InstrumentPriceUpdate(price_micro=12_845_670_000, as_of="2026-09-08T15:30:00")

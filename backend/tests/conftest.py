@@ -335,7 +335,7 @@ def inactive_user_auth_headers(inactive_user_token: str) -> dict[str, str]:
 
 
 @pytest.fixture
-def base_settings_env(monkeypatch):
+def base_settings_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Set up common environment variables for Settings tests.
 
     This fixture provides secure default values for all required settings.
