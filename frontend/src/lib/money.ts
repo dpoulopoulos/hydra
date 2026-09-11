@@ -94,6 +94,38 @@ export function numberGrouping(locale?: string): NumberGrouping {
   return grouping
 }
 
+const digitsCache = new Map<string, string | null>()
+
+/** The ten characters ASCII counts with, zero first. */
+const ASCII_DIGITS = '0123456789'
+
+/**
+ * Get the ten characters a locale writes figures with, zero first, e.g.
+ * "٠١٢٣٤٥٦٧٨٩" for ar-EG, or `null` where they are the ASCII ones.
+ *
+ * Which characters are digits is as much a part of how a locale writes a
+ * number as which are its separators: a reader in ar-EG or fa-IR is shown 1200
+ * as "١٬٢٠٠", so anything reading an amount back has to take the digits
+ * the reader was shown and types on their own keypad. `null`, rather than the
+ * ASCII ten, so a caller can skip the mapping for the locales needing none.
+ */
+export function numberDigits(locale?: string): string | null {
+  const key = locale ?? ''
+  const cached = digitsCache.get(key)
+  if (cached !== undefined) return cached
+
+  // One figure carrying all ten digits, ungrouped so that nothing but digits
+  // comes back. Zero is written last, and the helper reports it first.
+  const written = new Intl.NumberFormat(locale, { useGrouping: false }).format(1234567890)
+  const characters = [...written]
+  const digits =
+    characters.length === 10 ? [characters[9], ...characters.slice(0, 9)].join('') : ASCII_DIGITS
+
+  const mapped = digits === ASCII_DIGITS ? null : digits
+  digitsCache.set(key, mapped)
+  return mapped
+}
+
 /** Convert minor units to the major amount, e.g. 4250 -> 42.5 for EUR. */
 export function toMajor(minor: number, currency: string): number {
   return minor / 10 ** fractionDigits(currency)
