@@ -370,6 +370,86 @@ class TestCancelPendingEmailChangeMe:
         assert response.status_code == 401
 
 
+class TestResendEmailChangeVerification:
+    """Tests for the resend endpoint (POST /email-verification/me/pending-change/resend)."""
+
+    def test_resends_the_change_without_being_told_an_address(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test the caller names no address, so none can be aimed at."""
+
+        # Arrange: Set up dependency overrides with an authenticated user
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        try:
+            with patch.object(
+                EmailVerificationService,
+                "resend_email_change_verification",
+                return_value=Message(message="Verification email sent to the new address."),
+            ) as resend:
+                # Act
+                response = client.post("/api/v1/email-verification/me/pending-change/resend")
+
+                # Assert
+                assert response.status_code == 200
+                assert response.json()["message"] == "Verification email sent to the new address."
+                assert resend.call_args.kwargs["user"] == test_user
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+    def test_reports_that_there_is_nothing_to_resend(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test an account with no pending change is answered with a 404."""
+
+        # Arrange
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        try:
+            with patch.object(
+                EmailVerificationService,
+                "resend_email_change_verification",
+                side_effect=EmailVerificationNotFoundError,
+            ):
+                # Act
+                response = client.post("/api/v1/email-verification/me/pending-change/resend")
+
+                # Assert
+                assert response.status_code == 404
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+    def test_requires_authentication(self, client: TestClient) -> None:
+        """Test the endpoint refuses a caller with no token."""
+        # Act
+        response = client.post("/api/v1/email-verification/me/pending-change/resend")
+
+        # Assert
+        assert response.status_code == 401
+
+
 class TestVerifyEmail:
     """Tests for the verify_email endpoint (POST /email-verification/verify)."""
 

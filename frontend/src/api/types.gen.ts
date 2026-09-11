@@ -5761,6 +5761,22 @@ export type EmailVerificationGetPendingEmailChangeMeResponses = {
 
 export type EmailVerificationGetPendingEmailChangeMeResponse = EmailVerificationGetPendingEmailChangeMeResponses[keyof EmailVerificationGetPendingEmailChangeMeResponses];
 
+export type EmailVerificationResendPendingEmailChangeMeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/email-verification/me/email-change/resend';
+};
+
+export type EmailVerificationResendPendingEmailChangeMeResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type EmailVerificationResendPendingEmailChangeMeResponse = EmailVerificationResendPendingEmailChangeMeResponses[keyof EmailVerificationResendPendingEmailChangeMeResponses];
+
 export type EmailVerificationVerifyEmailData = {
     body: EmailVerificationConfirm;
     path?: never;

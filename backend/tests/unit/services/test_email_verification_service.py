@@ -186,6 +186,28 @@ class TestGetPendingEmailChange:
         assert result.new_email == "moving-to@example.com"
         assert result.expires_at == pending_change.expires_at
 
+    def test_get_pending_email_change_asks_for_the_change_kind(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        pending_change: EmailVerification,
+    ) -> None:
+        """Test an activation pending alongside a change does not hide the change."""
+        # Arrange: issuing a verification only expires its own kind now, so an
+        # account can be waiting on both at once
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_change_by_user_id = MagicMock(return_value=pending_change)
+        repository.get_pending_by_user_id = MagicMock()
+
+        # Act
+        result = mock_email_verification_service.get_pending_email_change(user=test_user)
+
+        # Assert
+        assert result is not None
+        assert result.new_email == "moving-to@example.com"
+        repository.get_pending_change_by_user_id.assert_called_once_with(test_user.id)
+        repository.get_pending_by_user_id.assert_not_called()
+
     def test_get_pending_email_change_without_anything_pending(
         self,
         mock_email_verification_service: EmailVerificationService,
@@ -805,6 +827,62 @@ class TestResendVerificationEmail:
         # Assert - Should return success message even though exception occurred
         assert isinstance(result, Message)
         assert "If an account exists" in result.message
+
+
+class TestResendEmailChangeVerification:
+    """Tests for the resend_email_change_verification method."""
+
+    def test_sends_again_to_the_address_already_asked_for(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        pending_email_change: EmailVerification,
+    ) -> None:
+        """Test the destination comes off the pending row, never off the caller."""
+        # Arrange
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_change_by_user_id = MagicMock(return_value=pending_email_change)
+
+        # Act
+        with patch.object(
+            mock_email_verification_service,
+            "send_email_change_verification",
+            return_value=Message(message="Verification email sent to the new address."),
+        ) as mock_send:
+            result = mock_email_verification_service.resend_email_change_verification(user=test_user)
+
+        # Assert
+        assert result.message == "Verification email sent to the new address."
+        mock_send.assert_called_once_with(user=test_user, new_email="moved@example.com")
+
+    def test_an_account_that_asked_for_no_change_has_nothing_to_send(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+    ) -> None:
+        """Test a resend of nothing is an error rather than a fresh activation."""
+        # Arrange
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_change_by_user_id = MagicMock(return_value=None)
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationNotFoundError):
+            mock_email_verification_service.resend_email_change_verification(user=test_user)
+
+    def test_a_pending_activation_is_not_a_change_to_resend(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+    ) -> None:
+        """Test a row naming no new address cannot be mailed as a change."""
+        # Arrange
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_change_by_user_id = MagicMock(return_value=test_email_verification)
+
+        # Act & Assert
+        with pytest.raises(EmailVerificationNotFoundError):
+            mock_email_verification_service.resend_email_change_verification(user=test_user)
 
 
 class TestAResendIsNotAWayBackToActive:

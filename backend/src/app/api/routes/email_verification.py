@@ -144,6 +144,34 @@ def cancel_pending_email_change_me(
     return email_verification_service.cancel_pending_email_change(user=current_user)
 
 
+@router.post("/me/pending-change/resend", response_model=Message)
+def resend_email_change_verification(
+    *,
+    email_verification_service: EmailVerificationServiceDep,
+    current_user: CurrentUser,
+) -> Message:
+    """Send another link to the address the current account has asked to move to.
+
+    The unauthenticated resend endpoint serves activations only: a change
+    belongs to an account that is signed in, and serving one from there would
+    mail an activation for the address the account currently holds. Here the
+    caller is known, so the pending change is read off their own account and
+    nothing has to be named — there is no address to guess at and none to
+    enumerate.
+
+    Args:
+        email_verification_service: The email verification service dependency.
+        current_user: The current authenticated user.
+
+    Returns:
+        A message saying what became of the email.
+
+    Raises:
+        HTTPException: If the account has asked for no change of address (404).
+    """
+    return email_verification_service.resend_email_change_verification(user=current_user)
+
+
 @router.post("/verify", response_model=Message)
 def verify_email(
     *,

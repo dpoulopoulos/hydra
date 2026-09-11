@@ -4991,6 +4991,33 @@
         ]
       }
     },
+    "/api/v1/email-verification/me/email-change/resend": {
+      "post": {
+        "tags": [
+          "email-verification"
+        ],
+        "summary": "Resend Pending Email Change Me",
+        "description": "Send another link to the address the current account has asked to move to.\n\nThe unauthenticated resend endpoint serves activations only: a change\nbelongs to an account that is signed in, and serving one from there would\nmail an activation for the address the account currently holds. Here the\ncaller is known, so the pending change is read off their own account and\nnothing has to be named \u2014 there is no address to guess at and none to\nenumerate.\n\nArgs:\n    email_verification_service: The email verification service dependency.\n    current_user: The current authenticated user.\n\nReturns:\n    A message saying what became of the email.\n\nRaises:\n    HTTPException: If the account has asked for no change of address (404).",
+        "operationId": "email-verification-resend_pending_email_change_me",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/email-verification/verify": {
       "post": {
         "tags": [
