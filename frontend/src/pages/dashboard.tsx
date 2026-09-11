@@ -325,7 +325,7 @@ export function Component() {
                 <ul className="divide-y text-sm">
                   {recent.data.data.map((transaction) => {
                     const isTransfer = transaction.kind === TransactionKind.TRANSFER
-                    const isIncome = transaction.kind === TransactionKind.INCOME
+                    const isExpense = transaction.kind === TransactionKind.EXPENSE
 
                     return (
                       <li
@@ -338,8 +338,11 @@ export function Component() {
                         <span className="flex-1 truncate font-medium">
                           {transaction.merchant ?? (isTransfer ? 'Transfer' : 'No description')}
                         </span>
+                        {/* A transfer is neither spending nor income, so it
+                            is drawn plain: negating it would print a minus
+                            the switched-off sign cannot take back. */}
                         <Money
-                          minor={isIncome ? transaction.amount_minor : -transaction.amount_minor}
+                          minor={isExpense ? -transaction.amount_minor : transaction.amount_minor}
                           currency={currency}
                           signed={!isTransfer}
                           colored={!isTransfer}
