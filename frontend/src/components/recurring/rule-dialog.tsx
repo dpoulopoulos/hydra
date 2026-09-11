@@ -42,6 +42,7 @@ import { useAccountCurrency, useAccounts } from '@/hooks/use-accounts'
 import { useCategoryTree } from '@/hooks/use-categories'
 import { amountSchema, previewMinor } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
+import { refill } from '@/lib/form'
 import { describeSchedule, FREQUENCY_LABELS } from '@/lib/labels'
 import { formatMajorInput, formatMoney } from '@/lib/money'
 import { formatDate, today } from '@/lib/month'
@@ -229,7 +230,7 @@ export function RuleDialog({
   useEffect(() => {
     if (!open) return
     setShowMore(Boolean(rule && ((rule.interval ?? 1) > 1 || rule.end_date || rule.merchant)))
-    form.reset({
+    refill(form, {
       name: rule?.name ?? '',
       kind: rule?.kind ?? TransactionKind.EXPENSE,
       amount: rule ? formatMajorInput(rule.amount_minor, recordedCurrency) : '',

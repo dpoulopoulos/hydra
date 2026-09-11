@@ -55,6 +55,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { useHousehold } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
+import { refill } from '@/lib/form'
 import { formatDateTime } from '@/lib/month'
 
 const renameSchema = z.object({
@@ -126,7 +127,7 @@ export function Component() {
   const householdName = household.data?.name
   useEffect(() => {
     if (householdName !== undefined) {
-      resetRenameForm({ name: householdName }, { keepDirtyValues: true })
+      resetRenameForm({ name: householdName }, { keepFieldsRef: true, keepDirtyValues: true })
     }
   }, [householdName, resetRenameForm])
 
@@ -157,7 +158,7 @@ export function Component() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['household', 'invites'] })
-      inviteForm.reset({ email: '', role: HouseholdRole.MEMBER })
+      refill(inviteForm, { email: '', role: HouseholdRole.MEMBER })
       toast.success('Invitation sent')
     },
   })

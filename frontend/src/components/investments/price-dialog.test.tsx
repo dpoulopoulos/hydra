@@ -86,6 +86,22 @@ describe('the price field', () => {
     expect(sentPrice()).toBe(120_000_000_000)
   })
 
+  // The field is seeded from an effect, after the first render: whatever that
+  // does to the form has to leave the field able to take a new number.
+  it('saves the number typed over the one it opened on', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    const price = await screen.findByLabelText('Price per unit')
+    await vi.waitFor(() => expect(price).toHaveValue('1,005'))
+    await user.clear(price)
+    await user.type(price, '131,25')
+    await user.click(screen.getByRole('button', { name: 'Save price' }))
+
+    await vi.waitFor(() => expect(api.investmentsSetInstrumentPrice).toHaveBeenCalled())
+    expect(sentPrice()).toBe(13_125_000_000)
+  })
+
   it('reads this locale’s decimal point', async () => {
     await save('1200,4567')
 

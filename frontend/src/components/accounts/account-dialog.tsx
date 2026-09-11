@@ -34,6 +34,7 @@ import {
 import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
+import { refill } from '@/lib/form'
 import { compactIban, formatIban, isValidIban } from '@/lib/iban'
 import { ACCOUNT_TYPE_LABELS } from '@/lib/labels'
 import { formatMajorInput } from '@/lib/money'
@@ -108,7 +109,8 @@ export function AccountDialog({
 
   useEffect(() => {
     if (!open) return
-    form.reset(
+    refill(
+      form,
       account
         ? {
             name: account.name,

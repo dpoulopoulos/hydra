@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { errorMessage } from '@/lib/api'
-import { showIssues } from '@/lib/form'
+import { refill, showIssues } from '@/lib/form'
 import { formatPrice, formatPriceInput, priceSchema } from '@/lib/quantity'
 
 /**
@@ -65,7 +65,7 @@ export function PriceDialog({
     // Seeded with the price already on the row, so correcting a figure does not
     // mean retyping it, and written with the separator this reader's locale
     // reads back as a decimal point. Blank when there has never been one.
-    form.reset({
+    refill(form, {
       price:
         instrument.last_price_micro === null || instrument.last_price_micro === undefined
           ? ''

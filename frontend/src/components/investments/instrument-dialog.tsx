@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { errorMessage } from '@/lib/api'
+import { refill } from '@/lib/form'
 import { INSTRUMENT_KIND_LABELS } from '@/lib/labels'
 
 const schema = z.object({
@@ -96,7 +97,8 @@ export function InstrumentDialog({
   useEffect(() => {
     if (!open) return
     setQuery('')
-    form.reset(
+    refill(
+      form,
       instrument
         ? {
             symbol: instrument.symbol,
