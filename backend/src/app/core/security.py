@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -16,6 +18,21 @@ pwd_context = PasswordHash((BcryptHasher(),))
 
 
 ALGORITHM = "HS256"
+
+
+# An API token is "hyd_<token_id>_<secret>". The prefix is what tells one apart
+# from a session JWT at the door, so nothing needs a second header to say which
+# kind of credential arrived: a JWT is base64url of a JSON header and cannot
+# begin with it.
+API_TOKEN_PREFIX = "hyd_"
+API_TOKEN_SEPARATOR = "_"
+# The lookup half, stored in the clear and indexed. Hexadecimal rather than
+# url-safe base64, because that alphabet includes the separator: an id able to
+# contain "_" would make the split between the two halves ambiguous.
+API_TOKEN_ID_BYTES = 8
+# The secret half: 256 bits, which is what makes the hashing note below true.
+# It may contain the separator, which is why the split is taken from the left.
+API_TOKEN_SECRET_BYTES = 32
 
 
 class TokenType(StrEnum):
@@ -224,3 +241,84 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         True if the passwords match, False otherwise.
     """
     return pwd_context.verify(plain_password, hashed_password)
+
+
+def hash_api_token_secret(secret: str) -> str:
+    """Hash the secret half of an API token.
+
+    SHA-256 rather than bcrypt, deliberately, for three reasons:
+
+    A password hash is slow on purpose, to make a low entropy, human chosen
+    input expensive to guess. This secret is 256 bits from a CSPRNG, so there
+    is no dictionary that reaches it and a work factor buys nothing.
+
+    The cost would be paid on every request, and a machine client makes many.
+    At the cost factor the passwords use that is around a tenth of a second
+    each, which is a denial of service this application would be doing to
+    itself.
+
+    bcrypt also hashes only the first 72 bytes, and it salts, so the stored
+    value cannot be searched for. The salt is what would force a scan over
+    every row; the random token id already does the lookup, so the salt has no
+    remaining job.
+
+    Args:
+        secret: The secret half of the credential.
+
+    Returns:
+        The hash, as hexadecimal.
+    """
+    return hashlib.sha256(secret.encode("utf-8")).hexdigest()
+
+
+def generate_api_token() -> tuple[str, str, str]:
+    """Mint an API token.
+
+    Returns:
+        The full credential the holder keeps, its lookup id, and the hash of
+        its secret half, in that order. The secret half leaves this function
+        only inside the full credential, and cannot be recovered from the hash.
+    """
+    token_id = secrets.token_hex(API_TOKEN_ID_BYTES)
+    secret = secrets.token_urlsafe(API_TOKEN_SECRET_BYTES)
+    credential = f"{API_TOKEN_PREFIX}{token_id}{API_TOKEN_SEPARATOR}{secret}"
+    return credential, token_id, hash_api_token_secret(secret)
+
+
+def split_api_token(credential: str) -> tuple[str, str] | None:
+    """Split a presented credential into its lookup id and its secret half.
+
+    Returning None is also how a caller tells an API token apart from a session
+    JWT, which cannot carry the prefix.
+
+    The split is taken at the first separator. That is unambiguous because the
+    lookup id is hexadecimal, so only the secret half can contain a "_".
+
+    Args:
+        credential: The string presented as a bearer token.
+
+    Returns:
+        The lookup id and the secret half, or None if the string is not shaped
+        like an API token at all.
+    """
+    if not credential.startswith(API_TOKEN_PREFIX):
+        return None
+
+    token_id, separator, secret = credential.removeprefix(API_TOKEN_PREFIX).partition(API_TOKEN_SEPARATOR)
+    if not separator or not token_id or not secret:
+        return None
+
+    return token_id, secret
+
+
+def verify_api_token_secret(secret: str, secret_hash: str) -> bool:
+    """Check the secret half of a credential against a stored hash.
+
+    Args:
+        secret: The secret half presented by the caller.
+        secret_hash: The hash held in the database.
+
+    Returns:
+        True if they match.
+    """
+    return hmac.compare_digest(hash_api_token_secret(secret), secret_hash)
