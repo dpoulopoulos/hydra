@@ -26,8 +26,12 @@ class EmailData:
 
 
 def _render_email_template(*, template_name: str, context: dict[str, Any]) -> str:
+    # Escaping is on: names, household names and usernames all come from
+    # whoever typed them, and every one of them lands in the middle of an HTML
+    # document. None of the templates pass markup through a variable, so there
+    # is nothing here that wants the raw value.
     template_str = (Path(__file__).parent.parent / "templates" / "email" / template_name).read_text()
-    template: Template = Template(template_str)
+    template: Template = Template(template_str, autoescape=True)
     return template.render(context)
 
 
@@ -285,6 +289,42 @@ def generate_household_invite_email(email: str, token: str, household_name: str,
             "inviter_name": inviter_name,
             "expire_hours": settings.HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS,
             "link": f"{settings.FRONTEND_HOST}/join-household?token={token}",
+            "assets_base_url": settings.assets_base_url,
+        },
+    )
+    return EmailData(html_content=html_content, subject=subject)
+
+
+def generate_household_ownership_email(
+    email: str, household_name: str, former_owner_name: str | None = None
+) -> EmailData:
+    """Generate the notice a member gets when a household becomes theirs.
+
+    A member is promoted without being asked, so the message has to say what
+    changed, why it changed, and what the role now lets them do. Otherwise the
+    first sign of it is a button that was not there yesterday.
+
+    Args:
+        email: Recipient email address.
+        household_name: The name of the household they now own.
+        former_owner_name: Who left, when that is known. A promotion made by
+            the startup repair has nobody to name, and says the household was
+            found without an owner instead.
+
+    Returns:
+        EmailData object with HTML content and subject.
+    """
+    # The household name is whatever its owner chose, and often already ends
+    # in "household", so the subject must not add the word itself.
+    subject = f"You are now an owner of {household_name} - {settings.PROJECT_NAME}"
+    html_content = _render_email_template(
+        template_name="household_ownership.html",
+        context={
+            "project_name": settings.PROJECT_NAME,
+            "email": email,
+            "household_name": household_name,
+            "former_owner_name": former_owner_name,
+            "link": f"{settings.FRONTEND_HOST}/settings/household",
             "assets_base_url": settings.assets_base_url,
         },
     )
