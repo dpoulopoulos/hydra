@@ -12,11 +12,16 @@ function parse(
   return result.success ? result.data : result.error.issues[0].message
 }
 
+// This is the one reading of a typed amount the app has: what a form saves is
+// whatever this schema makes of the field. Anything else that reads the same
+// field back — a preview sentence, say — has to agree with it, so the shapes
+// people actually type are pinned here.
 describe('amountSchema', () => {
   it.each([
     ['42.50', 4250],
     ['42,50', 4250],
     ['1 000', 100000],
+    ['1 000,50', 100050],
     ['0.01', 1],
     ['0.05', 5],
     ['.5', 50],
