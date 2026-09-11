@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -71,14 +71,6 @@ function buildSchema(currency: string, householdCurrency: string) {
 type Values = z.input<ReturnType<typeof buildSchema>>
 type Parsed = z.output<ReturnType<typeof buildSchema>>
 
-// React Compiler will not memoize a component that calls React Hook Form's
-// `watch()`, and skips it whole. That skip is what this form relies on:
-// `form.reset()` empties the field map and counts on the next render calling
-// `register()` again, which a memoized render never repeats, leaving every
-// field unregistered and the form with nothing to save. Nothing goes stale in
-// return, since `watch()` re-renders this component and the controls under it
-// are handed the value from that render.
-/* eslint-disable react-hooks/incompatible-library -- skipping this one is the point; see above */
 export function TradeDialog({
   open,
   instrumentId,
@@ -114,7 +106,13 @@ export function TradeDialog({
     defaultValues: defaults,
   })
 
-  const selectedId = form.watch('instrument_id')
+  // Watched through `useWatch()` rather than the form's own `watch()`, which
+  // hands back a function React Compiler will not memoize and skips the whole
+  // component over.
+  const [selectedId, side, brokerageAccountId] = useWatch({
+    control: form.control,
+    name: ['instrument_id', 'side', 'brokerage_account_id'],
+  })
   const selected = instruments.data?.data.find((one) => one.id === selectedId)
   const currency = selected?.currency_code ?? 'EUR'
   // The accounts are in the household's currency, never the listing's, so
@@ -127,7 +125,7 @@ export function TradeDialog({
   )
   // Which way the money goes, so the label says what is happening rather than
   // making the reader work it out from the direction field above.
-  const isBuy = form.watch('side') === TradeSide.BUY
+  const isBuy = side === TradeSide.BUY
 
   useEffect(() => {
     if (open) refill(form, defaults)
@@ -233,7 +231,7 @@ export function TradeDialog({
             <Field id="side" label="Direction" error={form.formState.errors.side?.message}>
               {(props) => (
                 <Select
-                  value={form.watch('side')}
+                  value={side}
                   onValueChange={(value) => form.setValue('side', value as TradeSide)}
                 >
                   <SelectTrigger id={props.id} className="w-full">
@@ -301,7 +299,7 @@ export function TradeDialog({
             >
               {(props) => (
                 <Select
-                  value={form.watch('brokerage_account_id') || 'none'}
+                  value={brokerageAccountId || 'none'}
                   onValueChange={(value) =>
                     form.setValue('brokerage_account_id', value === 'none' ? '' : value)
                   }
@@ -338,7 +336,7 @@ export function TradeDialog({
                   {...form.register('cash_amount')}
                   currency={householdCurrency}
                   placeholder="Auto"
-                  disabled={!form.watch('brokerage_account_id')}
+                  disabled={!brokerageAccountId}
                 />
               )}
             </Field>
