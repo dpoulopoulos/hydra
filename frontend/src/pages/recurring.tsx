@@ -55,6 +55,7 @@ import { useAccounts } from '@/hooks/use-accounts'
 import { useCurrency } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
 import { describeSchedule } from '@/lib/labels'
+import { cn } from '@/lib/utils'
 import { currentMonth, formatDate, formatMonth, monthEnd, shiftMonth } from '@/lib/month'
 
 /**
@@ -110,7 +111,10 @@ export function Component() {
       const key = occurrence.occurs_on.slice(0, 7)
       const bucket = buckets.get(key) ?? { net_minor: 0, items: [] }
       bucket.items.push(occurrence)
-      if (occurrence.kind !== TransactionKind.TRANSFER) {
+      // A blocked occurrence is listed but not counted, the same way the
+      // window's own total treats it: nothing is going to record it while the
+      // account is archived, so it is not money the month has to find.
+      if (occurrence.kind !== TransactionKind.TRANSFER && !occurrence.is_blocked) {
         bucket.net_minor +=
           occurrence.kind === TransactionKind.INCOME
             ? occurrence.amount_minor
@@ -372,14 +376,25 @@ export function Component() {
                       {group.items.map((occurrence, index) => (
                         <li
                           key={`${occurrence.rule_id}-${occurrence.occurs_on}-${index}`}
-                          className="flex items-center justify-between gap-3 py-2"
+                          className={cn(
+                            'flex items-center justify-between gap-3 py-2',
+                            occurrence.is_blocked && 'opacity-60',
+                          )}
                         >
                           {/* The heading above says which month, so the row
                               only needs the day. */}
                           <span className="text-muted-foreground w-6 text-right tabular-nums">
                             {formatDate(occurrence.occurs_on, { day: 'numeric' })}
                           </span>
-                          <span className="flex-1 font-medium">{occurrence.name}</span>
+                          <span className="flex flex-1 items-center gap-2 font-medium">
+                            {occurrence.name}
+                            {/* Projected, because a restored account picks the
+                                rule up here, but greyed and uncounted: as
+                                things stand nothing will record it. */}
+                            {occurrence.is_blocked ? (
+                              <Badge variant="outline">Account archived</Badge>
+                            ) : null}
+                          </span>
                           {/* A transfer is neither spending nor income, so
                               it is drawn plain: negating it would print a
                               minus the switched-off sign cannot take back. */}
