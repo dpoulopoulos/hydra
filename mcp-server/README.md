@@ -1,9 +1,10 @@
 # MCP server
 
 An [MCP](https://modelcontextprotocol.io) server that hands an AI agent a set of
-read-only tools over one hydra household: accounts, balances, and what a month
-came to. It runs beside the backend, speaks MCP to the agent and REST to hydra,
-and holds no credential of its own.
+read-only tools over one hydra household: accounts and balances, transactions,
+budgets, reports, standing payments and investments. It runs beside the
+backend, speaks MCP to the agent and REST to hydra, and holds no credential of
+its own.
 
 ## How a client authenticates
 
@@ -50,6 +51,18 @@ Or, in Claude Desktop's `claude_desktop_config.json`:
   }
 }
 ```
+
+## Names, not identifiers
+
+A model has "Groceries", not a UUID, so every tool takes names and every result
+gives them back. `resolve.py` does the translation.
+
+Categories are two levels deep, and a child is written `Parent > Child`. A bare
+`Groceries` is accepted whenever exactly one category ends that way; when two
+parents each have an `Other`, the tool asks which rather than picking one. A
+name that matches nothing comes back as a `ToolError` naming the near misses,
+compared against the short name as well as the full one — `Grocerys` is one
+letter from `Groceries` and nowhere near `Food & Drink > Groceries`.
 
 ## What the tools do about money
 

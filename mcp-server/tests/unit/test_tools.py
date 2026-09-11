@@ -267,6 +267,58 @@ class TestEveryToolOnlyReads:
             assert tool.annotations.read_only_hint is True, tool.name
 
 
+BY_CATEGORY = {
+    "period": {"date_from": "2026-09-01", "date_to": "2026-09-30", "currency_code": "EUR"},
+    "kind": "expense",
+    "total_minor": 142_365,
+    "slices": [
+        {
+            "category_id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            "category_name": "Groceries",
+            "parent_name": "Food & Drink",
+            "amount_minor": 42_365,
+            "share": 0.2976,
+            "transaction_count": 9,
+        }
+    ],
+}
+
+
+class TestSpendingByCategory:
+    """Tests for the month broken down by category."""
+
+    async def test_spending_reads_as_money_going_out(self, server: Any, authenticated: None) -> None:
+        mcp = server(by_path({"/reports/spend-by-category": BY_CATEGORY}))
+
+        broken_down = result_of(await mcp.call_tool("get_spending_by_category", {}))
+
+        assert broken_down["categories"][0]["spent"]["display"] == "-€423.65"
+        assert broken_down["total"]["display"] == "-€1423.65"
+
+    async def test_income_does_not_read_as_money_going_out(self, server: Any, authenticated: None) -> None:
+        # The same breakdown serves both kinds. Rendered as spending either
+        # way, an income row carried a minus under a key called "spent" while
+        # the total beside it said the opposite, and the instructions tell a
+        # model to quote the display string.
+        income = {**BY_CATEGORY, "kind": "income"}
+        mcp = server(by_path({"/reports/spend-by-category": income}))
+
+        broken_down = result_of(await mcp.call_tool("get_spending_by_category", {"kind": "income"}))
+
+        assert broken_down["categories"][0]["received"]["display"] == "€423.65"
+        assert "spent" not in broken_down["categories"][0]
+        assert broken_down["total"]["display"] == "€1423.65"
+
+    async def test_the_summary_names_what_the_month_spent(self, server: Any, authenticated: None) -> None:
+        # The summary's top categories are spending, whatever the breakdown
+        # tool was last asked for.
+        mcp = server(by_path({"/reports/summary": SUMMARY}))
+
+        summary = result_of(await mcp.call_tool("get_month_summary", {}))
+
+        assert "spent" in summary["top_categories"][0]
+
+
 class TestWithoutACredential:
     """A tool reached without one must say so rather than guess."""
 
