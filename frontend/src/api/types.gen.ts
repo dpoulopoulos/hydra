@@ -1132,6 +1132,10 @@ export type HouseholdPublic = {
      */
     session_merchant_label?: string;
     /**
+     * Locale
+     */
+    locale?: string | null;
+    /**
      * Id
      */
     id: string;
@@ -1171,6 +1175,10 @@ export type HouseholdUpdate = {
      * Session Merchant Label
      */
     session_merchant_label?: string | null;
+    /**
+     * Locale
+     */
+    locale?: string | null;
 };
 
 /**

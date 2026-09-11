@@ -7045,6 +7045,18 @@
             "title": "Session Merchant Label",
             "default": "Session"
           },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 35
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -7115,6 +7127,19 @@
               }
             ],
             "title": "Session Merchant Label"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 35,
+                "pattern": "^[A-Za-z]{2,3}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
           }
         },
         "type": "object",
