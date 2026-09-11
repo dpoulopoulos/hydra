@@ -103,8 +103,9 @@ web-format:
 web-lint:
 	cd frontend && pnpm lint && pnpm typecheck
 
-# Runs the production Caddyfile in a container and checks what it answers with.
-# Needs Docker; it does not need the app to be built.
+# Runs the production Caddyfile in a container, with a stub backend in a second
+# one, and checks what it answers with: the static half and the two forwarded
+# routes. Needs Docker; neither the app nor the backend has to be built.
 .PHONY: web-test
 web-test:
 	bash ./frontend/scripts/test-caddyfile.sh

@@ -21,9 +21,11 @@ jobs:
       # The same command `make web-test` runs, and the only thing that checks
       # the production server. It runs frontend/Caddyfile under a real Caddy,
       # which needs the Docker that ubuntu-latest already has, and asks it for
-      # the security headers and the client side routing. The app is not built
-      # for it: the server configuration is what is under test, so the script
-      # serves a stand-in tree of its own and the job stays short.
+      # the security headers, the client side routing, and the /api and
+      # /assets routes the browser calls the backend through. Neither the app
+      # nor the backend is built for it: the server configuration is what is
+      # under test, so the script serves a stand-in tree of its own and stands
+      # a second container in for the backend, and the job stays short.
       #
       # Until now the headers that stand between an injected script and the
       # session token in localStorage were verified only when someone
