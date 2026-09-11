@@ -17,7 +17,22 @@ class TestBuildServer:
     async def test_registers_the_tools(self, server: MCPServer) -> None:
         names = {tool.name for tool in await server.list_tools()}
 
-        assert names == {"whoami", "list_accounts", "get_month_summary"}
+        assert names == {
+            "whoami",
+            "list_accounts",
+            "list_categories",
+            "search_transactions",
+            "get_transaction",
+            "list_budgets",
+            "get_budget_progress",
+            "get_month_summary",
+            "get_spending_by_category",
+            "get_spending_over_time",
+            "get_income_vs_expense",
+            "list_recurring_rules",
+            "get_upcoming_recurring",
+            "get_portfolio",
+        }
 
     def test_installs_the_hydra_token_verifier(self, server: MCPServer) -> None:
         # Without it the server would serve every caller as if authenticated.
