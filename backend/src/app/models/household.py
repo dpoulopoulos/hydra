@@ -2,13 +2,29 @@ import datetime
 import uuid
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Annotated
 
-from pydantic import EmailStr
+from pydantic import EmailStr, StringConstraints
 from sqlmodel import Field, SQLModel
 
 from .email_outbox import EmailOutboxStatus
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
 from .user import User
+
+# A BCP 47 language tag of the shapes a household is offered: a language, with
+# an optional script and an optional region, e.g. "el", "en-US", "sr-Latn-RS",
+# "es-419". The extensions and variants the full grammar allows are left out:
+# nothing here needs them, and the value is handed to `Intl` in the browser,
+# where a tag it cannot parse would silently format every amount some other way.
+LOCALE_PATTERN = r"^[A-Za-z]{2,3}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?$"
+
+# Room for the longest tag the pattern above admits, and then some, so the
+# column never has to be widened to store a shape it already accepts.
+MAX_LOCALE_LENGTH = 35
+
+# The locale as it is accepted on the way in. Annotated rather than declared on
+# each field, so the shape a household may be given is written once.
+Locale = Annotated[str, StringConstraints(pattern=LOCALE_PATTERN, max_length=MAX_LOCALE_LENGTH)]
 
 
 class HouseholdRole(StrEnum):
@@ -33,6 +49,15 @@ class HouseholdBase(SQLModel):
     # ledger would undo that. One label for the whole household, never one per
     # client, because a per-client label is the name again under another field.
     session_merchant_label: str = Field(default="Session", min_length=1, max_length=255)
+    # How the household writes numbers: which character separates a decimal
+    # from a group, and where the groups fall. Null means the household has not
+    # said, and each reader's browser decides for them, which is what every
+    # household did before this column existed.
+    #
+    # Unconstrained here on purpose: the shape is checked on the way in, by
+    # `HouseholdUpdate`, so a tag stored before that check existed still reads
+    # back rather than turning a household into a 500.
+    locale: str | None = Field(default=None, max_length=MAX_LOCALE_LENGTH)
 
 
 class HouseholdCreate(HouseholdBase):
@@ -42,6 +67,11 @@ class HouseholdCreate(HouseholdBase):
 class HouseholdUpdate(SQLModel):
     name: str | None = Field(default=None, max_length=255)
     session_merchant_label: str | None = Field(default=None, min_length=1, max_length=255)
+    # Null is a value here rather than a way of leaving the field alone: it is
+    # how a household goes back to letting each reader's browser decide. What
+    # leaves the field alone is not sending it, which `exclude_unset` keeps out
+    # of the update.
+    locale: Locale | None = Field(default=None)
 
 
 class HouseholdPublic(HouseholdBase):
