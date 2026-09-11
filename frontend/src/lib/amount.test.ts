@@ -219,4 +219,19 @@ describe('previewMinor', () => {
   it('has nothing to show for an amount past the ceiling', () => {
     expect(previewMinor(String(MAX_AMOUNT_MINOR), 'EUR')).toBeNull()
   })
+
+  it('reads either decimal point', () => {
+    expect(previewMinor('42.50', 'EUR')).toBe(4250)
+  })
+
+  it('counts the minor units the currency uses', () => {
+    expect(previewMinor('1000', 'JPY')).toBe(1000)
+  })
+
+  it.each(['  ', 'abc', '12e3', '-5', '4.2.5'])(
+    'has nothing to show for %j, which the form would refuse too',
+    (value) => {
+      expect(previewMinor(value, 'EUR')).toBeNull()
+    },
+  )
 })
