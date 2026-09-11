@@ -58,7 +58,9 @@ class TestClaimDue:
         # Assert: Verify rows another transaction already holds are skipped.
         # SKIP LOCKED is Postgres syntax, so the statement has to be compiled
         # against that dialect to see it.
-        compiled = str(mock_db_session.exec.call_args.args[0].compile(dialect=postgresql.dialect()))
+        # SQLAlchemy leaves dialect() unannotated, so the call is untyped here.
+        dialect = postgresql.dialect()  # type: ignore[no-untyped-call]
+        compiled = str(mock_db_session.exec.call_args.args[0].compile(dialect=dialect))
         assert "FOR UPDATE" in compiled
         assert "SKIP LOCKED" in compiled
 

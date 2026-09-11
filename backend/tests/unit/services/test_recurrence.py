@@ -107,6 +107,7 @@ class TestAdvanceWeekly:
     def test_keeps_the_same_weekday(self) -> None:
         start = date(2026, 3, 4)
         moved = advance(current=start, frequency=RecurrenceFrequency.WEEKLY, interval=1)
+        assert moved is not None
         assert moved.weekday() == start.weekday()
 
     def test_crosses_a_month_boundary(self) -> None:
