@@ -1,14 +1,27 @@
 import datetime
+from typing import Annotated
 
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from ..client import HydraClient
 
 # Every tool in this phase only reads. The hint is what lets a client tell its
 # user that, rather than asking them to take it on trust.
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
+
+# The month a report covers. Checked against the schema before the tool runs,
+# so a month hydra would reject never becomes a request.
+Month = Annotated[
+    str | None,
+    Field(
+        default=None,
+        description="The month, written as 2026-09. Leave it out for the current month.",
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+    ),
+]
 
 _client = HydraClient()
 
