@@ -709,7 +709,7 @@ class TestClientOwnership:
         # scopes to it correctly is the repository's promise, and is asserted
         # against a real statement in test_income_filters.
         clients = mock_income_service.income_client_repository
-        clients.blank_names_for_owner = MagicMock(return_value=0)  # type: ignore[method-assign]
+        clients.blank_names_for_owner = MagicMock(return_value=0)
         mock_income_service.session.get = MagicMock(return_value=None)
 
         mock_income_service.reset_vault(household=household_context)
@@ -951,14 +951,14 @@ class TestTheYearTotal:
         the methods themselves are replaced rather than programmed.
         """
         sessions = service.income_session_repository
-        sessions.monthly_totals = MagicMock(return_value=[])  # type: ignore[method-assign]
-        sessions.booked_for_month = MagicMock(return_value=(0, 0))  # type: ignore[method-assign]
-        sessions.outstanding_for_household = MagicMock(return_value=(0, 0, None))  # type: ignore[method-assign]
-        sessions.earned_for_range = MagicMock(return_value=earned)  # type: ignore[method-assign]
-        service.income_client_repository.count_active_for_household = MagicMock(return_value=0)  # type: ignore[method-assign]
+        sessions.monthly_totals = MagicMock(return_value=[])
+        sessions.booked_for_month = MagicMock(return_value=(0, 0))
+        sessions.outstanding_for_household = MagicMock(return_value=(0, 0, None))
+        sessions.earned_for_range = MagicMock(return_value=earned)
+        service.income_client_repository.count_active_for_household = MagicMock(return_value=0)
         # The currency comes off the household row, and a MagicMock is not a
         # string as far as the response model is concerned.
-        service.household_repository.get_by_id = MagicMock(return_value=make_household())  # type: ignore[method-assign]
+        service.household_repository.get_by_id = MagicMock(return_value=make_household())
         return sessions.earned_for_range
 
     def test_the_year_is_the_calendar_one_the_month_sits_in(
@@ -1006,9 +1006,9 @@ class TestResetVault:
         # holding ciphertext no future key could decode, while the response
         # said their names had been reset.
         clients = mock_income_service.income_client_repository
-        clients.blank_names_for_owner = MagicMock(return_value=0)  # type: ignore[method-assign]
-        clients.list_for_household = MagicMock()  # type: ignore[method-assign]
-        mock_income_service.income_vault_repository.get_for_user = MagicMock(return_value=None)  # type: ignore[method-assign]
+        clients.blank_names_for_owner = MagicMock(return_value=0)
+        clients.list_for_household = MagicMock()
+        mock_income_service.income_vault_repository.get_for_user = MagicMock(return_value=None)
 
         mock_income_service.reset_vault(household=household_context)
 
@@ -1021,8 +1021,8 @@ class TestResetVault:
         # Another member's names are under another key and are none of this
         # reset's business.
         clients = mock_income_service.income_client_repository
-        clients.blank_names_for_owner = MagicMock(return_value=0)  # type: ignore[method-assign]
-        mock_income_service.income_vault_repository.get_for_user = MagicMock(return_value=None)  # type: ignore[method-assign]
+        clients.blank_names_for_owner = MagicMock(return_value=0)
+        mock_income_service.income_vault_repository.get_for_user = MagicMock(return_value=None)
 
         mock_income_service.reset_vault(household=household_context)
 
@@ -1036,10 +1036,10 @@ class TestTheTrialRoster:
     def stub(service: IncomeService, sessions: list[IncomeSession]) -> tuple[MagicMock, MagicMock]:
         """Programme the two client lookups the trial building makes."""
         clients = service.income_client_repository
-        clients.list_for_household = MagicMock(return_value=([], 0))  # type: ignore[method-assign]
-        clients.list_by_ids = MagicMock(return_value=[])  # type: ignore[method-assign]
-        service.income_session_repository.for_month = MagicMock(return_value=sessions)  # type: ignore[method-assign]
-        service.income_session_repository.client_tallies = MagicMock(return_value=[])  # type: ignore[method-assign]
+        clients.list_for_household = MagicMock(return_value=([], 0))
+        clients.list_by_ids = MagicMock(return_value=[])
+        service.income_session_repository.for_month = MagicMock(return_value=sessions)
+        service.income_session_repository.client_tallies = MagicMock(return_value=[])
         return clients.list_for_household, clients.list_by_ids
 
     def test_the_capped_roster_asks_only_for_active_clients(
@@ -1133,9 +1133,9 @@ class TestTheForecastTable:
         clients: list[IncomeClient],
     ) -> None:
         """Programme the tally read and the client lookup behind the table."""
-        service.income_session_repository.client_tallies = MagicMock(return_value=tallies)  # type: ignore[method-assign]
-        service.income_client_repository.list_for_household = MagicMock(return_value=(clients, len(clients)))  # type: ignore[method-assign]
-        service.income_client_repository.list_by_ids = MagicMock(return_value=clients)  # type: ignore[method-assign]
+        service.income_session_repository.client_tallies = MagicMock(return_value=tallies)
+        service.income_client_repository.list_for_household = MagicMock(return_value=(clients, len(clients)))
+        service.income_client_repository.list_by_ids = MagicMock(return_value=clients)
 
     def rows(self, service: IncomeService, household: MagicMock, months: int = 6) -> list[ClientForecastRow]:
         """Build the table the way the forecast does."""
@@ -1206,5 +1206,5 @@ class TestTheForecastTable:
         self.rows(mock_income_service, household_context)
 
         lookup = mock_income_service.income_client_repository.list_by_ids
-        assert lookup.call_args.kwargs["client_ids"] == [first.id, second.id]  # type: ignore[attr-defined]
-        mock_income_service.income_client_repository.list_for_household.assert_not_called()  # type: ignore[attr-defined]
+        assert lookup.call_args.kwargs["client_ids"] == [first.id, second.id]
+        mock_income_service.income_client_repository.list_for_household.assert_not_called()

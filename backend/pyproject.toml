@@ -24,6 +24,16 @@ build-backend = "uv_build"
 strict = true
 exclude = ["venv", ".venv", "alembic"]
 
+# The unit tests stand a service up with MagicMock and then read the calls
+# back off the method they patched, so strict mypy sees an assignment to a
+# method followed by attributes no real signature has. Both are the idiom
+# rather than a fault in either the test or the code it covers, and the
+# alternative is a mock-shaped wrapper around some 730 assignments. Every
+# other strict check applies to the suite. See #107.
+[[tool.mypy.overrides]]
+module = "tests.*"
+disable_error_code = ["method-assign", "attr-defined"]
+
 [dependency-groups]
 dev = [
     "pytest>=9.1.1,<10.0.0",

@@ -617,11 +617,7 @@ def make_verification(user_id: uuid.UUID, email: str) -> EmailVerification:
 
 def saved_invite(service: HouseholdService) -> HouseholdInvite:
     """Return the invite the service handed to the session."""
-    saved = [
-        call.args[0]
-        for call in service.session.add.call_args_list  # type: ignore[attr-defined]
-        if isinstance(call.args[0], HouseholdInvite)
-    ]
+    saved = [call.args[0] for call in service.session.add.call_args_list if isinstance(call.args[0], HouseholdInvite)]
     return saved[0]
 
 

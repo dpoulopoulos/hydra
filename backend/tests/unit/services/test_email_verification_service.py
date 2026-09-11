@@ -585,9 +585,7 @@ class TestSendVerificationEmail:
             saved.append(verification)
             return verification
 
-        mock_email_verification_service.email_verification_repository.save = MagicMock(  # type: ignore[method-assign]
-            side_effect=remember
-        )
+        mock_email_verification_service.email_verification_repository.save = MagicMock(side_effect=remember)
 
         # Act
         with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
