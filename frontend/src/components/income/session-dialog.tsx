@@ -38,6 +38,7 @@ import { useCurrency } from '@/hooks/use-household'
 import { useIncomeClients } from '@/hooks/use-income-clients'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
+import { refill } from '@/lib/form'
 import { PAYMENT_STATUS_LABELS, SESSION_STATUS_LABELS } from '@/lib/labels'
 import { formatMajorInput } from '@/lib/money'
 import { today } from '@/lib/month'
@@ -116,7 +117,7 @@ export function SessionDialog({
   })
 
   useEffect(() => {
-    if (open) form.reset(defaults)
+    if (open) refill(form, defaults)
   }, [open, defaults, form])
 
   const selectedClientId = form.watch('client_id')

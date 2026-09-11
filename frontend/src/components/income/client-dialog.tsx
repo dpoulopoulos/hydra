@@ -42,6 +42,7 @@ import { amountSchema, previewMinor } from '@/lib/amount'
 import { WeekdayPicker } from '@/components/income/weekday-picker'
 import { AD_HOC, CADENCE_PRESETS, describeCadence, isWeekly, presetOf } from '@/lib/cadence'
 import { errorMessage } from '@/lib/api'
+import { refill } from '@/lib/form'
 import { formatMajorInput, formatMoney } from '@/lib/money'
 import { formatDate, today } from '@/lib/month'
 
@@ -128,7 +129,7 @@ export function ClientDialog({
   // The name arrives from an asynchronous decrypt, so the form is refilled when
   // it lands rather than only when the dialog opens.
   useEffect(() => {
-    if (open) form.reset(defaults)
+    if (open) refill(form, defaults)
   }, [open, defaults, form])
 
   const save = useMutation({

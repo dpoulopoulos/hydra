@@ -25,6 +25,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
 import { errorMessage, errorStatus } from '@/lib/api'
+import { refill } from '@/lib/form'
 import { formatDateTime } from '@/lib/month'
 import { PASSWORD_HINT, passwordSchema } from '@/lib/password'
 import { useEffect, useState } from 'react'
@@ -209,7 +210,7 @@ export function Component() {
       if (error) throw error
     },
     onSuccess: () => {
-      passwordForm.reset({ current_password: '', new_password: '', confirm: '' })
+      refill(passwordForm, { current_password: '', new_password: '', confirm: '' })
       toast.success('Password changed')
     },
   })

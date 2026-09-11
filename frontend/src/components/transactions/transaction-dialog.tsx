@@ -39,6 +39,7 @@ import { useAccountCurrency, useAccounts } from '@/hooks/use-accounts'
 import { useCategoryTree } from '@/hooks/use-categories'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
+import { refill } from '@/lib/form'
 import { formatMajorInput } from '@/lib/money'
 import { today } from '@/lib/month'
 import { optionSource } from '@/lib/option-source'
@@ -167,7 +168,7 @@ export function TransactionDialog({
 
   useEffect(() => {
     if (!open) return
-    form.reset({
+    refill(form, {
       kind: transaction?.kind ?? TransactionKind.EXPENSE,
       amount: transaction ? formatMajorInput(transaction.amount_minor, recordedCurrency) : '',
       occurred_on: transaction?.occurred_on ?? today(),

@@ -31,7 +31,7 @@ import { useHousehold } from '@/hooks/use-household'
 import { useInstruments } from '@/hooks/use-instruments'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
-import { showIssues } from '@/lib/form'
+import { refill, showIssues } from '@/lib/form'
 import { TRADE_SIDE_LABELS } from '@/lib/labels'
 import { today } from '@/lib/month'
 import { priceSchema, quantitySchema } from '@/lib/quantity'
@@ -130,7 +130,7 @@ export function TradeDialog({
   const isBuy = form.watch('side') === TradeSide.BUY
 
   useEffect(() => {
-    if (open) form.reset(defaults)
+    if (open) refill(form, defaults)
   }, [open, defaults, form])
 
   const save = useMutation({

@@ -57,6 +57,7 @@ import {
 } from '@/components/ui/table'
 import { useAuth } from '@/hooks/use-auth'
 import { errorMessage } from '@/lib/api'
+import { refill } from '@/lib/form'
 import { PASSWORD_HINT, passwordSchema } from '@/lib/password'
 import { formatInstantAsDate } from '@/lib/month'
 
@@ -112,7 +113,7 @@ export function Component() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['users'] })
-      form.reset({ full_name: '', email: '', password: '' })
+      refill(form, { full_name: '', email: '', password: '' })
       setCreating(false)
       toast.success('Account created')
     },

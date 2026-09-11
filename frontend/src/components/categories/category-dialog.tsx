@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/select'
 import { useCategoryTree, useInvalidateCategories } from '@/hooks/use-categories'
 import { errorMessage } from '@/lib/api'
+import { refill } from '@/lib/form'
 import { CATEGORY_KIND_LABELS } from '@/lib/labels'
 import { optionSource } from '@/lib/option-source'
 
@@ -84,7 +85,7 @@ export function CategoryDialog({
 
   useEffect(() => {
     if (!open) return
-    form.reset({
+    refill(form, {
       name: category?.name ?? '',
       kind: category?.kind ?? defaultParent?.kind ?? CategoryKind.EXPENSE,
       parent_id: category?.parent_id ?? defaultParent?.id ?? NO_PARENT,
