@@ -126,6 +126,28 @@ def signed_display(amount_minor: int, currency_code: str) -> str:
     return display(amount_minor, currency_code, negative=amount_minor < 0)
 
 
+def signed_money(amount_minor: int, currency_code: str) -> dict[str, object]:
+    """Describe a total that is meaningfully negative.
+
+    A net, or what is left of a budget, is genuinely below zero once more went
+    out than came in, unlike a single transaction whose direction lives in its
+    kind. So the amount keeps its own sign rather than being given one.
+
+    Args:
+        amount_minor: The total, as hydra stores it.
+        currency_code: The currency it is in.
+
+    Returns:
+        The total, its display form, its exact minor units and its currency.
+    """
+    return {
+        "amount": to_major(amount_minor, currency_code),
+        "display": signed_display(amount_minor, currency_code),
+        "amount_minor": amount_minor,
+        "currency": currency_code.upper(),
+    }
+
+
 def money(amount_minor: int, currency_code: str, *, negative: bool = False) -> dict[str, object]:
     """Describe an amount every way a caller might need it.
 
