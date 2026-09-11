@@ -4,8 +4,11 @@
 # behaviour is checked rather than assumed.
 #
 # The app itself is not built for this: what is under test is the server
-# configuration, so a stand-in tree of static files is enough. Docker is
-# required, because Caddy is what the production image runs.
+# configuration, so a stand-in tree of static files is enough. The backend is
+# not built either: a second container serving a stand-in tree of its own
+# stands in for it, which is what the two reverse_proxy blocks need to be
+# reachable at all. Docker is required, because Caddy is what the production
+# image runs.
 
 set -euo pipefail
 
@@ -13,12 +16,18 @@ cd "$(dirname "$0")/.."
 
 image=caddy:2-alpine
 container=hydra-caddyfile-test-$$
+backend=hydra-caddyfile-test-backend-$$
+# A network of its own, because the two containers find each other by name and
+# the default bridge resolves none.
+network=hydra-caddyfile-test-net-$$
 srv=$(mktemp -d)
+backend_srv=$(mktemp -d)
 failures=0
 
 cleanup() {
-  docker rm -f "$container" >/dev/null 2>&1 || true
-  rm -rf "$srv"
+  docker rm -f "$container" "$backend" >/dev/null 2>&1 || true
+  docker network rm "$network" >/dev/null 2>&1 || true
+  rm -rf "$srv" "$backend_srv"
 }
 trap cleanup EXIT
 
@@ -33,11 +42,30 @@ cat > "$srv/index.html" <<'HTML'
 HTML
 echo 'export const answer = 42' > "$srv/static/app.js"
 
+# A stand-in for the backend: a file per path the checks ask for, each naming
+# the path it answers. A body that names the path is what tells a forwarded
+# request apart from one the static handler answered, and says the prefix
+# survived the hop.
+mkdir -p "$backend_srv/api" "$backend_srv/assets"
+printf 'backend /api/ping' > "$backend_srv/api/ping"
+printf 'backend /assets/logo.svg' > "$backend_srv/assets/logo.svg"
+
+docker network create "$network" >/dev/null
+
+# The same image, run as a plain file server: the upstream only has to answer,
+# and one image means one pull.
+docker run --detach --name "$backend" \
+  --network "$network" \
+  --volume "$backend_srv:/srv:ro" \
+  "$image" caddy file-server --listen :80 --root /srv >/dev/null
+
 # Deliberately not --rm: a Caddyfile it cannot parse makes Caddy exit at once,
 # and the container has to outlive that for its log to still be readable. The
 # trap removes it either way.
 docker run --detach --name "$container" \
+  --network "$network" \
   --publish 127.0.0.1:0:8080 \
+  --env "BACKEND_ORIGIN=http://$backend:80" \
   --volume "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
   --volume "$srv:/srv:ro" \
   "$image" caddy run --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
@@ -46,8 +74,9 @@ docker run --detach --name "$container" \
 # below run against nothing: they would each report an empty response, which
 # names none of the config errors that are the likely cause.
 give_up() {
-  echo "FAIL - $1. Caddy said:"
-  docker logs "$container" 2>&1 | sed "s/^/  /"
+  local what=$1 who=${2:-$container}
+  echo "FAIL - $what. $who said:"
+  docker logs "$who" 2>&1 | sed "s/^/  /"
   exit 1
 }
 
@@ -69,6 +98,19 @@ for _ in $(seq 1 50); do
   sleep 0.2
 done
 [ -n "$ready" ] || give_up "the server never answered"
+
+# The stub publishes no port of its own, so the only way to it is through the
+# proxy. A failure here is the stub's, not the routing's, which is why it says
+# so with the stub's log rather than leaving every proxied check to fail.
+ready=""
+for _ in $(seq 1 50); do
+  if curl --silent --fail --output /dev/null "$base/api/ping"; then
+    ready=yes
+    break
+  fi
+  sleep 0.2
+done
+[ -n "$ready" ] || give_up "the backend stub never answered" "$backend"
 
 # Reports one expectation, and remembers a failure without stopping: a run
 # should list everything that is wrong, not only the first thing.
