@@ -9326,6 +9326,11 @@
             ],
             "title": "Last Generated On"
           },
+          "is_blocked": {
+            "type": "boolean",
+            "title": "Is Blocked",
+            "default": false
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -10469,6 +10474,11 @@
               }
             ],
             "title": "Category Id"
+          },
+          "is_blocked": {
+            "type": "boolean",
+            "title": "Is Blocked",
+            "default": false
           }
         },
         "type": "object",
