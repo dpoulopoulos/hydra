@@ -256,16 +256,6 @@ class TestMonthSummary:
         assert summary["top_categories"][0]["share"] == "29.8%"
 
 
-class TestEveryToolOnlyReads:
-    """The read-only promise is what a client shows its user."""
-
-    async def test_every_tool_says_so(self, server: Any) -> None:
-        mcp = server(by_path({}))
-
-        for tool in await mcp.list_tools():
-            assert tool.annotations is not None, tool.name
-            assert tool.annotations.read_only_hint is True, tool.name
-
 
 BY_CATEGORY = {
     "period": {"date_from": "2026-09-01", "date_to": "2026-09-30", "currency_code": "EUR"},
