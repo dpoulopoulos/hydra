@@ -7,7 +7,9 @@ from app.api.deps import (
     CurrentUser,
     EmailVerificationServiceDep,
     HouseholdServiceDep,
+    MailRateLimitServiceDep,
     SessionUser,
+    SourceAddressDep,
     UserServiceDep,
     get_current_active_superuser,
 )
@@ -30,6 +32,7 @@ from app.models import (
     UserUpdate,
     UserUpdateMe,
 )
+from app.services.user import SIGNUP_MESSAGE
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -90,6 +93,8 @@ def register_user(
     email_verification_service: EmailVerificationServiceDep,
     household_service: HouseholdServiceDep,
     category_service: CategoryServiceDep,
+    mail_rate_limit_service: MailRateLimitServiceDep,
+    source_address: SourceAddressDep,
     user_in: UserRegister,
 ) -> Message:
     """Register a new user.
@@ -102,6 +107,11 @@ def register_user(
     be used to find out which addresses are registered. What happened is told to the address itself,
     by email.
 
+    Nobody is signed in and the body names the mailbox, so an unbounded endpoint would mail whoever
+    it was pointed at, as fast as it was asked. Once a budget is spent nothing is sent, and the
+    caller is told what every other caller is told: a refusal of its own would say that the address
+    had been signed up for recently, which is the very thing the shared reply refuses to answer.
+
     Args:
         user_service: The user service dependency.
         email_verification_service: The email verification service dependency.
@@ -109,11 +119,17 @@ def register_user(
             the user's household in the same transaction.
         category_service: The category service dependency, used to seed the
             household's default categories.
+        mail_rate_limit_service: The mail rate limit service dependency, which
+            bounds how much mail this endpoint can be made to send.
+        source_address: The address the request came from.
         user_in: The user registration data.
 
     Returns:
         A message asking the caller to check their email.
     """
+    if not mail_rate_limit_service.allows_mail(source=source_address, recipient=user_in.email):
+        return Message(message=SIGNUP_MESSAGE)
+
     return user_service.register_user(
         user_register=user_in,
         category_service=category_service,

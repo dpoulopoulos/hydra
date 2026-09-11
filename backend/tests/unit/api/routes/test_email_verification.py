@@ -13,7 +13,8 @@ from app.exceptions import (
 )
 from app.main import app
 from app.models import Message, PendingEmailChange, User
-from app.services import EmailVerificationService
+from app.services import EmailVerificationService, MailRateLimitService
+from app.services.email_verification import VERIFICATION_RESEND_MESSAGE
 
 
 class TestResendVerificationEmail:
@@ -156,6 +157,39 @@ class TestResendVerificationEmail:
 
             # Assert: Verify 422 validation error
             assert response.status_code == 422
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+
+class TestResendVerificationEmailRateLimit:
+    """Tests for the budget a resend spends before it mails anybody."""
+
+    def test_a_spent_budget_sends_nothing_and_says_the_usual_thing(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """The reply is the constant one, so the throttle cannot be read as an answer."""
+
+        # Arrange: Set up database dependency override, with the budget already spent
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        try:
+            with (
+                patch.object(MailRateLimitService, "allows_mail", return_value=False),
+                patch.object(EmailVerificationService, "resend_verification_email") as mock_resend,
+            ):
+                # Act: Ask for another verification link
+                response = client.post("/api/v1/email-verification/send", json={"email": "victim@example.com"})
+
+                # Assert: Verify nothing was sent and the usual reply came back
+                assert response.status_code == 200
+                assert response.json()["message"] == VERIFICATION_RESEND_MESSAGE
+                mock_resend.assert_not_called()
         finally:
             # Cleanup
             app.dependency_overrides.clear()

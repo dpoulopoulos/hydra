@@ -17,7 +17,7 @@ from app.exceptions import (
 from app.exceptions.password_exceptions import PasswordIsWrongError
 from app.main import app
 from app.models import Message, User, UserPublic, UsersPublic
-from app.services import HouseholdService, UserService
+from app.services import HouseholdService, MailRateLimitService, UserService
 from app.services.user import SIGNUP_MESSAGE
 
 
@@ -287,6 +287,77 @@ class TestRegisterUser:
             assert unknown.content == registered.content
             mock_check_signup_invite.assert_called_once()
             mock_create_user.assert_called_once()
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+
+class TestSignupRateLimit:
+    """Tests for the budget signup spends before it mails anybody."""
+
+    def test_a_spent_budget_sends_nothing(
+        self,
+        client: TestClient,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Signup mails an address the request names, so it cannot be unbounded."""
+
+        # Arrange: Set up database dependency override, with the budget already spent
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        try:
+            with (
+                patch.object(MailRateLimitService, "allows_mail", return_value=False),
+                patch.object(UserService, "register_user") as mock_register_user,
+            ):
+                # Act: Post signup data
+                response = client.post(
+                    "/api/v1/users/signup",
+                    json={"email": "victim@example.com", "password": "password123", "full_name": "Victim"},
+                )
+
+                # Assert: Verify nothing was registered and nothing was mailed
+                assert response.status_code == 200
+                mock_register_user.assert_not_called()
+        finally:
+            # Cleanup
+            app.dependency_overrides.clear()
+
+    def test_a_refused_signup_answers_exactly_as_an_accepted_one(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """A reply of its own would say that the address had been signed up for recently."""
+
+        # Arrange: Set up database dependency override
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+
+        payload = {"email": test_user.email, "password": "password123", "full_name": test_user.full_name}
+
+        try:
+            with (
+                patch.object(UserService, "get_user_by_email", return_value=None),
+                patch.object(UserService, "create_user", return_value=test_user),
+                patch("app.services.email_verification.EmailVerificationService.send_verification_email"),
+            ):
+                # Act: Sign up once inside the budget and once past it
+                with patch.object(MailRateLimitService, "allows_mail", return_value=True):
+                    allowed = client.post("/api/v1/users/signup", json=payload)
+                with patch.object(MailRateLimitService, "allows_mail", return_value=False):
+                    refused = client.post("/api/v1/users/signup", json=payload)
+
+                # Assert: Verify the two replies cannot be told apart
+                assert refused.status_code == allowed.status_code
+                assert refused.json() == allowed.json()
+                assert refused.json()["message"] == SIGNUP_MESSAGE
         finally:
             # Cleanup
             app.dependency_overrides.clear()

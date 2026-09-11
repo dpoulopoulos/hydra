@@ -119,6 +119,11 @@ export const usersCreateUserMutation = (options?: Partial<Options<UsersCreateUse
  * be used to find out which addresses are registered. What happened is told to the address itself,
  * by email.
  *
+ * Nobody is signed in and the body names the mailbox, so an unbounded endpoint would mail whoever
+ * it was pointed at, as fast as it was asked. Once a budget is spent nothing is sent, and the
+ * caller is told what every other caller is told: a refusal of its own would say that the address
+ * had been signed up for recently, which is the very thing the shared reply refuses to answer.
+ *
  * Args:
  * user_service: The user service dependency.
  * email_verification_service: The email verification service dependency.
@@ -126,6 +131,9 @@ export const usersCreateUserMutation = (options?: Partial<Options<UsersCreateUse
  * the user's household in the same transaction.
  * category_service: The category service dependency, used to seed the
  * household's default categories.
+ * mail_rate_limit_service: The mail rate limit service dependency, which
+ * bounds how much mail this endpoint can be made to send.
+ * source_address: The address the request came from.
  * user_in: The user registration data.
  *
  * Returns:
@@ -3055,9 +3063,17 @@ export const loginLoginAccessTokenMutation = (options?: Partial<Options<LoginLog
  * For security reasons, this always returns success even if the email doesn't exist.
  * This prevents user enumeration attacks.
  *
+ * Nobody is signed in and the body names the mailbox, so an unbounded endpoint would mail whoever
+ * it was pointed at, as fast as it was asked. Once a budget is spent nothing is sent, and the
+ * caller is told what it would have been told anyway: a refusal of its own would say that the
+ * address had asked for a reset recently, which the shared reply exists to keep quiet about.
+ *
  * Args:
  * password_reset_service: The password reset service dependency.
  * user_service: The user service dependency.
+ * mail_rate_limit_service: The mail rate limit service dependency, which
+ * bounds how much mail this endpoint can be made to send.
+ * source_address: The address the request came from.
  * password_reset_in: The password reset request payload.
  *
  * Returns:
@@ -3144,9 +3160,17 @@ export const passwordResetConfirmPasswordResetMutation = (options?: Partial<Opti
  * For security reasons, this always returns success even if the email doesn't exist.
  * This prevents user enumeration attacks.
  *
+ * Nobody is signed in and the body names the mailbox, so an unbounded endpoint would mail whoever
+ * it was pointed at, as fast as it was asked. Once a budget is spent nothing is sent, and the
+ * caller is told what it would have been told anyway: a refusal of its own would say that the
+ * address had asked for a link recently, which the shared reply exists to keep quiet about.
+ *
  * Args:
  * email_verification_service: The email verification service dependency.
  * user_service: The user service dependency.
+ * mail_rate_limit_service: The mail rate limit service dependency, which
+ * bounds how much mail this endpoint can be made to send.
+ * source_address: The address the request came from.
  * email_verification_request: The email verification request payload.
  *
  * Returns:
