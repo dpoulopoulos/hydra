@@ -791,6 +791,38 @@ class TestCreateInvite:
             )
 
 
+class TestListInvites:
+    """Tests for list_invites."""
+
+    def test_counts_the_whole_match_rather_than_the_page(
+        self, mock_household_service: HouseholdService, context: HouseholdContext
+    ) -> None:
+        """A household with more invites than fit on a page still reports how many there are."""
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.one.return_value = 7
+        mock_household_service.session.exec.return_value.all.return_value = [
+            make_invite(household_id=context.household_id)
+        ]
+
+        result = mock_household_service.list_invites(household=context, limit=1)
+
+        assert len(result.data) == 1
+        assert result.count == 7
+
+    def test_asks_for_the_page_it_was_given(
+        self, mock_household_service: HouseholdService, context: HouseholdContext
+    ) -> None:
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.one.return_value = 0
+        mock_household_service.session.exec.return_value.all.return_value = []
+
+        mock_household_service.list_invites(household=context, skip=10, limit=5)
+
+        page_statement = str(mock_household_service.session.exec.call_args_list[1].args[0])
+        assert "LIMIT" in page_statement
+        assert "OFFSET" in page_statement
+
+
 class TestRevokeInvite:
     """Tests for revoke_invite."""
 

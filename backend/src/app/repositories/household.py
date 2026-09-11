@@ -257,23 +257,35 @@ class HouseholdInviteRepository(HouseholdScopedRepository[HouseholdInvite]):
         return self.session.exec(statement).first()
 
     def list_for_household(
-        self, household_id: uuid.UUID, status: HouseholdInviteStatus | None = None
-    ) -> Sequence[HouseholdInvite]:
+        self,
+        household_id: uuid.UUID,
+        status: HouseholdInviteStatus | None = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> tuple[Sequence[HouseholdInvite], int]:
         """List the invites of a household.
 
         Args:
             household_id: The ID of the household.
             status: An optional status to filter on.
+            skip: Number of records to skip.
+            limit: Maximum number of records to return.
 
         Returns:
-            The invites, newest first.
+            Tuple of (invites, total_count), newest first.
         """
-        statement = select(HouseholdInvite).where(HouseholdInvite.household_id == household_id)
+        conditions = [] if status is None else [HouseholdInvite.status == status]
 
-        if status is not None:
-            statement = statement.where(HouseholdInvite.status == status)
+        count = self.count_for_household(household_id, *conditions)
+        statement = self._paginate(
+            select(HouseholdInvite)
+            .where(self.household_column == household_id, *conditions)
+            .order_by(col(HouseholdInvite.created_at).desc()),
+            skip=skip,
+            limit=limit,
+        )
 
-        return self.session.exec(statement.order_by(col(HouseholdInvite.created_at).desc())).all()
+        return self.session.exec(statement).all(), count
 
     def list_pending_for_email(self, email: str) -> Sequence[HouseholdInvite]:
         """List every outstanding invite sent to an address.

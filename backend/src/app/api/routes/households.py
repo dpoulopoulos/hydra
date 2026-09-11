@@ -215,6 +215,8 @@ def list_household_invites(
     household_service: HouseholdServiceDep,
     household: CurrentHousehold,
     invite_status: HouseholdInviteStatus | None = Query(default=None, alias="status"),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=200),
 ) -> HouseholdInvitesPublic:
     """List the invitations sent from this household.
 
@@ -222,14 +224,16 @@ def list_household_invites(
         household_service: The household service dependency.
         household: The current household context.
         invite_status: An optional status to filter on.
+        skip: Number of records to skip.
+        limit: Maximum number of records to return.
 
     Returns:
-        The invitations, newest first.
+        The invitations on the page, newest first, and how many match in total.
 
     Raises:
         HTTPException: If the user belongs to no household (404).
     """
-    return household_service.list_invites(household=household, status=invite_status)
+    return household_service.list_invites(household=household, status=invite_status, skip=skip, limit=limit)
 
 
 @router.post("/me/invites", response_model=HouseholdInvitePublic)
