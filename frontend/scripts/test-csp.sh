@@ -11,9 +11,9 @@
 # that builds a stylesheet while it runs has to carry the nonce or be refused.
 # Nothing reports that but the browser.
 #
-# So this builds the app and serves it the way it will be served, which is what
-# a browser needs before it can be pointed at anything. The backend is stood in
-# for by a second container reading stub-backend.Caddyfile: what the screens
+# So this builds the app, serves it the way it will be served, and drives a
+# real browser through it: see the walk in csp-walk.mjs. The backend is stood
+# in for by a second container reading stub-backend.Caddyfile: what the screens
 # show is not under test, but they have to have something to show.
 #
 # Docker is required, and Node with the dependencies installed.
@@ -35,6 +35,10 @@ cleanup() {
   docker network rm "$network" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
+
+# The browser the walk drives. Downloaded on first use and cached after, so
+# this is a moment once and nothing on every run after it.
+pnpm exec playwright install chromium >/dev/null
 
 # The app itself, built the way the production image builds it. Nothing is
 # reused from a previous run: a stale dist would have the browser walk a
@@ -142,4 +146,6 @@ if [ "$failures" -ne 0 ]; then
   exit 1
 fi
 
-echo "all checks passed"
+# The rest of the run belongs to the browser: what a page does with what it was
+# served is the half no request from here can see.
+node scripts/csp-walk.mjs "$base"
