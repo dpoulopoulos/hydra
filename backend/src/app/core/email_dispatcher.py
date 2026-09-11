@@ -13,6 +13,7 @@ from app.services.email_outbox import EmailOutboxService
 logger = get_logger(__name__)
 
 DISPATCHER_TASK_NAME = "email-outbox-dispatcher"
+PRUNER_TASK_NAME = "email-outbox-pruner"
 
 
 def dispatch_once() -> int:
@@ -23,6 +24,16 @@ def dispatch_once() -> int:
     """
     with Session(engine) as session:
         return EmailOutboxService.for_session(session).dispatch_due()
+
+
+def prune_once() -> int:
+    """Run one round of retention: the settled rows whose window has passed.
+
+    Returns:
+        The number of rows removed.
+    """
+    with Session(engine) as session:
+        return EmailOutboxService.for_session(session).prune_expired()
 
 
 async def run_rounds(round_: Callable[[], int], *, interval_seconds: int, failure: str, outcome: str) -> None:
@@ -71,9 +82,23 @@ async def run_email_dispatcher() -> None:
     )
 
 
+async def run_outbox_pruner() -> None:
+    """Keep the outbox to its retention windows for as long as the app runs.
+
+    Nothing else ever takes a row out of the table, and every row holds the
+    whole rendered body of its message.
+    """
+    await run_rounds(
+        prune_once,
+        interval_seconds=settings.EMAIL_OUTBOX_PRUNE_INTERVAL_SECONDS,
+        failure="Could not prune the email outbox",
+        outcome="Removed %d expired outbox row(s)",
+    )
+
+
 @asynccontextmanager
 async def email_dispatcher_lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """Run the outbox dispatcher alongside the application.
+    """Run the outbox background jobs alongside the application.
 
     Args:
         _: The application being started (unused).
@@ -81,15 +106,20 @@ async def email_dispatcher_lifespan(_: FastAPI) -> AsyncIterator[None]:
     Yields:
         Nothing; the application runs inside the context.
     """
-    if not settings.emails_enabled:
-        logger.info("Email delivery is disabled, so the outbox dispatcher was not started")
-        yield
-        return
+    # The pruner runs whether or not mail is configured: a deployment that has
+    # turned delivery off still holds every row it wrote while it was on, and
+    # nothing else would ever remove them.
+    tasks = [asyncio.create_task(run_outbox_pruner(), name=PRUNER_TASK_NAME)]
 
-    task = asyncio.create_task(run_email_dispatcher(), name=DISPATCHER_TASK_NAME)
+    if settings.emails_enabled:
+        tasks.append(asyncio.create_task(run_email_dispatcher(), name=DISPATCHER_TASK_NAME))
+    else:
+        logger.info("Email delivery is disabled, so the outbox dispatcher was not started")
+
     try:
         yield
     finally:
-        task.cancel()
-        # Give the task the chance to unwind before the loop closes under it.
-        await asyncio.gather(task, return_exceptions=True)
+        for task in tasks:
+            task.cancel()
+        # Give the tasks the chance to unwind before the loop closes under them.
+        await asyncio.gather(*tasks, return_exceptions=True)
