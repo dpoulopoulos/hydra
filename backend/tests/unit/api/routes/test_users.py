@@ -16,7 +16,7 @@ from app.exceptions import (
 )
 from app.exceptions.password_exceptions import PasswordIsWrongError
 from app.main import app
-from app.models import Message, User, UserPublic, UsersPublic
+from app.models import EmailDelivery, Message, MessageWithDelivery, User, UserPublic, UsersPublic
 from app.services import HouseholdService, UserService
 from app.services.user import SIGNUP_MESSAGE
 
@@ -168,7 +168,8 @@ class TestRegisterUser:
                 patch.object(UserService, "get_user_by_email", return_value=None),
                 patch.object(UserService, "create_user", return_value=test_user) as mock_create_user,
                 patch(
-                    "app.services.email_verification.EmailVerificationService.send_verification_email"
+                    "app.services.email_verification.EmailVerificationService.send_verification_email",
+                    return_value=MessageWithDelivery(message="Sent.", delivery=EmailDelivery.SENT),
                 ) as mock_send_verification_email,
             ):
                 # Act: Post signup data
@@ -186,6 +187,7 @@ class TestRegisterUser:
 
                 assert response.status_code == 200
                 assert data["message"] == SIGNUP_MESSAGE
+                assert data["delivery"] == "sent"
                 assert "email" not in data
                 mock_create_user.assert_called_once()
                 mock_send_verification_email.assert_called_once()
@@ -193,16 +195,24 @@ class TestRegisterUser:
             # Cleanup
             app.dependency_overrides.clear()
 
+    @pytest.mark.parametrize("provider_takes_the_message", [True, False])
     def test_register_user_does_not_disclose_registered_addresses(
         self,
         client: TestClient,
         test_user: User,
         mock_db_session: MagicMock,
+        provider_takes_the_message: bool,
     ) -> None:
         """Test that a free address and a taken one answer identically.
 
         The status code and the body are both compared: either one differing would let anyone read
-        off which addresses have an account here, one request per address.
+        off which addresses have an account here, one request per address. Only the provider is
+        faked, and identically for both requests, so each path derives its own `delivery` from its
+        own send — forcing the two outcomes by hand would compare the fixture rather than the code.
+
+        Args:
+            provider_takes_the_message: Whether the provider accepts the send, which decides
+                whether each path derives `sent` or `queued`.
         """
 
         # Arrange: Set up database dependency override
@@ -214,18 +224,25 @@ class TestRegisterUser:
         payload = {"email": test_user.email, "password": "password123", "full_name": "Test User"}
 
         try:
-            # Act: Post the same signup against an unregistered and a registered address
+            # Act: Post the same signup against an unregistered and a registered address, with the
+            # provider behaving the same way for both
             with (
-                patch.object(UserService, "get_user_by_email", return_value=None),
+                # Free when the signup looks, then found when the verification email is addressed
+                patch.object(UserService, "get_user_by_email", side_effect=[None, test_user]),
                 patch.object(UserService, "create_user", return_value=test_user),
-                patch("app.services.email_verification.EmailVerificationService.send_verification_email"),
+                patch("app.services.user.EmailOutboxService") as free_outbox,
+                patch("app.services.email_verification.EmailOutboxService") as verification_outbox,
             ):
+                free_outbox.for_session.return_value.deliver_or_queue.return_value = provider_takes_the_message
+                verification_outbox.for_session.return_value.deliver_or_queue.return_value = provider_takes_the_message
                 unknown = client.post("/api/v1/users/signup", json=payload)
 
             with (
                 patch.object(UserService, "get_user_by_email", return_value=test_user),
                 patch.object(UserService, "create_user") as mock_create_user,
+                patch("app.services.user.EmailOutboxService") as taken_outbox,
             ):
+                taken_outbox.for_session.return_value.deliver_or_queue.return_value = provider_takes_the_message
                 registered = client.post("/api/v1/users/signup", json=payload)
 
             # Assert: Both answers are the same 200, byte for byte, and no second account was made
@@ -237,17 +254,27 @@ class TestRegisterUser:
             # Cleanup
             app.dependency_overrides.clear()
 
+    @pytest.mark.parametrize("provider_takes_the_message", [True, False])
     def test_register_user_does_not_disclose_addresses_through_an_invite_token(
         self,
         client: TestClient,
         test_user: User,
         mock_db_session: MagicMock,
+        provider_takes_the_message: bool,
     ) -> None:
         """Test that a signup carrying a bogus invite token answers the same either way.
 
         Only a free address gets as far as reading the token, so an invite error raised out of the
         endpoint would answer 404 for a free address and 200 for a taken one — the same disclosure,
         asked with a token nobody has to own.
+
+        As above, only the provider is faked, and identically for both requests: the free path
+        mails the address for real and derives its own `delivery` from that send, so the bodies
+        being equal is a fact about the code rather than about a delivery handed to one of them.
+
+        Args:
+            provider_takes_the_message: Whether the provider accepts the send, which decides
+                whether each path derives `sent` or `queued`.
         """
 
         # Arrange: Set up database dependency override
@@ -269,16 +296,22 @@ class TestRegisterUser:
                 patch.object(
                     HouseholdService, "check_signup_invite", side_effect=HouseholdInviteNotFoundError()
                 ) as mock_check_signup_invite,
-                patch.object(UserService, "get_user_by_email", return_value=None),
+                # Free when the signup looks, then found when the verification email is addressed
+                patch.object(UserService, "get_user_by_email", side_effect=[None, test_user]),
                 patch.object(UserService, "create_user", return_value=test_user) as mock_create_user,
-                patch("app.services.email_verification.EmailVerificationService.send_verification_email"),
+                patch("app.services.user.EmailOutboxService") as free_outbox,
+                patch("app.services.email_verification.EmailOutboxService") as verification_outbox,
             ):
+                free_outbox.for_session.return_value.deliver_or_queue.return_value = provider_takes_the_message
+                verification_outbox.for_session.return_value.deliver_or_queue.return_value = provider_takes_the_message
                 unknown = client.post("/api/v1/users/signup", json=payload)
 
             with (
                 patch.object(UserService, "get_user_by_email", return_value=test_user),
                 patch.object(UserService, "create_user"),
+                patch("app.services.user.EmailOutboxService") as taken_outbox,
             ):
+                taken_outbox.for_session.return_value.deliver_or_queue.return_value = provider_takes_the_message
                 registered = client.post("/api/v1/users/signup", json=payload)
 
             # Assert: Both answers are the same 200, and the invitation was dropped without a retry

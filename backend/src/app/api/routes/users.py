@@ -22,6 +22,7 @@ from app.exceptions import (
 from app.exceptions.password_exceptions import InvalidCredentialsError, PasswordIsWrongError
 from app.models import (
     Message,
+    MessageWithDelivery,
     PasswordUpdate,
     UserCreate,
     UserPublic,
@@ -83,7 +84,7 @@ def create_user(
     )
 
 
-@router.post("/signup", response_model=Message)
+@router.post("/signup", response_model=MessageWithDelivery)
 def register_user(
     *,
     user_service: UserServiceDep,
@@ -91,7 +92,7 @@ def register_user(
     household_service: HouseholdServiceDep,
     category_service: CategoryServiceDep,
     user_in: UserRegister,
-) -> Message:
+) -> MessageWithDelivery:
     """Register a new user.
 
     This endpoint allows users to register without being authenticated.
@@ -112,7 +113,11 @@ def register_user(
         user_in: The user registration data.
 
     Returns:
-        A message asking the caller to check their email.
+        A message asking the caller to check their email, and what became of the message the
+        signup sent: a screen that says the mail is already there while it is still in the outbox
+        sends somebody to look at an empty inbox. The field says the same thing for a free address
+        and a taken one, because both paths mail the address and a provider being down is a fact
+        about the server rather than about the address.
     """
     return user_service.register_user(
         user_register=user_in,

@@ -129,7 +129,11 @@ export const usersCreateUserMutation = (options?: Partial<Options<UsersCreateUse
  * user_in: The user registration data.
  *
  * Returns:
- * A message asking the caller to check their email.
+ * A message asking the caller to check their email, and what became of the message the
+ * signup sent: a screen that says the mail is already there while it is still in the outbox
+ * sends somebody to look at an empty inbox. The field says the same thing for a free address
+ * and a taken one, because both paths mail the address and a provider being down is a fact
+ * about the server rather than about the address.
  */
 export const usersRegisterUserMutation = (options?: Partial<Options<UsersRegisterUserData>>): UseMutationOptions<UsersRegisterUserResponse, UsersRegisterUserError, Options<UsersRegisterUserData>> => {
     const mutationOptions: UseMutationOptions<UsersRegisterUserResponse, UsersRegisterUserError, Options<UsersRegisterUserData>> = {

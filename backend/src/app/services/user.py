@@ -18,7 +18,9 @@ from app.exceptions import (
 )
 from app.logging import get_logger
 from app.models import (
+    EmailDelivery,
     Message,
+    MessageWithDelivery,
     PasswordUpdate,
     Token,
     TokenPayload,
@@ -40,6 +42,38 @@ logger = get_logger(__name__)
 # What signup answers with, for an address that is free and for one that is taken alike. It has to
 # read the same in both cases, so it promises mail rather than an account.
 SIGNUP_MESSAGE = "Check your email. We sent a message to that address with what to do next."
+
+# What it answers with when the message has not reached the provider yet, and when there is no
+# provider to reach. Both paths through a signup mail the address, and a provider being down is a
+# fact about the server rather than about the address, so wording the reply by what became of the
+# send still says the same thing for a free address and a taken one.
+SIGNUP_MESSAGE_QUEUED = (
+    "We are still sending a message to that address. It should arrive shortly, with what to do next."
+)
+SIGNUP_MESSAGE_NOT_CONFIGURED = "Email delivery is not configured on this server, so no message was sent."
+
+
+def _signup_message(delivery: EmailDelivery) -> MessageWithDelivery:
+    """Answer a signup with what actually became of the message it sent.
+
+    Telling somebody to go and look in their inbox is only true once the provider has the
+    message. While it is still in the outbox there is nothing there to find, and the wait is
+    minutes rather than seconds.
+
+    Args:
+        delivery: What the outbox did with the message the signup sent.
+
+    Returns:
+        The reply, carrying both the sentence and the outcome it was worded from.
+    """
+    if delivery is EmailDelivery.NOT_CONFIGURED:
+        return MessageWithDelivery(message=SIGNUP_MESSAGE_NOT_CONFIGURED, delivery=delivery)
+
+    if delivery is EmailDelivery.QUEUED:
+        return MessageWithDelivery(message=SIGNUP_MESSAGE_QUEUED, delivery=delivery)
+
+    return MessageWithDelivery(message=SIGNUP_MESSAGE, delivery=delivery)
+
 
 if TYPE_CHECKING:
     from app.services.email_verification import EmailVerificationService
@@ -181,7 +215,7 @@ class UserService:
         category_service: "CategorySeeder",
         household_service: "HouseholdService",
         email_verification_service: "EmailVerificationService",
-    ) -> Message:
+    ) -> MessageWithDelivery:
         """Register a user through the public signup flow.
 
         The reply says the same thing whether or not the address already has an account, so the
@@ -213,7 +247,7 @@ class UserService:
                 to verify itself.
 
         Returns:
-            The same message either way.
+            The same message either way, saying what became of the message that signup sent.
         """
         # Pay for the hash before the answer is known, so that no path can be told apart by how
         # much bcrypt work it did. Nothing stores it when the address turns out to be taken.
@@ -222,8 +256,7 @@ class UserService:
         existing_user = self.get_user_by_email(email=user_register.email)
 
         if existing_user:
-            self._handle_taken_address(user_register=user_register)
-            return Message(message=SIGNUP_MESSAGE)
+            return _signup_message(self._handle_taken_address(user_register=user_register))
 
         invite_unusable = self._invitation_is_unusable(user_register=user_register, household_service=household_service)
 
@@ -249,19 +282,18 @@ class UserService:
                 logger.exception("Signup failed for a reason other than the address being taken")
                 raise
 
-            self._handle_taken_address(user_register=user_register)
-            return Message(message=SIGNUP_MESSAGE)
+            return _signup_message(self._handle_taken_address(user_register=user_register))
 
         # One message per signup, whatever happened. Each send blocks on an HTTPS call to the mail
         # provider, which costs far more than the single bcrypt hash above, so a second message for
         # the dropped invitation would make a free address measurably slower than a taken one and
         # the clock would answer the question the shared reply refuses. The verification email
         # carries the news about the invitation instead.
-        email_verification_service.send_verification_email(
+        verification = email_verification_service.send_verification_email(
             user_service=self, user_email=user.email, invite_unusable=invite_unusable
         )
 
-        return Message(message=SIGNUP_MESSAGE)
+        return _signup_message(verification.delivery)
 
     def _invitation_is_unusable(
         self,
@@ -299,7 +331,7 @@ class UserService:
 
         return False
 
-    def _handle_taken_address(self, user_register: UserRegister) -> None:
+    def _handle_taken_address(self, user_register: UserRegister) -> EmailDelivery:
         """Answer a signup for an address that already has an account.
 
         Nothing is created and nothing is said back to the caller. The address itself is told about
@@ -311,20 +343,28 @@ class UserService:
 
         Args:
             user_register: The registration data for the address that is already taken.
+
+        Returns:
+            What became of the notice: sent, queued for another attempt, or not sent at all
+            because no provider is configured.
         """
         # The address, and only the address, is told that it is taken. The notice carries no token,
         # so it says nothing to whoever typed the address that they did not already know. When the
         # attempt came from an invitation, it says so too: the invitation cannot be accepted by an
         # unauthenticated caller, so the holder is told it is still waiting for them.
-        if settings.emails_enabled:
-            email_data = generate_signup_attempt_email(
-                email=user_register.email, invited=user_register.invite_token is not None
-            )
-            EmailOutboxService.for_session(self.session).deliver_or_queue(
-                email_to=user_register.email,
-                subject=email_data.subject,
-                html_content=email_data.html_content,
-            )
+        if not settings.emails_enabled:
+            return EmailDelivery.NOT_CONFIGURED
+
+        email_data = generate_signup_attempt_email(
+            email=user_register.email, invited=user_register.invite_token is not None
+        )
+        delivered = EmailOutboxService.for_session(self.session).deliver_or_queue(
+            email_to=user_register.email,
+            subject=email_data.subject,
+            html_content=email_data.html_content,
+        )
+
+        return EmailDelivery.SENT if delivered else EmailDelivery.QUEUED
 
     def get_authenticated_user(self, token_data: TokenPayload) -> User:
         """Get the authenticated user from a token.
