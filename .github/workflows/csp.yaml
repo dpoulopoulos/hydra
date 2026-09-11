@@ -1,0 +1,68 @@
+name: Policy walk
+
+# Unlike the other two container jobs, this one is not about a file that
+# rarely changes: what breaks it is a dependency that starts building a
+# stylesheet, or stops asking for the nonce, and that arrives with an ordinary
+# front end change. So it runs for any pull request that touches the app, the
+# manifests it is built from, or the server that serves it under the policy.
+on:
+  pull_request:
+    paths:
+      - frontend/**
+      - .github/workflows/csp.yaml
+
+# A new push to a pull request makes the run in progress obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  csp:
+    name: Policy walk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # No version here on purpose: the action reads it from the
+      # packageManager field in frontend/package.json, so CI and a developer's
+      # machine agree. The path is explicit because the action looks in the
+      # repository root.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+
+      # Node 24 is what frontend/Dockerfile builds the app with.
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      # The script downloads the browser itself when it has to. Here it is
+      # asked for with its system libraries, which a runner does not ship and
+      # only a step that can use sudo can install.
+      - name: Install the browser
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: frontend
+
+      # The same command `make web-test-csp` runs. It builds the app, serves it
+      # with the production Caddyfile and a stub backend -- both containers,
+      # which the Docker on ubuntu-latest provides -- and walks it in the
+      # browser installed above, failing on anything the content security
+      # policy refuses.
+      #
+      # Until now that was checked by hand, once, when the policy was
+      # tightened. A dependency that stopped reading the nonce would have
+      # reached a deploy with a green CI, and shown up as a dialog with the
+      # page still scrolling behind it.
+      - name: Walk the app under the production policy
+        run: bash frontend/scripts/test-csp.sh
