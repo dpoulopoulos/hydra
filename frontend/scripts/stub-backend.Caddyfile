@@ -1,0 +1,86 @@
+# A stand-in for the backend, for test-csp.sh.
+#
+# What that checks is what the browser does with what it is served, not what
+# the API computes, so every answer here is a fixed one. What matters is that
+# each is shaped the way the generated client expects, and that between them
+# they give the screens something to render: a session, a household, an
+# account, and figures for the charts.
+#
+# Caddy is what serves it, because the production image already runs Caddy and
+# one image means one pull. `respond` rather than a tree of files, because a
+# file server answers no POST, and signing in is one.
+
+:80 {
+	# Every answer below is JSON, and the generated client parses a response
+	# by its content type. `respond` sets none, so it is set here for all of
+	# them at once.
+	header Content-Type application/json
+
+	# Signing in. The token is opaque to the app: it stores it and sends it
+	# back, and nothing here looks at it.
+	handle /api/v1/login/access-token {
+		respond `{"access_token": "stub-token", "token_type": "bearer"}` 200
+	}
+
+	# Who the token belongs to. The app shell greets this person and reads the
+	# household's currency from the next one.
+	handle /api/v1/users/me {
+		respond `{"id": "00000000-0000-4000-8000-000000000001", "email": "walker@example.com", "full_name": "Wanda Walker", "is_active": true, "is_superuser": false, "created_at": "2026-01-01T00:00:00Z", "updated_at": null}` 200
+	}
+
+	handle /api/v1/households/me {
+		respond `{"id": "00000000-0000-4000-8000-000000000002", "name": "The Walkers", "currency_code": "EUR", "session_merchant_label": "Session", "member_count": 2, "created_at": "2026-01-01T00:00:00Z", "updated_at": null}` 200
+	}
+
+	# The accounts screen. One account so the screen shows a table rather than
+	# its empty state, and a created account for the POST the dialog on it
+	# sends, which is what raises a toast.
+	handle /api/v1/accounts/ {
+		@created method POST
+		handle @created {
+			respond `{"id": "00000000-0000-4000-8000-000000000004", "household_id": "00000000-0000-4000-8000-000000000002", "name": "Walked in", "type": "current", "institution": null, "iban": null, "currency_code": "EUR", "opening_balance_minor": 0, "opening_balance_date": "2026-01-01", "current_balance_minor": 0, "archived_at": null, "created_at": "2026-01-01T00:00:00Z", "updated_at": null}` 201
+		}
+		respond `{"data": [{"id": "00000000-0000-4000-8000-000000000003", "household_id": "00000000-0000-4000-8000-000000000002", "name": "Everyday", "type": "current", "institution": "A Bank", "iban": null, "currency_code": "EUR", "opening_balance_minor": 100000, "opening_balance_date": "2026-01-01", "current_balance_minor": 124500, "archived_at": null, "created_at": "2026-01-01T00:00:00Z", "updated_at": null}], "count": 1, "total_balance_minor": 124500}` 200
+	}
+
+	# The income vault, which the app asks about as soon as anyone signs in.
+	# An answer rather than a 404: a run that ended with a failed request in
+	# the console could not tell that one apart from a real one.
+	handle /api/v1/income/vault {
+		respond `{"user_id": "00000000-0000-4000-8000-000000000001", "kdf": "argon2id", "kdf_salt": "c3R1Yi1zYWx0LTAwMDAwMDAw", "kdf_memory_kib": 65536, "kdf_iterations": 3, "kdf_parallelism": 1, "wrapped_dek": "c3R1Yi13cmFwcGVkLWRhdGEta2V5", "created_at": "2026-01-01T00:00:00Z", "updated_at": null}` 200
+	}
+
+	handle /api/v1/transactions/ {
+		respond `{"data": [], "count": 0}` 200
+	}
+
+	# The reports. Every one of them carries figures rather than an empty set:
+	# a chart with nothing to draw draws nothing, and the marks are the point
+	# of visiting the screen.
+	handle /api/v1/reports/summary {
+		respond `{"period": {"date_from": "2026-09-01", "date_to": "2026-09-30", "currency_code": "EUR"}, "income_minor": 420000, "expense_minor": 315000, "net_minor": 105000, "bank_minor": 124500, "brokerage_minor": 0, "assets_minor": 0, "net_worth_minor": 124500, "unpriced_asset_count": 0, "budgeted_minor": 350000, "over_budget_category_count": 1, "transaction_count": 42, "top_categories": [{"category_id": "00000000-0000-4000-8000-000000000011", "category_name": "Groceries", "parent_id": null, "parent_name": null, "color": null, "amount_minor": 120000, "transaction_count": 18, "share": 0.38}]}` 200
+	}
+
+	handle /api/v1/reports/budget-progress {
+		respond `{"period": {"date_from": "2026-09-01", "date_to": "2026-09-30", "currency_code": "EUR"}, "total_limit_minor": 350000, "total_spent_minor": 315000, "total_remaining_minor": 35000, "unbudgeted_spend_minor": 0, "rows": [{"budget_id": "00000000-0000-4000-8000-000000000021", "category_id": "00000000-0000-4000-8000-000000000011", "category_name": "Groceries", "parent_id": null, "covers_subcategories": false, "limit_minor": 150000, "spent_minor": 120000, "remaining_minor": 30000, "progress": 0.8, "is_over_budget": false}]}` 200
+	}
+
+	handle /api/v1/reports/income-expense {
+		respond `{"period": {"date_from": "2026-04-01", "date_to": "2026-09-30", "currency_code": "EUR"}, "total_income_minor": 2520000, "total_expense_minor": 1890000, "total_net_minor": 630000, "average_savings_rate": 0.25, "months": [{"month": "2026-04", "income_minor": 420000, "expense_minor": 300000, "net_minor": 120000, "cumulative_net_minor": 120000, "savings_rate": 0.29}, {"month": "2026-05", "income_minor": 420000, "expense_minor": 330000, "net_minor": 90000, "cumulative_net_minor": 210000, "savings_rate": 0.21}, {"month": "2026-06", "income_minor": 420000, "expense_minor": 310000, "net_minor": 110000, "cumulative_net_minor": 320000, "savings_rate": 0.26}, {"month": "2026-07", "income_minor": 420000, "expense_minor": 320000, "net_minor": 100000, "cumulative_net_minor": 420000, "savings_rate": 0.24}, {"month": "2026-08", "income_minor": 420000, "expense_minor": 315000, "net_minor": 105000, "cumulative_net_minor": 525000, "savings_rate": 0.25}, {"month": "2026-09", "income_minor": 420000, "expense_minor": 315000, "net_minor": 105000, "cumulative_net_minor": 630000, "savings_rate": 0.25}]}` 200
+	}
+
+	handle /api/v1/reports/spend-by-category {
+		respond `{"period": {"date_from": "2026-09-01", "date_to": "2026-09-30", "currency_code": "EUR"}, "kind": "expense", "depth": "parent", "total_minor": 315000, "slices": [{"category_id": "00000000-0000-4000-8000-000000000011", "category_name": "Groceries", "parent_id": null, "parent_name": null, "color": null, "amount_minor": 120000, "transaction_count": 18, "share": 0.38}, {"category_id": "00000000-0000-4000-8000-000000000012", "category_name": "Rent", "parent_id": null, "parent_name": null, "color": null, "amount_minor": 150000, "transaction_count": 1, "share": 0.48}, {"category_id": "00000000-0000-4000-8000-000000000013", "category_name": "Transport", "parent_id": null, "parent_name": null, "color": null, "amount_minor": 45000, "transaction_count": 9, "share": 0.14}]}` 200
+	}
+
+	handle /api/v1/reports/spend-over-time {
+		respond `{"period": {"date_from": "2026-09-01", "date_to": "2026-09-30", "currency_code": "EUR"}, "granularity": "day", "kind": "expense", "total_minor": 315000, "average_minor": 10500, "points": [{"bucket": "2026-09-01", "amount_minor": 12000, "transaction_count": 2}, {"bucket": "2026-09-02", "amount_minor": 8000, "transaction_count": 1}, {"bucket": "2026-09-03", "amount_minor": 15000, "transaction_count": 3}, {"bucket": "2026-09-04", "amount_minor": 5000, "transaction_count": 1}, {"bucket": "2026-09-05", "amount_minor": 22000, "transaction_count": 4}]}` 200
+	}
+
+	# Anything not planned for. A 404 with a body the client can parse, rather
+	# than Caddy's empty one, so a screen reporting an error names the path
+	# that is missing from here.
+	handle {
+		respond `{"detail": "the stub backend does not answer this path"}` 404
+	}
+}
