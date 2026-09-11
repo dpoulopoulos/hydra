@@ -1,8 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  Clock,
   LogOut,
   Mail,
+  MailWarning,
   MoreHorizontal,
   ShieldCheck,
   ShieldOff,
@@ -23,6 +25,7 @@ import {
   householdsRevokeHouseholdInvite,
   householdsUpdateHouseholdMe,
   householdsUpdateHouseholdMember,
+  EmailOutboxStatus,
   HouseholdInviteStatus,
   HouseholdRole,
   type HouseholdInvitePublic,
@@ -57,6 +60,35 @@ import { useHousehold } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
 import { refill } from '@/lib/form'
 import { formatDateTime } from '@/lib/month'
+
+/**
+ * What became of the invitation email, when there is something to say about it.
+ *
+ * A delivered message says nothing: the common case should not be decorated.
+ * Neither does a missing state, which is what an invitation made with mail
+ * switched off, or one whose outbox row has been pruned, reports.
+ */
+function DeliveryBadge({ status }: { status?: EmailOutboxStatus | null }) {
+  if (status === EmailOutboxStatus.FAILED) {
+    return (
+      <Badge variant="destructive" className="gap-1">
+        <MailWarning className="size-3" />
+        Not delivered
+      </Badge>
+    )
+  }
+
+  if (status === EmailOutboxStatus.PENDING) {
+    return (
+      <Badge variant="outline" className="gap-1">
+        <Clock className="size-3" />
+        Sending
+      </Badge>
+    )
+  }
+
+  return null
+}
 
 const renameSchema = z.object({
   name: z.string().trim().min(1, 'Give the household a name.').max(255),
@@ -417,11 +449,22 @@ export function Component() {
                 {invites.data.data.map((item) => (
                   <li key={item.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
-                      <p className="truncate font-medium">{item.email}</p>
+                      <p className="flex items-center gap-2 font-medium">
+                        <span className="truncate">{item.email}</span>
+                        <DeliveryBadge status={item.delivery_status} />
+                      </p>
                       <p className="text-muted-foreground text-sm">
                         {item.role === HouseholdRole.OWNER ? 'Owner' : 'Member'} · expires{' '}
                         {formatDateTime(item.expires_at)}
                       </p>
+                      {/* The invitation is valid either way, so the way out is
+                          to send it again rather than to wait. */}
+                      {item.delivery_status === EmailOutboxStatus.FAILED ? (
+                        <p className="text-destructive text-sm">
+                          We could not deliver this invitation. Withdraw it and invite them again,
+                          or pass the invitation on yourself.
+                        </p>
+                      ) : null}
                     </div>
                     <Button variant="ghost" size="sm" onClick={() => setRevoking(item)}>
                       <Trash2 className="size-4" />
