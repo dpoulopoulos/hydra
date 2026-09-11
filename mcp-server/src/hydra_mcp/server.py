@@ -7,20 +7,28 @@ from .auth import READ_SCOPE, HydraTokenVerifier
 from .config import settings
 
 INSTRUCTIONS = """\
-These tools read one household's finances from hydra. They only read: nothing \
-here can add, change or delete anything.
+These tools read and record one household's finances in hydra.
 
-How money is reported, which is the one thing worth knowing before reading any \
-result:
+Most of them only read. The ones that change anything say so, and they need a \
+token that was minted with write access: with a read token they are refused, \
+and the refusal says as much. Ask the person before recording, changing or \
+deleting anything they did not just ask for.
+
+How money works here, which is the one thing worth knowing before reading a \
+result or writing an amount:
 
 - Every amount comes back three ways. `amount` is the number a person would \
 write, `display` is that with its currency and sign, and `amount_minor` is the \
 exact integer to do arithmetic with. Quote `display`; never re-derive it.
 - Every amount states its currency. Never assume one.
-- A single transaction is always a positive `amount`. Which way the money went \
-is carried by its `kind` and shown in `display`, never by a minus sign on the \
-number. An expense leaves, income arrives, and a transfer moves money between \
-two of the household's own accounts and is not spending at all.
+- A single transaction is always a positive `amount`, when read and when \
+written. Which way the money went is carried by its `kind`, and by which tool \
+you call to record it, never by a minus sign. An expense leaves, income \
+arrives, and a transfer moves money between two of the household's own \
+accounts and is not spending at all. Never pass a negative amount; it is \
+refused.
+- Write amounts with the precision the currency has and no more. 10.005 euros \
+is not an amount, and it is refused rather than rounded.
 - A total is the exception, and is genuinely signed. `net` and `net_worth` are \
 negative when more went out than came in.
 
