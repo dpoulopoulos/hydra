@@ -60,7 +60,7 @@ import { useCurrency, useHousehold } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
 import { refill } from '@/lib/form'
 import { describeLocale, HOUSEHOLD_LOCALES } from '@/lib/locales'
-import { formatDateTime } from '@/lib/month'
+import { formatDateTime, formatInstantAsDate } from '@/lib/month'
 
 /**
  * What became of the invitation email, when there is something to say about it.
@@ -377,6 +377,16 @@ export function Component() {
                         already the address. */}
                     {member.full_name ? (
                       <p className="text-muted-foreground truncate text-sm">{member.email}</p>
+                    ) : null}
+                    {/* Ownership that nobody handed over: the household was
+                        left without an owner and fell to whoever had been in
+                        it longest. Worth saying, because the page otherwise
+                        reads as if somebody chose them. */}
+                    {member.promoted_to_owner_at ? (
+                      <p className="text-muted-foreground text-sm">
+                        Became owner on {formatInstantAsDate(member.promoted_to_owner_at)}, when the
+                        household was left without an owner.
+                      </p>
                     ) : null}
                   </div>
 

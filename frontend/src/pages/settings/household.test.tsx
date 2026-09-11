@@ -355,6 +355,43 @@ describe('how the household writes numbers', () => {
     })
   })
 
+  it('says when a member was made owner because the household had none', async () => {
+    vi.mocked(api.householdsListHouseholdMembers).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'm1',
+            user_id: OWNER,
+            email: 'owner@example.com',
+            full_name: 'Ada',
+            role: HouseholdRole.OWNER,
+          },
+          {
+            id: 'm2',
+            user_id: 'u-heir',
+            email: 'heir@example.com',
+            full_name: 'Bo',
+            role: HouseholdRole.OWNER,
+            promoted_to_owner_at: '2026-03-01T10:00:00Z',
+          },
+        ],
+        count: 2,
+      },
+    } as never)
+    renderHousehold()
+
+    // Whoever reads this page can see the household changed hands by itself,
+    // rather than that Bo was given the role by somebody.
+    expect(await screen.findByText(/left without an owner/)).toBeInTheDocument()
+  })
+
+  it('says nothing about a promotion for an owner who was made one', async () => {
+    renderHousehold()
+
+    await waitFor(() => expect(nameField()).toHaveValue('Rivera'))
+    expect(screen.queryByText(/left without an owner/)).not.toBeInTheDocument()
+  })
+
   it('is left to look at by a member who does not own the household', async () => {
     vi.mocked(api.householdsListHouseholdMembers).mockResolvedValue({
       data: {
