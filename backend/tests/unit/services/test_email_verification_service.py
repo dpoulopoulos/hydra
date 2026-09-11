@@ -580,8 +580,13 @@ class TestSendVerificationEmail:
         mock_email_verification_service.session.exec = MagicMock()
         mock_email_verification_service.session.exec.return_value.first.return_value = None
         saved: list[EmailVerification] = []
+
+        def remember(verification: EmailVerification) -> EmailVerification:
+            saved.append(verification)
+            return verification
+
         mock_email_verification_service.email_verification_repository.save = MagicMock(  # type: ignore[method-assign]
-            side_effect=lambda verification: saved.append(verification) or verification
+            side_effect=remember
         )
 
         # Act

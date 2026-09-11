@@ -49,7 +49,8 @@ def outbox_sends(mock_outbox: MagicMock) -> MagicMock:
     Returns:
         The mock that records every message handed to the outbox.
     """
-    return mock_outbox.for_session.return_value.deliver_or_queue
+    sends: MagicMock = mock_outbox.for_session.return_value.deliver_or_queue
+    return sends
 
 
 class TestAuthenticate:

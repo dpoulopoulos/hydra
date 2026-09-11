@@ -494,9 +494,9 @@ class TestMaterializeDue:
 
         # Compiled against the Postgres dialect, since SKIP LOCKED is not
         # rendered by the generic one.
-        statement = str(
-            mock_recurring_rule_service.session.exec.call_args.args[0].compile(dialect=postgresql.dialect())
-        )
+        # SQLAlchemy leaves dialect() unannotated, so the call is untyped here.
+        dialect = postgresql.dialect()  # type: ignore[no-untyped-call]
+        statement = str(mock_recurring_rule_service.session.exec.call_args.args[0].compile(dialect=dialect))
         assert "FOR UPDATE" in statement
         assert "SKIP LOCKED" in statement
 

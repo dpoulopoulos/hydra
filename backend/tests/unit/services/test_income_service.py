@@ -4,6 +4,7 @@ from fractions import Fraction
 from unittest.mock import MagicMock
 
 import pytest
+from sqlmodel import Session
 
 from app.exceptions import (
     AccountArchivedError,
@@ -106,8 +107,12 @@ def make_session(
     )
 
 
-def added_transactions(session: MagicMock) -> list[Transaction]:
-    """Collect the transactions the service handed to the session."""
+def added_transactions(session: Session) -> list[Transaction]:
+    """Collect the transactions the service handed to the session.
+
+    The session a test passes in is a mock, so `add` is a recorder rather
+    than the real method the annotation names.
+    """
     return [call.args[0] for call in session.add.call_args_list if isinstance(call.args[0], Transaction)]
 
 

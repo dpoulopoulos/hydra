@@ -562,11 +562,12 @@ class TestEodhdProvider:
         """
         # Arrange: Record whether the provider is called at all
         calls: list[str] = []
-        monkeypatch.setattr(
-            prices,
-            "_fetch_json",
-            lambda url, params, timeout_seconds, redact=None: calls.append(url) or [],
-        )
+
+        def fake(url: str, _params: dict[str, str], **_kwargs: Any) -> Any:
+            calls.append(url)
+            return []
+
+        monkeypatch.setattr(prices, "_fetch_json", fake)
 
         # Act: Price a symbol without saying what it quotes in
         found, failed = eodhd.quotes(["VOO.US"], currencies={})
