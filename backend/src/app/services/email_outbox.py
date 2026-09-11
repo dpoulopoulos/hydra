@@ -96,6 +96,25 @@ class EmailOutboxService:
 
         return delivered
 
+    def prune_expired(self) -> int:
+        """Drop the settled rows whose retention window has passed.
+
+        The outbox is a delivery queue, not an archive: once a message has
+        been sent there is nothing left to do with its body, and keeping it
+        means keeping a copy of every welcome mail the application ever sent.
+
+        Returns:
+            The number of rows removed.
+        """
+        now = datetime.now(UTC)
+        removed = self.email_outbox_repository.delete_expired(
+            sent_before=now - timedelta(days=settings.EMAIL_OUTBOX_SENT_RETENTION_DAYS),
+            failed_before=now - timedelta(days=settings.EMAIL_OUTBOX_FAILED_RETENTION_DAYS),
+        )
+        self.session.commit()
+
+        return removed
+
     def _dispatch_one(self, entry: EmailOutbox) -> bool:
         """Attempt one claimed message and commit whatever became of it.
 

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from sqlalchemy.dialects import postgresql
 
-from app.models import EmailOutbox
+from app.models import EmailOutbox, EmailOutboxStatus
 from app.repositories import EmailOutboxRepository
 
 
@@ -75,3 +75,46 @@ class TestClaimDue:
         compiled = str(mock_db_session.exec.call_args.args[0])
         assert "ORDER BY emailoutbox.next_attempt_at" in compiled
         assert "LIMIT" in compiled
+
+
+class TestDeleteExpired:
+    """Test the statement that clears out rows nobody reads any more."""
+
+    def test_delete_expired_returns_how_many_rows_went(
+        self, repository: EmailOutboxRepository, mock_db_session: MagicMock
+    ) -> None:
+        """The caller reports what the round removed, so it has to be counted."""
+        # Arrange: Postgres removed three rows
+        mock_db_session.exec.return_value.rowcount = 3
+
+        # Act: Apply the retention windows
+        removed = repository.delete_expired(sent_before=datetime.now(UTC), failed_before=datetime.now(UTC))
+
+        # Assert: Verify the count came back
+        assert removed == 3
+
+    def test_delete_expired_applies_a_window_per_status(
+        self, repository: EmailOutboxRepository, mock_db_session: MagicMock
+    ) -> None:
+        """Sent mail goes early; mail that gave up is kept for whoever must act on it."""
+        # Act: Apply the retention windows
+        repository.delete_expired(sent_before=datetime.now(UTC), failed_before=datetime.now(UTC))
+
+        # Assert: Verify each status is matched against its own cutoff
+        compiled = str(mock_db_session.exec.call_args.args[0])
+        assert compiled.startswith("DELETE FROM emailoutbox")
+        assert compiled.count("emailoutbox.status = ") == 2
+        assert compiled.count("emailoutbox.created_at < ") == 2
+
+    def test_delete_expired_leaves_the_messages_still_owed(
+        self, repository: EmailOutboxRepository, mock_db_session: MagicMock
+    ) -> None:
+        """A pending row is somebody's unsent mail, however old it is."""
+        # Act: Apply the retention windows
+        repository.delete_expired(sent_before=datetime.now(UTC), failed_before=datetime.now(UTC))
+
+        # Assert: Verify only the two terminal statuses are bound to the statement
+        statement = mock_db_session.exec.call_args.args[0]
+        bound = set(statement.compile().params.values())
+        assert EmailOutboxStatus.PENDING not in bound
+        assert {EmailOutboxStatus.SENT, EmailOutboxStatus.FAILED} <= bound

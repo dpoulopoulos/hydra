@@ -437,3 +437,63 @@ class TestDispatchDue:
         # Assert: Verify the delivered message was already committed, and stayed sent
         assert commits_before_the_failure == 1
         assert entries[0].status == EmailOutboxStatus.SENT
+
+
+class TestPruneExpired:
+    """Test the retention windows the outbox is kept to."""
+
+    def test_prune_expired_reports_what_it_removed(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """The caller logs the figure, so it has to come back."""
+        # Arrange: Four rows are past their window
+        mock_db_session.exec.return_value.rowcount = 4
+
+        # Act: Apply the retention policy
+        removed = mock_email_outbox_service.prune_expired()
+
+        # Assert: Verify the count came back
+        assert removed == 4
+
+    def test_prune_expired_keeps_a_failed_message_longer_than_a_sent_one(
+        self, mock_email_outbox_service: EmailOutboxService, mock_email_outbox_repository: EmailOutboxRepository
+    ) -> None:
+        """A failure is the row somebody still has to act on."""
+        # Arrange: Watch the cutoffs the service works out
+        with patch.object(mock_email_outbox_repository, "delete_expired", return_value=0) as mock_delete:
+            # Act: Apply the retention policy
+            mock_email_outbox_service.prune_expired()
+
+        # Assert: Verify the failed cutoff reaches further back than the sent one
+        cutoffs = mock_delete.call_args.kwargs
+        assert cutoffs["failed_before"] < cutoffs["sent_before"]
+
+    def test_prune_expired_uses_the_configured_windows(
+        self, mock_email_outbox_service: EmailOutboxService, mock_email_outbox_repository: EmailOutboxRepository
+    ) -> None:
+        """A deployment that has to keep mail longer only changes a setting."""
+        # Arrange: Watch the cutoffs the service works out
+        with patch.object(mock_email_outbox_repository, "delete_expired", return_value=0) as mock_delete:
+            # Act: Apply the retention policy
+            mock_email_outbox_service.prune_expired()
+
+        # Assert: Verify each cutoff is its setting's worth of days ago
+        now = datetime.now(UTC)
+        cutoffs = mock_delete.call_args.kwargs
+        expected_sent = now - timedelta(days=settings.EMAIL_OUTBOX_SENT_RETENTION_DAYS)
+        expected_failed = now - timedelta(days=settings.EMAIL_OUTBOX_FAILED_RETENTION_DAYS)
+        assert abs((cutoffs["sent_before"] - expected_sent).total_seconds()) < 5
+        assert abs((cutoffs["failed_before"] - expected_failed).total_seconds()) < 5
+
+    def test_prune_expired_commits_the_deletion(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """The pruner runs outside a request, so nothing else will commit for it."""
+        # Arrange: Some rows are past their window
+        mock_db_session.exec.return_value.rowcount = 1
+
+        # Act: Apply the retention policy
+        mock_email_outbox_service.prune_expired()
+
+        # Assert: Verify the removal was committed
+        mock_db_session.commit.assert_called_once()
