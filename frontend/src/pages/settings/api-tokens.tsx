@@ -330,29 +330,31 @@ function SecretDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* The token is one long unbroken string, and the dialog is sized so
-            that all 64 characters of it sit on one line. It never wraps: a
-            credential broken across two lines is harder to read and harder to
-            check against what you pasted. On a screen too narrow for the
-            dialog's full width it scrolls sideways instead, so none of it is
-            hidden either way. Clicking selects the lot, for anyone who would
-            rather drag than press the button. */}
-        <div className="bg-muted/60 ring-border relative rounded-lg ring-1">
+        {/* The token is one long unbroken string, and it never wraps: a
+            credential split across two lines is harder to read and harder to
+            check against what you pasted.
+
+            The field hugs the token rather than filling the dialog, so the
+            button sits against the end of it however wide the reader's
+            monospace font happens to be. Both are stretched to the same
+            height by the row, so they line up exactly whatever the font
+            does. Too narrow a screen for all of it scrolls the code
+            sideways, so none of it is hidden either way. */}
+        <div className="flex max-w-full items-stretch gap-2">
+          <code
+            onClick={selectAll}
+            className="bg-muted/60 ring-border block min-w-0 cursor-text overflow-x-auto rounded-lg px-4 py-3 font-mono text-sm leading-relaxed whitespace-nowrap ring-1"
+          >
+            {secret}
+          </code>
           <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-1.5 right-1.5 size-7"
+            variant="outline"
+            className="h-auto w-11 shrink-0 px-0"
             onClick={() => void copy()}
             aria-label={copied ? 'Token copied' : 'Copy token'}
           >
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
           </Button>
-          <code
-            onClick={selectAll}
-            className="block cursor-text overflow-x-auto py-3 pr-11 pl-4 font-mono text-sm leading-relaxed whitespace-nowrap"
-          >
-            {secret}
-          </code>
         </div>
 
         <DialogFooter>
