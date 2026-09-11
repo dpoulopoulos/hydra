@@ -101,3 +101,27 @@ class SystemCategoryError(ValidationError):
         """
         msg = "This category is built in. It is the fallback for uncategorized spending and cannot be removed."
         super().__init__(msg, exc)
+
+
+class CategoryLimitReachedError(ServiceError):
+    """Signal that a household already holds as many categories as it may.
+
+    The category endpoints hand back the whole tree in one response, because a
+    picker and a two level tree have no use for half of it. The ceiling is
+    therefore here, on what a household can create, rather than on what the
+    listing will return.
+    """
+
+    def __init__(self, limit: int, exc: Exception | None = None):
+        """Initialize a CategoryLimitReachedError.
+
+        Args:
+            limit: The largest number of categories a household may hold.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        msg = (
+            f"This household already has {limit} categories, which is the most it can hold. "
+            "Delete or reuse one before adding another."
+        )
+        super().__init__(msg, exc)
+        self.limit = limit

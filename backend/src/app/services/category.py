@@ -10,6 +10,7 @@ from app.exceptions import (
     CategoryExistsError,
     CategoryInUseError,
     CategoryKindMismatchError,
+    CategoryLimitReachedError,
     CategoryNotFoundError,
     CategorySelfParentError,
     SystemCategoryError,
@@ -30,6 +31,13 @@ from app.repositories.budget import BudgetRepository
 from app.repositories.category import CategoryRepository
 from app.repositories.recurring_rule import RecurringRuleRepository
 from app.repositories.transaction import TransactionRepository
+
+# A household's categories are handed out whole, by the flat listing and by the
+# tree the pickers read, because half a tree is no use to either. That makes the
+# response as large as the household lets it grow, so the size is capped here
+# instead: high enough that nobody organising their spending will meet it, low
+# enough that one response stays small. The seeded tree uses 63 of it.
+MAX_CATEGORIES = 500
 
 
 class CategoryService:
@@ -106,11 +114,15 @@ class CategoryService:
             The created category.
 
         Raises:
+            CategoryLimitReachedError: If the household already holds the most
+                categories it may.
             CategoryNotFoundError: If the parent does not exist in the household.
             CategoryDepthExceededError: If the parent is itself a subcategory.
             CategoryKindMismatchError: If the kind differs from the parent's.
             CategoryExistsError: If a sibling already has that name.
         """
+        self._require_room_for_another_category(household=household)
+
         kind = category_create.kind
 
         if category_create.parent_id is not None:
@@ -129,6 +141,21 @@ class CategoryService:
         self.session.commit()
 
         return CategoryPublic.model_validate(category)
+
+    def _require_room_for_another_category(self, household: HouseholdContext) -> None:
+        """Refuse a new category once the household holds as many as it may.
+
+        Counted including the archived ones: an archived category is still a
+        row the listing returns when asked for it.
+
+        Args:
+            household: The household context.
+
+        Raises:
+            CategoryLimitReachedError: If the household is already at the limit.
+        """
+        if self.category_repository.count_for_household(household.household_id) >= MAX_CATEGORIES:
+            raise CategoryLimitReachedError(limit=MAX_CATEGORIES) from None
 
     def list_categories(
         self,
