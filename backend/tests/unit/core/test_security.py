@@ -8,13 +8,18 @@ from jwt.exceptions import InvalidTokenError
 from app.core.config import settings
 from app.core.security import (
     ALGORITHM,
+    API_TOKEN_PREFIX,
     JWT,
     TokenType,
     create_access_token,
     create_email_verification_token,
     create_password_reset_token,
     dummy_password_hash,
+    generate_api_token,
     get_password_hash,
+    hash_api_token_secret,
+    split_api_token,
+    verify_api_token_secret,
     verify_password,
     verify_typed_token,
 )
@@ -493,3 +498,64 @@ class TestVerifyTypedToken:
             decoded = verify_typed_token(token, token_type, CustomTokenError)
             assert decoded[JWT.Claims.SUB] == expected_subject
             assert decoded[JWT.Claims.TOKEN_TYPE] == token_type.value
+
+
+class TestApiTokenCredentials:
+    """Tests for minting, splitting and checking API token credentials."""
+
+    def test_mints_a_credential_that_splits_back_into_its_halves(self) -> None:
+        credential, token_id, secret_hash = generate_api_token()
+
+        split = split_api_token(credential)
+
+        assert split is not None
+        assert split[0] == token_id
+        assert hash_api_token_secret(split[1]) == secret_hash
+
+    def test_the_credential_carries_the_prefix(self) -> None:
+        credential, _, _ = generate_api_token()
+
+        assert credential.startswith(API_TOKEN_PREFIX)
+
+    def test_no_two_credentials_are_alike(self) -> None:
+        credentials = {generate_api_token()[0] for _ in range(100)}
+
+        assert len(credentials) == 100
+
+    def test_splits_a_secret_that_contains_the_separator(self) -> None:
+        # The secret half is url-safe base64, whose alphabet includes "_", so a
+        # split taken from the right, or one that refused an inner separator,
+        # would reject a perfectly ordinary token.
+        credential = f"{API_TOKEN_PREFIX}0123456789abcdef_aa_bb_cc"
+
+        assert split_api_token(credential) == ("0123456789abcdef", "aa_bb_cc")
+
+    def test_the_lookup_id_never_contains_the_separator(self) -> None:
+        # Which is what makes the split above unambiguous.
+        assert all("_" not in generate_api_token()[1] for _ in range(100))
+
+    @pytest.mark.parametrize(
+        "credential",
+        [
+            "",
+            "eyJhbGciOiJIUzI1NiJ9.e30.signature",
+            "hyd_",
+            "hyd_onlyanid",
+            "hyd__nolookupid",
+            "hyd_anid_",
+        ],
+    )
+    def test_refuses_anything_not_shaped_like_a_credential(self, credential: str) -> None:
+        assert split_api_token(credential) is None
+
+    def test_the_hash_is_stable(self) -> None:
+        assert hash_api_token_secret("a secret") == hash_api_token_secret("a secret")
+
+    def test_a_secret_verifies_against_its_own_hash(self) -> None:
+        _, _, secret_hash = generate_api_token()
+        credential, _, other_hash = generate_api_token()
+        split = split_api_token(credential)
+
+        assert split is not None
+        assert verify_api_token_secret(split[1], other_hash)
+        assert not verify_api_token_secret(split[1], secret_hash)
