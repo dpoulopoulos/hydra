@@ -169,4 +169,16 @@ describe('a recent activity row', () => {
 
     expect(await rowFor('Salary')).toHaveTextContent('+€500.00')
   })
+  // A transfer moves money between the household's own accounts, so it is
+  // neither spending nor income. A minus on it would read as spending, and
+  // disagree with the month's net above it, which leaves transfers out.
+  it('draws a transfer plain, with no sign at all', async () => {
+    withRecent(aTransaction({ merchant: 'To savings', kind: TransactionKind.TRANSFER }))
+    renderDashboard()
+
+    const row = await rowFor('To savings')
+    expect(row).toHaveTextContent('€500.00')
+    expect(row).not.toHaveTextContent('-€500.00')
+    expect(row).not.toHaveTextContent('+€500.00')
+  })
 })
