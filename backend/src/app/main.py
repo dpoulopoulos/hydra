@@ -77,7 +77,8 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     generate_unique_id_function=custom_generate_unique_id,
-    # Queued mail is retried by a task that lives as long as the application.
+    # Queued mail is retried, and settled mail pruned, by tasks that live as
+    # long as the application.
     lifespan=email_dispatcher_lifespan,
 )
 
