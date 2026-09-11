@@ -557,6 +557,36 @@ class TestListHouseholdInvites:
 
         assert wire.list_invites.call_args.kwargs["status"] is HouseholdInviteStatus.ACCEPTED
 
+    def test_passes_the_page_through(
+        self,
+        client: TestClient,
+        wire: MagicMock,
+        auth_headers: dict[str, str],
+        member_context: HouseholdContext,
+    ) -> None:
+        use_context(member_context)
+        wire.list_invites.return_value = HouseholdInvitesPublic(data=[], count=0)
+
+        response = client.get("/api/v1/households/me/invites", headers=auth_headers, params={"skip": 5, "limit": 10})
+
+        assert response.status_code == 200
+        kwargs = wire.list_invites.call_args.kwargs
+        assert kwargs["skip"] == 5
+        assert kwargs["limit"] == 10
+
+    def test_caps_the_page_size(
+        self,
+        client: TestClient,
+        wire: MagicMock,
+        auth_headers: dict[str, str],
+        member_context: HouseholdContext,
+    ) -> None:
+        use_context(member_context)
+
+        response = client.get("/api/v1/households/me/invites", headers=auth_headers, params={"limit": 5000})
+
+        assert response.status_code == 422
+
 
 class TestRevokeHouseholdInvite:
     """Tests for DELETE /households/me/invites/{invite_id}."""

@@ -637,23 +637,29 @@ class HouseholdService:
         return HouseholdInvitePublic.model_validate(invite)
 
     def list_invites(
-        self, household: HouseholdContext, status: HouseholdInviteStatus | None = None
+        self,
+        household: HouseholdContext,
+        status: HouseholdInviteStatus | None = None,
+        skip: int = 0,
+        limit: int = 100,
     ) -> HouseholdInvitesPublic:
         """List the invites of the household.
 
         Args:
             household: The household context.
             status: An optional status to filter on.
+            skip: Number of records to skip.
+            limit: Maximum number of records to return.
 
         Returns:
-            The invites, newest first.
+            The invites on the page, newest first, and how many match in total.
         """
-        invites = self.household_invite_repository.list_for_household(
-            household_id=household.household_id, status=status
+        invites, count = self.household_invite_repository.list_for_household(
+            household_id=household.household_id, status=status, skip=skip, limit=limit
         )
         data = [HouseholdInvitePublic.model_validate(invite) for invite in invites]
 
-        return HouseholdInvitesPublic(data=data, count=len(data))
+        return HouseholdInvitesPublic(data=data, count=count)
 
     def revoke_invite(self, household: HouseholdContext, invite_id: uuid.UUID) -> Message:
         """Withdraw an invite that has not been accepted.
