@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, KeyRound, Trash2 } from 'lucide-react'
 import type { MouseEvent } from 'react'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -47,6 +47,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { errorMessage } from '@/lib/api'
+import { refill } from '@/lib/form'
 import { formatDate } from '@/lib/month'
 
 const MIN_LIFETIME_DAYS = 1
@@ -67,14 +68,6 @@ const createSchema = z.object({
 type Values = z.input<typeof createSchema>
 type Parsed = z.output<typeof createSchema>
 
-// React Compiler will not memoize a component that calls React Hook Form's
-// `watch()`, and skips it whole. That skip is what this form relies on:
-// `form.reset()` empties the field map after a token is minted and counts on
-// the next render calling `register()` again, which a memoized render never
-// repeats, leaving every field unregistered and the form with nothing to
-// send. Nothing goes stale in return, since `watch()` re-renders this
-// component and the access picker is handed the value from that render.
-/* eslint-disable react-hooks/incompatible-library -- skipping this one is the point; see above */
 export function Component() {
   const queryClient = useQueryClient()
   const [revoking, setRevoking] = useState<ApiTokenPublic | null>(null)
@@ -98,6 +91,11 @@ export function Component() {
     defaultValues: { name: '', scope: ApiTokenScope.READ, expires_in_days: 90 },
   })
 
+  // Watched through `useWatch()` rather than the form's own `watch()`, which
+  // hands back a function React Compiler will not memoize and skips the whole
+  // page over.
+  const scope = useWatch({ control: form.control, name: 'scope' })
+
   const create = useMutation({
     mutationFn: async (values: Parsed) => {
       const { data, error } = await apiTokensCreateApiToken({ body: values })
@@ -106,7 +104,7 @@ export function Component() {
     },
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: ['apiTokens'] })
-      form.reset({ name: '', scope: ApiTokenScope.READ, expires_in_days: 90 })
+      refill(form, { name: '', scope: ApiTokenScope.READ, expires_in_days: 90 })
       setCreated(created)
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -164,7 +162,7 @@ export function Component() {
             >
               {(props) => (
                 <Select
-                  value={form.watch('scope')}
+                  value={scope}
                   onValueChange={(value) => form.setValue('scope', value as ApiTokenScope)}
                 >
                   <SelectTrigger id={props.id} className="w-44">
