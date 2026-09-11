@@ -142,7 +142,6 @@ export function Component() {
             <Field
               id="token-name"
               label="What is it for"
-              hint="So you can tell them apart later."
               error={form.formState.errors.name?.message}
               className="min-w-56 flex-1"
             >
@@ -171,8 +170,7 @@ export function Component() {
             </Field>
             <Field
               id="token-expiry"
-              label="Expires in"
-              hint="Days."
+              label="Expires in (days)"
               error={form.formState.errors.expires_in_days?.message}
               className="w-32"
             >
