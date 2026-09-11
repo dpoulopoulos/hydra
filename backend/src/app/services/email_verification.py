@@ -100,17 +100,6 @@ class EmailVerificationService:
         self.email_verification_repository.update_status(email_verification, status)
         self.session.commit()
 
-    def get_pending_verification_by_user_id(self, user_id: uuid.UUID) -> EmailVerification | None:
-        """Get a pending email verification for a user.
-
-        Args:
-            user_id: The user ID to check.
-
-        Returns:
-            The pending email verification if one exists, None otherwise.
-        """
-        return self.email_verification_repository.get_pending_by_user_id(user_id)
-
     def _outstanding_email_change(self, user: User) -> EmailVerification | None:
         """Find the change of address a user could still finish, if any.
 
@@ -189,6 +178,20 @@ class EmailVerificationService:
         )
 
         return Message(message="Email change cancelled.")
+
+    def get_pending_activation_by_user_id(self, user_id: uuid.UUID) -> EmailVerification | None:
+        """Get the pending verification that would activate a user's account.
+
+        Args:
+            user_id: The user ID to check.
+
+        Returns:
+            The pending activation if one exists, None otherwise. A pending
+            change of address is not one: it proves an address the account has
+            asked to move to, and says nothing about whether the account is
+            waiting to be activated.
+        """
+        return self.email_verification_repository.get_pending_activation_by_user_id(user_id)
 
     def invalidate_pending_for_user(self, user_id: uuid.UUID) -> None:
         """Expire the pending email verification of a user, if there is one.

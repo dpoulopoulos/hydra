@@ -121,44 +121,6 @@ class TestMarkEmailVerification:
             mock_email_verification_service._mark_email_verification(verification_id, EmailVerificationStatus.VERIFIED)
 
 
-class TestGetPendingVerificationByUserId:
-    """Tests for the get_pending_verification_by_user_id method."""
-
-    def test_get_pending_verification_success(
-        self,
-        mock_email_verification_service: EmailVerificationService,
-        test_email_verification: EmailVerification,
-        test_user: User,
-    ) -> None:
-        """Test getting a pending verification for a user."""
-        # Arrange
-        mock_email_verification_service.session.exec = MagicMock()
-        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
-
-        # Act
-        result = mock_email_verification_service.get_pending_verification_by_user_id(test_user.id)
-
-        # Assert
-        assert result == test_email_verification
-        assert result.status == EmailVerificationStatus.PENDING
-
-    def test_get_pending_verification_not_found(
-        self,
-        mock_email_verification_service: EmailVerificationService,
-        test_user: User,
-    ) -> None:
-        """Test getting a pending verification when none exists."""
-        # Arrange
-        mock_email_verification_service.session.exec = MagicMock()
-        mock_email_verification_service.session.exec.return_value.first.return_value = None
-
-        # Act
-        result = mock_email_verification_service.get_pending_verification_by_user_id(test_user.id)
-
-        # Assert
-        assert result is None
-
-
 class TestGetPendingEmailChange:
     """Tests for the get_pending_email_change method."""
 
@@ -388,6 +350,30 @@ class TestCancelPendingEmailChange:
             mock_email_verification_service.cancel_pending_email_change(user=test_user)
 
         assert pending_change.status == EmailVerificationStatus.PENDING
+
+
+class TestGetPendingActivationByUserId:
+    """Tests for the get_pending_activation_by_user_id method."""
+
+    def test_asks_the_repository_for_the_activation_kind(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_email_verification: EmailVerification,
+        test_user: User,
+    ) -> None:
+        """Test the activation lookup is the one that answers, not the one for either kind."""
+        # Arrange
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_activation_by_user_id = MagicMock(return_value=test_email_verification)
+        repository.get_pending_by_user_id = MagicMock()
+
+        # Act
+        result = mock_email_verification_service.get_pending_activation_by_user_id(test_user.id)
+
+        # Assert
+        assert result == test_email_verification
+        repository.get_pending_activation_by_user_id.assert_called_once_with(test_user.id)
+        repository.get_pending_by_user_id.assert_not_called()
 
 
 class TestInvalidatePendingForUser:

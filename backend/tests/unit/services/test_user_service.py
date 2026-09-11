@@ -163,7 +163,7 @@ class TestAuthenticate:
 
         # Mock email verification service with pending verification
         mock_pending_verification = MagicMock()
-        mock_email_verification_service.get_pending_verification_by_user_id = MagicMock(
+        mock_email_verification_service.get_pending_activation_by_user_id = MagicMock(
             return_value=mock_pending_verification
         )
 
@@ -187,7 +187,7 @@ class TestAuthenticate:
         mock_user_service.session.exec.return_value.first.return_value = test_inactive_user
 
         # Mock email verification service with no pending verification
-        mock_email_verification_service.get_pending_verification_by_user_id = MagicMock(return_value=None)
+        mock_email_verification_service.get_pending_activation_by_user_id = MagicMock(return_value=None)
 
         # Act & Assert: Verify UserNotActiveError is raised with is_verified=True
         with patch("app.services.user.verify_password", return_value=True):
@@ -199,6 +199,26 @@ class TestAuthenticate:
                 )
             # Verify is_verified is True when no pending verification exists
             assert exc_info.value.is_verified is True
+
+    def test_a_pending_address_change_does_not_explain_a_disabled_account(
+        self, mock_user_service: UserService, test_inactive_user: User, mock_email_verification_service
+    ) -> None:
+        """An account disabled mid-change is disabled, not waiting to be confirmed."""
+        # Arrange: the account has a pending change of address, but nothing to activate it
+        mock_user_service.session.exec = MagicMock()
+        mock_user_service.session.exec.return_value.first.return_value = test_inactive_user
+        mock_email_verification_service.get_pending_activation_by_user_id = MagicMock(return_value=None)
+
+        # Act & Assert: the sign-in screen is told the address is settled, so it says what is true
+        with patch("app.services.user.verify_password", return_value=True):
+            with pytest.raises(UserNotActiveError) as exc_info:
+                mock_user_service.authenticate(
+                    email=test_inactive_user.email,
+                    password="password123",
+                    email_verification_service=mock_email_verification_service,
+                )
+
+        assert exc_info.value.is_verified is True
 
 
 class TestCreateUser:

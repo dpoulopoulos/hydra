@@ -91,11 +91,14 @@ class UserService:
             raise InvalidEmailOrPasswordError from None
 
         if not user.is_active:
-            # Check if user has a pending email verification
+            # Only a pending activation means the address is still waiting to be
+            # confirmed. An account that asked to change address and was disabled
+            # before the link came back is disabled, and telling its holder to go
+            # and confirm something describes the wrong reason for the refusal.
             is_verified = True
             if email_verification_service:
-                pending_verification = email_verification_service.get_pending_verification_by_user_id(user.id)
-                is_verified = pending_verification is None
+                pending_activation = email_verification_service.get_pending_activation_by_user_id(user.id)
+                is_verified = pending_activation is None
 
             raise UserNotActiveError(user=user, is_verified=is_verified) from None
 
