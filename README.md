@@ -12,7 +12,13 @@ manage the same accounts, categories, budgets and transactions.
   data model, the layered architecture, and how to work on it.
 - `frontend/` — a React app. See [frontend/README.md](frontend/README.md) for the
   stack, the generated API client, and the pages.
-- `docker-compose.yaml` — runs the backend, Postgres, and a mail catcher together.
+- `mcp-server/` — an MCP server that hands an AI agent tools over a household's
+  finances: mostly reads, and a few that record transactions and set budgets,
+  which only a token minted with write access may call. See
+  [mcp-server/README.md](mcp-server/README.md) for how a client authenticates and
+  what is deliberately left out.
+- `docker-compose.yaml` — runs the backend, the frontend, Postgres, the MCP server
+  and a mail catcher together.
 - `Makefile` — short commands for common tasks.
 - `.railway/railway.ts` — the deployed project: which services exist, how they
   are wired, and where each builds from.
