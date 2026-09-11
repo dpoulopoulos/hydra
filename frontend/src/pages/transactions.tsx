@@ -166,7 +166,7 @@ export function Component() {
               <TableBody>
                 {transactions.data.data.map((transaction) => {
                   const isTransfer = transaction.kind === TransactionKind.TRANSFER
-                  const isIncome = transaction.kind === TransactionKind.INCOME
+                  const isExpense = transaction.kind === TransactionKind.EXPENSE
                   // The session holds the fee, so this row is a copy of it and
                   // the API refuses to edit or delete it. Offering both here
                   // would only produce an error toast.
@@ -215,10 +215,12 @@ export function Component() {
                         ) : null}
                       </TableCell>
                       <TableCell className="text-right">
-                        {/* A transfer is neither spending nor income, so it is
-                            shown plain rather than coloured either way. */}
+                        {/* A transfer is neither spending nor income, so it
+                            is shown plain rather than coloured either way:
+                            negating it would print a minus the switched-off
+                            sign cannot take back. */}
                         <Money
-                          minor={isIncome ? transaction.amount_minor : -transaction.amount_minor}
+                          minor={isExpense ? -transaction.amount_minor : transaction.amount_minor}
                           currency={currency}
                           signed={!isTransfer}
                           colored={!isTransfer}
