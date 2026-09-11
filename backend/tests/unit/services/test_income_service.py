@@ -23,6 +23,7 @@ from app.models import (
     AccountType,
     Category,
     CategoryKind,
+    ClientForecastRow,
     Household,
     IncomeClient,
     IncomeClientCreate,
@@ -36,6 +37,7 @@ from app.models import (
     Transaction,
     TransactionKind,
 )
+from app.repositories.rows import ClientTallyRow
 from app.services import IncomeService
 
 HOUSEHOLD_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -1074,3 +1076,90 @@ class TestTheTrialRoster:
         )
 
         assert by_ids.call_args.kwargs["client_ids"] == [booked.client_id]
+
+
+def make_tally(
+    client_id: uuid.UUID,
+    attended: int = 0,
+    missed: int = 0,
+    cancelled: int = 0,
+    earned_minor: int = 0,
+) -> ClientTallyRow:
+    """Build one grouped per-client row for the tests."""
+    return ClientTallyRow(
+        client_id=client_id,
+        attended_count=attended,
+        missed_count=missed,
+        cancelled_count=cancelled,
+        earned_minor=earned_minor,
+        outstanding_minor=0,
+        oldest_unpaid_on=None,
+        last_session_on=None,
+    )
+
+
+class TestTheForecastTable:
+    """Tests for the per-client table under the estimate."""
+
+    @staticmethod
+    def stub(
+        service: IncomeService,
+        tallies: list[ClientTallyRow],
+        clients: list[IncomeClient],
+    ) -> None:
+        """Programme the tally read and the client lookup behind the table."""
+        service.income_session_repository.client_tallies = MagicMock(return_value=tallies)  # type: ignore[method-assign]
+        service.income_client_repository.list_for_household = MagicMock(return_value=(clients, len(clients)))  # type: ignore[method-assign]
+        service.income_client_repository.list_by_ids = MagicMock(return_value=clients)  # type: ignore[method-assign]
+
+    def rows(self, service: IncomeService, household: MagicMock, months: int = 6) -> list[ClientForecastRow]:
+        """Build the table the way the forecast does."""
+        return service._client_rows(
+            household=household,
+            date_from=date(2026, 3, 1),
+            date_to=date(2026, 9, 1),
+            months=months,
+            target_month="2026-09",
+        )
+
+    def test_a_client_with_a_tally_gets_a_row(
+        self, mock_income_service: IncomeService, household_context: MagicMock
+    ) -> None:
+        client = make_client()
+        self.stub(mock_income_service, [make_tally(client.id, attended=3, earned_minor=300_00)], [client])
+
+        rows = self.rows(mock_income_service, household_context)
+
+        assert [row.client_id for row in rows] == [client.id]
+        assert rows[0].attended_count == 3
+        # The window is six months, so the average is the sixth of it.
+        assert rows[0].average_monthly_minor == 50_00
+
+    def test_a_client_with_nothing_behind_them_has_no_attendance_rate(
+        self, mock_income_service: IncomeService, household_context: MagicMock
+    ) -> None:
+        # None rather than zero: a new client has not been unreliable, they are
+        # simply unknown, and a zero would read as the worst record on the page.
+        client = make_client()
+        self.stub(mock_income_service, [make_tally(client.id, cancelled=2)], [client])
+
+        assert self.rows(mock_income_service, household_context)[0].attendance_rate is None
+
+    def test_a_tally_with_no_client_left_is_skipped(
+        self, mock_income_service: IncomeService, household_context: MagicMock
+    ) -> None:
+        # The name lives on the client row, so a tally the lookup cannot match
+        # has nothing to label it with.
+        self.stub(mock_income_service, [make_tally(uuid.uuid4(), attended=1)], [])
+
+        assert self.rows(mock_income_service, household_context) == []
+
+    def test_an_archived_client_is_marked_as_one(
+        self, mock_income_service: IncomeService, household_context: MagicMock
+    ) -> None:
+        # They still owe what they owe, so they belong in the table; the page
+        # only needs to know not to expect more hours from them.
+        client = make_client(archived=True)
+        self.stub(mock_income_service, [make_tally(client.id, attended=1)], [client])
+
+        assert self.rows(mock_income_service, household_context)[0].is_archived is True
