@@ -267,6 +267,71 @@ describe('editing an amount', () => {
   })
 })
 
+describe('reading a typed amount', () => {
+  beforeEach(pickersAreStocked)
+
+  /** Record an expense of the amount as typed, and hand back what was sent. */
+  async function record(typed: string) {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Amount'), typed)
+    await user.click(screen.getByRole('button', { name: 'Record it' }))
+    return user
+  }
+
+  it('takes an amount typed with a comma for the decimals', async () => {
+    await record('42,50')
+
+    await waitFor(() => expect(api.transactionsCreateTransaction).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({ amount_minor: 4250 })
+  })
+
+  it('takes an amount typed with a thousands space', async () => {
+    await record('1 000')
+
+    await waitFor(() => expect(api.transactionsCreateTransaction).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({ amount_minor: 100000 })
+  })
+
+  it('counts the minor units the chosen account currency uses', async () => {
+    householdSpends('JPY')
+    accountsAre(
+      account(CURRENT, 'Current', 50000, 'JPY'),
+      account(SAVINGS, 'Savings', 900000, 'JPY'),
+    )
+    await record('1000')
+
+    await waitFor(() => expect(api.transactionsCreateTransaction).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({ amount_minor: 1000 })
+  })
+
+  it('reports an amount it cannot read on the field itself, and sends nothing', async () => {
+    await record('abc')
+
+    expect(await screen.findByText('Enter a number.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Amount')).toBeInvalid()
+    expect(api.transactionsCreateTransaction).not.toHaveBeenCalled()
+  })
+
+  it('refuses an amount of nothing, which is not a transaction', async () => {
+    await record('0')
+
+    expect(await screen.findByText('Enter an amount above zero.')).toBeInTheDocument()
+    expect(api.transactionsCreateTransaction).not.toHaveBeenCalled()
+  })
+
+  it('clears the complaint once the amount is retyped', async () => {
+    const user = await record('abc')
+    expect(await screen.findByText('Enter a number.')).toBeInTheDocument()
+
+    await user.clear(screen.getByLabelText('Amount'))
+    await user.type(screen.getByLabelText('Amount'), '12')
+
+    expect(screen.queryByText('Enter a number.')).not.toBeInTheDocument()
+  })
+})
+
 describe('a picker whose list will not load', () => {
   /** The API refusing to list the accounts. */
   function accountsFail(detail: string) {
