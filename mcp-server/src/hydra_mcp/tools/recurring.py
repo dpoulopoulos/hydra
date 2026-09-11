@@ -5,8 +5,8 @@ from mcp.server import MCPServer
 from pydantic import Field
 
 from ..money import money
-from ..resolve import Named, accounts_of, bare_name, categories_of
-from ._common import READ_ONLY, current_token, hydra
+from ..resolve import Named, bare_name
+from ._common import READ_ONLY, current_token, household_context, hydra
 
 
 def register(mcp: MCPServer) -> None:
@@ -33,7 +33,7 @@ def register(mcp: MCPServer) -> None:
         """
         # hydra filters on is_active, where leaving it out means "either".
         token = current_token()
-        accounts, categories, currency = await _context(token)
+        accounts, categories, currency = await household_context(token)
 
         payload = await hydra().get(
             "/recurring-rules/",
@@ -65,7 +65,7 @@ def register(mcp: MCPServer) -> None:
             Each occurrence that falls due, and what is leaving in total.
         """
         token = current_token()
-        accounts, categories, currency = await _context(token)
+        accounts, categories, currency = await household_context(token)
 
         payload = await hydra().get(
             "/recurring-rules/upcoming",
@@ -96,22 +96,6 @@ def register(mcp: MCPServer) -> None:
             "total_leaving": money(leaving, currency, negative=True),
             "count": payload["count"],
         }
-
-
-async def _context(token: str) -> tuple[Named, Named, str]:
-    """Fetch what is needed to turn ids into names.
-
-    Args:
-        token: The hydra API token to present.
-
-    Returns:
-        The accounts, the categories, and the household currency.
-    """
-    accounts = await accounts_of(token)
-    categories = await categories_of(token)
-    household = await hydra().get("/households/me", token=token, subject="household")
-
-    return accounts, categories, household["currency_code"]
 
 
 def _rule(rule: dict[str, Any], accounts: Named, categories: Named, currency: str) -> dict[str, Any]:
