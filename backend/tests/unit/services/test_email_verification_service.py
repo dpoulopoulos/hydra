@@ -43,6 +43,28 @@ def test_email_verification(test_user: User) -> EmailVerification:
 
 
 @pytest.fixture
+def pending_email_change(test_user: User) -> EmailVerification:
+    """Create a pending change of address.
+
+    Args:
+        test_user: The test user.
+
+    Returns:
+        A pending verification that would move the account to another address.
+    """
+    verification = EmailVerification(
+        email=test_user.email,
+        new_email="moved@example.com",
+        user_id=test_user.id,
+        status=EmailVerificationStatus.PENDING,
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
+        token="pending_change_token",
+    )
+    verification.id = uuid.UUID("77777777-7777-7777-7777-777777777777")
+    return verification
+
+
+@pytest.fixture
 def expired_email_verification(test_user: User) -> EmailVerification:
     """Create an expired email verification.
 
@@ -783,6 +805,84 @@ class TestResendVerificationEmail:
         # Assert - Should return success message even though exception occurred
         assert isinstance(result, Message)
         assert "If an account exists" in result.message
+
+
+class TestAResendIsNotAWayBackToActive:
+    """Tests that a resend never turns a pending change of address into an activation."""
+
+    def test_an_account_with_only_a_pending_change_is_not_resent_anything(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_inactive_user: User,
+        pending_email_change: EmailVerification,
+    ) -> None:
+        """A disabled account must not be able to mail itself an activation."""
+        # Arrange: the only thing pending for this account is a change of address
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_activation_by_user_id = MagicMock(return_value=None)
+        repository.get_pending_change_by_user_id = MagicMock(return_value=pending_email_change)
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user):
+            with patch.object(mock_email_verification_service, "send_verification_email") as mock_send:
+                result = mock_email_verification_service.resend_verification_email(
+                    user_service=mock_user_service, email=test_inactive_user.email
+                )
+
+        # Assert: nothing was issued, and the answer still gives no account away
+        mock_send.assert_not_called()
+        assert pending_email_change.status == EmailVerificationStatus.PENDING
+        assert "If an account exists" in result.message
+
+    def test_issuing_an_activation_leaves_a_pending_change_standing(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        pending_email_change: EmailVerification,
+    ) -> None:
+        """Confirming the address an account holds is not a withdrawal of the change it asked for."""
+        # Arrange
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_activation_by_user_id = MagicMock(return_value=None)
+        repository.get_pending_change_by_user_id = MagicMock(return_value=pending_email_change)
+
+        # Act
+        with patch("app.services.email_verification.EmailOutboxService"):
+            with patch("app.services.email_verification.generate_email_verification_email"):
+                mock_email_verification_service._issue_verification(user=test_user, address=test_user.email)
+
+        # Assert
+        assert pending_email_change.status == EmailVerificationStatus.PENDING
+        repository.get_pending_activation_by_user_id.assert_called_once_with(test_user.id)
+        repository.get_pending_change_by_user_id.assert_not_called()
+
+    def test_issuing_a_change_expires_the_change_it_replaces(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        test_user: User,
+        test_email_verification: EmailVerification,
+        pending_email_change: EmailVerification,
+    ) -> None:
+        """Only one address may be waiting to be proved, and it is the one last asked for."""
+        # Arrange
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_activation_by_user_id = MagicMock(return_value=test_email_verification)
+        repository.get_pending_change_by_user_id = MagicMock(return_value=pending_email_change)
+        mock_email_verification_service.session.get.return_value = pending_email_change
+
+        # Act
+        with patch("app.services.email_verification.EmailOutboxService"):
+            with patch("app.services.email_verification.generate_email_verification_email"):
+                mock_email_verification_service._issue_verification(
+                    user=test_user, address="elsewhere@example.com", new_email="elsewhere@example.com"
+                )
+
+        # Assert: the earlier change is spent, the activation the account may still need is not
+        assert pending_email_change.status == EmailVerificationStatus.EXPIRED
+        assert test_email_verification.status == EmailVerificationStatus.PENDING
+        repository.get_pending_change_by_user_id.assert_called_once_with(test_user.id)
+        repository.get_pending_activation_by_user_id.assert_not_called()
 
 
 class TestVerifyEmail:
