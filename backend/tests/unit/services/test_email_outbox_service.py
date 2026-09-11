@@ -78,7 +78,10 @@ class TestDeliverOrQueue:
         assert entry.sent_at is not None
 
     def test_an_undelivered_message_is_left_for_a_retry(
-        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock, caplog
+        self,
+        mock_email_outbox_service: EmailOutboxService,
+        mock_db_session: MagicMock,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """A provider outage delays the message instead of losing it."""
         # Arrange: The provider is rate limiting us
@@ -125,7 +128,10 @@ class TestDeliverOrQueue:
         assert committed_before_send
 
     def test_an_unexpected_error_does_not_reach_the_caller(
-        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock, caplog
+        self,
+        mock_email_outbox_service: EmailOutboxService,
+        mock_db_session: MagicMock,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """The write that asked for the mail is committed: it must not 500."""
         # Arrange: The message breaks our own code rather than the provider's
@@ -244,7 +250,7 @@ class TestDispatchDue:
         assert entry.next_attempt_at >= expected
 
     def test_the_backoff_is_capped(
-        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock, monkeypatch
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A long backlog does not push the next attempt days into the future."""
         # Arrange: Allow enough attempts for the doubling to run past the cap
@@ -266,7 +272,10 @@ class TestDispatchDue:
         assert entry.next_attempt_at <= before + timedelta(seconds=settings.EMAIL_OUTBOX_RETRY_MAX_SECONDS + 1)
 
     def test_a_message_is_given_up_on_after_the_last_attempt(
-        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock, caplog
+        self,
+        mock_email_outbox_service: EmailOutboxService,
+        mock_db_session: MagicMock,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """A permanently undeliverable message stops being retried, loudly."""
         # Arrange: The message has one attempt left, and it fails
@@ -305,7 +314,7 @@ class TestDispatchDue:
         assert claim.call_args.kwargs["now"] >= before
 
     def test_dispatch_due_stops_at_the_batch_size(
-        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock, monkeypatch
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A backlog is drained a batch at a time rather than all at once."""
         # Arrange: More messages are due than a single round may take
@@ -360,7 +369,10 @@ class TestDispatchDue:
         assert commits_when_sending == [0, 1]
 
     def test_an_unexpected_error_does_not_cost_the_messages_around_it(
-        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock, caplog
+        self,
+        mock_email_outbox_service: EmailOutboxService,
+        mock_db_session: MagicMock,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """A message that breaks our own code advances and lets the rest through."""
         # Arrange: The second of three messages fails in a way that is not the provider's
