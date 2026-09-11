@@ -44,6 +44,7 @@ import { amountSchema, previewMinor } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { refill } from '@/lib/form'
 import { describeSchedule, FREQUENCY_LABELS } from '@/lib/labels'
+import { useLocale } from '@/lib/locale-context'
 import { formatMajorInput, formatMoney } from '@/lib/money'
 import { formatDate, today } from '@/lib/month'
 import { optionSource } from '@/lib/option-source'
@@ -58,14 +59,15 @@ const NEW_RULE = 'new'
  * The form's rules.
  *
  * A function of the currency, because how many minor units a typed amount
- * stands for is a property of the currency the account is kept in.
+ * stands for is a property of the currency the account is kept in, and of the
+ * locale, which says which character in "1.200" is the decimal point.
  */
-function buildSchema(currency: string) {
+function buildSchema(currency: string, locale: string | undefined) {
   return z
     .object({
       name: z.string().trim().min(1, 'Name the rule, such as Rent or Netflix.').max(255),
       kind: z.enum(TransactionKind),
-      amount: amountSchema(currency),
+      amount: amountSchema(currency, { locale }),
       frequency: z.enum(RecurrenceFrequency),
       interval: z.coerce.number().int().min(1, 'Repeat at least every one period.').max(60),
       day_of_month: z.string(),
@@ -117,6 +119,7 @@ function describeRule({
   kind,
   amount,
   currency,
+  locale,
   frequency,
   interval,
   dayOfMonth,
@@ -129,6 +132,7 @@ function describeRule({
   kind: TransactionKind
   amount: string
   currency: string
+  locale: string | undefined
   frequency: RecurrenceFrequency
   interval: number
   dayOfMonth: number | null
@@ -140,10 +144,10 @@ function describeRule({
 }): string | null {
   // Read through the same schema the saved value is, so the sentence and the
   // form never disagree about what was typed.
-  const minor = previewMinor(amount, currency)
+  const minor = previewMinor(amount, currency, locale)
   if (minor === null || minor <= 0 || !startDate) return null
 
-  const money = formatMoney(minor, currency)
+  const money = formatMoney(minor, currency, locale)
   const schedule = describeSchedule(frequency, interval, dayOfMonth).toLowerCase()
   const head =
     kind === TransactionKind.TRANSFER
@@ -172,6 +176,7 @@ export function RuleDialog({
   const isEdit = rule !== null
   const accountsQuery = useAccounts()
   const currencyOf = useAccountCurrency()
+  const locale = useLocale()
   // The extras start open for a rule that uses any of them, so nothing the
   // rule already says is hidden behind a disclosure, and follow the reader
   // from there. Worked out while rendering rather than in the effect below:
@@ -190,7 +195,7 @@ export function RuleDialog({
     // the typed amount is read in. Reading it here rather than from a schema
     // fixed at mount keeps the parsing with the account the user has chosen.
     resolver: (values, context, options) =>
-      zodResolver(buildSchema(currencyOf(values.account_id)))(values, context, options),
+      zodResolver(buildSchema(currencyOf(values.account_id), locale))(values, context, options),
     defaultValues: {
       name: '',
       kind: TransactionKind.EXPENSE,
@@ -266,7 +271,7 @@ export function RuleDialog({
     refill(form, {
       name: rule?.name ?? '',
       kind: rule?.kind ?? TransactionKind.EXPENSE,
-      amount: rule ? formatMajorInput(rule.amount_minor, recordedCurrency) : '',
+      amount: rule ? formatMajorInput(rule.amount_minor, recordedCurrency, locale) : '',
       frequency: rule?.frequency ?? RecurrenceFrequency.MONTHLY,
       interval: rule?.interval ?? 1,
       day_of_month: rule?.day_of_month ? String(rule.day_of_month) : '',
@@ -277,7 +282,7 @@ export function RuleDialog({
       category_id: rule?.category_id ?? NO_CATEGORY,
       merchant: rule?.merchant ?? '',
     })
-  }, [open, rule, recordedCurrency, form])
+  }, [open, rule, recordedCurrency, locale, form])
 
   // The accounts can still be on their way when the dialog opens, so the first
   // one is offered as soon as they land. Only the empty picker is filled in: a
@@ -359,6 +364,7 @@ export function RuleDialog({
     kind,
     amount,
     currency,
+    locale,
     frequency,
     interval: Number(interval) || 1,
     dayOfMonth: isMonthly && dayOfMonth ? Number(dayOfMonth) : null,

@@ -40,14 +40,15 @@ import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { refill } from '@/lib/form'
 import { PAYMENT_STATUS_LABELS, SESSION_STATUS_LABELS } from '@/lib/labels'
+import { useLocale } from '@/lib/locale-context'
 import { formatMajorInput } from '@/lib/money'
 import { today } from '@/lib/month'
 
-function buildSchema(currency: string) {
+function buildSchema(currency: string, locale: string | undefined) {
   return z.object({
     client_id: z.string().min(1, 'Pick who this was with.'),
     occurs_on: z.string().min(1, 'Pick the day.'),
-    fee: amountSchema(currency, { allowZero: true }),
+    fee: amountSchema(currency, { allowZero: true, locale }),
     status: z.enum(IncomeSessionStatus),
     payment_status: z.enum(PaymentStatus),
     paid_on: z.string().optional(),
@@ -86,6 +87,7 @@ export function SessionDialog({
 }) {
   const queryClient = useQueryClient()
   const currency = useCurrency()
+  const locale = useLocale()
   // Archived ones included, so editing a session with somebody who has since
   // stopped coming shows their name rather than the placeholder. They are not
   // offered for a new session, though: you do not book somebody who has left.
@@ -95,16 +97,16 @@ export function SessionDialog({
     () => ({
       client_id: session?.client_id ?? clientId ?? '',
       occurs_on: session?.occurs_on ?? today(),
-      fee: session ? formatMajorInput(session.fee_minor, currency) : '',
+      fee: session ? formatMajorInput(session.fee_minor, currency, locale) : '',
       status: session?.status ?? IncomeSessionStatus.ATTENDED,
       payment_status: session?.payment_status ?? PaymentStatus.PAID,
       paid_on: session?.paid_on ?? '',
     }),
-    [session, clientId, currency],
+    [session, clientId, currency, locale],
   )
 
   const form = useForm<Values, unknown, Parsed>({
-    resolver: zodResolver(buildSchema(currency)),
+    resolver: zodResolver(buildSchema(currency, locale)),
     defaultValues: defaults,
   })
 
@@ -128,8 +130,8 @@ export function SessionDialog({
   // varying from session to session is the reason this whole page exists.
   useEffect(() => {
     if (!selectedClient || form.formState.dirtyFields.fee || session) return
-    form.setValue('fee', formatMajorInput(selectedClient.default_rate_minor, currency))
-  }, [selectedClient, currency, form, session])
+    form.setValue('fee', formatMajorInput(selectedClient.default_rate_minor, currency, locale))
+  }, [selectedClient, currency, locale, form, session])
 
   const save = useMutation({
     mutationFn: async (parsed: Parsed) => {

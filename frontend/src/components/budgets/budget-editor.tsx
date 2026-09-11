@@ -24,6 +24,7 @@ import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { removedLimits } from '@/lib/budgets'
+import { useLocale } from '@/lib/locale-context'
 import { formatMajorInput } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
 import { cn } from '@/lib/utils'
@@ -41,6 +42,7 @@ type BudgetEntry = { category_id: string; limit_minor: number }
 function readLimits(
   limits: Record<string, string>,
   currency: string,
+  locale: string | undefined,
 ): { entries: BudgetEntry[]; errors: Record<string, string> } {
   const entries: BudgetEntry[] = []
   const errors: Record<string, string> = {}
@@ -48,7 +50,7 @@ function readLimits(
   for (const [category_id, value] of Object.entries(limits)) {
     if (value.trim() === '') continue
 
-    const amount = amountSchema(currency, { allowZero: true }).safeParse(value)
+    const amount = amountSchema(currency, { allowZero: true, locale }).safeParse(value)
 
     if (!amount.success) {
       errors[category_id] = amount.error.issues[0].message
@@ -80,6 +82,7 @@ export function BudgetEditor({
   onOpenChange: (open: boolean) => void
 }) {
   const currency = useCurrency()
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const { data: tree } = useCategoryTree({ kind: CategoryKind.EXPENSE })
   // Edits are held separately from the saved figures, so the field values can
@@ -112,10 +115,10 @@ export function BudgetEditor({
       Object.fromEntries(
         (existing.data?.data ?? []).map((budget) => [
           budget.category_id,
-          formatMajorInput(budget.limit_minor, currency),
+          formatMajorInput(budget.limit_minor, currency, locale),
         ]),
       ),
-    [existing.data, currency],
+    [existing.data, currency, locale],
   )
 
   /** Record what was typed in a field, and drop any complaint about it. */
@@ -175,7 +178,7 @@ export function BudgetEditor({
    * confirmation and the request cannot describe different months.
    */
   const attemptSave = () => {
-    const { entries, errors } = readLimits(limits, currency)
+    const { entries, errors } = readLimits(limits, currency, locale)
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
 

@@ -40,6 +40,7 @@ import { useCategoryTree } from '@/hooks/use-categories'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { refill } from '@/lib/form'
+import { useLocale } from '@/lib/locale-context'
 import { formatMajorInput } from '@/lib/money'
 import { today } from '@/lib/month'
 import { optionSource } from '@/lib/option-source'
@@ -55,13 +56,14 @@ function accountLabel(account: AccountPublic) {
  * The form's rules.
  *
  * A function of the currency, because how many minor units a typed amount
- * stands for is a property of the currency the account is kept in.
+ * stands for is a property of the currency the account is kept in, and of the
+ * locale, which says which character in "1.200" is the decimal point.
  */
-function buildSchema(currency: string) {
+function buildSchema(currency: string, locale: string | undefined) {
   return z
     .object({
       kind: z.enum(TransactionKind),
-      amount: amountSchema(currency),
+      amount: amountSchema(currency, { locale }),
       occurred_on: z.string().min(1, 'Pick a date.'),
       account_id: z.string().min(1, 'Choose an account.'),
       counter_account_id: z.string(),
@@ -110,13 +112,14 @@ export function TransactionDialog({
   // on one can still be shown and corrected. See `accountOptions` below.
   const accountsQuery = useAccounts({ includeArchived: isEdit })
   const currencyOf = useAccountCurrency()
+  const locale = useLocale()
 
   const form = useForm<Values, unknown, Parsed>({
     // The money moves in the account the values name, so that is the currency
     // the typed amount is read in. Reading it here rather than from a schema
     // fixed at mount keeps the parsing with the account the user has chosen.
     resolver: (values, context, options) =>
-      zodResolver(buildSchema(currencyOf(values.account_id)))(values, context, options),
+      zodResolver(buildSchema(currencyOf(values.account_id), locale))(values, context, options),
     defaultValues: {
       kind: TransactionKind.EXPENSE,
       amount: '',
@@ -168,7 +171,9 @@ export function TransactionDialog({
     if (!open) return
     refill(form, {
       kind: transaction?.kind ?? TransactionKind.EXPENSE,
-      amount: transaction ? formatMajorInput(transaction.amount_minor, recordedCurrency) : '',
+      amount: transaction
+        ? formatMajorInput(transaction.amount_minor, recordedCurrency, locale)
+        : '',
       occurred_on: transaction?.occurred_on ?? today(),
       account_id: transaction?.account_id ?? '',
       counter_account_id: transaction?.counter_account_id ?? '',
@@ -176,7 +181,7 @@ export function TransactionDialog({
       merchant: transaction?.merchant ?? '',
       note: transaction?.note ?? '',
     })
-  }, [open, transaction, recordedCurrency, form])
+  }, [open, transaction, recordedCurrency, locale, form])
 
   // The accounts can still be on their way when the dialog opens, so the first
   // one is offered as soon as they land. Only the empty picker is filled in:

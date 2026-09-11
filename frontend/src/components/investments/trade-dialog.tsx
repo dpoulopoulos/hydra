@@ -35,6 +35,7 @@ import { refill, showIssues } from '@/lib/form'
 import { TRADE_SIDE_LABELS } from '@/lib/labels'
 import { today } from '@/lib/month'
 import { priceSchema, quantitySchema } from '@/lib/quantity'
+import { useLocale } from '@/lib/locale-context'
 
 /**
  * The trade form's shape.
@@ -44,14 +45,14 @@ import { priceSchema, quantitySchema } from '@/lib/quantity'
  * That makes the currency a property of the chosen instrument, so the schema
  * is built once the instrument is known rather than defined at module level.
  */
-function buildSchema(currency: string, householdCurrency: string) {
+function buildSchema(currency: string, householdCurrency: string, locale: string | undefined) {
   return z.object({
     instrument_id: z.string().min(1, 'Pick an instrument.'),
     side: z.enum(TradeSide),
     traded_on: z.string().min(1, 'Pick the date it happened.'),
-    quantity: quantitySchema(),
-    price: priceSchema(currency),
-    fee: amountSchema(currency, { allowZero: true }),
+    quantity: quantitySchema({ locale }),
+    price: priceSchema(currency, { locale }),
+    fee: amountSchema(currency, { allowZero: true, locale }),
     // The cash side is optional: a trade is a fact about a holding whether or
     // not the money is being tracked here. Only the broker is named, because a
     // trade spends cash already sitting there; moving money from a bank to a
@@ -62,7 +63,7 @@ function buildSchema(currency: string, householdCurrency: string) {
     // empty string passes through as undefined rather than failing the parse.
     cash_amount: z.union([
       z.literal('').transform(() => undefined),
-      amountSchema(householdCurrency, { allowZero: true }),
+      amountSchema(householdCurrency, { allowZero: true, locale }),
     ]),
     note: z.string().trim().max(1024).optional(),
   })
@@ -85,6 +86,7 @@ export function TradeDialog({
   const instruments = useInstruments()
   const accounts = useAccounts()
   const household = useHousehold()
+  const locale = useLocale()
 
   const defaults: Values = useMemo(
     () => ({
@@ -102,7 +104,7 @@ export function TradeDialog({
   )
 
   const form = useForm<Values, unknown, Parsed>({
-    resolver: zodResolver(buildSchema('EUR', 'EUR')),
+    resolver: zodResolver(buildSchema('EUR', 'EUR', locale)),
     defaultValues: defaults,
   })
 
@@ -184,7 +186,9 @@ export function TradeDialog({
           // Re-parsed against the chosen instrument's currency, so a price in
           // a zero-decimal currency is not quietly given cents.
           onSubmit={form.handleSubmit(() => {
-            const parsed = buildSchema(currency, householdCurrency).safeParse(form.getValues())
+            const parsed = buildSchema(currency, householdCurrency, locale).safeParse(
+              form.getValues(),
+            )
             if (parsed.success) {
               save.mutate(parsed.data)
               return

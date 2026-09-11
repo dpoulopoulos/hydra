@@ -43,13 +43,14 @@ import { WeekdayPicker } from '@/components/income/weekday-picker'
 import { AD_HOC, CADENCE_PRESETS, describeCadence, isWeekly, presetOf } from '@/lib/cadence'
 import { errorMessage } from '@/lib/api'
 import { refill } from '@/lib/form'
+import { useLocale } from '@/lib/locale-context'
 import { formatMajorInput, formatMoney } from '@/lib/money'
 import { formatDate, today } from '@/lib/month'
 
-function buildSchema(currency: string) {
+function buildSchema(currency: string, locale: string | undefined) {
   return z.object({
     name: z.string().trim().min(1, 'Give this person a name you will recognise.').max(120),
-    rate: amountSchema(currency, { allowZero: true }),
+    rate: amountSchema(currency, { allowZero: true, locale }),
     default_account_id: z.string().min(1, 'Pick where the money lands.'),
     // Optional, so a practice that does not file income by category is not
     // forced to invent one.
@@ -88,6 +89,7 @@ export function ClientDialog({
 }) {
   const queryClient = useQueryClient()
   const currency = useCurrency()
+  const locale = useLocale()
   const accounts = useAccounts()
   const categories = useCategories({ kind: CategoryKind.INCOME })
   const { encrypt } = useVault()
@@ -102,7 +104,7 @@ export function ClientDialog({
   const defaults: Values = useMemo(
     () => ({
       name: existingName ?? '',
-      rate: client ? formatMajorInput(client.default_rate_minor, currency) : '',
+      rate: client ? formatMajorInput(client.default_rate_minor, currency, locale) : '',
       default_account_id: client?.default_account_id ?? '',
       default_category_id: client?.default_category_id ?? '',
       cadence: presetOf(client?.cadence_frequency, client?.cadence_interval ?? 1),
@@ -110,11 +112,11 @@ export function ClientDialog({
       cadence_weekdays: client?.cadence_weekdays ?? [],
       note: existingNote ?? '',
     }),
-    [client, currency, existingName, existingNote],
+    [client, currency, locale, existingName, existingNote],
   )
 
   const form = useForm<Values, unknown, Parsed>({
-    resolver: zodResolver(buildSchema(currency)),
+    resolver: zodResolver(buildSchema(currency, locale)),
     defaultValues: defaults,
   })
 
@@ -187,9 +189,11 @@ export function ClientDialog({
   // The field holds whatever has been typed so far, so the fee is only shown
   // back once it reads as an amount. Read through the same schema the saved
   // value is, or the sentence and the form disagree about "1 000".
-  const typedRate = previewMinor(rate, currency)
+  const typedRate = previewMinor(rate, currency, locale)
   const rateLabel =
-    typedRate !== null && typedRate > 0 ? `, ${formatMoney(typedRate, currency)} a session` : ''
+    typedRate !== null && typedRate > 0
+      ? `, ${formatMoney(typedRate, currency, locale)} a session`
+      : ''
 
   const schedule = preset?.frequency
     ? `${describeCadence(preset.frequency, preset.interval, anchor, weekdays)}${

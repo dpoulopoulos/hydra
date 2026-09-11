@@ -31,6 +31,7 @@ import { useCategoryTree } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
+import { useLocale } from '@/lib/locale-context'
 import { formatMajorInput } from '@/lib/money'
 import { formatMonth } from '@/lib/month'
 import { optionSource } from '@/lib/option-source'
@@ -81,13 +82,14 @@ function BudgetForm({
   onDone: () => void
 }) {
   const currency = useCurrency()
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const categoriesQuery = useCategoryTree({ kind: CategoryKind.EXPENSE })
   // A picker with nothing in it says the household has no categories. When the
   // tree was refused rather than empty, the field says so instead.
   const categorySource = optionSource(categoriesQuery, 'categories')
   const [categoryId, setCategoryId] = useState(row?.category_id ?? '')
-  const [limit, setLimit] = useState(row ? formatMajorInput(row.limit_minor, currency) : '')
+  const [limit, setLimit] = useState(row ? formatMajorInput(row.limit_minor, currency, locale) : '')
   // What a field got wrong. Filled on a save attempt rather than while typing,
   // since a half-typed amount is not a mistake.
   const [fieldErrors, setFieldErrors] = useState<{ category?: string; limit?: string }>({})
@@ -126,7 +128,7 @@ function BudgetForm({
    * rather than as a complaint about the whole form.
    */
   const attemptSave = () => {
-    const amount = amountSchema(currency, { allowZero: true }).safeParse(limit)
+    const amount = amountSchema(currency, { allowZero: true, locale }).safeParse(limit)
     const errors = {
       category: !isEdit && !categoryId ? 'Choose a category.' : undefined,
       limit: amount.success ? undefined : amount.error.issues[0].message,
