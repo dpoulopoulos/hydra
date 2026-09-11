@@ -18,6 +18,12 @@ replaces. A function written without a docstring at all is a separate matter, an
 the value, but whether a function produces one at all is exactly what the return annotation says, so a
 section that outlives the value it describes - or goes missing when a helper starts returning something -
 still fails here.
+
+``Raises:`` is checked in one direction: every exception raised in the body has to be listed, but a listed
+exception does not have to be raised there. Most of the exceptions a service documents are raised for it by
+a repository or a helper it calls, and finding those would mean following every callee through the package
+and back out of its dependencies. Listing more than the body raises is therefore how the convention is
+meant to be used, and only the half that is decidable from one function is enforced.
 """
 
 import ast
@@ -115,6 +121,62 @@ def _always_raises(function: FunctionDef) -> bool:
     them for a ``Returns:`` section would be asking them to describe a value that is never produced.
     """
     return isinstance(function.body[-1], ast.Raise)
+
+
+def _bound_names(function: FunctionDef) -> set[str]:
+    """Collect the names a function binds itself: its parameters, its assignments and its caught exceptions.
+
+    Args:
+        function: The function to walk.
+
+    Returns:
+        Every name that refers to a value the body holds rather than to something outside it.
+    """
+    arguments = function.args
+    names = {argument.arg for argument in arguments.posonlyargs + arguments.args + arguments.kwonlyargs}
+    for node in ast.walk(function):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            names.add(node.id)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            names.add(node.name)
+    return names
+
+
+def _raised_exceptions(function: FunctionDef) -> list[str]:
+    """Collect the exception classes a function raises in its own body.
+
+    A bare ``raise`` re-raises whatever is being handled and names no class, and a ``raise`` of a name the
+    body binds re-raises an exception built somewhere else - the ``except`` clause that caught it, or the
+    variable it was put aside in. Neither says at the raise site what is being raised, so neither is asked
+    of the docstring. A name the body does not bind is the class itself, whether it is constructed there or
+    raised as it stands.
+
+    Nested functions and classes are skipped: they are walked as functions of their own, and what they
+    raise belongs to their own docstrings.
+
+    Args:
+        function: The function to walk.
+
+    Returns:
+        The names of the exception classes raised directly in the body, sorted and without repeats.
+    """
+    bound = _bound_names(function)
+    names = set()
+
+    def walk(node: ast.AST) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda):
+                continue
+            if isinstance(child, ast.Raise) and child.exc is not None:
+                raised = child.exc.func if isinstance(child.exc, ast.Call) else child.exc
+                if isinstance(raised, ast.Name | ast.Attribute):
+                    dotted = ast.unparse(raised)
+                    if dotted.partition(".")[0] not in bound:
+                        names.add(dotted.rpartition(".")[2])
+            walk(child)
+
+    walk(function)
+    return sorted(names)
 
 
 def _section_entries(docstring: str, header: str) -> list[str] | None:
@@ -227,6 +289,25 @@ def _returning_functions() -> list[tuple[str, bool, bool]]:
 RETURNING_FUNCTIONS = _returning_functions()
 
 
+def _raising_functions() -> list[tuple[str, list[str], list[str]]]:
+    """Collect every documented function that raises, with the exceptions it raises and the ones it names."""
+    raising = []
+    for path in _source_files():
+        for qualified_name, function in _functions(path):
+            docstring = ast.get_docstring(function)
+            if not docstring:
+                continue
+            raised = _raised_exceptions(function)
+            if not raised:
+                continue
+            location = f"{path.relative_to(SOURCE_ROOT)}:{function.lineno}:{qualified_name}"
+            raising.append((location, raised, _section_entries(docstring, "Raises") or []))
+    return raising
+
+
+RAISING_FUNCTIONS = _raising_functions()
+
+
 class TestDocstringsMatchSignatures:
     """Test that documented parameters match the signatures they describe."""
 
@@ -277,3 +358,24 @@ class TestDocstringsDescribeReturnValues:
         # a function is changed to return nothing and only its signature is updated
         if not returns_a_value:
             assert not documented, "docstring describes a return value, but the function returns None"
+
+
+class TestDocstringsDescribeRaisedExceptions:
+    """Test that a function names the exceptions it raises."""
+
+    def test_source_tree_is_walked(self) -> None:
+        """The walk finds the documented functions that raise."""
+        # Assert: Verify a mistyped root or a broken parser fails here rather than passing silently
+        assert len(RAISING_FUNCTIONS) > 50
+
+    @pytest.mark.parametrize(
+        ("raised", "documented"),
+        [pytest.param(raised, documented, id=location) for location, raised, documented in RAISING_FUNCTIONS],
+    )
+    def test_raised_exceptions_are_documented(self, raised: list[str], documented: list[str]) -> None:
+        """Every exception a function raises itself is named in its Raises: section."""
+        # Assert: Verify the section a caller reads to decide what to catch names everything the body
+        # throws at it, so an exception added to a branch cannot go unmentioned and one renamed out of the
+        # body cannot leave its old name behind as the only entry
+        undocumented = [exception for exception in raised if exception not in documented]
+        assert not undocumented, f"raised but not in Raises: {', '.join(undocumented)}"
