@@ -18,19 +18,15 @@ one does.
 
 import datetime
 import uuid
-from collections.abc import Generator, Iterator
-from contextlib import contextmanager
-from pathlib import Path
+from collections.abc import Generator
 
 import pytest
-from alembic import command
-from alembic.config import Config
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, text
 
-from app.core.config import settings
 from app.models.category import MAX_SORT_ORDER
 from app.models.fields import MAX_FX_RATE_MICRO, MAX_PRICE_MICRO
 from app.models.recurring_rule import MAX_RECURRENCE_INTERVAL
+from tests.integration.migrations import migrated_database
 
 # The revision under test and the one it follows, which is where the seeded
 # rows are written: at that point none of the ceilings exists yet, so a row
@@ -159,57 +155,6 @@ SEED_PARAMETERS = {
 }
 
 
-def _database_url(database: str) -> str:
-    """Build a connection URL for a database on the configured server.
-
-    Args:
-        database: The name of the database to connect to.
-
-    Returns:
-        The URL of that database on the server the settings point at.
-    """
-    return str(settings.SQLALCHEMY_DATABASE_URI).rsplit("/", 1)[0] + f"/{database}"
-
-
-@contextmanager
-def _settings_pointed_at(database: str) -> Iterator[None]:
-    """Point the settings at another database for the duration of the block.
-
-    ``alembic/env.py`` builds its URL from the settings and takes no override,
-    so this is what makes a revision run somewhere other than the application's
-    own database. It is put back afterwards, since the rest of the suite reads
-    the same object.
-
-    Args:
-        database: The name of the database the revisions should run against.
-
-    Yields:
-        None, with the settings pointed at that database.
-    """
-    original = settings.POSTGRES_DB
-    settings.POSTGRES_DB = database
-    try:
-        yield
-    finally:
-        settings.POSTGRES_DB = original
-
-
-def _alembic_config() -> Config:
-    """Build an alembic configuration that points at the revisions.
-
-    The script location is set here rather than read from ``alembic.ini``:
-    ``env.py`` runs ``fileConfig`` on whichever file it was handed, which
-    reconfigures logging for the whole process and silences the loggers other
-    tests in the run assert on.
-
-    Returns:
-        A configuration alembic can run a revision from.
-    """
-    config = Config()
-    config.set_main_option("script_location", str(Path(__file__).parents[2] / "src" / "app" / "alembic"))
-    return config
-
-
 @pytest.fixture(scope="module")
 def migrated_engine() -> Generator[Engine]:
     """Migrate a seeded database across the revision that adds the ceilings.
@@ -217,34 +162,14 @@ def migrated_engine() -> Generator[Engine]:
     Yields:
         An engine bound to a database holding the rows the revision repaired.
     """
-    database = f"{settings.POSTGRES_DB}{MIGRATION_DATABASE_SUFFIX}"
-
-    # CREATE DATABASE cannot run inside a transaction block, hence autocommit.
-    # It is dropped first rather than reused: a run that failed half way leaves
-    # the schema at whichever revision it stopped on.
-    admin = create_engine(_database_url("postgres"), isolation_level="AUTOCOMMIT")
-    with admin.connect() as connection:
-        connection.execute(text(f'DROP DATABASE IF EXISTS "{database}" WITH (FORCE)'))
-        connection.execute(text(f'CREATE DATABASE "{database}"'))
-
-    engine = create_engine(_database_url(database))
-    config = _alembic_config()
-
-    with _settings_pointed_at(database):
-        command.upgrade(config, PREVIOUS)
-
-        with engine.begin() as connection:
-            for statement in SEED:
-                connection.execute(text(statement), SEED_PARAMETERS)
-
-        command.upgrade(config, REVISION)
-
-    yield engine
-
-    engine.dispose()
-    with admin.connect() as connection:
-        connection.execute(text(f'DROP DATABASE IF EXISTS "{database}" WITH (FORCE)'))
-    admin.dispose()
+    with migrated_database(
+        suffix=MIGRATION_DATABASE_SUFFIX,
+        previous=PREVIOUS,
+        revision=REVISION,
+        seed=SEED,
+        parameters=SEED_PARAMETERS,
+    ) as engine:
+        yield engine
 
 
 def _sort_order(engine: Engine, category_id: uuid.UUID) -> int:
