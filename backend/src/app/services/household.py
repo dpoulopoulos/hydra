@@ -712,6 +712,7 @@ class HouseholdService:
             HouseholdInviteNotFoundError: If no invite has that token.
             HouseholdInviteUsedError: If the invite was already accepted or withdrawn.
             HouseholdInviteExpiredError: If the invite is past its expiry.
+            HouseholdNotFoundError: If the household the invite points at is gone.
         """
         invite = self._require_pending_invite(token)
         entity = self.household_repository.get_by_id(invite.household_id)
@@ -771,6 +772,8 @@ class HouseholdService:
             HouseholdInviteExpiredError: If the invite is past its expiry.
             HouseholdInviteEmailMismatchError: If the invite was issued to another account.
             HouseholdInviteUnclaimedError: If the invited address has not been proved to belong to anyone.
+            HouseholdNotFoundError: If the household the invite points at is gone.
+            HouseholdMemberExistsError: If the caller already belongs to that household.
             HouseholdNotEmptyError: If the caller's current household holds data.
         """
         invite = self._require_pending_invite(token)
