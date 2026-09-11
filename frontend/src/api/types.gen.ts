@@ -144,6 +144,127 @@ export type AccountsPublic = {
 };
 
 /**
+ * ApiTokenCreate
+ */
+export type ApiTokenCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    scope?: ApiTokenScope;
+    /**
+     * Expires In Days
+     */
+    expires_in_days?: number | null;
+};
+
+/**
+ * ApiTokenCreated
+ *
+ * The only response that ever carries the secret.
+ *
+ * It is shown once, at creation. Nothing can reproduce it afterwards, because
+ * only a hash of the secret half is kept.
+ */
+export type ApiTokenCreated = {
+    token: ApiTokenPublic;
+    /**
+     * Secret
+     */
+    secret: string;
+};
+
+/**
+ * ApiTokenPublic
+ */
+export type ApiTokenPublic = {
+    /**
+     * Name
+     */
+    name: string;
+    scope?: ApiTokenScope;
+    status?: ApiTokenStatus;
+    /**
+     * Expires At
+     */
+    expires_at?: string | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Token Id
+     */
+    token_id: string;
+    /**
+     * Last Used At
+     */
+    last_used_at?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * ApiTokenScope
+ *
+ * What a token is allowed to do.
+ *
+ * A read token may only make safe requests. The check is applied once, where
+ * the credential is resolved, rather than route by route, so a route added
+ * later is covered without being told about scopes.
+ *
+ * Safe is the method rather than the effect: reading the transactions or a
+ * report materialises any recurring occurrence now due, so a read token can
+ * still cause those rows to be written. See SAFE_HTTP_METHODS.
+ */
+export const ApiTokenScope = { READ: 'read', READ_WRITE: 'read_write' } as const;
+
+/**
+ * ApiTokenScope
+ *
+ * What a token is allowed to do.
+ *
+ * A read token may only make safe requests. The check is applied once, where
+ * the credential is resolved, rather than route by route, so a route added
+ * later is covered without being told about scopes.
+ *
+ * Safe is the method rather than the effect: reading the transactions or a
+ * report materialises any recurring occurrence now due, so a read token can
+ * still cause those rows to be written. See SAFE_HTTP_METHODS.
+ */
+export type ApiTokenScope = typeof ApiTokenScope[keyof typeof ApiTokenScope];
+
+/**
+ * ApiTokenStatus
+ *
+ * The lifecycle of an API token.
+ */
+export const ApiTokenStatus = { ACTIVE: 'active', REVOKED: 'revoked' } as const;
+
+/**
+ * ApiTokenStatus
+ *
+ * The lifecycle of an API token.
+ */
+export type ApiTokenStatus = typeof ApiTokenStatus[keyof typeof ApiTokenStatus];
+
+/**
+ * ApiTokensPublic
+ */
+export type ApiTokensPublic = {
+    /**
+     * Data
+     */
+    data: Array<ApiTokenPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * Body_login-login_access_token
  */
 export type BodyLoginLoginAccessToken = {
@@ -3316,6 +3437,91 @@ export type UsersUpdatePasswordMeResponses = {
 };
 
 export type UsersUpdatePasswordMeResponse = UsersUpdatePasswordMeResponses[keyof UsersUpdatePasswordMeResponses];
+
+export type ApiTokensListApiTokensData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Include Revoked
+         */
+        include_revoked?: boolean;
+    };
+    url: '/api/v1/api-tokens/';
+};
+
+export type ApiTokensListApiTokensErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ApiTokensListApiTokensError = ApiTokensListApiTokensErrors[keyof ApiTokensListApiTokensErrors];
+
+export type ApiTokensListApiTokensResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiTokensPublic;
+};
+
+export type ApiTokensListApiTokensResponse = ApiTokensListApiTokensResponses[keyof ApiTokensListApiTokensResponses];
+
+export type ApiTokensCreateApiTokenData = {
+    body: ApiTokenCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/api-tokens/';
+};
+
+export type ApiTokensCreateApiTokenErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ApiTokensCreateApiTokenError = ApiTokensCreateApiTokenErrors[keyof ApiTokensCreateApiTokenErrors];
+
+export type ApiTokensCreateApiTokenResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiTokenCreated;
+};
+
+export type ApiTokensCreateApiTokenResponse = ApiTokensCreateApiTokenResponses[keyof ApiTokensCreateApiTokenResponses];
+
+export type ApiTokensRevokeApiTokenData = {
+    body?: never;
+    path: {
+        /**
+         * Token Id
+         */
+        token_id: string;
+    };
+    query?: never;
+    url: '/api/v1/api-tokens/{token_id}';
+};
+
+export type ApiTokensRevokeApiTokenErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ApiTokensRevokeApiTokenError = ApiTokensRevokeApiTokenErrors[keyof ApiTokensRevokeApiTokenErrors];
+
+export type ApiTokensRevokeApiTokenResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type ApiTokensRevokeApiTokenResponse = ApiTokensRevokeApiTokenResponses[keyof ApiTokensRevokeApiTokenResponses];
 
 export type HouseholdsGetHouseholdMeData = {
     body?: never;

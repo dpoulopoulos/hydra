@@ -185,7 +185,7 @@
           "users"
         ],
         "summary": "Delete User Me",
-        "description": "Delete the current user.\n\nArgs:\n    user_service: The user service dependency.\n    household_service: The household service dependency, used to release\n        the household the user leaves behind.\n    current_user: The current authenticated user.\n\nReturns:\n    A message indicating that the user was deleted successfully.\n\nRaises:\n    HTTPException: If a superuser tries to delete their own account (400), the token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
+        "description": "Delete the current user.\n\nRequires a signed-in session, like changing the password: deleting the\naccount is not something a machine credential should be able to reach.\n\nArgs:\n    user_service: The user service dependency.\n    household_service: The household service dependency, used to release\n        the household the user leaves behind.\n    current_user: The signed-in user.\n\nReturns:\n    A message indicating that the user was deleted successfully.\n\nRaises:\n    HTTPException: If a superuser tries to delete their own account (400), the token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
         "operationId": "users-delete_user_me",
         "responses": {
           "200": {
@@ -210,7 +210,7 @@
           "users"
         ],
         "summary": "Update User Me",
-        "description": "Update the current user's information.\n\nA new email address is not applied here: it is mailed a verification link\nand only becomes the account's address once that link is followed.\n\nArgs:\n    user_service: The user service dependency.\n    email_verification_service: The email verification service dependency.\n    user_in: The user data to update.\n    current_user: The current authenticated user.\n\nReturns:\n    The updated user information.\n\nRaises:\n    HTTPException: If a user with the same email already exists (409), the user's token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
+        "description": "Update the current user's information.\n\nA new email address is not applied here: it is mailed a verification link\nand only becomes the account's address once that link is followed.\n\nA browser session, not an API token: the verification link goes to the new\naddress, so whoever can change it can move the account to somewhere they\nread and then reset the password from there.\n\nArgs:\n    user_service: The user service dependency.\n    email_verification_service: The email verification service dependency.\n    user_in: The user data to update.\n    current_user: The signed-in user, from a browser session.\n\nReturns:\n    The updated user information.\n\nRaises:\n    HTTPException: If a user with the same email already exists (409), the user's token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
         "operationId": "users-update_user_me",
         "requestBody": {
           "content": {
@@ -410,7 +410,7 @@
           "users"
         ],
         "summary": "Update Password Me",
-        "description": "Update the current user's password.\n\nArgs:\n    user_service: The user service dependency.\n    password_in: The current and new password.\n    current_user: The current authenticated user.\n\nReturns:\n    A message indicating that the password was updated successfully.\n\nRaises:\n    HTTPException: If the current password is incorrect (401),\n        the new password is the same as the current one (400),\n        the user is not found (404), or the user is inactive (403).",
+        "description": "Update the current user's password.\n\nRequires a signed-in session. A leaked API token must not be able to change\nthe password behind it and lock its owner out.\n\nArgs:\n    user_service: The user service dependency.\n    password_in: The current and new password.\n    current_user: The signed-in user.\n\nReturns:\n    A message indicating that the password was updated successfully.\n\nRaises:\n    HTTPException: If the current password is incorrect (401),\n        the new password is the same as the current one (400),\n        the user is not found (404), or the user is inactive (403).",
         "operationId": "users-update_password_me",
         "requestBody": {
           "content": {
@@ -449,6 +449,149 @@
             "OAuth2PasswordBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/api-tokens/": {
+      "post": {
+        "tags": [
+          "api-tokens"
+        ],
+        "summary": "Create Api Token",
+        "description": "Mint an API token, for a machine client such as an MCP server.\n\nThe secret is in this response and in no other. It is not stored, so it\ncannot be shown again.\n\nRequires a signed-in session: a token may not mint another token, or a\nleaked one could replace itself for as long as it liked.\n\nArgs:\n    api_token_service: The API token service dependency.\n    current_user: The signed-in user.\n    token_in: The name, scope and lifetime asked for.\n\nReturns:\n    The new token, together with its secret.\n\nRaises:\n    HTTPException: If the user already holds as many active tokens as they\n        may (409), or the request was authenticated with an API token (403).",
+        "operationId": "api-tokens-create_api_token",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiTokenCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiTokenCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "api-tokens"
+        ],
+        "summary": "List Api Tokens",
+        "description": "List your API tokens.\n\nSecrets are never included: only a hash of each is kept.\n\nArgs:\n    api_token_service: The API token service dependency.\n    current_user: The current user.\n    include_revoked: Whether revoked tokens are listed as well.\n\nReturns:\n    The tokens.",
+        "operationId": "api-tokens-list_api_tokens",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "include_revoked",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Revoked"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiTokensPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/api-tokens/{token_id}": {
+      "delete": {
+        "tags": [
+          "api-tokens"
+        ],
+        "summary": "Revoke Api Token",
+        "description": "Revoke an API token.\n\nThe row is kept and marked revoked, so when the token was last used is not\nlost with it.\n\nArgs:\n    api_token_service: The API token service dependency.\n    current_user: The signed-in user.\n    token_id: The ID of the token to revoke.\n\nReturns:\n    A message confirming the revocation.\n\nRaises:\n    HTTPException: If you have no such token (404), or the request was\n        authenticated with an API token (403).",
+        "operationId": "api-tokens-revoke_api_token",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/households/me": {
@@ -5345,6 +5488,160 @@
           "count"
         ],
         "title": "AccountsPublic"
+      },
+      "ApiTokenCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ApiTokenScope",
+            "default": "read"
+          },
+          "expires_in_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 730.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires In Days",
+            "default": 90
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ApiTokenCreate"
+      },
+      "ApiTokenCreated": {
+        "properties": {
+          "token": {
+            "$ref": "#/components/schemas/ApiTokenPublic"
+          },
+          "secret": {
+            "type": "string",
+            "title": "Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "secret"
+        ],
+        "title": "ApiTokenCreated",
+        "description": "The only response that ever carries the secret.\n\nIt is shown once, at creation. Nothing can reproduce it afterwards, because\nonly a hash of the secret half is kept."
+      },
+      "ApiTokenPublic": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ApiTokenScope",
+            "default": "read"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ApiTokenStatus",
+            "default": "active"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "token_id": {
+            "type": "string",
+            "title": "Token Id"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "token_id",
+          "created_at"
+        ],
+        "title": "ApiTokenPublic"
+      },
+      "ApiTokenScope": {
+        "type": "string",
+        "enum": [
+          "read",
+          "read_write"
+        ],
+        "title": "ApiTokenScope",
+        "description": "What a token is allowed to do.\n\nA read token may only make safe requests. The check is applied once, where\nthe credential is resolved, rather than route by route, so a route added\nlater is covered without being told about scopes.\n\nSafe is the method rather than the effect: reading the transactions or a\nreport materialises any recurring occurrence now due, so a read token can\nstill cause those rows to be written. See SAFE_HTTP_METHODS."
+      },
+      "ApiTokenStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "revoked"
+        ],
+        "title": "ApiTokenStatus",
+        "description": "The lifecycle of an API token."
+      },
+      "ApiTokensPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ApiTokenPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "ApiTokensPublic"
       },
       "Body_login-login_access_token": {
         "properties": {

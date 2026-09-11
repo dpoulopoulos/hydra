@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { accountsCreateAccount, accountsDeleteAccount, accountsGetAccount, accountsListAccounts, accountsUpdateAccount, budgetsBulkUpsertBudgets, budgetsCopyBudgets, budgetsCreateBudget, budgetsDeleteBudget, budgetsGetBudget, budgetsListBudgets, budgetsUpdateBudget, categoriesCreateCategory, categoriesDeleteCategory, categoriesGetCategory, categoriesGetCategoryTree, categoriesListCategories, categoriesUpdateCategory, emailVerificationCancelPendingEmailChangeMe, emailVerificationGetPendingEmailChangeMe, emailVerificationResendPendingEmailChangeMe, emailVerificationResendVerificationEmail, emailVerificationSendVerificationEmailMe, emailVerificationVerifyEmail, householdsAcceptHouseholdInvite, householdsCreateHouseholdInvite, householdsGetHouseholdMe, householdsLeaveHousehold, householdsListHouseholdInvites, householdsListHouseholdMembers, householdsPreviewHouseholdInvite, householdsRemoveHouseholdMember, householdsRevokeHouseholdInvite, householdsUpdateHouseholdMe, householdsUpdateHouseholdMember, incomeCreateClient, incomeCreateSession, incomeDeleteClient, incomeDeleteSession, incomeGetClient, incomeGetForecast, incomeGetSession, incomeGetSummary, incomeGetVault, incomeListClients, incomeListSessions, incomeResetVault, incomeUpdateClient, incomeUpdateSession, incomeUpsertVault, investmentsCreateInstrument, investmentsCreateTrade, investmentsDeleteInstrument, investmentsDeleteTrade, investmentsGetInstrument, investmentsGetPortfolio, investmentsGetTrade, investmentsListFxRates, investmentsListInstruments, investmentsListTrades, investmentsRefreshPrices, investmentsSearchSymbols, investmentsSetInstrumentPrice, investmentsUpdateInstrument, investmentsUpdateTrade, loginLoginAccessToken, type Options, passwordResetConfirmPasswordReset, passwordResetRequestPasswordReset, passwordResetVerifyPasswordResetToken, recurringRulesCreateRecurringRule, recurringRulesDeleteRecurringRule, recurringRulesGetRecurringRule, recurringRulesListRecurringRules, recurringRulesListUpcomingOccurrences, recurringRulesRunRecurringRules, recurringRulesUpdateRecurringRule, reportsBudgetProgress, reportsIncomeExpense, reportsMonthSummary, reportsSpendByCategory, reportsSpendOverTime, transactionsCreateTransaction, transactionsDeleteTransaction, transactionsGetTransaction, transactionsListTransactions, transactionsUpdateTransaction, usersCreateUser, usersDeleteUser, usersDeleteUserMe, usersGetUserById, usersGetUserMe, usersGetUsers, usersRegisterUser, usersUpdatePasswordMe, usersUpdateUser, usersUpdateUserMe } from '../sdk.gen';
-import type { AccountsCreateAccountData, AccountsCreateAccountError, AccountsCreateAccountResponse, AccountsDeleteAccountData, AccountsDeleteAccountError, AccountsDeleteAccountResponse, AccountsGetAccountData, AccountsGetAccountError, AccountsGetAccountResponse, AccountsListAccountsData, AccountsListAccountsError, AccountsListAccountsResponse, AccountsUpdateAccountData, AccountsUpdateAccountError, AccountsUpdateAccountResponse, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsError, BudgetsBulkUpsertBudgetsResponse, BudgetsCopyBudgetsData, BudgetsCopyBudgetsError, BudgetsCopyBudgetsResponse, BudgetsCreateBudgetData, BudgetsCreateBudgetError, BudgetsCreateBudgetResponse, BudgetsDeleteBudgetData, BudgetsDeleteBudgetError, BudgetsDeleteBudgetResponse, BudgetsGetBudgetData, BudgetsGetBudgetError, BudgetsGetBudgetResponse, BudgetsListBudgetsData, BudgetsListBudgetsError, BudgetsListBudgetsResponse, BudgetsUpdateBudgetData, BudgetsUpdateBudgetError, BudgetsUpdateBudgetResponse, CategoriesCreateCategoryData, CategoriesCreateCategoryError, CategoriesCreateCategoryResponse, CategoriesDeleteCategoryData, CategoriesDeleteCategoryError, CategoriesDeleteCategoryResponse, CategoriesGetCategoryData, CategoriesGetCategoryError, CategoriesGetCategoryResponse, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeError, CategoriesGetCategoryTreeResponse, CategoriesListCategoriesData, CategoriesListCategoriesError, CategoriesListCategoriesResponse, CategoriesUpdateCategoryData, CategoriesUpdateCategoryError, CategoriesUpdateCategoryResponse, EmailVerificationCancelPendingEmailChangeMeData, EmailVerificationCancelPendingEmailChangeMeResponse, EmailVerificationGetPendingEmailChangeMeData, EmailVerificationGetPendingEmailChangeMeResponse, EmailVerificationResendPendingEmailChangeMeData, EmailVerificationResendPendingEmailChangeMeResponse, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailError, EmailVerificationResendVerificationEmailResponse, EmailVerificationSendVerificationEmailMeData, EmailVerificationSendVerificationEmailMeResponse, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailError, EmailVerificationVerifyEmailResponse, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteError, HouseholdsAcceptHouseholdInviteResponse, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteError, HouseholdsCreateHouseholdInviteResponse, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponse, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponse, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesError, HouseholdsListHouseholdInvitesResponse, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponse, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteError, HouseholdsPreviewHouseholdInviteResponse, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberError, HouseholdsRemoveHouseholdMemberResponse, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteError, HouseholdsRevokeHouseholdInviteResponse, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeError, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberError, HouseholdsUpdateHouseholdMemberResponse, HouseholdsUpdateHouseholdMeResponse, IncomeCreateClientData, IncomeCreateClientError, IncomeCreateClientResponse, IncomeCreateSessionData, IncomeCreateSessionError, IncomeCreateSessionResponse, IncomeDeleteClientData, IncomeDeleteClientError, IncomeDeleteClientResponse, IncomeDeleteSessionData, IncomeDeleteSessionError, IncomeDeleteSessionResponse, IncomeGetClientData, IncomeGetClientError, IncomeGetClientResponse, IncomeGetForecastData, IncomeGetForecastError, IncomeGetForecastResponse, IncomeGetSessionData, IncomeGetSessionError, IncomeGetSessionResponse, IncomeGetSummaryData, IncomeGetSummaryError, IncomeGetSummaryResponse, IncomeGetVaultData, IncomeGetVaultResponse, IncomeListClientsData, IncomeListClientsError, IncomeListClientsResponse, IncomeListSessionsData, IncomeListSessionsError, IncomeListSessionsResponse, IncomeResetVaultData, IncomeResetVaultError, IncomeResetVaultResponse, IncomeUpdateClientData, IncomeUpdateClientError, IncomeUpdateClientResponse, IncomeUpdateSessionData, IncomeUpdateSessionError, IncomeUpdateSessionResponse, IncomeUpsertVaultData, IncomeUpsertVaultError, IncomeUpsertVaultResponse, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentError, InvestmentsCreateInstrumentResponse, InvestmentsCreateTradeData, InvestmentsCreateTradeError, InvestmentsCreateTradeResponse, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentError, InvestmentsDeleteInstrumentResponse, InvestmentsDeleteTradeData, InvestmentsDeleteTradeError, InvestmentsDeleteTradeResponse, InvestmentsGetInstrumentData, InvestmentsGetInstrumentError, InvestmentsGetInstrumentResponse, InvestmentsGetPortfolioData, InvestmentsGetPortfolioError, InvestmentsGetPortfolioResponse, InvestmentsGetTradeData, InvestmentsGetTradeError, InvestmentsGetTradeResponse, InvestmentsListFxRatesData, InvestmentsListFxRatesResponse, InvestmentsListInstrumentsData, InvestmentsListInstrumentsError, InvestmentsListInstrumentsResponse, InvestmentsListTradesData, InvestmentsListTradesError, InvestmentsListTradesResponse, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponse, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsError, InvestmentsSearchSymbolsResponse, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceError, InvestmentsSetInstrumentPriceResponse, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentError, InvestmentsUpdateInstrumentResponse, InvestmentsUpdateTradeData, InvestmentsUpdateTradeError, InvestmentsUpdateTradeResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenError, LoginLoginAccessTokenResponse, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetError, PasswordResetConfirmPasswordResetResponse, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetError, PasswordResetRequestPasswordResetResponse, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenError, PasswordResetVerifyPasswordResetTokenResponse, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleError, RecurringRulesCreateRecurringRuleResponse, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleError, RecurringRulesDeleteRecurringRuleResponse, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleError, RecurringRulesGetRecurringRuleResponse, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesError, RecurringRulesListRecurringRulesResponse, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesError, RecurringRulesListUpcomingOccurrencesResponse, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesError, RecurringRulesRunRecurringRulesResponse, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleError, RecurringRulesUpdateRecurringRuleResponse, ReportsBudgetProgressData, ReportsBudgetProgressError, ReportsBudgetProgressResponse, ReportsIncomeExpenseData, ReportsIncomeExpenseError, ReportsIncomeExpenseResponse, ReportsMonthSummaryData, ReportsMonthSummaryError, ReportsMonthSummaryResponse, ReportsSpendByCategoryData, ReportsSpendByCategoryError, ReportsSpendByCategoryResponse, ReportsSpendOverTimeData, ReportsSpendOverTimeError, ReportsSpendOverTimeResponse, TransactionsCreateTransactionData, TransactionsCreateTransactionError, TransactionsCreateTransactionResponse, TransactionsDeleteTransactionData, TransactionsDeleteTransactionError, TransactionsDeleteTransactionResponse, TransactionsGetTransactionData, TransactionsGetTransactionError, TransactionsGetTransactionResponse, TransactionsListTransactionsData, TransactionsListTransactionsError, TransactionsListTransactionsResponse, TransactionsUpdateTransactionData, TransactionsUpdateTransactionError, TransactionsUpdateTransactionResponse, UsersCreateUserData, UsersCreateUserError, UsersCreateUserResponse, UsersDeleteUserData, UsersDeleteUserError, UsersDeleteUserMeData, UsersDeleteUserMeResponse, UsersDeleteUserResponse, UsersGetUserByIdData, UsersGetUserByIdError, UsersGetUserByIdResponse, UsersGetUserMeData, UsersGetUserMeResponse, UsersGetUsersData, UsersGetUsersError, UsersGetUsersResponse, UsersRegisterUserData, UsersRegisterUserError, UsersRegisterUserResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeError, UsersUpdatePasswordMeResponse, UsersUpdateUserData, UsersUpdateUserError, UsersUpdateUserMeData, UsersUpdateUserMeError, UsersUpdateUserMeResponse, UsersUpdateUserResponse } from '../types.gen';
+import { accountsCreateAccount, accountsDeleteAccount, accountsGetAccount, accountsListAccounts, accountsUpdateAccount, apiTokensCreateApiToken, apiTokensListApiTokens, apiTokensRevokeApiToken, budgetsBulkUpsertBudgets, budgetsCopyBudgets, budgetsCreateBudget, budgetsDeleteBudget, budgetsGetBudget, budgetsListBudgets, budgetsUpdateBudget, categoriesCreateCategory, categoriesDeleteCategory, categoriesGetCategory, categoriesGetCategoryTree, categoriesListCategories, categoriesUpdateCategory, emailVerificationCancelPendingEmailChangeMe, emailVerificationGetPendingEmailChangeMe, emailVerificationResendPendingEmailChangeMe, emailVerificationResendVerificationEmail, emailVerificationSendVerificationEmailMe, emailVerificationVerifyEmail, householdsAcceptHouseholdInvite, householdsCreateHouseholdInvite, householdsGetHouseholdMe, householdsLeaveHousehold, householdsListHouseholdInvites, householdsListHouseholdMembers, householdsPreviewHouseholdInvite, householdsRemoveHouseholdMember, householdsRevokeHouseholdInvite, householdsUpdateHouseholdMe, householdsUpdateHouseholdMember, incomeCreateClient, incomeCreateSession, incomeDeleteClient, incomeDeleteSession, incomeGetClient, incomeGetForecast, incomeGetSession, incomeGetSummary, incomeGetVault, incomeListClients, incomeListSessions, incomeResetVault, incomeUpdateClient, incomeUpdateSession, incomeUpsertVault, investmentsCreateInstrument, investmentsCreateTrade, investmentsDeleteInstrument, investmentsDeleteTrade, investmentsGetInstrument, investmentsGetPortfolio, investmentsGetTrade, investmentsListFxRates, investmentsListInstruments, investmentsListTrades, investmentsRefreshPrices, investmentsSearchSymbols, investmentsSetInstrumentPrice, investmentsUpdateInstrument, investmentsUpdateTrade, loginLoginAccessToken, type Options, passwordResetConfirmPasswordReset, passwordResetRequestPasswordReset, passwordResetVerifyPasswordResetToken, recurringRulesCreateRecurringRule, recurringRulesDeleteRecurringRule, recurringRulesGetRecurringRule, recurringRulesListRecurringRules, recurringRulesListUpcomingOccurrences, recurringRulesRunRecurringRules, recurringRulesUpdateRecurringRule, reportsBudgetProgress, reportsIncomeExpense, reportsMonthSummary, reportsSpendByCategory, reportsSpendOverTime, transactionsCreateTransaction, transactionsDeleteTransaction, transactionsGetTransaction, transactionsListTransactions, transactionsUpdateTransaction, usersCreateUser, usersDeleteUser, usersDeleteUserMe, usersGetUserById, usersGetUserMe, usersGetUsers, usersRegisterUser, usersUpdatePasswordMe, usersUpdateUser, usersUpdateUserMe } from '../sdk.gen';
+import type { AccountsCreateAccountData, AccountsCreateAccountError, AccountsCreateAccountResponse, AccountsDeleteAccountData, AccountsDeleteAccountError, AccountsDeleteAccountResponse, AccountsGetAccountData, AccountsGetAccountError, AccountsGetAccountResponse, AccountsListAccountsData, AccountsListAccountsError, AccountsListAccountsResponse, AccountsUpdateAccountData, AccountsUpdateAccountError, AccountsUpdateAccountResponse, ApiTokensCreateApiTokenData, ApiTokensCreateApiTokenError, ApiTokensCreateApiTokenResponse, ApiTokensListApiTokensData, ApiTokensListApiTokensError, ApiTokensListApiTokensResponse, ApiTokensRevokeApiTokenData, ApiTokensRevokeApiTokenError, ApiTokensRevokeApiTokenResponse, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsError, BudgetsBulkUpsertBudgetsResponse, BudgetsCopyBudgetsData, BudgetsCopyBudgetsError, BudgetsCopyBudgetsResponse, BudgetsCreateBudgetData, BudgetsCreateBudgetError, BudgetsCreateBudgetResponse, BudgetsDeleteBudgetData, BudgetsDeleteBudgetError, BudgetsDeleteBudgetResponse, BudgetsGetBudgetData, BudgetsGetBudgetError, BudgetsGetBudgetResponse, BudgetsListBudgetsData, BudgetsListBudgetsError, BudgetsListBudgetsResponse, BudgetsUpdateBudgetData, BudgetsUpdateBudgetError, BudgetsUpdateBudgetResponse, CategoriesCreateCategoryData, CategoriesCreateCategoryError, CategoriesCreateCategoryResponse, CategoriesDeleteCategoryData, CategoriesDeleteCategoryError, CategoriesDeleteCategoryResponse, CategoriesGetCategoryData, CategoriesGetCategoryError, CategoriesGetCategoryResponse, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeError, CategoriesGetCategoryTreeResponse, CategoriesListCategoriesData, CategoriesListCategoriesError, CategoriesListCategoriesResponse, CategoriesUpdateCategoryData, CategoriesUpdateCategoryError, CategoriesUpdateCategoryResponse, EmailVerificationCancelPendingEmailChangeMeData, EmailVerificationCancelPendingEmailChangeMeResponse, EmailVerificationGetPendingEmailChangeMeData, EmailVerificationGetPendingEmailChangeMeResponse, EmailVerificationResendPendingEmailChangeMeData, EmailVerificationResendPendingEmailChangeMeResponse, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailError, EmailVerificationResendVerificationEmailResponse, EmailVerificationSendVerificationEmailMeData, EmailVerificationSendVerificationEmailMeResponse, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailError, EmailVerificationVerifyEmailResponse, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteError, HouseholdsAcceptHouseholdInviteResponse, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteError, HouseholdsCreateHouseholdInviteResponse, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponse, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponse, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesError, HouseholdsListHouseholdInvitesResponse, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponse, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteError, HouseholdsPreviewHouseholdInviteResponse, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberError, HouseholdsRemoveHouseholdMemberResponse, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteError, HouseholdsRevokeHouseholdInviteResponse, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeError, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberError, HouseholdsUpdateHouseholdMemberResponse, HouseholdsUpdateHouseholdMeResponse, IncomeCreateClientData, IncomeCreateClientError, IncomeCreateClientResponse, IncomeCreateSessionData, IncomeCreateSessionError, IncomeCreateSessionResponse, IncomeDeleteClientData, IncomeDeleteClientError, IncomeDeleteClientResponse, IncomeDeleteSessionData, IncomeDeleteSessionError, IncomeDeleteSessionResponse, IncomeGetClientData, IncomeGetClientError, IncomeGetClientResponse, IncomeGetForecastData, IncomeGetForecastError, IncomeGetForecastResponse, IncomeGetSessionData, IncomeGetSessionError, IncomeGetSessionResponse, IncomeGetSummaryData, IncomeGetSummaryError, IncomeGetSummaryResponse, IncomeGetVaultData, IncomeGetVaultResponse, IncomeListClientsData, IncomeListClientsError, IncomeListClientsResponse, IncomeListSessionsData, IncomeListSessionsError, IncomeListSessionsResponse, IncomeResetVaultData, IncomeResetVaultError, IncomeResetVaultResponse, IncomeUpdateClientData, IncomeUpdateClientError, IncomeUpdateClientResponse, IncomeUpdateSessionData, IncomeUpdateSessionError, IncomeUpdateSessionResponse, IncomeUpsertVaultData, IncomeUpsertVaultError, IncomeUpsertVaultResponse, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentError, InvestmentsCreateInstrumentResponse, InvestmentsCreateTradeData, InvestmentsCreateTradeError, InvestmentsCreateTradeResponse, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentError, InvestmentsDeleteInstrumentResponse, InvestmentsDeleteTradeData, InvestmentsDeleteTradeError, InvestmentsDeleteTradeResponse, InvestmentsGetInstrumentData, InvestmentsGetInstrumentError, InvestmentsGetInstrumentResponse, InvestmentsGetPortfolioData, InvestmentsGetPortfolioError, InvestmentsGetPortfolioResponse, InvestmentsGetTradeData, InvestmentsGetTradeError, InvestmentsGetTradeResponse, InvestmentsListFxRatesData, InvestmentsListFxRatesResponse, InvestmentsListInstrumentsData, InvestmentsListInstrumentsError, InvestmentsListInstrumentsResponse, InvestmentsListTradesData, InvestmentsListTradesError, InvestmentsListTradesResponse, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponse, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsError, InvestmentsSearchSymbolsResponse, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceError, InvestmentsSetInstrumentPriceResponse, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentError, InvestmentsUpdateInstrumentResponse, InvestmentsUpdateTradeData, InvestmentsUpdateTradeError, InvestmentsUpdateTradeResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenError, LoginLoginAccessTokenResponse, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetError, PasswordResetConfirmPasswordResetResponse, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetError, PasswordResetRequestPasswordResetResponse, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenError, PasswordResetVerifyPasswordResetTokenResponse, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleError, RecurringRulesCreateRecurringRuleResponse, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleError, RecurringRulesDeleteRecurringRuleResponse, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleError, RecurringRulesGetRecurringRuleResponse, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesError, RecurringRulesListRecurringRulesResponse, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesError, RecurringRulesListUpcomingOccurrencesResponse, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesError, RecurringRulesRunRecurringRulesResponse, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleError, RecurringRulesUpdateRecurringRuleResponse, ReportsBudgetProgressData, ReportsBudgetProgressError, ReportsBudgetProgressResponse, ReportsIncomeExpenseData, ReportsIncomeExpenseError, ReportsIncomeExpenseResponse, ReportsMonthSummaryData, ReportsMonthSummaryError, ReportsMonthSummaryResponse, ReportsSpendByCategoryData, ReportsSpendByCategoryError, ReportsSpendByCategoryResponse, ReportsSpendOverTimeData, ReportsSpendOverTimeError, ReportsSpendOverTimeResponse, TransactionsCreateTransactionData, TransactionsCreateTransactionError, TransactionsCreateTransactionResponse, TransactionsDeleteTransactionData, TransactionsDeleteTransactionError, TransactionsDeleteTransactionResponse, TransactionsGetTransactionData, TransactionsGetTransactionError, TransactionsGetTransactionResponse, TransactionsListTransactionsData, TransactionsListTransactionsError, TransactionsListTransactionsResponse, TransactionsUpdateTransactionData, TransactionsUpdateTransactionError, TransactionsUpdateTransactionResponse, UsersCreateUserData, UsersCreateUserError, UsersCreateUserResponse, UsersDeleteUserData, UsersDeleteUserError, UsersDeleteUserMeData, UsersDeleteUserMeResponse, UsersDeleteUserResponse, UsersGetUserByIdData, UsersGetUserByIdError, UsersGetUserByIdResponse, UsersGetUserMeData, UsersGetUserMeResponse, UsersGetUsersData, UsersGetUsersError, UsersGetUsersResponse, UsersRegisterUserData, UsersRegisterUserError, UsersRegisterUserResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeError, UsersUpdatePasswordMeResponse, UsersUpdateUserData, UsersUpdateUserError, UsersUpdateUserMeData, UsersUpdateUserMeError, UsersUpdateUserMeResponse, UsersUpdateUserResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -150,11 +150,14 @@ export const usersRegisterUserMutation = (options?: Partial<Options<UsersRegiste
  *
  * Delete the current user.
  *
+ * Requires a signed-in session, like changing the password: deleting the
+ * account is not something a machine credential should be able to reach.
+ *
  * Args:
  * user_service: The user service dependency.
  * household_service: The household service dependency, used to release
  * the household the user leaves behind.
- * current_user: The current authenticated user.
+ * current_user: The signed-in user.
  *
  * Returns:
  * A message indicating that the user was deleted successfully.
@@ -214,11 +217,15 @@ export const usersGetUserMeOptions = (options?: Options<UsersGetUserMeData>) => 
  * A new email address is not applied here: it is mailed a verification link
  * and only becomes the account's address once that link is followed.
  *
+ * A browser session, not an API token: the verification link goes to the new
+ * address, so whoever can change it can move the account to somewhere they
+ * read and then reset the password from there.
+ *
  * Args:
  * user_service: The user service dependency.
  * email_verification_service: The email verification service dependency.
  * user_in: The user data to update.
- * current_user: The current authenticated user.
+ * current_user: The signed-in user, from a browser session.
  *
  * Returns:
  * The updated user information.
@@ -348,10 +355,13 @@ export const usersUpdateUserMutation = (options?: Partial<Options<UsersUpdateUse
  *
  * Update the current user's password.
  *
+ * Requires a signed-in session. A leaked API token must not be able to change
+ * the password behind it and lock its owner out.
+ *
  * Args:
  * user_service: The user service dependency.
  * password_in: The current and new password.
- * current_user: The current authenticated user.
+ * current_user: The signed-in user.
  *
  * Returns:
  * A message indicating that the password was updated successfully.
@@ -365,6 +375,107 @@ export const usersUpdatePasswordMeMutation = (options?: Partial<Options<UsersUpd
     const mutationOptions: UseMutationOptions<UsersUpdatePasswordMeResponse, UsersUpdatePasswordMeError, Options<UsersUpdatePasswordMeData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await usersUpdatePasswordMe({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const apiTokensListApiTokensQueryKey = (options?: Options<ApiTokensListApiTokensData>) => createQueryKey('apiTokensListApiTokens', options);
+
+/**
+ * List Api Tokens
+ *
+ * List your API tokens.
+ *
+ * Secrets are never included: only a hash of each is kept.
+ *
+ * Args:
+ * api_token_service: The API token service dependency.
+ * current_user: The current user.
+ * include_revoked: Whether revoked tokens are listed as well.
+ *
+ * Returns:
+ * The tokens.
+ */
+export const apiTokensListApiTokensOptions = (options?: Options<ApiTokensListApiTokensData>) => queryOptions<ApiTokensListApiTokensResponse, ApiTokensListApiTokensError, ApiTokensListApiTokensResponse, ReturnType<typeof apiTokensListApiTokensQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await apiTokensListApiTokens({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: apiTokensListApiTokensQueryKey(options)
+});
+
+/**
+ * Create Api Token
+ *
+ * Mint an API token, for a machine client such as an MCP server.
+ *
+ * The secret is in this response and in no other. It is not stored, so it
+ * cannot be shown again.
+ *
+ * Requires a signed-in session: a token may not mint another token, or a
+ * leaked one could replace itself for as long as it liked.
+ *
+ * Args:
+ * api_token_service: The API token service dependency.
+ * current_user: The signed-in user.
+ * token_in: The name, scope and lifetime asked for.
+ *
+ * Returns:
+ * The new token, together with its secret.
+ *
+ * Raises:
+ * HTTPException: If the user already holds as many active tokens as they
+ * may (409), or the request was authenticated with an API token (403).
+ */
+export const apiTokensCreateApiTokenMutation = (options?: Partial<Options<ApiTokensCreateApiTokenData>>): UseMutationOptions<ApiTokensCreateApiTokenResponse, ApiTokensCreateApiTokenError, Options<ApiTokensCreateApiTokenData>> => {
+    const mutationOptions: UseMutationOptions<ApiTokensCreateApiTokenResponse, ApiTokensCreateApiTokenError, Options<ApiTokensCreateApiTokenData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await apiTokensCreateApiToken({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Revoke Api Token
+ *
+ * Revoke an API token.
+ *
+ * The row is kept and marked revoked, so when the token was last used is not
+ * lost with it.
+ *
+ * Args:
+ * api_token_service: The API token service dependency.
+ * current_user: The signed-in user.
+ * token_id: The ID of the token to revoke.
+ *
+ * Returns:
+ * A message confirming the revocation.
+ *
+ * Raises:
+ * HTTPException: If you have no such token (404), or the request was
+ * authenticated with an API token (403).
+ */
+export const apiTokensRevokeApiTokenMutation = (options?: Partial<Options<ApiTokensRevokeApiTokenData>>): UseMutationOptions<ApiTokensRevokeApiTokenResponse, ApiTokensRevokeApiTokenError, Options<ApiTokensRevokeApiTokenData>> => {
+    const mutationOptions: UseMutationOptions<ApiTokensRevokeApiTokenResponse, ApiTokensRevokeApiTokenError, Options<ApiTokensRevokeApiTokenData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await apiTokensRevokeApiToken({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
