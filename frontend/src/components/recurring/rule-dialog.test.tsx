@@ -417,6 +417,41 @@ describe('the sentence under the fields', () => {
     expect(screen.queryByText(/leaves/)).not.toBeInTheDocument()
   })
 
+  it('reads an amount typed plainly', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Amount'), '42.50')
+
+    expect(await screen.findByText(/€42\.50 leaves Current/)).toBeInTheDocument()
+  })
+
+  it('reads an amount typed with a comma for the decimals', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Amount'), '42,50')
+
+    expect(await screen.findByText(/€42\.50 leaves Current/)).toBeInTheDocument()
+  })
+
+  it('reads an amount typed with a thousands space', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Amount'), '1 000')
+
+    expect(await screen.findByText(/€1,000\.00 leaves Current/)).toBeInTheDocument()
+  })
+
+  it('says nothing while the field is empty', async () => {
+    renderDialog()
+
+    await screen.findByLabelText('Amount')
+
+    expect(screen.queryByText(/leaves/)).not.toBeInTheDocument()
+  })
+
   it('names both accounts of a transfer', async () => {
     const user = userEvent.setup()
     renderDialog()
