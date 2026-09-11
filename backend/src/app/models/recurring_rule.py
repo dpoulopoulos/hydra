@@ -75,6 +75,11 @@ class RecurringRulePublic(RecurringRuleBase):
     counter_account_id: uuid.UUID | None = None
     next_occurrence_on: datetime.date | None = None
     last_generated_on: datetime.date | None = None
+    # Whether the rule can record anything at all, or an account it names has
+    # been archived and the materialization pass is leaving it where it
+    # stands. Derived rather than stored: it is a fact about the accounts, and
+    # a copy on the rule would go stale the moment one is archived or restored.
+    is_blocked: bool = False
     created_at: datetime.datetime
     updated_at: datetime.datetime | None = None
 
