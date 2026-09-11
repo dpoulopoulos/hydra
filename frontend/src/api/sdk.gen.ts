@@ -451,9 +451,11 @@ export const householdsUpdateHouseholdMember = <ThrowOnError extends boolean = f
  * household_service: The household service dependency.
  * household: The current household context.
  * invite_status: An optional status to filter on.
+ * skip: Number of records to skip.
+ * limit: Maximum number of records to return.
  *
  * Returns:
- * The invitations, newest first.
+ * The invitations on the page, newest first, and how many match in total.
  *
  * Raises:
  * HTTPException: If the user belongs to no household (404).
@@ -613,8 +615,9 @@ export const categoriesListCategories = <ThrowOnError extends boolean = false>(o
  * The created category.
  *
  * Raises:
- * HTTPException: If a sibling already has that name (409), or the parent is
- * missing (404) or invalid (400).
+ * HTTPException: If a sibling already has that name or the household is at
+ * its category limit (409), or the parent is missing (404) or invalid
+ * (400).
  */
 export const categoriesCreateCategory = <ThrowOnError extends boolean = false>(options: Options<CategoriesCreateCategoryData, ThrowOnError>): RequestResult<CategoriesCreateCategoryResponses, CategoriesCreateCategoryErrors, ThrowOnError> => (options.client ?? client).post<CategoriesCreateCategoryResponses, CategoriesCreateCategoryErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

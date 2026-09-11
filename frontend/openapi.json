@@ -689,7 +689,7 @@
           "households"
         ],
         "summary": "List Household Invites",
-        "description": "List the invitations sent from this household.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context.\n    invite_status: An optional status to filter on.\n\nReturns:\n    The invitations, newest first.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
+        "description": "List the invitations sent from this household.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context.\n    invite_status: An optional status to filter on.\n    skip: Number of records to skip.\n    limit: Maximum number of records to return.\n\nReturns:\n    The invitations on the page, newest first, and how many match in total.\n\nRaises:\n    HTTPException: If the user belongs to no household (404).",
         "operationId": "households-list_household_invites",
         "security": [
           {
@@ -711,6 +711,29 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
             }
           }
         ],
@@ -928,7 +951,7 @@
           "categories"
         ],
         "summary": "Create Category",
-        "description": "Create a category or subcategory.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    category_in: The category to create.\n\nReturns:\n    The created category.\n\nRaises:\n    HTTPException: If a sibling already has that name (409), or the parent is\n        missing (404) or invalid (400).",
+        "description": "Create a category or subcategory.\n\nArgs:\n    category_service: The category service dependency.\n    household: The current household context.\n    category_in: The category to create.\n\nReturns:\n    The created category.\n\nRaises:\n    HTTPException: If a sibling already has that name or the household is at\n        its category limit (409), or the parent is missing (404) or invalid\n        (400).",
         "operationId": "categories-create_category",
         "security": [
           {

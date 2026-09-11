@@ -3458,6 +3458,14 @@ export type HouseholdsListHouseholdInvitesData = {
          * Status
          */
         status?: HouseholdInviteStatus | null;
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
     };
     url: '/api/v1/households/me/invites';
 };
