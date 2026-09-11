@@ -730,116 +730,254 @@ class TestSendEmailChangeVerification:
 
 
 class TestResendVerificationEmail:
-    """Tests for the resend_verification_email method."""
+    """Tests for the resend_verification_email method.
 
-    def test_resend_verification_email_success(
+    The endpoint refuses to say whether an address has an account, and it reports what became of
+    a message. Both can only be true at once if every request sends one, so the tests here are as
+    much about the address that gets no link as about the one that does.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _provider(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Give the server a mail provider, since every case here turns on a send.
+
+        Args:
+            monkeypatch: The fixture used to set the provider for the test.
+        """
+        monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
+
+    @pytest.mark.parametrize(
+        ("delivered", "expected"),
+        [(True, EmailDelivery.SENT), (False, EmailDelivery.QUEUED)],
+    )
+    def test_sends_a_link_to_an_address_waiting_to_be_activated(
         self,
         mock_email_verification_service: EmailVerificationService,
         mock_user_service: UserService,
         test_inactive_user: User,
         test_email_verification: EmailVerification,
+        delivered: bool,
+        expected: EmailDelivery,
     ) -> None:
-        """Test resending verification email for an inactive user with pending verification."""
-        # Arrange
-        mock_email_verification_service.session.exec = MagicMock()
+        """Test the link is sent, and the reply says what the provider did with it.
 
-        # First call returns pending verification for check, second returns None for send
-        mock_email_verification_service.session.exec.return_value.first.side_effect = [
-            test_email_verification,
-            None,
-        ]
+        Args:
+            delivered: Whether the provider took the message.
+            expected: What the reply should then say became of it.
+        """
+        # Arrange: An account waiting to be activated, and a provider in the state under test
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_activation_by_user_id = MagicMock(return_value=test_email_verification)
 
-        # Act
-        with patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user):
+        # Act: Ask for another link
+        with (
+            patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user),
+            patch("app.services.email_verification.EmailOutboxService") as mock_outbox,
+        ):
+            mock_outbox.for_session.return_value.deliver_or_queue.return_value = delivered
             result = mock_email_verification_service.resend_verification_email(
                 user_service=mock_user_service, email=test_inactive_user.email
             )
 
-        # Assert
-        assert isinstance(result, Message)
-        assert "If an account exists" in result.message
+        # Assert: Verify the link went to that address and the fate of it was reported
+        assert isinstance(result, MessageWithDelivery)
+        assert result.delivery is expected
+        assert mock_outbox.for_session.return_value.deliver_or_queue.call_args.kwargs["email_to"] == (
+            test_inactive_user.email
+        )
 
-    def test_resend_verification_email_user_not_found(
+    @pytest.mark.parametrize(
+        ("delivered", "expected"),
+        [(True, EmailDelivery.SENT), (False, EmailDelivery.QUEUED)],
+    )
+    def test_mails_a_notice_when_there_is_nothing_to_verify(
         self,
         mock_email_verification_service: EmailVerificationService,
         mock_user_service: UserService,
+        delivered: bool,
+        expected: EmailDelivery,
     ) -> None:
-        """Test resending verification email when user doesn't exist."""
-        # Act
-        with patch.object(mock_user_service, "get_user_by_email", return_value=None):
+        """Test an address with no account is still mailed, so that there is a send to report.
+
+        Args:
+            delivered: Whether the provider took the notice.
+            expected: What the reply should then say became of it.
+        """
+        # Arrange: An address nobody has registered, and a provider in the state under test
+        # Act: Ask for a link for it
+        with (
+            patch.object(mock_user_service, "get_user_by_email", return_value=None),
+            patch("app.services.email_verification.EmailOutboxService") as mock_outbox,
+            patch.object(mock_email_verification_service, "send_verification_email") as mock_send,
+        ):
+            mock_outbox.for_session.return_value.deliver_or_queue.return_value = delivered
             result = mock_email_verification_service.resend_verification_email(
-                user_service=mock_user_service, email="nonexistent@example.com"
+                user_service=mock_user_service, email="nobody@example.com"
             )
 
-        # Assert
-        assert isinstance(result, Message)
-        assert "If an account exists" in result.message
+        # Assert: Verify a message went to the address, and that it carried no link
+        mock_send.assert_not_called()
+        assert mock_outbox.for_session.return_value.deliver_or_queue.call_args.kwargs["email_to"] == (
+            "nobody@example.com"
+        )
+        assert isinstance(result, MessageWithDelivery)
+        assert result.delivery is expected
 
-    def test_resend_verification_email_user_is_active(
+    def test_mails_a_notice_for_an_account_that_is_already_active(
         self,
         mock_email_verification_service: EmailVerificationService,
         mock_user_service: UserService,
         test_user: User,
     ) -> None:
-        """Test resending verification email for an active user."""
-        # Act
-        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+        """Test an account with nothing to verify gets the notice rather than a link."""
+        # Arrange: An account that is already active
+        # Act: Ask for a link for its address
+        with (
+            patch.object(mock_user_service, "get_user_by_email", return_value=test_user),
+            patch("app.services.email_verification.EmailOutboxService") as mock_outbox,
+            patch.object(mock_email_verification_service, "send_verification_email") as mock_send,
+        ):
+            mock_outbox.for_session.return_value.deliver_or_queue.return_value = True
             result = mock_email_verification_service.resend_verification_email(
                 user_service=mock_user_service, email=test_user.email
             )
 
-        # Assert
-        assert isinstance(result, Message)
-        assert "If an account exists" in result.message
+        # Assert: Verify no link was issued and the address was told somebody asked
+        mock_send.assert_not_called()
+        mock_outbox.for_session.return_value.deliver_or_queue.assert_called_once()
+        assert result.delivery is EmailDelivery.SENT
 
-    def test_resend_verification_email_no_pending_verification(
+    def test_mails_a_notice_for_an_account_an_administrator_disabled(
         self,
         mock_email_verification_service: EmailVerificationService,
         mock_user_service: UserService,
         test_inactive_user: User,
     ) -> None:
-        """Test resending verification email for inactive user without pending verification."""
-        # Arrange
-        mock_email_verification_service.session.exec = MagicMock()
-        mock_email_verification_service.session.exec.return_value.first.return_value = None
+        """Test a disabled account with no pending activation cannot mail itself a link."""
+        # Arrange: An inactive account that never signed up, so nothing is pending for it
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_activation_by_user_id = MagicMock(return_value=None)
 
-        # Act
-        with patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user):
+        # Act: Ask for a link for its address
+        with (
+            patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user),
+            patch("app.services.email_verification.EmailOutboxService") as mock_outbox,
+            patch.object(mock_email_verification_service, "send_verification_email") as mock_send,
+        ):
+            mock_outbox.for_session.return_value.deliver_or_queue.return_value = True
             result = mock_email_verification_service.resend_verification_email(
                 user_service=mock_user_service, email=test_inactive_user.email
             )
 
-        # Assert
-        assert isinstance(result, Message)
-        assert "If an account exists" in result.message
+        # Assert: Verify the restriction holds and the answer still gives nothing away
+        mock_send.assert_not_called()
+        assert result.delivery is EmailDelivery.SENT
 
-    def test_resend_verification_email_exception_handling(
+    @pytest.mark.parametrize("delivered", [True, False])
+    def test_reports_the_same_thing_for_a_registered_and_an_unknown_address(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_inactive_user: User,
+        test_email_verification: EmailVerification,
+        delivered: bool,
+    ) -> None:
+        """Test the reply cannot be read as a statement about the address.
+
+        Only the provider is faked, identically for both requests, and each path derives its own
+        delivery from its own send. An answer that differed here is the enumeration the endpoint
+        exists to refuse - and it is what reporting anything other than a send would give, since
+        the caller could queue a message for one address and not for the other and come back to
+        read the difference later.
+
+        Args:
+            delivered: Whether the provider takes the message, the same for both requests.
+        """
+        # Arrange: An account waiting to be activated, and a provider in the state under test
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_activation_by_user_id = MagicMock(return_value=test_email_verification)
+
+        # Act: Ask for a link for that address and for one nobody has registered
+        with (
+            patch("app.services.email_verification.EmailOutboxService") as mock_outbox,
+            patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user),
+        ):
+            mock_outbox.for_session.return_value.deliver_or_queue.return_value = delivered
+            registered = mock_email_verification_service.resend_verification_email(
+                user_service=mock_user_service, email=test_inactive_user.email
+            )
+
+        with (
+            patch("app.services.email_verification.EmailOutboxService") as mock_outbox,
+            patch.object(mock_user_service, "get_user_by_email", return_value=None),
+        ):
+            mock_outbox.for_session.return_value.deliver_or_queue.return_value = delivered
+            unknown = mock_email_verification_service.resend_verification_email(
+                user_service=mock_user_service, email="nobody@example.com"
+            )
+
+        # Assert: Verify the two replies are the same word for word
+        assert registered.delivery is unknown.delivery
+        assert registered.message == unknown.message
+
+    def test_a_failure_issuing_the_link_is_not_reported_as_an_arrival(
         self,
         mock_email_verification_service: EmailVerificationService,
         mock_user_service: UserService,
         test_inactive_user: User,
         test_email_verification: EmailVerification,
     ) -> None:
-        """Test that exceptions during resend are silently caught."""
-        # Arrange
-        mock_email_verification_service.session.exec = MagicMock()
-        mock_email_verification_service.session.exec.return_value.first.return_value = test_email_verification
+        """Test a failure of our own is answered cautiously rather than as a delivery.
 
-        # Mock send_verification_email to raise an exception
-        with patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user):
-            with patch.object(
+        Nothing here is the provider's doing, so nothing is known about where the message got to.
+        The caller is told it is still on its way, which is the answer that promises nothing, and
+        the error is logged rather than returned.
+        """
+        # Arrange: An account waiting to be activated, and an issue that breaks
+        repository = mock_email_verification_service.email_verification_repository
+        repository.get_pending_activation_by_user_id = MagicMock(return_value=test_email_verification)
+
+        # Act: Ask for another link
+        with (
+            patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user),
+            patch.object(
                 mock_email_verification_service,
                 "send_verification_email",
                 side_effect=Exception("Email service down"),
-            ):
-                # Act
-                result = mock_email_verification_service.resend_verification_email(
-                    user_service=mock_user_service, email=test_inactive_user.email
-                )
+            ),
+        ):
+            result = mock_email_verification_service.resend_verification_email(
+                user_service=mock_user_service, email=test_inactive_user.email
+            )
 
-        # Assert - Should return success message even though exception occurred
-        assert isinstance(result, Message)
+        # Assert: Verify the answer neither raises nor claims an arrival
+        assert isinstance(result, MessageWithDelivery)
+        assert result.delivery is EmailDelivery.QUEUED
         assert "If an account exists" in result.message
+
+    def test_says_when_no_provider_is_configured(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test a server with no mail provider says so rather than promising a link."""
+        # Arrange: No provider to send through
+        monkeypatch.setattr(settings, "SMTP_HOST", None)
+        monkeypatch.setattr(settings, "EMAIL_PROVIDER", None)
+
+        # Act: Ask for a link
+        with patch.object(mock_user_service, "get_user_by_email") as mock_lookup:
+            result = mock_email_verification_service.resend_verification_email(
+                user_service=mock_user_service, email="nobody@example.com"
+            )
+
+        # Assert: Verify nothing was looked up and the reply neither promises a link nor blames
+        # the address
+        mock_lookup.assert_not_called()
+        assert isinstance(result, MessageWithDelivery)
+        assert result.delivery is EmailDelivery.NOT_CONFIGURED
+        assert "not configured" in result.message
 
 
 class TestResendPendingEmailChange:
@@ -924,19 +1062,24 @@ class TestAResendIsNotAWayBackToActive:
         mock_user_service: UserService,
         test_inactive_user: User,
         pending_email_change: EmailVerification,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """A disabled account must not be able to mail itself an activation."""
         # Arrange: the only thing pending for this account is a change of address
+        monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
         repository = mock_email_verification_service.email_verification_repository
         repository.get_pending_activation_by_user_id = MagicMock(return_value=None)
         repository.get_pending_change_by_user_id = MagicMock(return_value=pending_email_change)
 
         # Act
-        with patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user):
-            with patch.object(mock_email_verification_service, "send_verification_email") as mock_send:
-                result = mock_email_verification_service.resend_verification_email(
-                    user_service=mock_user_service, email=test_inactive_user.email
-                )
+        with (
+            patch.object(mock_user_service, "get_user_by_email", return_value=test_inactive_user),
+            patch("app.services.email_verification.EmailOutboxService"),
+            patch.object(mock_email_verification_service, "send_verification_email") as mock_send,
+        ):
+            result = mock_email_verification_service.resend_verification_email(
+                user_service=mock_user_service, email=test_inactive_user.email
+            )
 
         # Assert: nothing was issued, and the answer still gives no account away
         mock_send.assert_not_called()

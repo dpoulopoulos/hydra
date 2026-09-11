@@ -14,6 +14,7 @@ from app.exceptions import (
     UserExistsError,
     UserNotFoundError,
 )
+from app.logging import get_logger
 from app.models import (
     EmailDelivery,
     EmailVerification,
@@ -26,7 +27,9 @@ from app.models import (
 from app.repositories.email_verification import EmailVerificationRepository
 from app.services.email_outbox import EmailOutboxService
 from app.services.user import UserService
-from app.utils import generate_email_verification_email
+from app.utils import generate_email_verification_email, generate_verification_attempt_email
+
+logger = get_logger(__name__)
 
 
 def _delivery_message(delivery: EmailDelivery, destination: str = "") -> MessageWithDelivery:
@@ -53,6 +56,38 @@ def _delivery_message(delivery: EmailDelivery, destination: str = "") -> Message
         return MessageWithDelivery(message=f"Verification email queued for delivery{destination}.", delivery=delivery)
 
     return MessageWithDelivery(message=f"Verification email sent{destination}.", delivery=delivery)
+
+
+def _resend_message(delivery: EmailDelivery) -> MessageWithDelivery:
+    """Answer a resend request without saying whether a link was sent.
+
+    The sentence is conditional, because the endpoint will not say whether the address has an
+    account. What it can say outright is what the provider did with the message this request
+    sent, since every request sends one: a link for an address waiting to be activated, and a
+    notice carrying none for an address with nothing to verify. A message still in the outbox is
+    worded as a wait rather than as an arrival.
+
+    Args:
+        delivery: What became of the message the request sent.
+
+    Returns:
+        The message the caller is answered with.
+    """
+    if delivery is EmailDelivery.NOT_CONFIGURED:
+        return MessageWithDelivery(
+            message="Email delivery is not configured on this server, so no verification instructions were sent.",
+            delivery=delivery,
+        )
+
+    conditional = "If an account exists with this email and requires verification, "
+
+    if delivery is EmailDelivery.QUEUED:
+        return MessageWithDelivery(
+            message=f"{conditional}verification instructions are on their way and should arrive shortly.",
+            delivery=delivery,
+        )
+
+    return MessageWithDelivery(message=f"{conditional}you will receive verification instructions.", delivery=delivery)
 
 
 class InviteClaimer(Protocol):
@@ -347,13 +382,13 @@ class EmailVerificationService:
 
         return EmailDelivery.SENT if delivered else EmailDelivery.QUEUED
 
-    def resend_verification_email(self, user_service: UserService, email: str) -> Message:
+    def resend_verification_email(self, user_service: UserService, email: str) -> MessageWithDelivery:
         """Resend verification email.
 
         For security reasons, this always returns success even if the email doesn't exist.
         This prevents user enumeration attacks.
 
-        Only sends email if:
+        A verification link is only sent if:
         1. User exists and is not active
         2. User has a pending activation (was created via signup, not by admin)
 
@@ -367,33 +402,72 @@ class EmailVerificationService:
         currently holds, which is how a disabled account would get itself back.
         The signed-in resend endpoint serves a change instead.
 
+        Every request mails the address either way, the way signup does. An address with
+        nothing to verify is sent a notice carrying no link instead, so that the reply can
+        report what became of a real message without that report saying whether there was
+        anything to send. Reporting anything else - the state of the outbox, say - would be
+        reporting something an earlier request could have moved: the only mail an endpoint that
+        sends conditionally can be made to queue belongs to an address that has an account
+        waiting, and a caller who queues it and comes back later reads the difference off
+        whatever that message left behind.
+
         Args:
             user_service: A user service instance.
             email: The email address to resend verification to.
 
         Returns:
-            Success message.
+            The shared message, and what became of the message this request sent: sent, queued
+            for another attempt, or not sent at all because the server has no provider. One
+            message goes out whichever branch answered, so the field is a fact about the
+            provider rather than about the address.
         """
+        if not settings.emails_enabled:
+            # No provider, so nothing is sent for any address and there is nothing to tell
+            # apart. Said before the lookup so that a server without mail does not do the work
+            # of finding out who to send nothing to.
+            return _resend_message(EmailDelivery.NOT_CONFIGURED)
+
         user = user_service.get_user_by_email(email=email)
 
-        if user and not user.is_active:
-            # Check if user has a pending activation
-            # If they don't, it means they were created by admin and disabled, not via signup
-            pending_activation = self.get_pending_activation_by_user_id(user.id)
+        if user and not user.is_active and self.get_pending_activation_by_user_id(user.id):
+            try:
+                verification = self.send_verification_email(user_service=user_service, user_email=user.email)
+            except Exception:
+                # A failure here is ours, not the provider's, and the caller must not be able to
+                # tell this branch from the other by reading an error. The cautious answer is the
+                # one that promises nothing has arrived.
+                logger.exception("Could not send a verification email for an address that asked for one")
+                return _resend_message(EmailDelivery.QUEUED)
 
-            if pending_activation:
-                try:
-                    self.send_verification_email(user_service=user_service, user_email=user.email)
-                except Exception:
-                    # Silently fail to not reveal if email exists
-                    pass
+            return _resend_message(verification.delivery)
 
-        return Message(
-            message=(
-                "If an account exists with this email and requires verification, "
-                "you will receive verification instructions."
-            )
+        # Nothing to verify: no account, an account that is already active, or one an
+        # administrator disabled. The address is told that somebody asked, and the reply is
+        # built on that message rather than on the absence of one.
+        return _resend_message(self._send_verification_attempt_notice(email=email))
+
+    def _send_verification_attempt_notice(self, *, email: str) -> EmailDelivery:
+        """Tell an address that somebody asked for a link it has no need of.
+
+        The message carries no token and says nothing the holder of the address does not
+        already know. It exists so that a request for an address with nothing to verify costs
+        the same send as one for an address waiting to be activated, and so the delivery the
+        endpoint reports is the fate of a message it really sent.
+
+        Args:
+            email: The address that was asked about.
+
+        Returns:
+            What became of the notice: sent, or queued for another attempt.
+        """
+        email_data = generate_verification_attempt_email(email=email)
+        delivered = EmailOutboxService.for_session(self.session).deliver_or_queue(
+            email_to=email,
+            subject=email_data.subject,
+            html_content=email_data.html_content,
         )
+
+        return EmailDelivery.SENT if delivered else EmailDelivery.QUEUED
 
     def verify_email(
         self, user_service: UserService, token: str, invite_claimer: InviteClaimer | None = None

@@ -5976,7 +5976,7 @@ export type EmailVerificationResendVerificationEmailResponses = {
     /**
      * Successful Response
      */
-    200: Message;
+    200: MessageWithDelivery;
 };
 
 export type EmailVerificationResendVerificationEmailResponse = EmailVerificationResendVerificationEmailResponses[keyof EmailVerificationResendVerificationEmailResponses];

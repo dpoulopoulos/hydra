@@ -135,6 +135,42 @@ def generate_email_verification_email(email: str, token: str, invite_unusable: b
     return EmailData(html_content=html_content, subject=subject)
 
 
+def generate_verification_attempt_email(email: str) -> EmailData:
+    """Generate a "somebody asked for a verification link for your address" email.
+
+    The resend endpoint answers the same way whether or not an address has an account waiting to
+    be activated, and it reports what became of the message it sent. For that report to say
+    nothing about the address, every request has to send one: an address with nothing to verify
+    gets this instead of a link, so the send - and therefore the answer - happens either way.
+
+    One message covers every reason there is nothing to send: no account, an account that is
+    already active, and an account an administrator disabled. Telling those apart here would put
+    the difference in the mailbox of whoever holds the address, which is harmless, but it would
+    also give the provider three different messages to accept or refuse, and the answer the
+    caller gets is built on what the provider did with this one.
+
+    No token is carried, and nothing here is news to the holder of the address.
+
+    Args:
+        email: Recipient email address, which has no verification waiting.
+
+    Returns:
+        EmailData object with HTML content and subject.
+    """
+    subject = f"Verification Link Requested - {settings.PROJECT_NAME}"
+    html_content = _render_email_template(
+        template_name="verification_attempt.html",
+        context={
+            "project_name": settings.PROJECT_NAME,
+            "email": email,
+            "login_link": f"{settings.FRONTEND_HOST}/login",
+            "reset_link": f"{settings.FRONTEND_HOST}/forgot-password",
+            "assets_base_url": settings.assets_base_url,
+        },
+    )
+    return EmailData(html_content=html_content, subject=subject)
+
+
 def generate_signup_attempt_email(email: str, invited: bool = False) -> EmailData:
     """Generate a 'someone signed up with your address' email.
 

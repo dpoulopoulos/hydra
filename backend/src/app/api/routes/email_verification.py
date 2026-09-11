@@ -35,13 +35,13 @@ def email_verification_exception_mappings() -> dict[type[ServiceError], int]:
     }
 
 
-@router.post("/send", response_model=Message)
+@router.post("/send", response_model=MessageWithDelivery)
 def resend_verification_email(
     *,
     email_verification_service: EmailVerificationServiceDep,
     user_service: UserServiceDep,
     email_verification_request: EmailVerificationRequest,
-) -> Message:
+) -> MessageWithDelivery:
     """Send or resend an email verification.
 
     For security reasons, this always returns success even if the email doesn't exist.
@@ -53,7 +53,11 @@ def resend_verification_email(
         email_verification_request: The email verification request payload.
 
     Returns:
-        A message indicating that the request was successful.
+        A message indicating that the request was successful, and what became of the message it
+        sent. Every request sends one - a fresh link for an address waiting to be activated, and
+        a notice carrying none for an address with nothing to verify - so the delivery reported
+        is the fate of a real message and still says the same thing for an address that has an
+        account and one that does not.
     """
     return email_verification_service.resend_verification_email(
         user_service=user_service, email=email_verification_request.email

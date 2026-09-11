@@ -3154,7 +3154,11 @@ export const passwordResetConfirmPasswordResetMutation = (options?: Partial<Opti
  * email_verification_request: The email verification request payload.
  *
  * Returns:
- * A message indicating that the request was successful.
+ * A message indicating that the request was successful, and what the server is currently
+ * doing with outbound mail. The delivery reported is the state of the outbox rather than
+ * the fate of any one message, so it says the same thing for an address that has an account
+ * and one that does not, while still letting the screen tell somebody to wait a few minutes
+ * when nothing is leaving the server.
  */
 export const emailVerificationResendVerificationEmailMutation = (options?: Partial<Options<EmailVerificationResendVerificationEmailData>>): UseMutationOptions<EmailVerificationResendVerificationEmailResponse, EmailVerificationResendVerificationEmailError, Options<EmailVerificationResendVerificationEmailData>> => {
     const mutationOptions: UseMutationOptions<EmailVerificationResendVerificationEmailResponse, EmailVerificationResendVerificationEmailError, Options<EmailVerificationResendVerificationEmailData>> = {

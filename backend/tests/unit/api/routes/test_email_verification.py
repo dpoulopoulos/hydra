@@ -32,11 +32,12 @@ class TestResendVerificationEmail:
 
         app.dependency_overrides[get_db] = override_get_db
 
-        expected_message = Message(
+        expected_message = MessageWithDelivery(
             message=(
                 "If an account exists with this email and requires verification, "
                 "you will receive verification instructions."
-            )
+            ),
+            delivery=EmailDelivery.SENT,
         )
 
         try:
@@ -76,12 +77,14 @@ class TestResendVerificationEmail:
 
         app.dependency_overrides[get_db] = override_get_db
 
-        # The service returns success even for non-existent users (anti-enumeration)
-        expected_message = Message(
+        # The service returns success even for non-existent users (anti-enumeration), and reports
+        # what the server is doing with outbound mail rather than what it did for this address
+        expected_message = MessageWithDelivery(
             message=(
                 "If an account exists with this email and requires verification, "
                 "you will receive verification instructions."
-            )
+            ),
+            delivery=EmailDelivery.SENT,
         )
 
         try:
@@ -104,6 +107,7 @@ class TestResendVerificationEmail:
                     "If an account exists with this email and requires verification, "
                     "you will receive verification instructions."
                 )
+                assert data["delivery"] == "sent"
         finally:
             # Cleanup
             app.dependency_overrides.clear()

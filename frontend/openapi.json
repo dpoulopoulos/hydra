@@ -5034,7 +5034,7 @@
           "email-verification"
         ],
         "summary": "Resend Verification Email",
-        "description": "Send or resend an email verification.\n\nFor security reasons, this always returns success even if the email doesn't exist.\nThis prevents user enumeration attacks.\n\nArgs:\n    email_verification_service: The email verification service dependency.\n    user_service: The user service dependency.\n    email_verification_request: The email verification request payload.\n\nReturns:\n    A message indicating that the request was successful.",
+        "description": "Send or resend an email verification.\n\nFor security reasons, this always returns success even if the email doesn't exist.\nThis prevents user enumeration attacks.\n\nArgs:\n    email_verification_service: The email verification service dependency.\n    user_service: The user service dependency.\n    email_verification_request: The email verification request payload.\n\nReturns:\n    A message indicating that the request was successful, and what the server is currently\n    doing with outbound mail. The delivery reported is the state of the outbox rather than\n    the fate of any one message, so it says the same thing for an address that has an account\n    and one that does not, while still letting the screen tell somebody to wait a few minutes\n    when nothing is leaving the server.",
         "operationId": "email-verification-resend_verification_email",
         "requestBody": {
           "content": {
@@ -5052,7 +5052,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Message"
+                  "$ref": "#/components/schemas/MessageWithDelivery"
                 }
               }
             }
