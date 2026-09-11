@@ -113,3 +113,27 @@ describe('an ordinary recurring transaction', () => {
     expect(await screen.findByRole('menuitem', { name: 'Delete' })).toBeInTheDocument()
   })
 })
+
+describe('the amount cell', () => {
+  // The column is the one place a reader sees which way the money went, so
+  // the sign on it carries the whole meaning of the row.
+  async function rowFor(merchant: string) {
+    return (await screen.findByText(merchant)).closest('tr')
+  }
+
+  it('draws spending with a minus', async () => {
+    renderPage(
+      aTransaction({ merchant: 'Groceries', kind: TransactionKind.EXPENSE, amount_minor: 50_000 }),
+    )
+
+    expect(await rowFor('Groceries')).toHaveTextContent('-€500.00')
+  })
+
+  it('draws income with a plus', async () => {
+    renderPage(
+      aTransaction({ merchant: 'Salary', kind: TransactionKind.INCOME, amount_minor: 300_000 }),
+    )
+
+    expect(await rowFor('Salary')).toHaveTextContent('+€3,000.00')
+  })
+})
