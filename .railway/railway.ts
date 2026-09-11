@@ -109,9 +109,19 @@ export default defineRailway((ctx) => {
   const mcp = service('mcp', {
     source: github(REPO, { rootDirectory: 'mcp-server' }),
     healthcheck: '/health',
+    // Describing a domain here keeps it from being removed; it does not
+    // create one. Railway's configuration cannot register a custom domain,
+    // and a domain cannot be registered against a service that does not exist
+    // yet, so a new service is a three step job: apply this file to create it,
+    // add the domain to it in the dashboard, then write the domain here.
     domains: [{ domain: MCP_DOMAIN, port: Number(MCP_PORT) }],
     env: {
+      // Both, and the same number. MCP_PORT is what the server binds; PORT is
+      // how Railway knows where to send traffic and where to run the health
+      // check. Setting only the first leaves the container listening and
+      // Railway knocking on a door nobody is behind.
       MCP_PORT,
+      PORT: MCP_PORT,
       // Private networking, for the same reason the web service uses it: the
       // agent's traffic reaches the API inside the project rather than going
       // out to the internet and back through Caddy.
