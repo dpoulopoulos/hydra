@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { parseMajor } from '@/lib/amount'
 import { fractionDigits } from '@/lib/money'
 
 /**
@@ -77,15 +78,31 @@ export function formatPrice(micro: number, currency = 'EUR'): string {
   }).format(fromPriceMicro(micro, currency))
 }
 
-/** A typed decimal, accepting both separators, as a scaled integer. */
-function scaledSchema(scale: (value: number) => number, messages: { empty: string; min: string }) {
+/**
+ * A typed decimal, as a scaled integer.
+ *
+ * The string is read by `parseMajor`, the same parser the amount fields use,
+ * so a quantity or a price written the way the app writes it back is read as
+ * the figure the reader was shown. Only the scale differs: what comes out is
+ * in units or in a currency's major units, and `scale` carries it to MICRO.
+ */
+function scaledSchema(
+  scale: (value: number) => number,
+  messages: { empty: string; min: string },
+  locale?: string,
+) {
   return z
     .string()
     .trim()
     .min(1, messages.empty)
-    .transform((value) => value.replace(/\s/g, '').replace(',', '.'))
-    .refine((value) => /^\d*\.?\d*$/.test(value) && value !== '.', { message: 'Enter a number.' })
-    .transform((value) => scale(Number(value)))
+    .transform((value, ctx) => {
+      const major = parseMajor(value, locale)
+      if (major === null) {
+        ctx.addIssue({ code: 'custom', message: 'Enter a number.' })
+        return z.NEVER
+      }
+      return scale(major)
+    })
     .refine((micro) => Number.isFinite(micro) && micro > 0, { message: messages.min })
     .refine((micro) => micro <= MAX_MICRO, { message: 'Enter a smaller number.' })
 }
@@ -105,17 +122,19 @@ export function formatRate(micro: number): string {
 }
 
 /** A typed number of units, as the scaled integer the API takes. */
-export function quantitySchema() {
-  return scaledSchema(toQuantityMicro, {
-    empty: 'Enter how many units.',
-    min: 'Enter more than zero units.',
-  })
+export function quantitySchema(options?: { locale?: string }) {
+  return scaledSchema(
+    toQuantityMicro,
+    { empty: 'Enter how many units.', min: 'Enter more than zero units.' },
+    options?.locale,
+  )
 }
 
 /** A typed unit price, as the scaled integer the API takes. */
-export function priceSchema(currency: string) {
-  return scaledSchema((value) => toPriceMicro(value, currency), {
-    empty: 'Enter the price per unit.',
-    min: 'Enter a price above zero.',
-  })
+export function priceSchema(currency: string, options?: { locale?: string }) {
+  return scaledSchema(
+    (value) => toPriceMicro(value, currency),
+    { empty: 'Enter the price per unit.', min: 'Enter a price above zero.' },
+    options?.locale,
+  )
 }

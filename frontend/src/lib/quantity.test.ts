@@ -14,14 +14,14 @@ import {
 } from '@/lib/quantity'
 
 /** The scaled units a typed string reaches the API as, or the message shown. */
-function quantity(value: string) {
-  const result = quantitySchema().safeParse(value)
+function quantity(value: string, locale?: string) {
+  const result = quantitySchema({ locale }).safeParse(value)
   return result.success ? result.data : result.error.issues[0].message
 }
 
 /** The scaled price a typed string reaches the API as, or the message shown. */
-function price(value: string, currency = 'EUR') {
-  const result = priceSchema(currency).safeParse(value)
+function price(value: string, currency = 'EUR', locale?: string) {
+  const result = priceSchema(currency, { locale }).safeParse(value)
   return result.success ? result.data : result.error.issues[0].message
 }
 
@@ -151,5 +151,66 @@ describe('formatRate', () => {
 
   it('handles a rate above one', () => {
     expect(formatRate(1_162_500)).toBe('1.162500')
+  })
+})
+
+describe('separators in a quantity', () => {
+  // A thousands separator is read as one, so "1,200" units is twelve hundred
+  // shares to an en-US reader rather than one and a fifth. It is the separator
+  // `formatQuantity` writes the holding back with, so typing it in is the
+  // natural thing to do. #139.
+  it.each([
+    ['1,200', 1200 * MICRO],
+    ['1,200.5', 1_200_500_000],
+    ['12,345,678', 12_345_678 * MICRO],
+    // Only one separator, and not in a group's place: a decimal point.
+    ['1,20', 1_200_000],
+    ['1,2', 1_200_000],
+    ['1,253456', 1_253_456],
+    [',5', 500_000],
+  ])('reads %j as %i scaled units in en-US', (typed, micro) => {
+    expect(quantity(typed, 'en-US')).toBe(micro)
+  })
+
+  it.each([
+    ['1.200', 1200 * MICRO],
+    ['1.200,5', 1_200_500_000],
+    ['1,200', 1_200_000],
+    ['1,2', 1_200_000],
+  ])('reads %j as %i scaled units in de-DE', (typed, micro) => {
+    expect(quantity(typed, 'de-DE')).toBe(micro)
+  })
+
+  it.each([['1,2,3'], ['1,23,456'], ['1,200,50']])('reports %j as not a number', (typed) => {
+    expect(quantity(typed, 'en-US')).toBe('Enter a number.')
+  })
+})
+
+describe('separators in a price', () => {
+  // The same figure, and the same separator `formatPrice` renders it back
+  // with: a €1,200 share priced as 1.2 is a holding worth a thousandth of
+  // what it should be, with nothing on the form saying so.
+  it.each([
+    ['1,200', 120_000_000_000],
+    ['1,200.4567', 120_045_670_000],
+    ['1,20', 120_000_000],
+  ])('reads %j as %i scaled price in en-US', (typed, micro) => {
+    expect(price(typed, 'EUR', 'en-US')).toBe(micro)
+  })
+
+  it.each([
+    ['1.200', 120_000_000_000],
+    ['1.200,4567', 120_045_670_000],
+    ['1,200', 120_000_000],
+  ])('reads %j as %i scaled price in de-DE', (typed, micro) => {
+    expect(price(typed, 'EUR', 'de-DE')).toBe(micro)
+  })
+
+  it('takes the narrow space fr-FR groups with', () => {
+    expect(price('1\u202f200,45', 'EUR', 'fr-FR')).toBe(120_045_000_000)
+  })
+
+  it('reads the decimal point ar-EG writes', () => {
+    expect(price('1200\u066b45', 'EUR', 'ar-EG')).toBe(120_045_000_000)
   })
 })
