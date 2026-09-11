@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
@@ -48,7 +49,7 @@ from app.repositories.household import (
 )
 from app.repositories.user import UserRepository
 from app.services.email_outbox import EmailOutboxService
-from app.utils import generate_household_invite_email, mask_email
+from app.utils import generate_household_invite_email, generate_household_ownership_email, mask_email
 
 # Every way an invitation offered at signup can turn out to be unusable. Kept next to
 # `HouseholdService.check_signup_invite`, which is the only thing that raises them, so a refusal
@@ -59,6 +60,22 @@ INVITE_UNUSABLE_ERRORS = (
     HouseholdInviteExpiredError,
     HouseholdInviteEmailMismatchError,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerPromotion:
+    """A member the household was handed to, waiting to be told about it.
+
+    Held as plain values rather than as rows: the notice goes out after the
+    promotion is committed, and by then the membership it came from may have
+    been expired from the session.
+    """
+
+    email: str
+    household_name: str
+    # Who left, when the promotion followed somebody's departure. The startup
+    # repair finds households that were already ownerless and has nobody to name.
+    former_owner_name: str | None
 
 
 class CategorySeeder(Protocol):
@@ -118,6 +135,12 @@ class HouseholdService:
         self.household_invite_repository = household_invite_repository
         self.user_repository = user_repository
         self.email_verification_repository = email_verification_repository
+        # Promotions made in this session that nobody has been told about yet.
+        # Queuing the mail writes to the outbox and commits, so a notice sent
+        # from inside `_ensure_an_owner` would commit whatever transaction its
+        # caller is still building - the deletion of a user, say, before the
+        # user row itself is gone.
+        self._promotions: list[OwnerPromotion] = []
 
     def get_context(self, user: User) -> HouseholdContext:
         """Resolve the household scope of a user.
@@ -326,7 +349,10 @@ class HouseholdService:
 
         A household with other members in it stays: the data is theirs too,
         and if the departing user was its last owner one of them is promoted,
-        so the household never ends up with nobody who can run it.
+        so the household never ends up with nobody who can run it. Telling that
+        member is left to `notify_new_owners`, which the caller runs once the
+        deletion is committed, so the news never goes out for a deletion that
+        did not happen.
 
         Args:
             user: The user whose account is being deleted.
@@ -336,7 +362,7 @@ class HouseholdService:
         if not membership:
             return
 
-        self._release_membership(membership)
+        self._release_membership(membership, departing=user)
 
     def ensure_every_user_has_a_household(self, category_service: CategorySeeder) -> int:
         """Provision a household for every user that does not have one.
@@ -384,6 +410,7 @@ class HouseholdService:
             self._ensure_an_owner(household_id=household_id)
 
         self.session.commit()
+        self.notify_new_owners()
 
         return len(household_ids)
 
@@ -434,11 +461,12 @@ class HouseholdService:
             user: The user the membership belongs to.
             category_service: The category service, used to seed the default categories.
         """
-        self._release_membership(membership)
+        self._release_membership(membership, departing=user)
         self.create_for_user(user=user, category_service=category_service)
         self.session.commit()
+        self.notify_new_owners()
 
-    def _release_membership(self, membership: HouseholdMember) -> None:
+    def _release_membership(self, membership: HouseholdMember, departing: User | None = None) -> None:
         """Remove a membership and leave its household in a usable state.
 
         Every way out of a household comes through here, so the household is
@@ -454,6 +482,8 @@ class HouseholdService:
 
         Args:
             membership: The membership to remove.
+            departing: The member who is leaving, so a promotion made here can
+                name whose exit caused it.
         """
         household = self.household_repository.get_by_id_for_update(membership.household_id)
         self.household_member_repository.delete(membership)
@@ -467,13 +497,19 @@ class HouseholdService:
             self.household_repository.flush()
             return
 
-        self._ensure_an_owner(household_id=household.id)
+        self._ensure_an_owner(household_id=household.id, departing=departing)
 
-    def _ensure_an_owner(self, household_id: uuid.UUID) -> None:
+    def _ensure_an_owner(self, household_id: uuid.UUID, departing: User | None = None) -> None:
         """Promote the longest-standing member if the household has no owner.
+
+        The promotion is noted so the member can be told about it once it is
+        committed. Nobody asked them, and an owner who is not aware of it
+        finds out from buttons that were not there the day before.
 
         Args:
             household_id: The ID of the household.
+            departing: The member whose exit left the household ownerless, when
+                there is one. The startup repair has nobody to name.
         """
         if self.household_member_repository.count_by_role(household_id, HouseholdRole.OWNER) > 0:
             return
@@ -485,6 +521,58 @@ class HouseholdService:
 
         successor.role = HouseholdRole.OWNER
         self.household_member_repository.save(successor)
+        self._record_promotion(household_id=household_id, successor=successor, departing=departing)
+
+    def _record_promotion(self, household_id: uuid.UUID, successor: HouseholdMember, departing: User | None) -> None:
+        """Note a promotion so `notify_new_owners` can announce it after the commit.
+
+        Args:
+            household_id: The ID of the household that was handed over.
+            successor: The membership that was given the owner role.
+            departing: The member whose exit left it ownerless, when there is one.
+        """
+        promoted = self.household_member_repository.get_user(successor.user_id)
+        household = self.household_repository.get_by_id(household_id)
+
+        if not promoted or not household:
+            return
+
+        self._promotions.append(
+            OwnerPromotion(
+                email=promoted.email,
+                household_name=household.name,
+                former_owner_name=(departing.full_name or departing.email) if departing else None,
+            )
+        )
+
+    def notify_new_owners(self) -> None:
+        """Tell the members this session promoted that their household is now theirs.
+
+        Called by whoever owns the transaction, once it is committed: the
+        outbox commits the session to write a message down, so announcing a
+        promotion any earlier would also commit the half-built write that
+        caused it.
+
+        Nothing is raised here. The mail is queued through the outbox, which
+        keeps a message the provider refused and retries it, and a promotion
+        that happened is not undone because the news about it did not leave.
+        """
+        promotions, self._promotions = self._promotions, []
+
+        if not settings.emails_enabled:
+            return
+
+        outbox = EmailOutboxService.for_session(self.session)
+
+        for promotion in promotions:
+            email_data = generate_household_ownership_email(
+                email=promotion.email,
+                household_name=promotion.household_name,
+                former_owner_name=promotion.former_owner_name,
+            )
+            outbox.deliver_or_queue(
+                email_to=promotion.email, subject=email_data.subject, html_content=email_data.html_content
+            )
 
     def _require_household(self, household: HouseholdContext) -> Household:
         """Load the household of the current request.
@@ -820,7 +908,7 @@ class HouseholdService:
             # the same exit as the others: an empty one is discarded, since it
             # held nothing but seeded categories, and one that keeps its
             # members is left with an owner.
-            self._release_membership(membership)
+            self._release_membership(membership, departing=user)
 
         self.household_member_repository.save(
             HouseholdMember(household_id=entity.id, user_id=user.id, role=invite.role)
@@ -828,6 +916,7 @@ class HouseholdService:
         invite.status = HouseholdInviteStatus.ACCEPTED
         self.household_invite_repository.save(invite)
         self.session.commit()
+        self.notify_new_owners()
 
         return self._to_public(household=entity, member_count=self.household_repository.count_members(entity.id))
 

@@ -506,7 +506,9 @@ class TestReleaseForUser:
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.first.side_effect = [membership, successor]
         mock_household_service.session.exec.return_value.one.side_effect = [1, 0]
-        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.get = MagicMock(
+            side_effect=lambda model, *args, **kwargs: household if model is Household else another_test_user
+        )
 
         mock_household_service.release_for_user(user=test_user)
 
@@ -598,10 +600,17 @@ class TestEnsureEveryHouseholdHasAnOwner:
         mock_household_service.session.exec.return_value.all.return_value = [household.id]
         mock_household_service.session.exec.return_value.one.return_value = 0
         mock_household_service.session.exec.return_value.first.return_value = successor
+        mock_household_service.session.get = MagicMock(
+            side_effect=lambda model, *args, **kwargs: household if model is Household else another_test_user
+        )
 
-        assert mock_household_service.ensure_every_household_has_an_owner() == 1
+        with patch("app.services.email_outbox.send_email"):
+            assert mock_household_service.ensure_every_household_has_an_owner() == 1
+
         assert successor.role is HouseholdRole.OWNER
-        mock_household_service.session.commit.assert_called_once()
+        # Every household is repaired in one transaction; the commits after it
+        # belong to the outbox, which writes each notice down before sending it.
+        mock_household_service.session.commit.assert_called()
 
     def test_does_nothing_when_every_household_has_an_owner(self, mock_household_service: HouseholdService) -> None:
         mock_household_service.session.exec = MagicMock()
@@ -609,6 +618,148 @@ class TestEnsureEveryHouseholdHasAnOwner:
 
         assert mock_household_service.ensure_every_household_has_an_owner() == 0
         mock_household_service.session.commit.assert_not_called()
+
+
+class TestNotifyNewOwners:
+    """Tests for the notice sent to a member a household was handed to."""
+
+    @staticmethod
+    def _promote(
+        service: HouseholdService,
+        household: Household,
+        membership: HouseholdMember,
+        successor: HouseholdMember,
+        successor_user: User,
+    ) -> None:
+        """Arrange a household whose last owner is leaving, with one member left behind."""
+        service.session.exec = MagicMock()
+        service.session.exec.return_value.first.side_effect = [membership, successor]
+        service.session.exec.return_value.one.side_effect = [1, 0]
+        service.session.get = MagicMock(
+            side_effect=lambda model, *args, **kwargs: household if model is Household else successor_user
+        )
+
+    @staticmethod
+    def _queued(service: HouseholdService) -> list[EmailOutbox]:
+        """Every message the session was asked to write down, each counted once."""
+        written = {
+            id(call.args[0]): call.args[0]
+            for call in service.session.add.call_args_list
+            if isinstance(call.args[0], EmailOutbox)
+        }
+        return list(written.values())
+
+    @staticmethod
+    def _bodies(send_email: MagicMock) -> list[str]:
+        """Every message the provider was handed.
+
+        The body is read here rather than off the outbox row, which empties it
+        as soon as the message settles.
+        """
+        return [call.kwargs["html_content"] for call in send_email.call_args_list]
+
+    def test_tells_the_promoted_member_the_household_is_theirs(
+        self,
+        mock_household_service: HouseholdService,
+        test_user: User,
+        another_test_user: User,
+        household: Household,
+        membership: HouseholdMember,
+    ) -> None:
+        """Nobody asked them: without the notice the first sign is a button that was not there."""
+        successor = HouseholdMember(household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER)
+
+        self._promote(mock_household_service, household, membership, successor, another_test_user)
+
+        with patch("app.services.email_outbox.send_email"):
+            mock_household_service.release_for_user(user=test_user)
+            mock_household_service.notify_new_owners()
+
+        queued = self._queued(mock_household_service)
+        assert len(queued) == 1
+        assert queued[0].email_to == another_test_user.email
+        assert household.name in queued[0].subject
+
+    def test_names_the_owner_whose_departure_handed_it_over(
+        self,
+        mock_household_service: HouseholdService,
+        test_user: User,
+        another_test_user: User,
+        household: Household,
+        membership: HouseholdMember,
+    ) -> None:
+        """Who left is half the answer to why the role changed."""
+        successor = HouseholdMember(household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER)
+
+        self._promote(mock_household_service, household, membership, successor, another_test_user)
+
+        with patch("app.services.email_outbox.send_email") as mock_send_email:
+            mock_household_service.release_for_user(user=test_user)
+            mock_household_service.notify_new_owners()
+
+        assert test_user.full_name is not None
+        assert test_user.full_name in self._bodies(mock_send_email)[0]
+
+    def test_waits_for_the_promotion_to_be_committed(
+        self,
+        mock_household_service: HouseholdService,
+        test_user: User,
+        another_test_user: User,
+        household: Household,
+        membership: HouseholdMember,
+    ) -> None:
+        """The caller deletes the user in the same transaction, which may still fail."""
+        successor = HouseholdMember(household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER)
+
+        self._promote(mock_household_service, household, membership, successor, another_test_user)
+
+        mock_household_service.release_for_user(user=test_user)
+
+        assert self._queued(mock_household_service) == []
+
+    def test_says_nothing_when_an_owner_remained(
+        self,
+        mock_household_service: HouseholdService,
+        test_user: User,
+        another_test_user: User,
+        household: Household,
+        membership: HouseholdMember,
+    ) -> None:
+        """No role changed, so there is nothing to announce."""
+        successor = HouseholdMember(household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [membership, successor]
+        mock_household_service.session.exec.return_value.one.side_effect = [2, 1]
+        mock_household_service.session.get = MagicMock(return_value=household)
+
+        with patch("app.services.email_outbox.send_email"):
+            mock_household_service.release_for_user(user=test_user)
+            mock_household_service.notify_new_owners()
+
+        assert self._queued(mock_household_service) == []
+
+    def test_the_startup_repair_tells_the_member_it_promoted(
+        self,
+        mock_household_service: HouseholdService,
+        another_test_user: User,
+        household: Household,
+    ) -> None:
+        """A household repaired at startup has nobody to name, and says so instead."""
+        successor = HouseholdMember(household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.all.return_value = [household.id]
+        mock_household_service.session.exec.return_value.one.return_value = 0
+        mock_household_service.session.exec.return_value.first.return_value = successor
+        mock_household_service.session.get = MagicMock(
+            side_effect=lambda model, *args, **kwargs: household if model is Household else another_test_user
+        )
+
+        with patch("app.services.email_outbox.send_email") as mock_send_email:
+            assert mock_household_service.ensure_every_household_has_an_owner() == 1
+
+        queued = self._queued(mock_household_service)
+        assert len(queued) == 1
+        assert "was left without an owner" in self._bodies(mock_send_email)[0]
 
 
 def make_invite(
@@ -1230,9 +1381,16 @@ class TestAcceptInvite:
         ]
         # No financial data, then a member left behind, then no owner among them.
         mock_household_service.session.exec.return_value.one.side_effect = [0, 0, 0, 0, 1, 0, 2]
-        mock_household_service.session.get = MagicMock(side_effect=[household, old_household])
+        # Model-aware: the promotion looks the successor's user up as well, to
+        # tell them the household they stayed in is now theirs.
+        mock_household_service.session.get = MagicMock(
+            side_effect=lambda model, entity_id, **kwargs: (
+                test_user if model is User else (household if entity_id == household.id else old_household)
+            )
+        )
 
-        mock_household_service.accept_invite(user=another_test_user, token="a-token")
+        with patch("app.services.email_outbox.send_email"):
+            mock_household_service.accept_invite(user=another_test_user, token="a-token")
 
         assert successor.role is HouseholdRole.OWNER
         assert old_household not in [call.args[0] for call in mock_household_service.session.delete.call_args_list]

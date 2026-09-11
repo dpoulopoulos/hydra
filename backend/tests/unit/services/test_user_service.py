@@ -1290,6 +1290,24 @@ class TestDeleteUserMe:
         household_service.release_for_user.assert_called_once_with(user=test_user)
         mock_user_service.session.commit.assert_called_once()
 
+    def test_delete_user_me_announces_the_household_it_handed_over(
+        self, mock_user_service: UserService, test_user: User
+    ) -> None:
+        """A member left owning a shared household is told once the deletion is real."""
+        # Arrange: Mock database delete operations and a household service
+        mock_user_service.session.delete = MagicMock()
+        mock_user_service.session.commit = MagicMock()
+        household_service = MagicMock()
+        calls: list[str] = []
+        mock_user_service.session.commit.side_effect = lambda: calls.append("commit")
+        household_service.notify_new_owners.side_effect = lambda: calls.append("notify")
+
+        # Act: Delete current user
+        mock_user_service.delete_user_me(user=test_user, household_service=household_service)
+
+        # Assert: Verify the news went out, and only after the deletion was committed
+        assert calls == ["commit", "notify"]
+
     def test_delete_user_me_superuser_keeps_the_household(
         self, mock_user_service: UserService, test_superuser: User
     ) -> None:
@@ -1333,6 +1351,25 @@ class TestDeleteUser:
         assert result.message == "User deleted successfully"
         mock_user_service.session.delete.assert_called_once_with(test_user)
         mock_user_service.session.commit.assert_called_once()
+
+    def test_delete_user_announces_the_household_it_handed_over(
+        self, mock_user_service: UserService, test_user: User
+    ) -> None:
+        """A superuser deleting somebody hands their household on just as silently."""
+        # Arrange: Mock database operations and a household service
+        mock_user_service.session.get = MagicMock(return_value=test_user)
+        mock_user_service.session.delete = MagicMock()
+        mock_user_service.session.commit = MagicMock()
+        household_service = MagicMock()
+        calls: list[str] = []
+        mock_user_service.session.commit.side_effect = lambda: calls.append("commit")
+        household_service.notify_new_owners.side_effect = lambda: calls.append("notify")
+
+        # Act: Delete the user as a superuser
+        mock_user_service.delete_user(user_id=test_user.id, household_service=household_service)
+
+        # Assert: Verify the news went out, and only after the deletion was committed
+        assert calls == ["commit", "notify"]
 
     def test_delete_user_releases_the_household(
         self,

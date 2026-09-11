@@ -535,6 +535,12 @@ class UserService:
         self.user_repository.flush()
         self.session.commit()
 
+        if household_service:
+            # A shared household the deleted user owned now belongs to somebody
+            # who never asked for it. Announced here rather than above, because
+            # queuing the mail commits, and the account was still there then.
+            household_service.notify_new_owners()
+
         return Message(message="User deleted successfully.")
 
     def delete_user(self, user_id: uuid.UUID, household_service: "HouseholdService | None" = None) -> Message:
@@ -566,5 +572,8 @@ class UserService:
         self.user_repository.delete(user)
         self.user_repository.flush()
         self.session.commit()
+
+        if household_service:
+            household_service.notify_new_owners()
 
         return Message(message="User deleted successfully")
