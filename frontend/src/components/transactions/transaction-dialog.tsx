@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -94,14 +94,6 @@ type Schema = ReturnType<typeof buildSchema>
 type Values = z.input<Schema>
 type Parsed = z.output<Schema>
 
-// React Compiler will not memoize a component that calls React Hook Form's
-// `watch()`, and skips it whole. That skip is what this form relies on:
-// `form.reset()` empties the field map and counts on the next render calling
-// `register()` again, which a memoized render never repeats, leaving every
-// field unregistered and the form with nothing to save. Nothing goes stale in
-// return, since `watch()` re-renders this component and the controls under it
-// are handed the value from that render.
-/* eslint-disable react-hooks/incompatible-library -- skipping this one is the point; see above */
 export function TransactionDialog({
   open,
   transaction,
@@ -137,8 +129,14 @@ export function TransactionDialog({
     },
   })
 
-  const kind = form.watch('kind')
-  const accountId = form.watch('account_id')
+  // Watched through `useWatch()` rather than the form's own `watch()`, which
+  // hands back a function React Compiler will not memoize and skips the whole
+  // component over.
+  const control = form.control
+  const kind = useWatch({ control, name: 'kind' })
+  const accountId = useWatch({ control, name: 'account_id' })
+  const counterAccountId = useWatch({ control, name: 'counter_account_id' })
+  const categoryId = useWatch({ control, name: 'category_id' })
   const isTransfer = kind === TransactionKind.TRANSFER
   // What the amount field says it is in, so the account and the figure next to
   // it never disagree about what was typed.
@@ -331,7 +329,7 @@ export function TransactionDialog({
             >
               {(props) => (
                 <Select
-                  value={form.watch('counter_account_id')}
+                  value={counterAccountId}
                   onValueChange={(value) => form.setValue('counter_account_id', value)}
                   disabled={accountSource.unavailable}
                 >
@@ -358,7 +356,7 @@ export function TransactionDialog({
             >
               {(props) => (
                 <Select
-                  value={form.watch('category_id')}
+                  value={categoryId}
                   onValueChange={(value) => form.setValue('category_id', value)}
                   disabled={categorySource.unavailable}
                 >
