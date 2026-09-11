@@ -679,9 +679,66 @@ class TestCreateInvite:
         assert "partner@example.com" in caplog.text
         assert "HTTPStatusError" in caplog.text
         # The invitee is still owed the mail, so it is waiting to be retried.
-        queued = mock_household_service.session.add.call_args.args[0]
-        assert isinstance(queued, EmailOutbox)
+        added = [call.args[0] for call in mock_household_service.session.add.call_args_list]
+        queued = next(entry for entry in added if isinstance(entry, EmailOutbox))
         assert queued.status == EmailOutboxStatus.PENDING
+
+    def test_records_which_message_carried_the_invitation(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """An invitation nobody answered and one that never arrived look alike without it."""
+        # Arrange: Mail is configured and the provider takes the message
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = None
+        mock_household_service.session.exec.return_value.all.return_value = []
+
+        monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        # Act: Invite an address
+        with patch("app.services.email_outbox.send_email"):
+            mock_household_service.create_invite(
+                household=context,
+                invite_create=HouseholdInviteCreate(email="partner@example.com"),
+            )
+
+        # Assert: Verify the invite points at the outbox row that carried it
+        added = [call.args[0] for call in mock_household_service.session.add.call_args_list]
+        queued = next(entry for entry in added if isinstance(entry, EmailOutbox))
+        invite = next(entry for entry in added if isinstance(entry, HouseholdInvite))
+        assert invite.email_outbox_id == queued.id
+
+    def test_an_invitation_sent_with_mail_off_records_no_message(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """With no provider there is no message, and so no delivery state to report."""
+        # Arrange: Mail is not configured
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = None
+        mock_household_service.session.exec.return_value.all.return_value = []
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", None)
+
+        # Act: Invite an address
+        mock_household_service.create_invite(
+            household=context,
+            invite_create=HouseholdInviteCreate(email="partner@example.com"),
+        )
+
+        # Assert: Verify the invitation carries no outbox row
+        added = [call.args[0] for call in mock_household_service.session.add.call_args_list]
+        invite = next(entry for entry in added if isinstance(entry, HouseholdInvite))
+        assert invite.email_outbox_id is None
 
     def test_binds_the_invite_to_the_account_that_proved_the_address(
         self,
