@@ -337,7 +337,7 @@ class UserService:
 
         Raises:
             UserNotFoundError: If the user is not found.
-            UserNotAuthorizedError: If the user is not active.
+            UserNotActiveError: If the user is not active.
         """
         user_id = uuid.UUID(token_data.sub) if token_data.sub else None
         if not user_id:
