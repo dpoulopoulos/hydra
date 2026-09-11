@@ -74,7 +74,11 @@ class PriceProvider(Protocol):
 
     @property
     def is_configured(self) -> bool:
-        """Whether this provider can actually be called."""
+        """Whether this provider can actually be called.
+
+        Returns:
+            True when the provider has everything it needs to answer.
+        """
         ...
 
     def quotes(
