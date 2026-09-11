@@ -10,7 +10,7 @@ import {
   UserMinus,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -73,14 +73,6 @@ const inviteSchema = z.object({
 // nobody is expected to get there.
 const INVITE_PAGE_SIZE = 50
 
-// React Compiler will not memoize a component that calls React Hook Form's
-// `watch()`, and skips it whole. That skip is what this form relies on:
-// `form.reset()` empties the field map and counts on the next render calling
-// `register()` again, which a memoized render never repeats, leaving every
-// field unregistered and the form with nothing to save. Nothing goes stale in
-// return, since `watch()` re-renders this component and the controls under it
-// are handed the value from that render.
-/* eslint-disable react-hooks/incompatible-library -- skipping this one is the point; see above */
 export function Component() {
   const { user, signOut } = useAuth()
   const queryClient = useQueryClient()
@@ -150,6 +142,11 @@ export function Component() {
     resolver: zodResolver(inviteSchema),
     defaultValues: { email: '', role: HouseholdRole.MEMBER },
   })
+
+  // Watched through `useWatch()` rather than the form's own `watch()`, which
+  // hands back a function React Compiler will not memoize and skips the whole
+  // page over.
+  const invitedRole = useWatch({ control: inviteForm.control, name: 'role' })
 
   const invite = useMutation({
     mutationFn: async (values: z.infer<typeof inviteSchema>) => {
@@ -389,7 +386,7 @@ export function Component() {
               >
                 {(props) => (
                   <Select
-                    value={inviteForm.watch('role')}
+                    value={invitedRole}
                     onValueChange={(value) => inviteForm.setValue('role', value as HouseholdRole)}
                   >
                     <SelectTrigger id={props.id} className="w-36">
