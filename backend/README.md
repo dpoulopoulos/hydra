@@ -395,6 +395,7 @@ categories, budgets and transactions.
 | Recurring rules | `/api/v1/recurring-rules` | Materialize real transactions; run from the read paths. |
 | Income | `/api/v1/income` | Clients and sessions for work paid by the hour. A session reaches the ledger only once it is paid. Client names are stored encrypted under a per-user key and are opaque here; a client can only be edited by the member who added them. |
 | Reports | `/api/v1/reports` | Spend by category, spend over time, budget vs actual, income vs expense, dashboard summary. |
+| API tokens | `/api/v1/api-tokens` | Long lived credentials for machine clients. Named, scoped, revocable, and shown once. |
 
 Deleting an account deletes the household it leaves empty. A household is only reachable through its
 memberships, and everything below it is keyed on the household rather than on a user, so removing the last
@@ -500,6 +501,55 @@ Login is held to the same rule. An address with no account and an account whose 
 `401` with `Incorrect email or password.`, and the unknown address still pays for a bcrypt verification against a
 throwaway hash, so neither the status code nor the response time says which addresses are registered. The `403` for an
 unverified account is only reachable once the correct password has been supplied.
+
+### API Tokens
+
+A session token is minted for a browser: it expires in eight days and cannot be withdrawn from one client without
+withdrawing it from all of them. A machine client — an MCP server, a script — needs a credential of its own, so
+`/api/v1/api-tokens` mints one.
+
+```bash
+# Only a signed-in session may mint one.
+curl -X POST "http://localhost:8000/api/v1/api-tokens/" \
+  -H "Authorization: Bearer $SESSION_JWT" -H "Content-Type: application/json" \
+  -d '{"name": "Claude Desktop", "scope": "read", "expires_in_days": 90}'
+```
+
+The credential is `hyd_<token_id>_<secret>`. Only the first half is stored, in the clear and indexed, so
+authenticating is one index probe. The second half is 256 random bits and is kept only as a SHA-256 digest, which
+is why the response above is the only place it ever appears.
+
+SHA-256 rather than bcrypt, deliberately. A password hash is slow to make a human-chosen secret expensive to guess,
+and there is no dictionary that reaches 256 random bits; the cost would instead be paid on every request a machine
+client makes. bcrypt also caps at 72 bytes and salts, and a salted hash cannot be looked up by content, which is
+what would force a scan over every row. The random `token_id` already does the lookup.
+
+Presented as a bearer token, it reaches every route a session does:
+
+```bash
+curl "http://localhost:8000/api/v1/accounts/" -H "Authorization: Bearer hyd_..."
+```
+
+Both credentials are resolved by the same `get_current_user`, because the two cannot be confused: a JWT is base64url
+of a JSON header and can never carry the `hyd_` prefix. That is what lets an API token work on every existing route
+without one of them being edited, and it keeps the household scope derived from the membership row either way.
+
+Two limits are enforced where the credential is resolved, rather than route by route, so a route added later is
+covered without being told that any of this exists:
+
+- A `read` scoped token may only make `GET`, `HEAD` and `OPTIONS` requests. Anything else is `403`. That is the
+  method, not the effect: reading the transactions or a report materialises any recurring occurrence now due, so a
+  read token can still cause those rows to be written. They would have appeared on the owner's next visit anyway.
+- `SessionUser`, the inverse of `CurrentUser`, requires a browser session. It guards minting and revoking tokens,
+  changing the password or the address, deleting the account, every change to household membership, and everything
+  behind `get_current_active_superuser` — the operations a leaked token could otherwise use to entrench itself. The
+  superuser routes are in that list because they create users and set any user's password, so a token reaching them
+  could mint a second superuser it knew the password of.
+
+Every way of failing answers `401` with the same message. Unknown, revoked, expired, a wrong secret and an inactive
+owner are indistinguishable from outside, for the reason login does not say whether an address is registered.
+Revoking flips a status rather than deleting the row, so when the token was last used survives it. `last_used_at`
+is written at most every five minutes, so a chatty client does not turn each of its reads into a write.
 
 ### Protected Routes
 
