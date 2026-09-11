@@ -10,6 +10,7 @@ from app.exceptions import (
     CategoryExistsError,
     CategoryInUseError,
     CategoryKindMismatchError,
+    CategoryLimitReachedError,
     CategoryNotFoundError,
     CategorySelfParentError,
     SystemCategoryError,
@@ -23,6 +24,7 @@ from app.models import (
     Message,
 )
 from app.services import CategoryService
+from app.services.category import MAX_CATEGORIES
 
 HOUSEHOLD_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
@@ -105,6 +107,7 @@ class TestCreateCategory:
         self, mock_category_service: CategoryService, household_context: HouseholdContext
     ) -> None:
         mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.one.return_value = 0
         mock_category_service.session.exec.return_value.first.return_value = None
 
         result = mock_category_service.create_category(
@@ -120,6 +123,7 @@ class TestCreateCategory:
     ) -> None:
         parent = make_category()
         mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.one.return_value = 0
         # First call resolves the parent, second checks the name is free.
         mock_category_service.session.exec.return_value.first.side_effect = [parent, None]
 
@@ -133,6 +137,7 @@ class TestCreateCategory:
         self, mock_category_service: CategoryService, household_context: HouseholdContext
     ) -> None:
         mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.one.return_value = 0
         mock_category_service.session.exec.return_value.first.return_value = None
 
         with pytest.raises(CategoryNotFoundError):
@@ -146,6 +151,7 @@ class TestCreateCategory:
     ) -> None:
         child = make_category(name="Groceries", parent_id=uuid.uuid4())
         mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.one.return_value = 0
         mock_category_service.session.exec.return_value.first.return_value = child
 
         with pytest.raises(CategoryDepthExceededError):
@@ -159,6 +165,7 @@ class TestCreateCategory:
     ) -> None:
         parent = make_category(name="Income", kind=CategoryKind.INCOME)
         mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.one.return_value = 0
         mock_category_service.session.exec.return_value.first.return_value = parent
 
         with pytest.raises(CategoryKindMismatchError):
@@ -171,12 +178,40 @@ class TestCreateCategory:
         self, mock_category_service: CategoryService, household_context: HouseholdContext
     ) -> None:
         mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.one.return_value = 0
         mock_category_service.session.exec.return_value.first.return_value = make_category()
 
         with pytest.raises(CategoryExistsError):
             mock_category_service.create_category(
                 household=household_context, category_create=CategoryCreate(name="Food & Drink")
             )
+
+    def test_refuses_to_go_past_the_category_limit(
+        self, mock_category_service: CategoryService, household_context: HouseholdContext
+    ) -> None:
+        """The listing hands back every category, so the tree is bounded here rather than there."""
+        mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.one.return_value = MAX_CATEGORIES
+
+        with pytest.raises(CategoryLimitReachedError):
+            mock_category_service.create_category(
+                household=household_context, category_create=CategoryCreate(name="Boats")
+            )
+
+        mock_category_service.session.commit.assert_not_called()
+
+    def test_allows_the_last_category_under_the_limit(
+        self, mock_category_service: CategoryService, household_context: HouseholdContext
+    ) -> None:
+        mock_category_service.session.exec = MagicMock()
+        mock_category_service.session.exec.return_value.one.return_value = MAX_CATEGORIES - 1
+        mock_category_service.session.exec.return_value.first.return_value = None
+
+        result = mock_category_service.create_category(
+            household=household_context, category_create=CategoryCreate(name="Boats")
+        )
+
+        assert result.name == "Boats"
 
 
 class TestListCategories:

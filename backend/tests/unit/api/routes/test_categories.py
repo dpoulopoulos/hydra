@@ -11,6 +11,7 @@ from app.exceptions import (
     CategoryDepthExceededError,
     CategoryExistsError,
     CategoryInUseError,
+    CategoryLimitReachedError,
     CategoryNotFoundError,
     SystemCategoryError,
 )
@@ -26,6 +27,7 @@ from app.models import (
     User,
 )
 from app.models.category import MAX_SORT_ORDER
+from app.services.category import MAX_CATEGORIES
 
 CATEGORY_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
 
@@ -79,6 +81,15 @@ class TestCreateCategory:
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
         wire.create_category.side_effect = CategoryExistsError(name="Boats")
+
+        response = client.post("/api/v1/categories/", headers=auth_headers, json={"name": "Boats"})
+
+        assert response.status_code == 409
+
+    def test_reports_a_full_category_tree_as_a_conflict(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        wire.create_category.side_effect = CategoryLimitReachedError(limit=MAX_CATEGORIES)
 
         response = client.post("/api/v1/categories/", headers=auth_headers, json={"name": "Boats"})
 

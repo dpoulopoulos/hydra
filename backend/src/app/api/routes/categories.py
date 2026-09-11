@@ -8,6 +8,7 @@ from app.exceptions import (
     CategoryExistsError,
     CategoryInUseError,
     CategoryKindMismatchError,
+    CategoryLimitReachedError,
     CategoryNotFoundError,
     CategorySelfParentError,
     ServiceError,
@@ -36,6 +37,7 @@ def category_exception_mappings() -> dict[type[ServiceError], int]:
         CategoryNotFoundError: status.HTTP_404_NOT_FOUND,
         CategoryExistsError: status.HTTP_409_CONFLICT,
         CategoryInUseError: status.HTTP_409_CONFLICT,
+        CategoryLimitReachedError: status.HTTP_409_CONFLICT,
         CategoryDepthExceededError: status.HTTP_400_BAD_REQUEST,
         CategorySelfParentError: status.HTTP_400_BAD_REQUEST,
         CategoryKindMismatchError: status.HTTP_400_BAD_REQUEST,
@@ -58,8 +60,9 @@ def create_category(
         The created category.
 
     Raises:
-        HTTPException: If a sibling already has that name (409), or the parent is
-            missing (404) or invalid (400).
+        HTTPException: If a sibling already has that name or the household is at
+            its category limit (409), or the parent is missing (404) or invalid
+            (400).
     """
     return category_service.create_category(household=household, category_create=category_in)
 
