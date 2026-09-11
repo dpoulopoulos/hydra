@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -158,14 +158,6 @@ function describeRule({
   return sentence
 }
 
-// React Compiler will not memoize a component that calls React Hook Form's
-// `watch()`, and skips it whole. That skip is what this form relies on:
-// `form.reset()` empties the field map and counts on the next render calling
-// `register()` again, which a memoized render never repeats, leaving every
-// field unregistered and the form with nothing to save. Nothing goes stale in
-// return, since `watch()` re-renders this component and the controls under it
-// are handed the value from that render.
-/* eslint-disable react-hooks/incompatible-library -- skipping this one is the point; see above */
 export function RuleDialog({
   open,
   rule,
@@ -215,11 +207,39 @@ export function RuleDialog({
     },
   })
 
-  const kind = form.watch('kind')
-  const frequency = form.watch('frequency')
+  // Watched through `useWatch()` rather than the form's own `watch()`, which
+  // hands back a function React Compiler will not memoize and skips the whole
+  // component over. Nearly every field is read, because the sentence under the
+  // form says back what all of them hold.
+  const [
+    kind,
+    frequency,
+    amount,
+    interval,
+    dayOfMonth,
+    startDate,
+    endDate,
+    accountId,
+    counterAccountId,
+    categoryId,
+  ] = useWatch({
+    control: form.control,
+    name: [
+      'kind',
+      'frequency',
+      'amount',
+      'interval',
+      'day_of_month',
+      'start_date',
+      'end_date',
+      'account_id',
+      'counter_account_id',
+      'category_id',
+    ],
+  })
   // What the amount field says it is in, so the account and the figure next to
   // it never disagree about what was typed.
-  const currency = currencyOf(form.watch('account_id'))
+  const currency = currencyOf(accountId)
   // The rule being edited holds its amount in its own account, which the form
   // cannot move once the rule exists.
   const recordedCurrency = currencyOf(rule?.account_id)
@@ -325,7 +345,7 @@ export function RuleDialog({
   const accountOptions = accountSource.options
   const nameOf = (id: string) => accountOptions.find((account) => account.id === id)?.name
   const categoryName = (() => {
-    const id = form.watch('category_id')
+    const id = categoryId
     if (id === NO_CATEGORY) return undefined
     for (const parent of categorySource.options) {
       if (parent.id === id) return parent.name
@@ -337,15 +357,15 @@ export function RuleDialog({
 
   const summary = describeRule({
     kind,
-    amount: form.watch('amount'),
+    amount,
     currency,
     frequency,
-    interval: Number(form.watch('interval')) || 1,
-    dayOfMonth: isMonthly && form.watch('day_of_month') ? Number(form.watch('day_of_month')) : null,
-    startDate: form.watch('start_date'),
-    endDate: form.watch('end_date'),
-    from: nameOf(form.watch('account_id')),
-    to: nameOf(form.watch('counter_account_id')),
+    interval: Number(interval) || 1,
+    dayOfMonth: isMonthly && dayOfMonth ? Number(dayOfMonth) : null,
+    startDate,
+    endDate,
+    from: nameOf(accountId),
+    to: nameOf(counterAccountId),
     category: categoryName,
   })
 
@@ -417,7 +437,7 @@ export function RuleDialog({
               >
                 {(props) => (
                   <Select
-                    value={form.watch('account_id')}
+                    value={accountId}
                     onValueChange={(value) => form.setValue('account_id', value)}
                     disabled={isEdit || accountSource.unavailable}
                   >
@@ -443,7 +463,7 @@ export function RuleDialog({
                 >
                   {(props) => (
                     <Select
-                      value={form.watch('counter_account_id')}
+                      value={counterAccountId}
                       onValueChange={(value) => form.setValue('counter_account_id', value)}
                       disabled={isEdit || accountSource.unavailable}
                     >
@@ -452,7 +472,7 @@ export function RuleDialog({
                       </SelectTrigger>
                       <SelectContent>
                         {accountOptions
-                          .filter((account) => account.id !== form.watch('account_id'))
+                          .filter((account) => account.id !== accountId)
                           .map((account) => (
                             <SelectItem key={account.id} value={account.id}>
                               {account.name}
@@ -470,7 +490,7 @@ export function RuleDialog({
                 >
                   {(props) => (
                     <Select
-                      value={form.watch('category_id')}
+                      value={categoryId}
                       onValueChange={(value) => form.setValue('category_id', value)}
                       disabled={categorySource.unavailable}
                     >
@@ -539,11 +559,7 @@ export function RuleDialog({
                   id="day_of_month"
                   label="On day"
                   // The short-month rule only matters once a day can miss one.
-                  hint={
-                    Number(form.watch('day_of_month')) > 28
-                      ? 'Short months use their last day.'
-                      : undefined
-                  }
+                  hint={Number(dayOfMonth) > 28 ? 'Short months use their last day.' : undefined}
                   error={errors.day_of_month?.message}
                 >
                   {(props) => (
