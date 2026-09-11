@@ -94,6 +94,11 @@ class UpcomingOccurrence(SQLModel):
     occurs_on: datetime.date
     account_id: uuid.UUID
     category_id: uuid.UUID | None = None
+    # Whether the rule is unable to record this occurrence, because an account
+    # it names has been archived. It is still projected, so the list can say
+    # what a restored account would pick up, but it is money that will not
+    # move while the account is away.
+    is_blocked: bool = False
 
 
 class UpcomingOccurrencesPublic(SQLModel):
@@ -102,7 +107,8 @@ class UpcomingOccurrencesPublic(SQLModel):
     # Signed by kind and with transfers left out, the way every other total in
     # the API is derived. An amount is a positive magnitude, so summing the
     # occurrences as they stand would count income as an outgoing and count a
-    # move between the household's own accounts at all.
+    # move between the household's own accounts at all. A blocked occurrence
+    # is left out too: nothing is going to be recorded for it.
     net_minor: int = 0
 
 

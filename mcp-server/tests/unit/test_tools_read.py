@@ -298,6 +298,15 @@ UPCOMING = {
     "count": 2,
 }
 
+UPCOMING_BLOCKED = {
+    "data": [
+        {**UPCOMING["data"][0], "is_blocked": True},
+        {**UPCOMING["data"][1], "is_blocked": False},
+    ],
+    "total_minor": 340_000,
+    "count": 2,
+}
+
 
 class TestUpcomingRecurring:
     """Tests for what is due next."""
@@ -319,3 +328,28 @@ class TestUpcomingRecurring:
         )
 
         assert [item["amount"]["display"] for item in due["upcoming"]] == ["-€900.00", "€2500.00"]
+
+    async def test_a_blocked_occurrence_is_left_out_of_the_total(self, server: Any, authenticated: None) -> None:
+        # The account the rent draws on is archived, so the pass will step
+        # over it. Counting it would tell the household nine hundred euro is
+        # leaving this month when nothing is going to record it.
+        due = result_of(
+            await server(routes(**{"/recurring-rules/upcoming": UPCOMING_BLOCKED})).call_tool(
+                "get_upcoming_recurring", {}
+            )
+        )
+
+        # Nothing is left going out, and zero carries no sign.
+        assert due["total_leaving"]["display"] == "€0.00"
+
+    async def test_a_blocked_occurrence_is_still_listed_and_says_so(self, server: Any, authenticated: None) -> None:
+        # It is what a restored account picks back up, so it stays on the list.
+        due = result_of(
+            await server(routes(**{"/recurring-rules/upcoming": UPCOMING_BLOCKED})).call_tool(
+                "get_upcoming_recurring", {}
+            )
+        )
+
+        assert [item["blocked"] for item in due["upcoming"]] == [True, False]
+
+

@@ -277,14 +277,21 @@ class RecurringRuleService:
 
         Returns:
             The projected occurrences, soonest first, and the net they leave the
-            household with: income less expenses, transfers excluded.
+            household with: income less expenses, transfers excluded, and the
+            blocked occurrences left out.
         """
         horizon = until or datetime.date.today() + datetime.timedelta(days=DEFAULT_UPCOMING_DAYS)
         upcoming: list[UpcomingOccurrence] = []
+        usable: dict[uuid.UUID, bool] = {}
 
         for rule in self.recurring_rule_repository.list_active(household.household_id):
             if rule.next_occurrence_on is None:
                 continue
+
+            # The same question the materialization pass asks, asked here too:
+            # projecting from the rule alone promises a payment that the pass
+            # is going to step over for as long as the account is archived.
+            is_blocked = not self._accounts_can_take_transactions(household=household, rule=rule, usable=usable)
 
             for occurs_on in occurrences_until(
                 cursor=rule.next_occurrence_on,
@@ -303,6 +310,7 @@ class RecurringRuleService:
                         occurs_on=occurs_on,
                         account_id=rule.account_id,
                         category_id=rule.category_id,
+                        is_blocked=is_blocked,
                     )
                 )
 
@@ -311,7 +319,7 @@ class RecurringRuleService:
         return UpcomingOccurrencesPublic(
             data=upcoming,
             count=len(upcoming),
-            net_minor=sum(_signed_minor(occurrence) for occurrence in upcoming),
+            net_minor=sum(_signed_minor(occurrence) for occurrence in upcoming if not occurrence.is_blocked),
         )
 
     def materialize_due(self, household: HouseholdContext, until: datetime.date | None = None) -> RecurringRunResult:
@@ -447,7 +455,12 @@ class RecurringRuleService:
 
         return True
 
-    def _accounts_can_take_transactions(self, household: HouseholdContext, rule: RecurringRule) -> bool:
+    def _accounts_can_take_transactions(
+        self,
+        household: HouseholdContext,
+        rule: RecurringRule,
+        usable: dict[uuid.UUID, bool] | None = None,
+    ) -> bool:
         """Check the accounts a rule draws on are still able to take a transaction.
 
         Both are checked at create time, but an account can be archived, or
@@ -455,7 +468,11 @@ class RecurringRuleService:
 
         Args:
             household: The household context.
-            rule: The rule about to be materialized.
+            rule: The rule being asked about.
+            usable: An optional verdict per account, carried across the rules of
+                one listing. A household has far fewer accounts than rules, and
+                most rules draw on the same few, so asking once per account
+                keeps a page of rules to a handful of lookups.
 
         Returns:
             True if every account the rule names exists and is not archived.
@@ -465,11 +482,31 @@ class RecurringRuleService:
         if rule.counter_account_id is not None:
             account_ids.append(rule.counter_account_id)
 
+        seen = usable if usable is not None else {}
+
         for account_id in account_ids:
-            try:
-                self.reference_resolver.resolve_account(household=household, account_id=account_id)
-            except (AccountNotFoundError, AccountArchivedError):
+            if account_id not in seen:
+                seen[account_id] = self._account_can_take_transactions(household=household, account_id=account_id)
+
+            if not seen[account_id]:
                 return False
+
+        return True
+
+    def _account_can_take_transactions(self, household: HouseholdContext, account_id: uuid.UUID) -> bool:
+        """Check one account is still there and still open.
+
+        Args:
+            household: The household context.
+            account_id: The ID of the account.
+
+        Returns:
+            True if the account exists in the household and is not archived.
+        """
+        try:
+            self.reference_resolver.resolve_account(household=household, account_id=account_id)
+        except (AccountNotFoundError, AccountArchivedError):
+            return False
 
         return True
 

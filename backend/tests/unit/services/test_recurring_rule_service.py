@@ -650,6 +650,7 @@ class TestListUpcoming:
         rule = make_rule(next_occurrence_on=date(2026, 4, 1))
         mock_recurring_rule_service.session.exec = MagicMock()
         mock_recurring_rule_service.session.exec.return_value.all.return_value = [rule]
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
         result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 6, 15))
 
@@ -683,6 +684,7 @@ class TestListUpcoming:
         ]
         mock_recurring_rule_service.session.exec = MagicMock()
         mock_recurring_rule_service.session.exec.return_value.all.return_value = rules
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
         result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 4, 30))
 
@@ -702,6 +704,7 @@ class TestListUpcoming:
                 next_occurrence_on=date(2026, 4, 1),
             )
         ]
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
 
         result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 4, 30))
 
@@ -717,6 +720,96 @@ class TestListUpcoming:
         result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 6, 15))
 
         assert result.count == 0
+
+    def test_marks_the_occurrences_of_a_rule_whose_account_is_archived(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """The pass steps over this rule, so the list must not promise the payment as if it will happen."""
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [
+            make_rule(next_occurrence_on=date(2026, 4, 1))
+        ]
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account(archived=True)
+
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 6, 15))
+
+        assert result.count == 3
+        assert all(occurrence.is_blocked for occurrence in result.data)
+
+    def test_a_blocked_rule_is_left_out_of_the_net(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """Counting it would put money in the total that is not going to move."""
+        archived = make_account(name="Old Current", archived=True)
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [
+            make_rule(name="Rent", amount_minor=120_000, account_id=archived.id, next_occurrence_on=date(2026, 4, 1)),
+            make_rule(
+                name="Salary",
+                kind=TransactionKind.INCOME,
+                amount_minor=300_000,
+                next_occurrence_on=date(2026, 4, 25),
+            ),
+        ]
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [archived, make_account()]
+
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 4, 30))
+
+        assert result.count == 2
+        assert result.net_minor == 300_000
+
+    def test_marks_the_occurrences_of_a_rule_whose_account_has_gone(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """A projection must not turn into a 404 because one rule lost its account."""
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [
+            make_rule(next_occurrence_on=date(2026, 4, 1))
+        ]
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = None
+
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 6, 15))
+
+        assert all(occurrence.is_blocked for occurrence in result.data)
+        assert result.net_minor == 0
+
+    def test_marks_a_transfer_whose_destination_is_archived(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """Both sides have to be able to take the money, as the pass itself checks."""
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [
+            make_rule(
+                name="To savings",
+                kind=TransactionKind.TRANSFER,
+                next_occurrence_on=date(2026, 4, 1),
+            )
+        ]
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [
+            make_account(),
+            make_account(name="Savings", archived=True),
+        ]
+
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 4, 30))
+
+        assert all(occurrence.is_blocked for occurrence in result.data)
+
+    def test_asks_about_each_account_once_for_the_whole_listing(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """Otherwise a page of rules on one account is a lookup per rule."""
+        account = make_account()
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [
+            make_rule(name="Rent", account_id=account.id, next_occurrence_on=date(2026, 4, 1)),
+            make_rule(name="Gym", account_id=account.id, next_occurrence_on=date(2026, 4, 2)),
+        ]
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [account]
+
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 4, 30))
+
+        assert result.count == 2
+        assert not any(occurrence.is_blocked for occurrence in result.data)
 
 
 class TestSchedulesPastTheCalendar:
