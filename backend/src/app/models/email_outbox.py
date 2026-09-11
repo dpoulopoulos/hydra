@@ -45,6 +45,10 @@ class EmailOutbox(PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, SQLModel, tab
 
     email_to: EmailStr = Field(index=True, max_length=255)
     subject: str = Field(max_length=SUBJECT_MAX_LENGTH)
+    # The rendered message, and only for as long as it may still have to be
+    # sent: a reset, a verification and an invite each spell a single-use
+    # credential out in their body, so a settled row is emptied of it rather
+    # than left holding it until retention comes around.
     html_content: str
     status: EmailOutboxStatus = Field(default=EmailOutboxStatus.PENDING, index=True)
     attempts: int = 0
