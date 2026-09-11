@@ -1092,6 +1092,10 @@ export type HouseholdMemberPublic = {
      * Created At
      */
     created_at: string;
+    /**
+     * Promoted To Owner At
+     */
+    promoted_to_owner_at?: string | null;
 };
 
 /**

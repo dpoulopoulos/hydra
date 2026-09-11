@@ -6979,6 +6979,18 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "promoted_to_owner_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promoted To Owner At"
           }
         },
         "type": "object",
