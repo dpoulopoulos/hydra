@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AccountType, type AccountPublic } from '@/api'
 import { Component as AccountsPage } from '@/pages/accounts'
@@ -29,6 +29,13 @@ vi.mock('@/hooks/use-household', () => ({
 }))
 
 const api = await import('@/api')
+
+// Vitest runs without globals, so nothing clears the call history between
+// tests. Without this, a test asserting that no delete was asked for would be
+// reading the calls an earlier test made.
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 function anAccount(overrides: Partial<AccountPublic> = {}): AccountPublic {
   return {
@@ -69,11 +76,13 @@ function renderPage(accounts: AccountPublic[] = [anAccount()]) {
  */
 async function openDeleteDialog(name = 'Rainy day') {
   const user = userEvent.setup()
-  renderPage()
+  renderPage([anAccount({ name })])
 
   const row = (await screen.findByText(name)).closest('tr')
   if (!row) throw new Error(`no row for ${name}`)
-  await user.click(within(row).getByRole('button'))
+  // By its label rather than as the row's only button, so the test keeps
+  // pointing at the menu once a row carries a second control.
+  await user.click(within(row).getByRole('button', { name: `Manage ${name}` }))
   await user.click(await screen.findByRole('menuitem', { name: /delete/i }))
 
   return { user, dialog: await screen.findByRole('alertdialog') }
@@ -87,6 +96,19 @@ describe('the delete confirmation', () => {
     // Assert: The title has to say which account, because the menu it came
     // from is closed by the time the dialog is read
     expect(within(dialog).getByText('Delete Rainy day?')).toBeInTheDocument()
+  })
+
+  it('names a recurring rule as a blocker too, not transactions alone', async () => {
+    // Arrange & Act: Read the dialog before confirming anything
+    const { dialog } = await openDeleteDialog()
+
+    // Assert: Recurring rules refuse the delete as surely as transactions do,
+    // so an empty ledger is not enough. The copy names them as examples rather
+    // than as the whole list, because more references block the delete than
+    // the service checks. Read through the accessible description, which is
+    // the text the dialog actually hands the user.
+    expect(dialog).toHaveAccessibleDescription(/transactions/i)
+    expect(dialog).toHaveAccessibleDescription(/recurring rules/i)
   })
 
   it('leaves the account alone until the delete is confirmed', async () => {
