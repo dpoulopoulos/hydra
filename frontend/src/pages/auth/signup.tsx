@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { MailCheck } from 'lucide-react'
+import { MailCheck, MailWarning, Send } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useSearchParams } from 'react-router'
 import { z } from 'zod'
 
-import { householdsPreviewHouseholdInvite, usersRegisterUser } from '@/api'
+import { type EmailDelivery, householdsPreviewHouseholdInvite, usersRegisterUser } from '@/api'
 import { Field, FormError } from '@/components/form-field'
 import { AuthLayout } from '@/components/layout/auth-layout'
 import { SubmitButton } from '@/components/submit-button'
@@ -35,6 +35,10 @@ export function Component() {
   const inviteToken = searchParams.get('token')
   const [formError, setFormError] = useState<string | null>(null)
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null)
+  // What became of the message the signup sent. A provider that is down does not fail the
+  // signup - the message waits in the outbox and goes out minutes later - so the screen has to
+  // be able to say "still sending" rather than send somebody to an inbox with nothing in it.
+  const [delivery, setDelivery] = useState<EmailDelivery>('sent')
 
   // When they arrived from an invitation link, say whose household they are
   // joining, so the page is not a bare sign-up form out of context.
@@ -76,27 +80,62 @@ export function Component() {
     // The reply says the same thing whether or not the address already has an
     // account, on purpose, so the address to confirm comes from the form rather
     // than from the response.
-    onSuccess: (_data, values) => setSubmittedEmail(values.email),
+    onSuccess: (data, values) => {
+      setDelivery(data?.delivery ?? 'sent')
+      setSubmittedEmail(values.email)
+    },
     onError: (error) => setFormError(errorMessage(error, 'Could not create the account.')),
   })
 
   if (submittedEmail) {
-    return (
-      <AuthLayout title="Check your email" description="One step left.">
-        <Alert>
-          <MailCheck className="size-4" />
-          <AlertTitle>Message sent to {submittedEmail}</AlertTitle>
-          <AlertDescription>
-            {/* The invitation is not taken at sign-up: registering with an
-                address does not prove the mailbox is yours. Verifying it does,
-                and that is when the invitation becomes theirs to accept.
+    // The invitation is not taken at sign-up: registering with an address does not prove the
+    // mailbox is yours. Verifying it does, and that is when the invitation becomes theirs to
+    // accept.
+    //
+    // None of these wordings says whether the address is registered: the reply is the same
+    // either way, delivery included, and it is the email, not this page, that tells the holder
+    // which one they got.
+    const whatToDo = invite
+      ? `Open the link in that email to activate your account. Then open the invitation again to join ${invite.household_name}. If that address already has an account, the message links you to sign in instead.`
+      : 'Open the link in that email to activate your account. If that address already has an account, the message links you to sign in instead. You can close this page.'
 
-                Neither wording says whether the address is registered: the
-                message is the same either way, and it is the email, not this
-                page, that tells the holder which one they got. */}
-            {invite
-              ? `Open the link in that email to activate your account. Then open the invitation again to join ${invite.household_name}. If that address already has an account, the message links you to sign in instead.`
-              : 'Open the link in that email to activate your account. If that address already has an account, the message links you to sign in instead. You can close this page.'}
+    if (delivery === 'not_configured') {
+      return (
+        <AuthLayout title="Your account is waiting" description="Nothing to check for yet.">
+          <Alert>
+            <MailWarning className="size-4" />
+            <AlertTitle>No message was sent</AlertTitle>
+            <AlertDescription>
+              Email is not set up on this server, so nothing was sent to {submittedEmail}. Ask
+              whoever runs it to activate the account for you.
+            </AlertDescription>
+          </Alert>
+          <Link
+            to="/login"
+            className="text-muted-foreground hover:text-foreground mt-4 block text-center text-sm underline underline-offset-4"
+          >
+            Back to sign in
+          </Link>
+        </AuthLayout>
+      )
+    }
+
+    const queued = delivery === 'queued'
+
+    return (
+      <AuthLayout
+        title={queued ? 'Your message is on its way' : 'Check your email'}
+        description="One step left."
+      >
+        <Alert>
+          {queued ? <Send className="size-4" /> : <MailCheck className="size-4" />}
+          <AlertTitle>
+            {queued
+              ? `Still sending the message to ${submittedEmail}`
+              : `Message sent to ${submittedEmail}`}
+          </AlertTitle>
+          <AlertDescription>
+            {queued ? `It should arrive shortly. ${whatToDo}` : whatToDo}
           </AlertDescription>
         </Alert>
         <Link

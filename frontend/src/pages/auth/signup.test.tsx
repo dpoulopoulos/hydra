@@ -135,6 +135,7 @@ describe('signing up', () => {
     vi.mocked(api.usersRegisterUser).mockResolvedValue({
       data: {
         message: 'Check your email. We sent a message to that address with what to do next.',
+        delivery: 'sent',
       },
     } as never)
   })
@@ -145,6 +146,33 @@ describe('signing up', () => {
     await signUpWith(EMAIL)
 
     expect(await screen.findByText(`Message sent to ${EMAIL}`)).toBeInTheDocument()
+  })
+
+  it('says the message is still on its way when the backend only queued it', async () => {
+    // A provider that is down does not fail the signup: the message waits in the outbox and goes
+    // out minutes later. Telling somebody to go and look now sends them to an empty inbox.
+    vi.mocked(api.usersRegisterUser).mockResolvedValue({
+      data: { message: 'ignored', delivery: 'queued' },
+    } as never)
+    renderSignUp()
+
+    await signUpWith(EMAIL)
+
+    expect(await screen.findByText(`Still sending the message to ${EMAIL}`)).toBeInTheDocument()
+    expect(screen.getByText(/should arrive shortly/)).toBeInTheDocument()
+    expect(screen.queryByText(`Message sent to ${EMAIL}`)).not.toBeInTheDocument()
+  })
+
+  it('says no message was sent when the server has no mail provider', async () => {
+    vi.mocked(api.usersRegisterUser).mockResolvedValue({
+      data: { message: 'ignored', delivery: 'not_configured' },
+    } as never)
+    renderSignUp()
+
+    await signUpWith(EMAIL)
+
+    expect(await screen.findByText('No message was sent')).toBeInTheDocument()
+    expect(screen.getByText(/not set up on this server/)).toBeInTheDocument()
   })
 
   it('says nothing about whether the address already has an account', async () => {
