@@ -35,8 +35,10 @@ EXCLUDED_DIRS = frozenset({"alembic"})
 # Parameters that belong to the binding of a method rather than to its interface, and are never documented.
 IMPLICIT_PARAMETERS = frozenset({"self", "cls"})
 
-# A parameter entry in an ``Args:`` section: a name, an optional type in parentheses, then a colon.
-ARG_ENTRY = re.compile(r"\*{0,2}(?P<name>\w+)\s*(\([^)]*\))?\s*:")
+# An entry in a Google-style section: a name, an optional type in parentheses, then a colon. The name may
+# carry stars, for the variadic parameters of an ``Args:`` section, or dots, for an exception a ``Raises:``
+# section reaches through its module.
+SECTION_ENTRY = re.compile(r"\*{0,2}(?P<name>[\w.]+)\s*(\([^)]*\))?\s*:")
 
 FunctionDef = ast.FunctionDef | ast.AsyncFunctionDef
 
@@ -115,17 +117,24 @@ def _always_raises(function: FunctionDef) -> bool:
     return isinstance(function.body[-1], ast.Raise)
 
 
-def _documented_parameters(docstring: str) -> list[str] | None:
-    """Collect the parameter names of a Google-style ``Args:`` section, or None when there is no such section.
+def _section_entries(docstring: str, header: str) -> list[str] | None:
+    """Collect the names a Google-style section lists, or None when there is no such section.
 
     Only the entries at the outermost indentation of the section are names: anything deeper continues the
     description of the entry above it, and the section ends at the first line indented no further than the
-    ``Args:`` header. That indentation is read off the first line of the section rather than assumed to be
-    four spaces, so a section indented by some other amount is still checked instead of quietly parsing as
-    an empty one.
+    header. That indentation is read off the first line of the section rather than assumed to be four
+    spaces, so a section indented by some other amount is still checked instead of quietly parsing as an
+    empty one.
+
+    Args:
+        docstring: The docstring to read.
+        header: The name of the section, written without its colon.
+
+    Returns:
+        The names the section lists, or None when the docstring has no such section.
     """
     lines = docstring.splitlines()
-    header_index = next((index for index, line in enumerate(lines) if line.strip() == "Args:"), None)
+    header_index = next((index for index, line in enumerate(lines) if line.strip() == f"{header}:"), None)
     if header_index is None:
         return None
 
@@ -141,9 +150,21 @@ def _documented_parameters(docstring: str) -> list[str] | None:
             break
         if entry_indent is None:
             entry_indent = indent
-        if indent == entry_indent and (match := ARG_ENTRY.match(line.strip())):
+        if indent == entry_indent and (match := SECTION_ENTRY.match(line.strip())):
             names.append(match.group("name"))
     return names
+
+
+def _documented_parameters(docstring: str) -> list[str] | None:
+    """Collect the parameter names of a Google-style ``Args:`` section.
+
+    Args:
+        docstring: The docstring to read.
+
+    Returns:
+        The parameters the section names, or None when there is no such section.
+    """
+    return _section_entries(docstring, "Args")
 
 
 def _signature_parameters(function: FunctionDef) -> list[str]:
