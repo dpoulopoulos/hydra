@@ -617,15 +617,18 @@ Enabled rules (see [pyproject.toml](pyproject.toml)):
 
 ### Type Checking
 
-mypy runs in strict mode:
+mypy runs in strict mode, over the sources and the tests alike:
 
 ```bash
-uv run mypy src
+uv run mypy src tests
 ```
 
 Configuration in [pyproject.toml](pyproject.toml):
 - `strict = true`: Enables all strict checks
 - Excludes: venv, .venv, alembic
+- `tests.*` turns off `method-assign` and `attr-defined`: a unit test patches a service method with a
+  `MagicMock` and reads the recorded calls back off it, which neither code has a way to allow. The rest
+  of strict mode, annotations included, holds over the suite.
 
 ## Adding New Features
 
