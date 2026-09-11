@@ -303,7 +303,7 @@ class TestDispatchDue:
         """Rows that have come due are claimed one at a time."""
         # Arrange: Watch the claim the service makes
         claim = MagicMock(return_value=[])
-        mock_email_outbox_service.email_outbox_repository.claim_due = claim  # type: ignore[method-assign]
+        mock_email_outbox_service.email_outbox_repository.claim_due = claim
         before = datetime.now(UTC)
 
         # Act: Drain the outbox
@@ -330,7 +330,7 @@ class TestDispatchDue:
             ]
 
         claim = MagicMock(side_effect=a_due_message)
-        mock_email_outbox_service.email_outbox_repository.claim_due = claim  # type: ignore[method-assign]
+        mock_email_outbox_service.email_outbox_repository.claim_due = claim
 
         # Act: Drain the outbox
         with patch("app.services.email_outbox.send_email"):
@@ -354,7 +354,7 @@ class TestDispatchDue:
             for index in range(2)
         ]
         claim = MagicMock(side_effect=[[entries[0]], [entries[1]], []])
-        mock_email_outbox_service.email_outbox_repository.claim_due = claim  # type: ignore[method-assign]
+        mock_email_outbox_service.email_outbox_repository.claim_due = claim
         commits_when_sending = []
 
         def record(**_: str) -> None:
@@ -385,7 +385,7 @@ class TestDispatchDue:
             for index in range(3)
         ]
         claim = MagicMock(side_effect=[[entries[0]], [entries[1]], [entries[2]], []])
-        mock_email_outbox_service.email_outbox_repository.claim_due = claim  # type: ignore[method-assign]
+        mock_email_outbox_service.email_outbox_repository.claim_due = claim
 
         def send(*, email_to: str, **_: str) -> None:
             if email_to == "recipient1@example.com":
@@ -421,7 +421,7 @@ class TestDispatchDue:
             for index in range(2)
         ]
         claim = MagicMock(side_effect=[[entries[0]], [entries[1]], []])
-        mock_email_outbox_service.email_outbox_repository.claim_due = claim  # type: ignore[method-assign]
+        mock_email_outbox_service.email_outbox_repository.claim_due = claim
         commits_before_the_failure = 0
 
         def send(*, email_to: str, **_: str) -> None:

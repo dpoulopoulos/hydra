@@ -54,11 +54,7 @@ def make_account(name: str = "Current", archived: bool = False) -> Account:
 
 def created_transactions(service: RecurringRuleService) -> list[Transaction]:
     """Collect the transactions a materialization pass added to the session."""
-    return [
-        call.args[0]
-        for call in service.session.add.call_args_list  # type: ignore[attr-defined]
-        if isinstance(call.args[0], Transaction)
-    ]
+    return [call.args[0] for call in service.session.add.call_args_list if isinstance(call.args[0], Transaction)]
 
 
 def unique_violation(constraint: str = "uq_transaction_rule_occurrence") -> IntegrityError:
