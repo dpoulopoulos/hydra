@@ -727,8 +727,19 @@ def create_user(self, user_create: UserCreate) -> UserPublic:
 An `Args:` section has to name exactly the parameters of the signature above it, in the same order, leaving
 out `self` and `cls`. Documenting only some of them is not an option, and neither is leaving the section out
 of a docstring on a function that takes parameters: a docstring either describes the whole signature or the
-function goes without one. `tests/unit/test_docstrings.py` walks the package and fails on anything else,
-because neither ruff nor mypy reads a parameter list out of a docstring.
+function goes without one.
+
+A `Returns:` section has to be there when the function returns something, and has to be gone when it returns
+`None`. A generator writes `Yields:` instead. The description itself is not checked against the value, only
+whether there is one to describe.
+
+A `Raises:` section has to name every exception the function raises itself. It may name more: most of what a
+service documents is raised for it by a repository or a helper, and that is the section a caller reads to
+decide what to catch, so listing what propagates is the point of it. Only what the body raises directly can
+be checked, and a bare `raise` or a `raise` of a variable names no class and is not asked for.
+
+`tests/unit/test_docstrings.py` walks the package and fails on anything else, because neither ruff nor mypy
+reads a docstring.
 
 ## Production Considerations
 
