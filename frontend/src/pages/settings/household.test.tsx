@@ -212,6 +212,55 @@ describe('the invitations list', () => {
 
     expect(await screen.findByText('No invitations outstanding.')).toBeInTheDocument()
   })
+
+  /** Answers the invites query with one outstanding invitation. */
+  function oneInviteThatWas(delivery_status: string | null) {
+    vi.mocked(api.householdsListHouseholdInvites).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'i1',
+            household_id: 'h1',
+            email: 'partner@example.com',
+            role: HouseholdRole.MEMBER,
+            status: 'pending',
+            expires_at: '2099-01-01T00:00:00Z',
+            created_at: '2026-01-01T00:00:00Z',
+            delivery_status,
+          },
+        ],
+        count: 1,
+      },
+    } as never)
+  }
+
+  it('flags an invitation whose email never went out', async () => {
+    // Without this the owner waits on an invitation that nobody was told about.
+    oneInviteThatWas('failed')
+    renderHousehold()
+
+    expect(await screen.findByText('Not delivered')).toBeInTheDocument()
+    expect(screen.getByText(/Withdraw it and invite them again/)).toBeInTheDocument()
+  })
+
+  it('says an invitation is still on its way while its email is queued', async () => {
+    oneInviteThatWas('pending')
+    renderHousehold()
+
+    expect(await screen.findByText('Sending')).toBeInTheDocument()
+    expect(screen.queryByText('Not delivered')).not.toBeInTheDocument()
+  })
+
+  it('claims nothing about an invitation whose email is settled or unknown', async () => {
+    // A delivered message, mail switched off and a pruned outbox row all read
+    // the same from here: there is nothing to warn about.
+    oneInviteThatWas(null)
+    renderHousehold()
+
+    expect(await screen.findByText('partner@example.com')).toBeInTheDocument()
+    expect(screen.queryByText('Not delivered')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sending')).not.toBeInTheDocument()
+  })
 })
 
 describe('inviting someone', () => {
