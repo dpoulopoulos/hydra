@@ -6643,6 +6643,15 @@
         "title": "EmailOutboxStats",
         "description": "What the outbox holds right now.\n\nA message that gave up announces itself once, in the log, and after that\nthe only way to find out that somebody never got their invite is to query\nthe table by hand. This is that query, for whoever administers the\ndeployment."
       },
+      "EmailOutboxStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "sent",
+          "failed"
+        ],
+        "title": "EmailOutboxStatus"
+      },
       "EmailVerificationConfirm": {
         "properties": {
           "token": {
@@ -6876,6 +6885,16 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "delivery_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmailOutboxStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

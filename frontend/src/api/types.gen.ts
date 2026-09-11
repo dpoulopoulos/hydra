@@ -834,6 +834,20 @@ export type EmailOutboxStats = {
 };
 
 /**
+ * EmailOutboxStatus
+ */
+export const EmailOutboxStatus = {
+    PENDING: 'pending',
+    SENT: 'sent',
+    FAILED: 'failed'
+} as const;
+
+/**
+ * EmailOutboxStatus
+ */
+export type EmailOutboxStatus = typeof EmailOutboxStatus[keyof typeof EmailOutboxStatus];
+
+/**
  * EmailVerificationConfirm
  */
 export type EmailVerificationConfirm = {
@@ -1017,6 +1031,7 @@ export type HouseholdInvitePublic = {
      * Created At
      */
     created_at: string;
+    delivery_status?: EmailOutboxStatus | null;
 };
 
 /**

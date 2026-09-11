@@ -6,6 +6,7 @@ from enum import StrEnum
 from pydantic import EmailStr
 from sqlmodel import Field, SQLModel
 
+from .email_outbox import EmailOutboxStatus
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
 from .user import User
 
@@ -105,6 +106,11 @@ class HouseholdInvitePublic(HouseholdInviteBase):
     id: uuid.UUID
     household_id: uuid.UUID
     created_at: datetime.datetime
+    # What became of the invitation mail. Null when there is nothing to report:
+    # mail was off when the invitation was made, the invitation predates the
+    # column, or the outbox row has since been pruned. An owner is only told
+    # about a delivery state that is actually known.
+    delivery_status: EmailOutboxStatus | None = None
 
 
 class HouseholdInvitesPublic(SQLModel):
