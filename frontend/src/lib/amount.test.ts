@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { MAX_AMOUNT_MINOR, amountSchema, previewMinor } from '@/lib/amount'
+import { formatAmount } from '@/lib/money'
 
 /** The minor units a typed string reaches the API as, or the message shown. */
 function parse(
@@ -183,6 +184,48 @@ describe('separators', () => {
 
   it('reads a three-decimal amount written with a dot in ar-EG', () => {
     expect(parse('1.005', 'BHD', { locale: 'ar-EG' })).toBe(1005)
+  })
+
+  // The digits a locale counts with are as much its own as its separators:
+  // ar-EG and fa-IR are shown "١٬٢٠٠٫٠٠" for 1200 EUR, and type the same
+  // characters on their own keypad. #167.
+  it.each([
+    ['٤٢٫٥٠', 4250],
+    ['١٢٠٠٫٥٠', 120050],
+    ['١٬٢٠٠', 120000],
+    ['١٬٢٠٠٫٥٠', 120050],
+    ['٤٢', 4200],
+    // Its own decimal point is not the only one it can type: a dot groups
+    // with nothing here, so it reads as a decimal point too.
+    ['١.٥', 150],
+    // The app writes a field in ASCII digits, so both alphabets are read.
+    ['42,50', 4250],
+  ])('reads %j as %i minor units in ar-EG', (typed, minor) => {
+    expect(parse(typed, 'EUR', { locale: 'ar-EG' })).toBe(minor)
+  })
+
+  it.each([
+    ['۴۲٫۵۰', 4250],
+    ['۱٬۲۰۰', 120000],
+    ['۱۲۰۰٫۵۰', 120050],
+  ])('reads %j as %i minor units in fa-IR', (typed, minor) => {
+    expect(parse(typed, 'EUR', { locale: 'fa-IR' })).toBe(minor)
+  })
+
+  it('reads back the figure the app shows an ar-EG reader', () => {
+    const shown = formatAmount(120050, 'EUR', 'ar-EG')
+    expect(parse(shown, 'EUR', { locale: 'ar-EG' })).toBe(120050)
+  })
+
+  it('reads back the figure the app shows a fa-IR reader', () => {
+    const shown = formatAmount(120050, 'EUR', 'fa-IR')
+    expect(parse(shown, 'EUR', { locale: 'fa-IR' })).toBe(120050)
+  })
+
+  // Only the reader's own alphabet: an en-US field is not a place where
+  // "١٢" means twelve, and reading it as one would be guessing.
+  it("reports digits that are not the locale's as not a number", () => {
+    expect(parse('١٢٠٠', 'EUR', { locale: 'en-US' })).toBe('Enter a number.')
   })
 
   it.each([['1,2,3'], ['1.2.3'], ['1,2.3,4'], ['1,23,456'], ['1,200,50'], [',']])(

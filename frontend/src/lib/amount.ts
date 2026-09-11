@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import {
+  numberDigits,
   numberGrouping,
   numberSeparators,
   toMinor,
@@ -101,13 +102,36 @@ function readMajor(text: string, decimal: string | null, grouping: NumberGroupin
 }
 
 /**
+ * Rewrite the digits of a locale's own numbering system as the ASCII ones,
+ * e.g. "١٢٠٠" as "1200" for ar-EG.
+ *
+ * The shape rules below are written in ASCII digits, and so is everything they
+ * hand to `Number`, so the alphabet a reader types in is turned into that one
+ * first, the way a decimal point that is neither "." nor "," is. Only the
+ * locale's own ten are mapped: a field filled in en-US is not a place where
+ * "١٢" means twelve, and the app never writes it there.
+ */
+function toAsciiDigits(text: string, locale?: string): string {
+  const digits = numberDigits(locale)
+  if (digits === null) return text
+
+  return [...text]
+    .map((character) => {
+      const value = digits.indexOf(character)
+      return value < 0 ? character : String(value)
+    })
+    .join('')
+}
+
+/**
  * Read a typed amount as major units, or `null` if it is not a number.
  *
  * People type "42.50" or "42,50" depending on their keyboard and locale, and
  * they type the thousands separator the app formats amounts with, so "1,200"
  * has to mean twelve hundred where the reader was shown "€1,200.00" and one
  * and a fifth where they were shown "€1,20". Both separators are read in
- * whichever role their position and the locale give them.
+ * whichever role their position and the locale give them, and so are the
+ * digits between them: a reader shown "١٬٢٠٠٫٠٠" types that back.
  */
 export function parseMajor(value: string, locale?: string): number | null {
   const { decimal, group } = numberSeparators(locale)
@@ -115,7 +139,7 @@ export function parseMajor(value: string, locale?: string): number | null {
 
   // Grouping written with a space, as fr-FR does, or with an apostrophe, as
   // de-CH does, says nothing about the decimal point, so it goes first.
-  let text = value.replace(/\s/g, '')
+  let text = toAsciiDigits(value.replace(/\s/g, ''), locale)
   if (group !== '.' && group !== ',') text = text.split(group).join('')
 
   // A decimal point that is neither "." nor "," - ar-EG and fa-IR write "٫" -
