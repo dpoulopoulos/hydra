@@ -4,6 +4,13 @@ from .account_exceptions import (
     AccountInUseError,
     AccountNotFoundError,
 )
+from .api_token_exceptions import (
+    ApiTokenLimitError,
+    ApiTokenNotFoundError,
+    ApiTokenNotPermittedError,
+    ApiTokenReadOnlyError,
+    InvalidApiTokenError,
+)
 from .base_exceptions import ServiceError
 from .budget_exceptions import (
     BudgetCategoryKindError,
@@ -93,6 +100,11 @@ from .user_exceptions import (
 )
 
 __all__ = [
+    "ApiTokenLimitError",
+    "ApiTokenNotFoundError",
+    "ApiTokenNotPermittedError",
+    "ApiTokenReadOnlyError",
+    "InvalidApiTokenError",
     "ClientCadenceError",
     "TransactionFromSessionError",
     "IncomeClientInUseError",
