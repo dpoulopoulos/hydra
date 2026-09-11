@@ -15,9 +15,9 @@ from pathlib import Path
 import pytest
 from annotated_types import Le
 from sqlalchemy import CheckConstraint
+from sqlmodel import SQLModel
 
 from app import models
-from app.models import SQLModel
 from app.models.category import MAX_SORT_ORDER
 from app.models.fields import MAX_AMOUNT_MINOR, MAX_FX_RATE_MICRO, MAX_PRICE_MICRO, MAX_QUANTITY_MICRO
 from app.models.recurring_rule import MAX_RECURRENCE_INTERVAL
