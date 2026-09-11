@@ -25,9 +25,11 @@ manage the same accounts, categories, budgets and transactions.
 - `DEPLOY.md` — deploying to Railway, step by step.
 - `.github/workflows/` — CI checks on every pull request, over both halves:
   format, lint, tests, migrations, the frontend build, the production server
-  config, the dev image, and whether the generated API client is still in sync.
-  The two that build or run a container are the exception to "every": each runs
-  only when the pull request touches what it covers.
+  config, the dev image, the built app under the policy that server sets, and
+  whether the generated API client is still in sync. The three that build or
+  run a container are the exception to "every": the first two run only when the
+  pull request touches the file they cover, and the walk under the policy
+  whenever the front end changes, since that is what can break it.
 
 ## What it does
 

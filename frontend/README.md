@@ -247,10 +247,25 @@ A new front end dependency that loads something from elsewhere will be blocked,
 and will say so in the browser console. Widen the policy deliberately when that
 happens, rather than by reflex.
 
+One more thing stays off that path by being told to: zod probes for a parser it
+builds with `new Function` the first time a schema is used, which the policy
+refuses. `src/lib/zod-config.ts` turns the probe off, since the fallback zod
+was already using is the parser these forms want anyway.
+
 `make web-test` from the repository root runs the `Caddyfile` in a container and
 checks the headers and the routing. It needs Docker, but not a build of the app.
 CI runs it too, on a pull request that touches the `Caddyfile` or the script
 itself, so a dropped header cannot reach a deploy unnoticed.
+
+`make web-test-csp` covers the other half, the half a request cannot see: it
+builds the app, serves it with the same `Caddyfile` and a stub backend, and
+walks it in a headless browser -- signing in, opening the reports and their
+charts, a dialog, a toast, a theme change -- failing on anything the policy
+refused along the way. Everything in the two paragraphs above is a run time
+behaviour of a dependency, so this is what notices when one of them changes its
+mind. It needs Docker and downloads a browser on first use. CI runs it for any
+pull request that touches the front end, because that is where a new dependency
+arrives from.
 
 ## Notes on the vendored parts
 
