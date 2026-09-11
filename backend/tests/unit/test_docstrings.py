@@ -1,4 +1,4 @@
-"""Check that every Google-style ``Args:`` section in ``app`` describes the signature above it.
+"""Check that every Google-style docstring in ``app`` describes the function above it.
 
 Neither ruff nor mypy reads a docstring's parameter list: ruff's pydocstyle rules stop at the shape of the
 section and mypy ignores docstrings entirely. A parameter can therefore be renamed or dropped and leave a
@@ -13,6 +13,11 @@ with import-time side effects cannot skew the result.
 A function that takes parameters and carries a docstring has to describe them: leaving the section out is as
 much a way to lose the description as letting it drift, and was caught by the email-only guard this module
 replaces. A function written without a docstring at all is a separate matter, and is left to ruff.
+
+``Returns:`` is checked for presence rather than content: the prose describing a value cannot be compared to
+the value, but whether a function produces one at all is exactly what the return annotation says, so a
+section that outlives the value it describes - or goes missing when a helper starts returning something -
+still fails here.
 """
 
 import ast
@@ -67,6 +72,47 @@ def _functions(path: Path) -> list[tuple[str, FunctionDef]]:
 
     walk(ast.parse(path.read_text(encoding="utf-8"), filename=str(path)), "")
     return found
+
+
+def _has_section(docstring: str, header: str) -> bool:
+    """Whether a docstring opens the named Google-style section."""
+    return any(line.strip() == f"{header}:" for line in docstring.splitlines())
+
+
+def _returns_a_value(function: FunctionDef) -> bool:
+    """Whether the return annotation of a function promises a value worth describing.
+
+    An unannotated function is taken to return nothing: mypy runs over this package in strict mode, so the
+    only signatures it leaves unannotated are the ``__init__`` methods that cannot return anything anyway.
+    """
+    return function.returns is not None and ast.unparse(function.returns) != "None"
+
+
+def _yields(function: FunctionDef) -> bool:
+    """Whether a function is a generator, and so describes what it produces under ``Yields:``."""
+    found = False
+
+    def walk(node: ast.AST) -> None:
+        nonlocal found
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda):
+                continue
+            if isinstance(child, ast.Yield | ast.YieldFrom):
+                found = True
+            walk(child)
+
+    walk(function)
+    return found
+
+
+def _always_raises(function: FunctionDef) -> bool:
+    """Whether a function ends by raising, and so never returns the value its annotation names.
+
+    The refusing implementations of a protocol are written this way: they keep the annotation of the method
+    they stand in for so that callers type-check, and describe themselves under ``Raises:`` instead. Asking
+    them for a ``Returns:`` section would be asking them to describe a value that is never produced.
+    """
+    return isinstance(function.body[-1], ast.Raise)
 
 
 def _documented_parameters(docstring: str) -> list[str] | None:
@@ -137,6 +183,29 @@ def _documented_functions() -> list[tuple[str, list[str] | None, list[str]]]:
 DOCUMENTED_FUNCTIONS = _documented_functions()
 
 
+def _returning_functions() -> list[tuple[str, bool, bool]]:
+    """Collect every documented function with what it returns and whether it says so.
+
+    A function that only raises is left out: it carries the annotation of the interface it implements
+    without ever producing a value under it.
+    """
+    returning = []
+    for path in _source_files():
+        for qualified_name, function in _functions(path):
+            docstring = ast.get_docstring(function)
+            if not docstring or _always_raises(function):
+                continue
+            # A generator returns an iterator and describes what it produces under Yields:, which is the
+            # section the convention asks for and the one the docstrings in this package use.
+            header = "Yields" if _yields(function) else "Returns"
+            location = f"{path.relative_to(SOURCE_ROOT)}:{function.lineno}:{qualified_name}"
+            returning.append((location, _returns_a_value(function), _has_section(docstring, header)))
+    return returning
+
+
+RETURNING_FUNCTIONS = _returning_functions()
+
+
 class TestDocstringsMatchSignatures:
     """Test that documented parameters match the signatures they describe."""
 
@@ -162,3 +231,28 @@ class TestDocstringsMatchSignatures:
 
         # Assert: Verify the docstring describes this signature and no other
         assert documented == accepted
+
+
+class TestDocstringsDescribeReturnValues:
+    """Test that a described return value is one the function still produces."""
+
+    def test_source_tree_is_walked(self) -> None:
+        """The walk finds the documented functions of the package."""
+        # Assert: Verify a mistyped root or a broken parser fails here rather than passing silently
+        assert len(RETURNING_FUNCTIONS) > 100
+
+    @pytest.mark.parametrize(
+        ("returns_a_value", "documented"),
+        [pytest.param(returns, documented, id=location) for location, returns, documented in RETURNING_FUNCTIONS],
+    )
+    def test_return_section_matches_annotation(self, returns_a_value: bool, documented: bool) -> None:
+        """A function describes what it gives back when, and only when, it gives something back."""
+        # Assert: Verify a function that produces a value says what it is, so a helper that starts
+        # returning one cannot keep a docstring that stops at its arguments
+        if returns_a_value:
+            assert documented, "docstring has no Returns: or Yields: section for the value it returns"
+
+        # Assert: Verify a description does not outlive the value it describes, which is what happens when
+        # a function is changed to return nothing and only its signature is updated
+        if not returns_a_value:
+            assert not documented, "docstring describes a return value, but the function returns None"
