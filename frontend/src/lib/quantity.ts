@@ -54,9 +54,12 @@ export function fromPriceMicro(micro: number, currency = 'EUR'): number {
  *
  * Trailing zeroes are dropped, so a whole number of shares reads as "10"
  * rather than "10.000000", while a fractional holding keeps its precision.
+ *
+ * Written in the household's locale, like the money it sits beside: leaving it
+ * out means the reader's own browser.
  */
-export function formatQuantity(micro: number): string {
-  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(
+export function formatQuantity(micro: number, locale?: string): string {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 6 }).format(
     fromQuantityMicro(micro),
   )
 }
@@ -68,9 +71,9 @@ export function formatQuantity(micro: number): string {
  * the precision an ETF is actually quoted at and rounding it on screen makes
  * the value look like it does not follow from the price.
  */
-export function formatPrice(micro: number, currency = 'EUR'): string {
+export function formatPrice(micro: number, currency = 'EUR', locale?: string): string {
   const digits = fractionDigits(currency)
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     minimumFractionDigits: digits,
@@ -133,8 +136,8 @@ function scaledSchema(
  * against the one a bank or a broker quotes, and a trimmed "0.86" cannot be
  * checked against "0.860440" at a glance.
  */
-export function formatRate(micro: number): string {
-  return new Intl.NumberFormat(undefined, {
+export function formatRate(micro: number, locale?: string): string {
+  return new Intl.NumberFormat(locale, {
     minimumFractionDigits: 6,
     maximumFractionDigits: 6,
   }).format(micro / MICRO)

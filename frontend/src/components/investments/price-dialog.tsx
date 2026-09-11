@@ -130,7 +130,7 @@ export function PriceDialog({
             hint={
               instrument?.last_price_micro === null || instrument?.last_price_micro === undefined
                 ? 'No price recorded yet.'
-                : `Currently ${formatPrice(instrument.last_price_micro, currency)}${
+                : `Currently ${formatPrice(instrument.last_price_micro, currency, locale)}${
                     instrument.last_price_is_manual ? ', typed in' : ', from the provider'
                   }.`
             }

@@ -245,3 +245,28 @@ describe('formatPriceInput', () => {
     expect(priceSchema(currency, { locale }).parse(text)).toBe(micro)
   })
 })
+
+// A quantity, a price and a rate are numbers on the same screens the money is
+// on, so they follow the household's locale too rather than reading as the one
+// figure in the row written some other way.
+describe('the locale parameter', () => {
+  it('writes a quantity the way the named locale does', () => {
+    expect(formatQuantity(1234.5 * MICRO, 'de-DE')).toBe('1.234,5')
+    expect(formatQuantity(1234.5 * MICRO, 'en-US')).toBe('1,234.5')
+  })
+
+  it('writes a price the way the named locale does', () => {
+    expect(formatPrice(toPriceMicro(1234.5678, 'EUR'), 'EUR', 'de-DE')).toBe('1.234,5678\u00a0€')
+  })
+
+  it('writes a rate the way the named locale does', () => {
+    expect(formatRate(860440, 'de-DE')).toBe('0,860440')
+  })
+
+  it('falls back to the runtime locale when none is named', () => {
+    const runtime = new Intl.NumberFormat().resolvedOptions().locale
+    expect(formatQuantity(MICRO)).toBe(formatQuantity(MICRO, runtime))
+    expect(formatPrice(MICRO, 'EUR')).toBe(formatPrice(MICRO, 'EUR', runtime))
+    expect(formatRate(860440)).toBe(formatRate(860440, runtime))
+  })
+})
