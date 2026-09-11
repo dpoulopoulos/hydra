@@ -271,8 +271,16 @@ class EmailVerificationService:
             What became of the message: sent, queued for another attempt, or
             not sent at all because no provider is configured.
         """
-        # Mark existing pending verifications as expired
-        existing_verification = self.email_verification_repository.get_pending_by_user_id(user.id)
+        # Expire only what this verification replaces. The two kinds of row
+        # answer different questions, so an activation must leave a pending
+        # change standing: withdrawing it would let an account that was
+        # disabled mid-change walk itself back to active by asking for a
+        # resend, without an administrator.
+        existing_verification = (
+            self.email_verification_repository.get_pending_change_by_user_id(user.id)
+            if new_email
+            else self.email_verification_repository.get_pending_activation_by_user_id(user.id)
+        )
 
         if existing_verification:
             self._mark_email_verification(
@@ -317,10 +325,17 @@ class EmailVerificationService:
 
         Only sends email if:
         1. User exists and is not active
-        2. User has a pending email verification (was created via signup, not by admin)
+        2. User has a pending activation (was created via signup, not by admin)
 
         This prevents users from bypassing admin restrictions by requesting verification emails
         for accounts that were intentionally disabled by administrators.
+
+        A pending change of address is not an activation and is deliberately not
+        served here: this endpoint takes an address from an unauthenticated
+        caller, and the account a change belongs to is signed in. Sending one
+        from here would also mail an activation for the address the account
+        currently holds, which is how a disabled account would get itself back.
+        The signed-in resend endpoint serves a change instead.
 
         Args:
             user_service: A user service instance.
@@ -332,11 +347,11 @@ class EmailVerificationService:
         user = user_service.get_user_by_email(email=email)
 
         if user and not user.is_active:
-            # Check if user has a pending verification
+            # Check if user has a pending activation
             # If they don't, it means they were created by admin and disabled, not via signup
-            pending_verification = self.get_pending_verification_by_user_id(user.id)
+            pending_activation = self.get_pending_activation_by_user_id(user.id)
 
-            if pending_verification:
+            if pending_activation:
                 try:
                     self.send_verification_email(user_service=user_service, user_email=user.email)
                 except Exception:
