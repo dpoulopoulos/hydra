@@ -115,13 +115,13 @@ web-lint:
 web-test:
 	bash ./frontend/scripts/test-caddyfile.sh
 
-# Runs the frontend unit tests in jsdom. No Docker and no backend needed.
 # Builds the dev image and checks who it runs as, and that the dev server still
 # serves what compose syncs into it. Needs Docker; the backend is not involved.
 .PHONY: web-test-dev
 web-test-dev:
 	bash ./frontend/scripts/test-dev-image.sh
 
+# Runs the frontend unit tests in jsdom. No Docker and no backend needed.
 .PHONY: web-test-unit
 web-test-unit: web-install
 	cd frontend && pnpm test
