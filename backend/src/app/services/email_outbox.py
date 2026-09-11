@@ -4,7 +4,7 @@ from sqlmodel import Session
 
 from app.core.config import settings
 from app.logging import get_logger
-from app.models import SUBJECT_MAX_LENGTH, EmailOutbox, EmailOutboxStatus
+from app.models import SUBJECT_MAX_LENGTH, EmailOutbox, EmailOutboxStats, EmailOutboxStatus
 from app.repositories.email_outbox import EmailOutboxRepository
 from app.utils.email_utils import DELIVERY_ERRORS, send_email
 
@@ -114,6 +114,24 @@ class EmailOutboxService:
         self.session.commit()
 
         return removed
+
+    def stats(self) -> EmailOutboxStats:
+        """Report what the outbox is holding.
+
+        Returns:
+            The backlog still owed to somebody and the messages that gave up.
+        """
+        counts = self.email_outbox_repository.count_by_status()
+        failed = counts.get(EmailOutboxStatus.FAILED, 0)
+
+        return EmailOutboxStats(
+            pending=counts.get(EmailOutboxStatus.PENDING, 0),
+            failed=failed,
+            # Only worth a second query when there is something to date.
+            oldest_failed_at=(
+                self.email_outbox_repository.oldest_created_at(status=EmailOutboxStatus.FAILED) if failed else None
+            ),
+        )
 
     def _dispatch_one(self, entry: EmailOutbox) -> bool:
         """Attempt one claimed message and commit whatever became of it.

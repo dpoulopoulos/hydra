@@ -44,6 +44,7 @@ from .category import (
 from .email_outbox import (
     SUBJECT_MAX_LENGTH,
     EmailOutbox,
+    EmailOutboxStats,
     EmailOutboxStatus,
 )
 from .email_verification import (
@@ -230,6 +231,7 @@ __all__ = [
     "CategoryUpdate",
     "SUBJECT_MAX_LENGTH",
     "EmailOutbox",
+    "EmailOutboxStats",
     "EmailOutboxStatus",
     "EmailVerification",
     "EmailVerificationConfirm",

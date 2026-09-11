@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import and_ as sa_and
 from sqlalchemy import delete
 from sqlalchemy import or_ as sa_or
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, func, select
 
 from app.models import EmailOutbox, EmailOutboxStatus
 from app.repositories.base import BaseRepository
@@ -77,3 +77,24 @@ class EmailOutboxRepository(BaseRepository[EmailOutbox]):
             )
         )
         return int(self.session.exec(statement).rowcount)
+
+    def count_by_status(self) -> dict[EmailOutboxStatus, int]:
+        """Tally the table, a count per status.
+
+        Returns:
+            How many rows each status holds. A status with no rows is absent.
+        """
+        statement = select(EmailOutbox.status, func.count()).group_by(col(EmailOutbox.status))
+        return {EmailOutboxStatus(status): count for status, count in self.session.exec(statement).all()}
+
+    def oldest_created_at(self, *, status: EmailOutboxStatus) -> datetime | None:
+        """Find when the longest-standing row of a status was written.
+
+        Args:
+            status: The status to look at.
+
+        Returns:
+            When the oldest such row was written, or None if there are none.
+        """
+        statement = select(func.min(EmailOutbox.created_at)).where(col(EmailOutbox.status) == status)
+        return self.session.exec(statement).one()
