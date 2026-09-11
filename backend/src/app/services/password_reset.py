@@ -24,6 +24,11 @@ from app.services.email_outbox import EmailOutboxService
 from app.services.user import UserService
 from app.utils import generate_password_reset_email
 
+# What a request for a reset answers with, whether or not the address has an account. Naming it
+# keeps the one reply in one place: it is also what the endpoint says when it is not going to send
+# anything at all, and two spellings of it would tell those two cases apart.
+PASSWORD_RESET_REQUEST_MESSAGE = "If an account exists with this email, you will receive password reset instructions."
+
 
 class PasswordResetService:
     """Provide services for password reset management."""
@@ -111,7 +116,7 @@ class PasswordResetService:
                     html_content=email_data.html_content,
                 )
 
-        return Message(message="If an account exists with this email, you will receive password reset instructions.")
+        return Message(message=PASSWORD_RESET_REQUEST_MESSAGE)
 
     def verify_token(self, token: str) -> Message:
         """Verify a password reset token is valid.

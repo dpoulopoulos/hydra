@@ -21,6 +21,13 @@ from app.services.email_outbox import EmailOutboxService
 from app.services.user import UserService
 from app.utils import generate_email_verification_email
 
+# What a resend answers with, whether or not the address has an account waiting to be activated.
+# Naming it keeps the one reply in one place: it is also what the endpoint says when it is not
+# going to send anything at all, and two spellings of it would tell those two cases apart.
+VERIFICATION_RESEND_MESSAGE = (
+    "If an account exists with this email and requires verification, you will receive verification instructions."
+)
+
 
 class VerificationDelivery(StrEnum):
     """What became of a verification message once the outbox had it."""
@@ -387,12 +394,7 @@ class EmailVerificationService:
                     # Silently fail to not reveal if email exists
                     pass
 
-        return Message(
-            message=(
-                "If an account exists with this email and requires verification, "
-                "you will receive verification instructions."
-            )
-        )
+        return Message(message=VERIFICATION_RESEND_MESSAGE)
 
     def verify_email(
         self, user_service: UserService, token: str, invite_claimer: InviteClaimer | None = None
