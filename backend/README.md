@@ -621,6 +621,13 @@ The schema is created from the model metadata rather than by migrating, which th
 proves equivalent. Each test runs inside a transaction that is rolled back afterwards, so the tests do not have to
 clean up after one another.
 
+The one exception is
+[tests/integration/test_ceiling_migration.py](tests/integration/test_ceiling_migration.py), which is about what a
+revision does to the rows it finds rather than about the schema it leaves behind. It builds a database of its own
+— `POSTGRES_DB` with `_migration` appended — by walking the revisions, seeds it with rows outside the bounds the
+next revision adds, and migrates across, so the repair that clamps them back into range is exercised rather than
+only read. It drops that database afterwards.
+
 Use the fixtures in [tests/integration/conftest.py](tests/integration/conftest.py), which give you a session, two
 seeded households and every service wired to the real session:
 
