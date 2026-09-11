@@ -508,6 +508,23 @@ export function Component() {
         </Alert>
       ) : null}
 
+      {/* The estimate prices a capped page of the roster, while what is already
+          booked is counted whole. Past the cap the two stop describing the same
+          practice and the figure reads low, which is only misleading if nothing
+          says so. */}
+      {forecast.data &&
+      (forecast.data.priced_client_count ?? 0) < (forecast.data.active_client_count ?? 0) ? (
+        <Alert>
+          <TriangleAlert className="size-4" />
+          <AlertTitle>The estimate covers part of your clients</AlertTitle>
+          <AlertDescription>
+            It prices {forecast.data.priced_client_count} of your{' '}
+            {forecast.data.active_client_count} clients, so the standing appointments of the rest
+            are not in it and the figure reads low. Anything already booked still counts in full.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {forecast.data && forecast.data.basis !== ForecastBasis.HISTORY ? (
         <Alert>
           <CalendarClock className="size-4" />
