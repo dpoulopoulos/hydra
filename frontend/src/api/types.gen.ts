@@ -1286,6 +1286,14 @@ export type IncomeForecast = {
      */
     average_sessions_per_month?: number | null;
     /**
+     * Active Client Count
+     */
+    active_client_count?: number;
+    /**
+     * Priced Client Count
+     */
+    priced_client_count?: number;
+    /**
      * Clients
      */
     clients: Array<ClientForecastRow>;
