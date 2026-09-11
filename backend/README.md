@@ -301,6 +301,11 @@ Key settings:
 | `BACKEND_CORS_ORIGINS` | Allowed CORS origins | `[]` |
 | `FRONTEND_HOST` | Base URL used in email links | `http://localhost:5173` |
 | `HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS` | Household invitation lifetime | 168 (7 days) |
+| `MAIL_RATE_LIMIT_WINDOW_MINUTES` | How long a mail budget lasts | 60 |
+| `MAIL_RATE_LIMIT_PER_SOURCE` | Messages one caller may ask for in that window | 20 |
+| `MAIL_RATE_LIMIT_PER_RECIPIENT` | Messages that may be aimed at one mailbox in that window | 5 |
+| `MAIL_RATE_LIMIT_PRUNE_INTERVAL_SECONDS` | How often spent budgets are dropped | 3600 |
+| `TRUSTED_PROXY_HOPS` | Proxies in front of the app, for reading the caller's address | 0 |
 | `EMAIL_PROVIDER` | How mail leaves: `smtp` or `resend` | `smtp` |
 | `RESEND_API_KEY` | Required when the provider is `resend` | `None` |
 | `PORT` | Port the server listens on | `8000` |
@@ -501,6 +506,27 @@ Login is held to the same rule. An address with no account and an account whose 
 `401` with `Incorrect email or password.`, and the unknown address still pays for a bcrypt verification against a
 throwaway hash, so neither the status code nor the response time says which addresses are registered. The `403` for an
 unverified account is only reachable once the correct password has been supplied.
+
+### Rate Limiting the Mail an Anonymous Caller Can Ask For
+
+`/users/signup`, `/password-reset/request` and `/email-verification/send` each send a message to an address the request
+names, with nobody signed in. Two budgets bound that, both counted in `mailratelimit` and both shared across the three
+endpoints, since a caller who could spend a fresh budget on each would simply rotate between them:
+
+| Budget | Bounds | Default |
+|---|---|---|
+| Per caller | How much mail one client can ask for at all, so a script cannot spray a list of addresses | 20 per hour |
+| Per recipient | How much mail can be aimed at one mailbox, by however many callers | 5 per hour |
+
+A request that is over either one is answered with exactly what it would have been answered with anyway, and nothing is
+sent. A refusal of its own would say that the address had been signed up for, or asked for a link, recently — which is
+the question the shared replies above exist to refuse. The refusal is logged instead, with the address and the tally.
+
+The caller is the connection's peer unless `TRUSTED_PROXY_HOPS` says how many proxies stand in front, in which case it
+is read out of `X-Forwarded-For`. Behind a proxy the peer is the proxy for every request, so a deployment that left this
+at zero would have one caller budget for the whole internet; where the app is reachable directly the header is whatever
+the client cared to send, so it is ignored. The counters are only running totals and a background loop drops them once
+their window has passed, so the table does not keep a row for every address the app has ever answered.
 
 ### API Tokens
 
