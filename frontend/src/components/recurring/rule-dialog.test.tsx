@@ -598,3 +598,51 @@ describe('reading a typed amount', () => {
     expect(screen.queryByText('Enter a number.')).not.toBeInTheDocument()
   })
 })
+
+describe('the advanced section', () => {
+  /** A rule as the API hands it back, with whatever the test cares about set. */
+  function ruleWith(fields: Partial<RecurringRulePublic>): RecurringRulePublic {
+    return { ...rule(85000), ...fields }
+  }
+
+  /** Whether the disclosure is showing what it hides. */
+  function isOpen() {
+    return screen.getByRole('button', { name: /More options/ }).getAttribute('aria-expanded')
+  }
+
+  function renderEditing(edited: RecurringRulePublic | null) {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    render(
+      <QueryClientProvider client={client}>
+        <RuleDialog open rule={edited} onOpenChange={() => {}} />
+      </QueryClientProvider>,
+    )
+  }
+
+  // A rule that repeats every other month, ends on a date or names a merchant
+  // says so in here. Collapsed, the dialog would be hiding part of the rule it
+  // claims to be showing.
+  it('starts open for a rule that uses it', async () => {
+    renderEditing(ruleWith({ merchant: 'Landlord' }))
+
+    expect(await screen.findByLabelText('Name')).toHaveValue('Rent')
+    expect(isOpen()).toBe('true')
+    expect(screen.getByLabelText('Merchant')).toHaveValue('Landlord')
+  })
+
+  it('starts closed for a rule that has nothing in it', async () => {
+    renderEditing(ruleWith({}))
+
+    expect(await screen.findByLabelText('Name')).toHaveValue('Rent')
+    expect(isOpen()).toBe('false')
+  })
+
+  it('starts closed for a new rule', async () => {
+    renderEditing(null)
+
+    expect(await screen.findByLabelText('Name')).toHaveValue('')
+    expect(isOpen()).toBe('false')
+  })
+})
