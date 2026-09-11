@@ -58,12 +58,14 @@ import { useInstruments } from '@/hooks/use-instruments'
 import { errorMessage } from '@/lib/api'
 import { INSTRUMENT_KIND_LABELS, TRADE_SIDE_LABELS } from '@/lib/labels'
 import { formatDate, formatDateTime } from '@/lib/month'
+import { useLocale } from '@/lib/locale-context'
 import { formatPrice, formatQuantity, formatRate, MICRO } from '@/lib/quantity'
 
 const TRADE_PAGE_SIZE = 25
 
 export function Component() {
   const queryClient = useQueryClient()
+  const locale = useLocale()
   const [includeClosed, setIncludeClosed] = useState(false)
   const [addingInstrument, setAddingInstrument] = useState(false)
   const [editingInstrument, setEditingInstrument] = useState<InstrumentPublic | null>(null)
@@ -340,13 +342,17 @@ export function Component() {
                           </p>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {formatQuantity(position.quantity_micro ?? 0)}
+                          {formatQuantity(position.quantity_micro ?? 0, locale)}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-right tabular-nums">
                           {position.last_price_micro === null ||
                           position.last_price_micro === undefined
                             ? '—'
-                            : formatPrice(position.last_price_micro, position.currency_code)}
+                            : formatPrice(
+                                position.last_price_micro,
+                                position.currency_code,
+                                locale,
+                              )}
                           {position.last_price_is_manual ? (
                             <span className="block text-xs">By hand</span>
                           ) : null}
@@ -356,7 +362,7 @@ export function Component() {
                               wondering "converted at what?" is looking. */}
                           {position.fx_rate_micro && position.fx_rate_micro !== MICRO ? (
                             <span className="block text-xs">
-                              × {formatRate(position.fx_rate_micro)}
+                              × {formatRate(position.fx_rate_micro, locale)}
                             </span>
                           ) : null}
                         </TableCell>
@@ -524,10 +530,10 @@ export function Component() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {formatQuantity(trade.quantity_micro)}
+                          {formatQuantity(trade.quantity_micro, locale)}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {formatPrice(trade.price_micro, trade.currency_code)}
+                          {formatPrice(trade.price_micro, trade.currency_code, locale)}
                         </TableCell>
                         <TableCell className="text-right">
                           <Money
@@ -626,7 +632,11 @@ export function Component() {
                             <span className="text-muted-foreground">—</span>
                           ) : (
                             <>
-                              {formatPrice(instrument.last_price_micro, instrument.currency_code)}{' '}
+                              {formatPrice(
+                                instrument.last_price_micro,
+                                instrument.currency_code,
+                                locale,
+                              )}{' '}
                               <span className="text-muted-foreground text-xs">
                                 {instrument.currency_code}
                               </span>
@@ -753,12 +763,12 @@ export function Component() {
                                 {rate.in_use ? null : <Badge variant="outline">Not held</Badge>}
                               </div>
                               <p className="text-muted-foreground text-xs">
-                                1 {rate.base_code} buys {formatRate(rate.rate_micro)}{' '}
+                                1 {rate.base_code} buys {formatRate(rate.rate_micro, locale)}{' '}
                                 {rate.quote_code}
                               </p>
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {formatRate(rate.rate_micro)}
+                              {formatRate(rate.rate_micro, locale)}
                             </TableCell>
                             {/* The day the rate refers to, and the day this app
                                 asked for it. Over a weekend they differ, and a
