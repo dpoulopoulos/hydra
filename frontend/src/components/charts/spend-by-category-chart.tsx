@@ -7,6 +7,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { useLocale } from '@/lib/locale-context'
 import { formatAmount, formatMoney } from '@/lib/money'
 import { toColoredSlices } from '@/lib/chart-palette'
 
@@ -25,6 +26,7 @@ export function SpendByCategoryChart({
   report: SpendByCategoryReport
   currency: string
 }) {
+  const locale = useLocale()
   const rows = toColoredSlices(
     report.slices.map((slice) => ({
       key: slice.category_id ?? slice.category_name,
@@ -61,7 +63,7 @@ export function SpendByCategoryChart({
           cursor={false}
           content={
             <ChartTooltipContent
-              formatter={(value) => formatMoney(Number(value), currency)}
+              formatter={(value) => formatMoney(Number(value), currency, locale)}
               labelKey="label"
             />
           }
@@ -75,7 +77,7 @@ export function SpendByCategoryChart({
             position: 'right',
             offset: 8,
             fontSize: 12,
-            formatter: (value: unknown) => formatAmount(Number(value), currency),
+            formatter: (value: unknown) => formatAmount(Number(value), currency, locale),
             className: 'fill-muted-foreground',
           }}
         />

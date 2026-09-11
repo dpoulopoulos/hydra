@@ -1,3 +1,4 @@
+import { useLocale } from '@/lib/locale-context'
 import { cn } from '@/lib/utils'
 import { formatMoney, formatSignedMoney } from '@/lib/money'
 
@@ -22,6 +23,8 @@ export function Money({
   colored?: boolean
   className?: string
 }) {
+  const locale = useLocale()
+
   return (
     <span
       className={cn(
@@ -30,7 +33,7 @@ export function Money({
         className,
       )}
     >
-      {signed ? formatSignedMoney(minor, currency) : formatMoney(minor, currency)}
+      {signed ? formatSignedMoney(minor, currency, locale) : formatMoney(minor, currency, locale)}
     </span>
   )
 }
