@@ -21,6 +21,7 @@ from app.exceptions import (
     LastHouseholdOwnerError,
 )
 from app.models import (
+    EmailOutboxStatus,
     Household,
     HouseholdContext,
     HouseholdInvite,
@@ -623,6 +624,8 @@ class HouseholdService:
         # The invite is committed and valid whether or not the mail leaves, and
         # reporting it as failed would only send the owner into the pending
         # invite guard above. Queue the message and return the invite.
+        delivery: EmailOutboxStatus | None = None
+
         if settings.emails_enabled:
             email_data = generate_household_invite_email(
                 email=email,
@@ -639,8 +642,9 @@ class HouseholdService:
             invite.email_outbox_id = entry.id
             self.household_invite_repository.save(invite)
             self.session.commit()
+            delivery = entry.status
 
-        return HouseholdInvitePublic.model_validate(invite)
+        return HouseholdInvitePublic.model_validate(invite, update={"delivery_status": delivery})
 
     def list_invites(
         self,
@@ -663,7 +667,10 @@ class HouseholdService:
         invites, count = self.household_invite_repository.list_for_household(
             household_id=household.household_id, status=status, skip=skip, limit=limit
         )
-        data = [HouseholdInvitePublic.model_validate(invite) for invite in invites]
+        data = [
+            HouseholdInvitePublic.model_validate(invite, update={"delivery_status": delivery})
+            for invite, delivery in invites
+        ]
 
         return HouseholdInvitesPublic(data=data, count=count)
 

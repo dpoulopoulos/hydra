@@ -714,6 +714,61 @@ class TestCreateInvite:
         invite = next(entry for entry in added if isinstance(entry, HouseholdInvite))
         assert invite.email_outbox_id == queued.id
 
+    def test_a_created_invitation_reports_what_became_of_its_mail(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The owner sees the outcome of the send on the invitation they just made."""
+        # Arrange: Mail is configured and the provider refuses the message
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = None
+        mock_household_service.session.exec.return_value.all.return_value = []
+
+        monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        request = httpx.Request("POST", "https://api.resend.com/emails")
+        rate_limited = httpx.HTTPStatusError("429", request=request, response=httpx.Response(429))
+
+        # Act: Invite an address
+        with patch("app.services.email_outbox.send_email", side_effect=rate_limited):
+            result = mock_household_service.create_invite(
+                household=context,
+                invite_create=HouseholdInviteCreate(email="partner@example.com"),
+            )
+
+        # Assert: Verify the message is reported as still waiting
+        assert result.delivery_status is EmailOutboxStatus.PENDING
+
+    def test_an_invitation_made_with_mail_off_reports_no_delivery_state(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Claiming a message is pending when none was ever queued would be a lie."""
+        # Arrange: Mail is not configured
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.return_value = None
+        mock_household_service.session.exec.return_value.all.return_value = []
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", None)
+
+        # Act: Invite an address
+        result = mock_household_service.create_invite(
+            household=context,
+            invite_create=HouseholdInviteCreate(email="partner@example.com"),
+        )
+
+        # Assert: Verify nothing is claimed about a message that does not exist
+        assert result.delivery_status is None
+
     def test_an_invitation_sent_with_mail_off_records_no_message(
         self,
         mock_household_service: HouseholdService,
@@ -853,8 +908,10 @@ class TestListInvites:
         """A household with more invites than fit on a page still reports how many there are."""
         mock_household_service.session.exec = MagicMock()
         mock_household_service.session.exec.return_value.one.return_value = 7
+        # The listing joins the outbox, so a row is the invite and what became
+        # of its mail.
         mock_household_service.session.exec.return_value.all.return_value = [
-            make_invite(household_id=context.household_id)
+            (make_invite(household_id=context.household_id), None)
         ]
 
         result = mock_household_service.list_invites(household=context, limit=1)

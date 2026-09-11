@@ -1,9 +1,8 @@
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import Table
+from sqlalchemy import Select, Table
 from sqlmodel import Session, SQLModel, func, select
-from sqlmodel.sql.expression import SelectOfScalar
 
 
 def table_of(model_class: type[SQLModel]) -> Table:
@@ -94,11 +93,13 @@ class BaseRepository[T: SQLModel]:
         """
         self.session.flush()
 
-    def _paginate(self, statement: SelectOfScalar[T], skip: int, limit: int) -> SelectOfScalar[T]:
+    def _paginate[S: Select[Any]](self, statement: S, skip: int, limit: int) -> S:
         """Cut a query down to one page of results.
 
         Shared so every listing spells a page the same way and a caller cannot
-        get an offset applied without a limit, or the other way round.
+        get an offset applied without a limit, or the other way round. Kept
+        generic in the query type so a listing that joins another table pages
+        through the same helper as one that selects a single entity.
 
         Args:
             statement: The ordered query to page over.

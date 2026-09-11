@@ -6,6 +6,8 @@ from sqlmodel import Session, col, func, select
 from app.models import (
     Account,
     Budget,
+    EmailOutbox,
+    EmailOutboxStatus,
     Household,
     HouseholdInvite,
     HouseholdInviteStatus,
@@ -262,8 +264,13 @@ class HouseholdInviteRepository(HouseholdScopedRepository[HouseholdInvite]):
         status: HouseholdInviteStatus | None = None,
         skip: int = 0,
         limit: int = 100,
-    ) -> tuple[Sequence[HouseholdInvite], int]:
-        """List the invites of a household.
+    ) -> tuple[Sequence[tuple[HouseholdInvite, EmailOutboxStatus | None]], int]:
+        """List the invites of a household, each with what became of its mail.
+
+        The outbox row is joined rather than looked up per invite, and the
+        join is outer: an invitation made with mail switched off, one that
+        predates the column, and one whose outbox row has been pruned all have
+        nothing to report and must still appear in the listing.
 
         Args:
             household_id: The ID of the household.
@@ -272,20 +279,27 @@ class HouseholdInviteRepository(HouseholdScopedRepository[HouseholdInvite]):
             limit: Maximum number of records to return.
 
         Returns:
-            Tuple of (invites, total_count), newest first.
+            Tuple of (invites, total_count), newest first, each invite paired
+            with the delivery state of its message or None where that is not
+            known.
         """
         conditions = [] if status is None else [HouseholdInvite.status == status]
 
         count = self.count_for_household(household_id, *conditions)
         statement = self._paginate(
-            select(HouseholdInvite)
+            select(HouseholdInvite, EmailOutbox.status)
+            .join(EmailOutbox, col(HouseholdInvite.email_outbox_id) == col(EmailOutbox.id), isouter=True)
             .where(self.household_column == household_id, *conditions)
             .order_by(col(HouseholdInvite.created_at).desc()),
             skip=skip,
             limit=limit,
         )
 
-        return self.session.exec(statement).all(), count
+        rows = self.session.exec(statement).all()
+
+        # The join reads the column as its stored string; the caller works in
+        # the enum.
+        return [(invite, EmailOutboxStatus(delivery) if delivery else None) for invite, delivery in rows], count
 
     def list_pending_for_email(self, email: str) -> Sequence[HouseholdInvite]:
         """List every outstanding invite sent to an address.
