@@ -1163,3 +1163,23 @@ class TestTheForecastTable:
         self.stub(mock_income_service, [make_tally(client.id, attended=1)], [client])
 
         assert self.rows(mock_income_service, household_context)[0].is_archived is True
+
+    def test_the_clients_are_fetched_by_the_tallies_that_name_them(
+        self, mock_income_service: IncomeService, household_context: MagicMock
+    ) -> None:
+        # By id rather than out of a capped page. The table is as long as the
+        # window's tallies, so a practice with a roster longer than one page
+        # would otherwise have had its newest clients dropped from the table
+        # while their figures still counted towards the totals above it.
+        first, second = make_client(), make_client()
+        self.stub(
+            mock_income_service,
+            [make_tally(first.id, attended=1), make_tally(second.id, attended=2)],
+            [first, second],
+        )
+
+        self.rows(mock_income_service, household_context)
+
+        lookup = mock_income_service.income_client_repository.list_by_ids
+        assert lookup.call_args.kwargs["client_ids"] == [first.id, second.id]  # type: ignore[attr-defined]
+        mock_income_service.income_client_repository.list_for_household.assert_not_called()  # type: ignore[attr-defined]
