@@ -8,6 +8,7 @@ import {
   formatPercent,
   formatMajorInput,
   formatSignedMoney,
+  numberDigits,
   numberGrouping,
   numberSeparators,
   toMajor,
@@ -200,6 +201,37 @@ describe('numberGrouping', () => {
   it('falls back to the runtime locale', () => {
     const runtime = new Intl.NumberFormat().resolvedOptions().locale
     expect(numberGrouping()).toEqual(numberGrouping(runtime))
+  })
+})
+
+describe('numberDigits', () => {
+  it.each([
+    // The locales whose figures the app writes in ASCII digits.
+    ['en-US', null],
+    ['de-DE', null],
+    ['en-IN', null],
+    ['fr-FR', null],
+  ])('has nothing to map for %s', (locale, digits) => {
+    expect(numberDigits(locale)).toBe(digits)
+  })
+
+  it.each([
+    ['ar-EG', '\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669'],
+    ['fa-IR', '\u06f0\u06f1\u06f2\u06f3\u06f4\u06f5\u06f6\u06f7\u06f8\u06f9'],
+  ])('reports the ten digits %s writes figures with', (locale, digits) => {
+    expect(numberDigits(locale)).toBe(digits)
+  })
+
+  it('reports the digits in the order a reader counts them', () => {
+    const digits = numberDigits('ar-EG') as string
+    for (let value = 0; value < 10; value += 1) {
+      expect(new Intl.NumberFormat('ar-EG').format(value)).toBe(digits[value])
+    }
+  })
+
+  it('falls back to the runtime locale', () => {
+    const runtime = new Intl.NumberFormat().resolvedOptions().locale
+    expect(numberDigits()).toBe(numberDigits(runtime))
   })
 })
 
