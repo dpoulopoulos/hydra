@@ -150,7 +150,11 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Self:
-        """Enforce that default secrets are not used."""
+        """Enforce that default secrets are not used.
+
+        Returns:
+            The settings, once every secret has been checked.
+        """
         # A generated key boots, but every process signs with a different one: sessions break as
         # requests land on other replicas, and every reset, verification and invite link in
         # someone's inbox stops verifying on the next restart.
