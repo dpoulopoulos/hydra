@@ -65,6 +65,13 @@ const inviteSchema = z.object({
   role: z.enum(HouseholdRole),
 })
 
+// How many outstanding invitations the card asks for. A household invites a
+// handful of people, so one page holds them all in practice; the point is that
+// a household which has invited far more does not pull every row into this
+// list. What did not fit is counted under the list rather than paged, since
+// nobody is expected to get there.
+const INVITE_PAGE_SIZE = 50
+
 // React Compiler will not memoize a component that calls React Hook Form's
 // `watch()`, and skips it whole. That skip is what this form relies on:
 // `form.reset()` empties the field map and counts on the next render calling
@@ -94,7 +101,7 @@ export function Component() {
     queryKey: ['household', 'invites'],
     queryFn: async () => {
       const { data, error } = await householdsListHouseholdInvites({
-        query: { status: HouseholdInviteStatus.PENDING },
+        query: { status: HouseholdInviteStatus.PENDING, limit: INVITE_PAGE_SIZE },
       })
       if (error) throw error
       return data
@@ -407,7 +414,7 @@ export function Component() {
               // Told "none outstanding", an owner re-invites someone and gets
               // a 409 back saying that address is already invited.
               <ErrorState error={invites.error} title="Invitations did not load" />
-            ) : invites.data.count > 0 ? (
+            ) : invites.data.data.length > 0 ? (
               <ul className="divide-y border-t">
                 {invites.data.data.map((item) => (
                   <li key={item.id} className="flex items-center justify-between gap-3 py-3">
@@ -430,6 +437,13 @@ export function Component() {
                 No invitations outstanding.
               </p>
             )}
+            {!invites.isPending &&
+            !invites.isError &&
+            invites.data.count > invites.data.data.length ? (
+              <p className="text-muted-foreground pt-3 text-sm">
+                Showing {invites.data.data.length} of {invites.data.count} outstanding invitations.
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}
