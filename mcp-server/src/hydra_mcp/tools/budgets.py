@@ -1,10 +1,19 @@
-from typing import Any
+from typing import Annotated, Any
 
 from mcp.server import MCPServer
+from pydantic import Field
 
-from ..money import money, signed_money
+from ..money import money, signed_money, to_minor
 from ..resolve import bare_name, categories_of
-from ._common import READ_ONLY, Month, current_token, hydra, this_month
+from ._common import (
+    READ_ONLY,
+    WRITES,
+    Month,
+    as_str,
+    current_token,
+    hydra,
+    this_month,
+)
 
 
 def register(mcp: MCPServer) -> None:
@@ -80,6 +89,52 @@ def register(mcp: MCPServer) -> None:
             # because there is no budget, which is worth saying rather than
             # letting it silently vanish from the comparison.
             "unbudgeted_spend": money(payload["unbudgeted_spend_minor"], currency, negative=True),
+        }
+
+    @mcp.tool(annotations=WRITES)
+    async def set_budget(
+        category: Annotated[str, Field(description="Which category to limit, by name.")],
+        limit: Annotated[str, Field(description="The monthly limit, in major units, e.g. 400.00.")],
+        month: Month = None,
+    ) -> dict[str, Any]:
+        """Set a category's spending limit for a month.
+
+        A limit on a parent category covers everything filed under it, so
+        setting one on both a parent and its child is usually a mistake.
+        Nothing rolls over: each month starts again.
+
+        Args:
+            category: Which category to limit.
+            limit: The limit, in major units.
+            month: Which month, or the current one.
+
+        Returns:
+            The limit as set.
+        """
+        token = current_token()
+        # The categories and the currency, rather than the whole household
+        # context: a budget has no account, and fetching one would page
+        # through every account the household owns for nothing.
+        categories = await categories_of(token)
+        household = await hydra().get("/households/me", token=token, subject="household")
+        currency = household["currency_code"]
+        for_month = month or this_month()
+
+        payload = await hydra().post(
+            "/budgets/",
+            token=token,
+            subject="budget",
+            json={
+                "category_id": as_str(categories.id(category)),
+                "month": for_month,
+                "limit_minor": to_minor(limit, currency),
+            },
+        )
+
+        return {
+            "category": bare_name(categories.name(payload["category_id"])),
+            "month": payload["month"],
+            "limit": money(payload["limit_minor"], currency),
         }
 
 
