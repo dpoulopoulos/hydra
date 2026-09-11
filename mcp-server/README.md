@@ -1,10 +1,15 @@
 # MCP server
 
 An [MCP](https://modelcontextprotocol.io) server that hands an AI agent a set of
-read-only tools over one hydra household: accounts and balances, transactions,
-budgets, reports, standing payments and investments. It runs beside the
-backend, speaks MCP to the agent and REST to hydra, and holds no credential of
-its own.
+tools over one hydra household: accounts and balances, transactions, budgets,
+reports, standing payments and investments. It runs beside the backend, speaks
+MCP to the agent and REST to hydra, and holds no credential of its own.
+
+Most of the tools only read, and say so through `read_only_hint`. Six of them
+write, and hydra decides whether they may: a token minted with the `read`
+scope is refused on anything that is not a `GET`, whatever this server thinks.
+That check lives in the backend rather than here, so it holds for every client
+and cannot be talked around.
 
 ## How a client authenticates
 
@@ -92,7 +97,7 @@ can act on it; `MCPError` reaches the host, and the model never sees it.
 
 | From hydra | Raised as | Why |
 |---|---|---|
-| 401, 403 | `MCPError` | No rewording of the arguments makes a revoked token work. |
+| 401, 403 | `MCPError` | No rewording of the arguments makes a revoked or read-only token write. |
 | 404, 409 | `ToolError` | hydra's own message already says what to do. |
 | 400, 422 | `ToolError` | Nearly always an argument the model can fix. |
 | unreachable | `ToolError` | Told apart from a 4xx, so the model waits rather than rewrites. |
@@ -126,7 +131,7 @@ uv run python -m hydra_mcp.server
   revokes access to an entire financial history. That is a decision for a
   person at a keyboard, not a tool call an agent can be talked into by a
   document it read. hydra refuses these to an API token anyway.
-- **Anything that writes.** Every tool here is read-only and says so, through
-  `read_only_hint`, so a client can tell its user as much. The API tokens it
-  uses are read scoped, so hydra enforces it too rather than trusting this
-  server's word for it.
+- **Creating accounts, categories or recurring rules.** Setting up the shape
+  of a household is a deliberate act, and an agent inventing a category to
+  file something under is how a chart of accounts turns into a mess. The
+  writes it does have work within what is already there.

@@ -274,14 +274,6 @@ class TestBudgetProgress:
         assert progress["unbudgeted_spend"]["display"] == "-€50.00"
 
 
-class TestEveryToolStillOnlyReads:
-    """The read-only promise covers the tools added here too."""
-
-    async def test_every_tool_says_so(self, server: Any) -> None:
-        for tool in await server(routes()).list_tools():
-            assert tool.annotations is not None, tool.name
-            assert tool.annotations.read_only_hint is True, tool.name
-
 UPCOMING = {
     "data": [
         {

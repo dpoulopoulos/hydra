@@ -4,6 +4,36 @@ from mcp.server import MCPServer
 from hydra_mcp.auth import READ_SCOPE, HydraTokenVerifier
 from hydra_mcp.server import build_server
 
+READS = {
+    "whoami",
+    "list_accounts",
+    "list_categories",
+    "search_transactions",
+    "get_transaction",
+    "list_budgets",
+    "get_budget_progress",
+    "get_month_summary",
+    "get_spending_by_category",
+    "get_spending_over_time",
+    "get_income_vs_expense",
+    "list_recurring_rules",
+    "get_upcoming_recurring",
+    "get_portfolio",
+}
+
+WRITES = {
+    "record_expense",
+    "record_income",
+    "record_transfer",
+    "update_transaction",
+    "delete_transaction",
+    "set_budget",
+}
+
+# The subset of the writes that change or remove something already recorded,
+# rather than only adding to it.
+DESTRUCTIVE = {"update_transaction", "delete_transaction"}
+
 
 @pytest.fixture(scope="module")
 def server() -> MCPServer:
@@ -17,22 +47,28 @@ class TestBuildServer:
     async def test_registers_the_tools(self, server: MCPServer) -> None:
         names = {tool.name for tool in await server.list_tools()}
 
-        assert names == {
-            "whoami",
-            "list_accounts",
-            "list_categories",
-            "search_transactions",
-            "get_transaction",
-            "list_budgets",
-            "get_budget_progress",
-            "get_month_summary",
-            "get_spending_by_category",
-            "get_spending_over_time",
-            "get_income_vs_expense",
-            "list_recurring_rules",
-            "get_upcoming_recurring",
-            "get_portfolio",
-        }
+        assert names == READS | WRITES
+
+    async def test_a_reading_tool_says_it_only_reads(self, server: MCPServer) -> None:
+        # Which is how a client tells its user that nothing will change.
+        for tool in await server.list_tools():
+            if tool.name in READS:
+                assert tool.annotations is not None, tool.name
+                assert tool.annotations.read_only_hint is True, tool.name
+
+    async def test_a_writing_tool_never_claims_otherwise(self, server: MCPServer) -> None:
+        # A write hinted as read-only is the one mislabelling that matters: a
+        # client would stop asking before running it.
+        for tool in await server.list_tools():
+            if tool.name in WRITES:
+                assert tool.annotations is not None, tool.name
+                assert tool.annotations.read_only_hint is False, tool.name
+
+    async def test_changing_or_deleting_is_marked_destructive(self, server: MCPServer) -> None:
+        for tool in await server.list_tools():
+            if tool.name in DESTRUCTIVE:
+                assert tool.annotations is not None, tool.name
+                assert tool.annotations.destructive_hint is True, tool.name
 
     def test_installs_the_hydra_token_verifier(self, server: MCPServer) -> None:
         # Without it the server would serve every caller as if authenticated.
