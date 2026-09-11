@@ -538,6 +538,12 @@ a materialization pass idempotent -- the composite foreign keys that pin a row t
 arithmetic the reports and the computed balances are built from. [tests/integration/](tests/integration/)
 covers those against a real server.
 
+It is also the only tier that can check an invariant spanning two services. A mocked session gives each service
+its own answers, so a write path and the report that reads what it wrote are never run over the same data.
+[tests/integration/test_budget_invariant.py](tests/integration/test_budget_invariant.py) does exactly that: it
+runs each budget write path and then reads the month back through the budget report, which is the shape of test
+that would have caught #10.
+
 ```bash
 # Needs a Postgres. `make dev` from the repository root is enough.
 ./scripts/test-integration.sh
