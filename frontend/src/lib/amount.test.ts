@@ -235,3 +235,17 @@ describe('previewMinor', () => {
     },
   )
 })
+
+// A preview is read with the locale the field was filled in for, not the one
+// the browser happens to be set to: a household writing "1.200" means twelve
+// hundred, whatever machine it is read on.
+describe('previewMinor in a named locale', () => {
+  it('reads an ambiguous separator the way the named locale writes it', () => {
+    expect(previewMinor('1.200', 'EUR', 'de-DE')).toBe(120000)
+    expect(previewMinor('1.200', 'EUR', 'en-US')).toBe(120)
+  })
+
+  it('falls back to the browser of whoever is reading when no locale is named', () => {
+    expect(previewMinor('1,200', 'EUR')).toBe(previewMinor('1,200', 'EUR', 'en-US'))
+  })
+})
