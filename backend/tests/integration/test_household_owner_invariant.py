@@ -36,7 +36,9 @@ from tests.integration.conftest import make_account
 
 # The seniority the successor is picked by. Written explicitly rather than left
 # to the column default, which would give every membership of a test the same
-# timestamp to the microsecond and make the ordering a coin toss.
+# timestamp to the microsecond and make the ordering a coin toss. Both are in
+# the past, so a member seeded with one is always senior to the owner the
+# household fixture makes, whose membership carries the default.
 JOINED_FIRST = datetime.datetime(2024, 1, 1, 9, 0, tzinfo=datetime.UTC)
 JOINED_SECOND = datetime.datetime(2024, 6, 1, 9, 0, tzinfo=datetime.UTC)
 
@@ -224,3 +226,79 @@ class TestDeletingTheLastMember:
 
         assert db_session.get(Household, household_b.household_id) is not None
         assert db_session.get(Account, foreign_account.id) is not None
+
+
+def strip_the_owner(session: Session, household_id: uuid.UUID) -> None:
+    """Demote every owner of a household, leaving it in the state #60 repairs.
+
+    A household cannot be put in this state through the services any more,
+    which is the point: the rows the startup repair exists for were written
+    before the promotion was.
+
+    Args:
+        session: The database session.
+        household_id: The ID of the household to strip.
+    """
+    memberships = session.exec(select(HouseholdMember).where(HouseholdMember.household_id == household_id)).all()
+
+    for membership in memberships:
+        membership.role = HouseholdRole.MEMBER
+        session.add(membership)
+
+    session.flush()
+
+
+class TestStartupRepair:
+    """The startup routine finds the ownerless households and only those."""
+
+    def test_an_ownerless_household_is_given_its_longest_standing_member(
+        self,
+        db_session: Session,
+        household_service: HouseholdService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """The member who joined first takes it over, as on the deletion path."""
+        senior, _ = add_member(db_session, household_a.household_id, "senior@example.com", JOINED_FIRST)
+        junior, _ = add_member(db_session, household_a.household_id, "junior@example.com", JOINED_SECOND)
+        strip_the_owner(db_session, household_a.household_id)
+
+        repaired = household_service.ensure_every_household_has_an_owner()
+
+        assert repaired == 1
+        assert role_of(db_session, senior.id) is HouseholdRole.OWNER
+        assert role_of(db_session, junior.id) is HouseholdRole.MEMBER
+        assert role_of(db_session, household_a.user_id) is HouseholdRole.MEMBER
+
+    def test_a_household_that_has_an_owner_is_not_touched(
+        self,
+        db_session: Session,
+        household_service: HouseholdService,
+        household_a: HouseholdContext,
+        household_b: HouseholdContext,
+    ) -> None:
+        """The `NOT IN` has to exclude a household on any one member holding OWNER.
+
+        The healthy household here has a member beside its owner, so a subquery
+        that matched on the membership rather than on the household would call
+        it ownerless and hand it to the wrong person.
+        """
+        member, _ = add_member(db_session, household_b.household_id, "member-b@example.com", JOINED_FIRST)
+        strip_the_owner(db_session, household_a.household_id)
+
+        repaired = household_service.ensure_every_household_has_an_owner()
+
+        assert repaired == 1
+        assert role_of(db_session, household_b.user_id) is HouseholdRole.OWNER
+        assert role_of(db_session, member.id) is HouseholdRole.MEMBER
+
+    def test_a_healthy_database_is_left_alone(
+        self,
+        db_session: Session,
+        household_service: HouseholdService,
+        household_a: HouseholdContext,
+        household_b: HouseholdContext,
+    ) -> None:
+        """With nothing to repair the routine writes nothing and reports nothing."""
+        assert household_service.ensure_every_household_has_an_owner() == 0
+        assert role_of(db_session, household_a.user_id) is HouseholdRole.OWNER
+        assert role_of(db_session, household_b.user_id) is HouseholdRole.OWNER
