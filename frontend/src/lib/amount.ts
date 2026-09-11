@@ -189,8 +189,16 @@ export function amountSchema(currency: string, options?: { allowZero?: boolean; 
  *
  * Zero is a value, not a blank: a caller that has nothing to say about zero
  * decides that for itself.
+ *
+ * The locale is the one the field was filled in for, so the preview reads
+ * "1.200" the way the household writes it rather than the way the browser
+ * happens to.
  */
-export function previewMinor(value: string | undefined, currency: string): number | null {
-  const parsed = amountSchema(currency, { allowZero: true }).safeParse(value ?? '')
+export function previewMinor(
+  value: string | undefined,
+  currency: string,
+  locale?: string,
+): number | null {
+  const parsed = amountSchema(currency, { allowZero: true, locale }).safeParse(value ?? '')
   return parsed.success ? parsed.data : null
 }

@@ -238,3 +238,43 @@ describe('formatMajorInput', () => {
     expect(toMinor(parseMajor(text, locale) as number, currency)).toBe(minor)
   })
 })
+
+// The locale is the household's when it has named one, and the reader's
+// browser when it has not. Every figure on a screen has to agree about which,
+// or a household shown "1.200,50" is asked to read "1,200.50" back.
+describe('the locale parameter', () => {
+  it('formats money the way the named locale writes it', () => {
+    expect(formatMoney(120050, 'EUR', 'de-DE')).toContain('1.200,50')
+    expect(formatMoney(120050, 'EUR', 'en-US')).toContain('1,200.50')
+  })
+
+  it('formats a signed figure the way the named locale writes it', () => {
+    expect(formatSignedMoney(120050, 'EUR', 'de-DE')).toContain('+1.200,50')
+  })
+
+  it('formats a bare amount the way the named locale writes it', () => {
+    expect(formatAmount(120050, 'EUR', 'de-DE')).toBe('1.200,50')
+    expect(formatAmount(123456750, 'EUR', 'en-IN')).toBe('12,34,567.50')
+  })
+
+  // German writes no compact suffix at this magnitude, so the whole figure is
+  // grouped the German way rather than shortened the English one.
+  it('shortens an axis tick the way the named locale writes it', () => {
+    expect(formatCompactAmount(1_234_500, 'EUR', 'de-DE')).toBe('12.345')
+    expect(formatCompactAmount(1_234_500, 'EUR', 'en-US')).toBe('12K')
+  })
+
+  it('writes a percentage the way the named locale does', () => {
+    expect(formatPercent(0.8, 'de-DE')).toBe('80 %')
+    expect(formatPercent(0.8, 'en-US')).toBe('80%')
+  })
+
+  it('falls back to the runtime locale when none is named', () => {
+    const runtime = new Intl.NumberFormat().resolvedOptions().locale
+    expect(formatMoney(120050, 'EUR')).toBe(formatMoney(120050, 'EUR', runtime))
+    expect(formatSignedMoney(120050, 'EUR')).toBe(formatSignedMoney(120050, 'EUR', runtime))
+    expect(formatAmount(120050, 'EUR')).toBe(formatAmount(120050, 'EUR', runtime))
+    expect(formatCompactAmount(120050, 'EUR')).toBe(formatCompactAmount(120050, 'EUR', runtime))
+    expect(formatPercent(0.8)).toBe(formatPercent(0.8, runtime))
+  })
+})

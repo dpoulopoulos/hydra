@@ -10,6 +10,12 @@
  * option with a default: a surface that does not say which currency it renders
  * is a type error rather than a figure that is right only while every
  * household is EUR.
+ *
+ * The locale, by contrast, is optional everywhere, and leaving it out is a
+ * decision rather than an oversight: it means "whatever this reader's browser
+ * writes numbers with", which is the answer for a household that has not named
+ * one of its own. A screen passes the household's locale so that everyone in
+ * it reads and types the same amount the same way.
  */
 
 const fractionDigitsCache = new Map<string, number>()
@@ -98,9 +104,16 @@ export function toMinor(major: number, currency: string): number {
   return Math.round(major * 10 ** fractionDigits(currency))
 }
 
-/** Format minor units as currency, e.g. 4250 -> "€42.50". */
-export function formatMoney(minor: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(
+/**
+ * Format minor units as currency, e.g. 4250 -> "€42.50".
+ *
+ * The locale is the household's when it has named one, and the reader's own
+ * when it has not, which is what leaving it out means. Every figure on a
+ * screen has to be given the same one: a household shown "€1.200,50" types
+ * that back, and a field reading it as en-US makes it one and a fifth.
+ */
+export function formatMoney(minor: number, currency: string, locale?: string): string {
+  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(
     toMajor(minor, currency),
   )
 }
@@ -109,8 +122,8 @@ export function formatMoney(minor: number, currency: string): string {
  * Format minor units with an explicit sign, for figures where the direction
  * matters more than the value, such as a month's net.
  */
-export function formatSignedMoney(minor: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, {
+export function formatSignedMoney(minor: number, currency: string, locale?: string): string {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     signDisplay: 'exceptZero',
@@ -118,9 +131,9 @@ export function formatSignedMoney(minor: number, currency: string): string {
 }
 
 /** Format minor units without the currency symbol, for dense tables. */
-export function formatAmount(minor: number, currency: string): string {
+export function formatAmount(minor: number, currency: string, locale?: string): string {
   const digits = fractionDigits(currency)
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(locale, {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(toMajor(minor, currency))
@@ -132,13 +145,13 @@ export function formatAmount(minor: number, currency: string): string {
  * No currency symbol: an axis repeats its label on every tick, so the symbol
  * belongs to the chart's title, and the ticks only have to stay readable.
  */
-export function formatCompactAmount(minor: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, { notation: 'compact' }).format(toMajor(minor, currency))
+export function formatCompactAmount(minor: number, currency: string, locale?: string): string {
+  return new Intl.NumberFormat(locale, { notation: 'compact' }).format(toMajor(minor, currency))
 }
 
 /** Format a 0-1 ratio as a whole percentage, e.g. 0.8 -> "80%". */
-export function formatPercent(ratio: number): string {
-  return new Intl.NumberFormat(undefined, {
+export function formatPercent(ratio: number, locale?: string): string {
+  return new Intl.NumberFormat(locale, {
     style: 'percent',
     maximumFractionDigits: 0,
   }).format(ratio)
