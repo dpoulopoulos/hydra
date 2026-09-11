@@ -100,6 +100,10 @@ class HouseholdMemberPublic(HouseholdMemberBase):
     email: EmailStr
     full_name: str | None = None
     created_at: datetime.datetime
+    # When the household was handed to this member because it had none left.
+    # Null for everybody else, including an owner another owner chose, so the
+    # members page can say ownership changed by itself and when.
+    promoted_to_owner_at: datetime.datetime | None = None
 
 
 class HouseholdMembersPublic(SQLModel):
@@ -114,6 +118,12 @@ class HouseholdMember(HouseholdMemberBase, PrimaryKeyMixin, CreatedAtMixin, Upda
     # alone, with no household selector. Dropping this constraint is the
     # migration that would allow a user to join several households.
     user_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE", unique=True, index=True)
+    # Stamped when the household was handed to this member for want of an
+    # owner, and cleared as soon as an owner sets their role by hand. It is
+    # the difference between a household somebody chose to run and one that
+    # fell to whoever had been in it longest, which is what the members page
+    # has to be able to tell.
+    promoted_to_owner_at: datetime.datetime | None = Field(default=None, sa_type=UtcDateTime)
 
 
 class HouseholdInviteBase(SQLModel):

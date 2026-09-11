@@ -276,6 +276,9 @@ class HouseholdService:
             self._require_another_owner(household=household)
 
         membership.role = member_update.role
+        # Somebody chose this role for them, so the household is no longer
+        # running on the member it fell to, whichever way the role went.
+        membership.promoted_to_owner_at = None
         self.household_member_repository.save(membership)
         self.session.commit()
 
@@ -520,6 +523,7 @@ class HouseholdService:
             return
 
         successor.role = HouseholdRole.OWNER
+        successor.promoted_to_owner_at = datetime.now(UTC)
         self.household_member_repository.save(successor)
         self._record_promotion(household_id=household_id, successor=successor, departing=departing)
 

@@ -264,6 +264,22 @@ class TestListMembers:
         assert result.data[0].full_name == test_user.full_name
         assert result.data[0].role is HouseholdRole.OWNER
 
+    def test_reports_the_ownership_a_member_inherited(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        membership: HouseholdMember,
+        test_user: User,
+    ) -> None:
+        """The listing is where the household learns that its owner never asked to be one."""
+        membership.promoted_to_owner_at = datetime(2026, 3, 1, tzinfo=UTC)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.all.return_value = [(membership, test_user)]
+
+        result = mock_household_service.list_members(household=context)
+
+        assert result.data[0].promoted_to_owner_at == datetime(2026, 3, 1, tzinfo=UTC)
+
 
 class TestUpdateMember:
     """Tests for update_member."""
@@ -288,6 +304,29 @@ class TestUpdateMember:
 
         assert result.role is HouseholdRole.OWNER
         mock_household_service.session.commit.assert_called_once()
+
+    def test_clears_the_mark_left_by_an_automatic_promotion(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        another_test_user: User,
+    ) -> None:
+        """An owner chose this role for them, so the household is no longer running on a stand-in."""
+        target = HouseholdMember(
+            household_id=context.household_id, user_id=another_test_user.id, role=HouseholdRole.OWNER
+        )
+        target.promoted_to_owner_at = datetime(2026, 3, 1, tzinfo=UTC)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [(target, another_test_user)]
+        mock_household_service.session.exec.return_value.one.return_value = 2
+
+        result = mock_household_service.update_member(
+            household=context,
+            user_id=another_test_user.id,
+            member_update=HouseholdMemberUpdate(role=HouseholdRole.MEMBER),
+        )
+
+        assert result.promoted_to_owner_at is None
 
     def test_raises_when_the_member_is_not_in_the_household(
         self, mock_household_service: HouseholdService, context: HouseholdContext
@@ -514,6 +553,27 @@ class TestReleaseForUser:
 
         assert successor.role is HouseholdRole.OWNER
         assert household not in [call.args[0] for call in mock_household_service.session.delete.call_args_list]
+
+    def test_records_when_the_promotion_happened(
+        self,
+        mock_household_service: HouseholdService,
+        test_user: User,
+        another_test_user: User,
+        household: Household,
+        membership: HouseholdMember,
+    ) -> None:
+        """The members page says ownership changed, and when, rather than only who holds it."""
+        successor = HouseholdMember(household_id=household.id, user_id=another_test_user.id, role=HouseholdRole.MEMBER)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.first.side_effect = [membership, successor]
+        mock_household_service.session.exec.return_value.one.side_effect = [1, 0]
+        mock_household_service.session.get = MagicMock(
+            side_effect=lambda model, *args, **kwargs: household if model is Household else another_test_user
+        )
+
+        mock_household_service.release_for_user(user=test_user)
+
+        assert successor.promoted_to_owner_at is not None
 
     def test_leaves_the_roles_alone_when_an_owner_remains(
         self,
