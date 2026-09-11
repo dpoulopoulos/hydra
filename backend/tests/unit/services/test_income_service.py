@@ -1077,6 +1077,26 @@ class TestTheTrialRoster:
 
         assert by_ids.call_args.kwargs["client_ids"] == [booked.client_id]
 
+    def test_the_trials_report_how_much_of_the_roster_they_walked(
+        self, mock_income_service: IncomeService, household_context: MagicMock
+    ) -> None:
+        # The cap is why this is worth reporting. A practice with more active
+        # clients than one page holds is estimated from the ones that fit, and
+        # nothing in the figure itself says so, so the count comes back with it.
+        listed, _ = self.stub(mock_income_service, [])
+        listed.return_value = ([make_client(), make_client()], 2)
+
+        _, priced = mock_income_service._trials(
+            household=household_context,
+            target_month="2026-09",
+            house=Fraction(1),
+            churn=Fraction(0),
+            date_from=date(2026, 3, 1),
+            date_to=date(2026, 9, 1),
+        )
+
+        assert priced == 2
+
 
 def make_tally(
     client_id: uuid.UUID,

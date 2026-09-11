@@ -710,7 +710,7 @@ class IncomeService:
         # every future appointment with them.
         churn = self._churn(household=household, date_from=history_start, date_to=history_end, history=history)
 
-        trials = self._trials(
+        trials, priced_clients = self._trials(
             household=household,
             target_month=target,
             house=house,
@@ -757,6 +757,14 @@ class IncomeService:
             expected_client_months=expected_lifetime_months(churn),
             client_lifetime_value_minor=self._lifetime_value(churn=churn, history=history),
             average_sessions_per_month=self._average_sessions(history),
+            # How much of the practice the estimate actually walked. The roster
+            # read is capped, so a practice with more active clients than the
+            # cap has the ones past it projecting nothing — while the booked
+            # total, one aggregate over the whole month, counts them regardless.
+            # Reporting both figures is what lets the page say so, instead of
+            # leaving a number that simply reads low.
+            active_client_count=self.income_client_repository.count_active_for_household(household.household_id),
+            priced_client_count=priced_clients,
             clients=self._client_rows(
                 household=household,
                 date_from=history_start,
@@ -1015,7 +1023,7 @@ class IncomeService:
         churn: Fraction,
         date_from: datetime.date,
         date_to: datetime.date,
-    ) -> list[Trial]:
+    ) -> tuple[list[Trial], int]:
         """List every appointment the target month could hold, and price each one.
 
         Two sources, and the order between them matters. The diary comes first
@@ -1045,7 +1053,11 @@ class IncomeService:
             date_to: First day after that window.
 
         Returns:
-            One trial per appointment, unordered.
+            Tuple of (one trial per appointment, unordered; how many active
+            clients the roster read returned). The second figure is what the
+            page needs to say the estimate covers part of a practice: the read
+            is capped, and a roster longer than the cap projects nothing for
+            the clients past it.
         """
         # Two lookups, because the two groups are needed for different things
         # and must not compete for the same budget.
@@ -1152,7 +1164,7 @@ class IncomeService:
                 if day not in occupied and trial is not None:
                     trials.append(trial)
 
-        return trials
+        return trials, len(active)
 
     def _new_client_rate(
         self,
