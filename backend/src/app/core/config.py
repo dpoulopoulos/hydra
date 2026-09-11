@@ -262,6 +262,16 @@ class Settings(BaseSettings):
     # How often the background dispatcher looks for messages that came due.
     EMAIL_OUTBOX_POLL_SECONDS: int = Field(default=60, ge=1)
 
+    # A row holds the whole rendered body of its message - the welcome mail is
+    # about 11 KB - so a table that keeps every send forever grows with every
+    # registration, invite and reset. Settled rows are dropped once they are
+    # this old. A message that gave up is kept far longer than a delivered
+    # one: it is the row somebody still has to act on.
+    EMAIL_OUTBOX_SENT_RETENTION_DAYS: int = Field(default=7, ge=1)
+    EMAIL_OUTBOX_FAILED_RETENTION_DAYS: int = Field(default=90, ge=1)
+    # How often the background pruner applies those windows.
+    EMAIL_OUTBOX_PRUNE_INTERVAL_SECONDS: int = Field(default=3600, ge=1)  # 1 hour
+
     EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 24  # 1 day
     EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 48  # 2 days
     HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS: int = 168  # 7 days
