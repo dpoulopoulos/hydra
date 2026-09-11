@@ -125,6 +125,14 @@ the 25th the estimate is mostly fact and the band has quietly closed around the
 truth. The page says underneath how many appointments the figure counted and how
 many it expects to happen, so it can always be checked against a diary.
 
+Counting appointments means reading the roster, and that read is capped at 200
+active clients so the page can never turn into an unbounded query. A practice
+larger than that is estimated from the clients that fit: the standing
+appointments of the rest are not projected, while everything already booked
+still counts in full, which leaves the figure low. So the page says how many
+clients the estimate covers, of how many, rather than showing a number that
+reads low with nothing to explain it.
+
 Client names are the one piece of data here the server cannot read. They are
 encrypted in the browser under a key wrapped by a PIN that never leaves the
 device, so a copy of the database is a list of fees and dates with nobody
