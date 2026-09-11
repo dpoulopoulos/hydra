@@ -1,6 +1,6 @@
 from mcp.server import MCPServer
 
-from . import accounts, reports
+from . import accounts, budgets, categories, investments, recurring, reports, transactions
 
 
 def register_all(mcp: MCPServer) -> None:
@@ -10,4 +10,9 @@ def register_all(mcp: MCPServer) -> None:
         mcp: The server to register them on.
     """
     accounts.register(mcp)
+    categories.register(mcp)
+    transactions.register(mcp)
+    budgets.register(mcp)
     reports.register(mcp)
+    recurring.register(mcp)
+    investments.register(mcp)
