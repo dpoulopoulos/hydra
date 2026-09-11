@@ -101,6 +101,34 @@ services:
         - action: rebuild
           path: ./frontend/pnpm-lock.yaml
 
+  mcp:
+    image: hydra-mcp:latest
+    build:
+      context: ./mcp-server
+    depends_on:
+      - backend
+    env_file:
+      - ./.env
+    environment:
+      # Reach the API over the compose network, overriding the localhost value
+      # used when running outside containers.
+      HYDRA_API_BASE_URL: http://backend:8000
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "8002:8002"
+    develop:
+      watch:
+        # Source is synced into the running container. There is no reloader
+        # here, so the container is restarted rather than hot swapped.
+        - action: sync+restart
+          path: ./mcp-server/src/hydra_mcp
+          target: /app/src/hydra_mcp
+        # Dependency changes cannot be synced into an existing environment.
+        - action: rebuild
+          path: ./mcp-server/pyproject.toml
+        - action: rebuild
+          path: ./mcp-server/uv.lock
+
   mailcatcher:
     image: schickling/mailcatcher
     restart: unless-stopped

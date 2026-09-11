@@ -21,6 +21,11 @@ help:
 	@echo "  make web-test-unit - Run the frontend unit tests"
 	@echo "  make web-api       - Regenerate the API client from the backend schema"
 	@echo "  make web-api-check - Check the committed API client is up to date"
+	@echo ""
+	@echo "  make mcp-format    - Format the MCP server"
+	@echo "  make mcp-lint      - Scan the MCP server for linting errors"
+	@echo "  make mcp-test-unit - Run the MCP server unit tests"
+	@echo "  make logs-mcp      - Follow the MCP server logs"
 
 # The compose stack reads its configuration from .env, which is not committed.
 # Fail with an actionable message rather than a variable error.
@@ -131,3 +136,23 @@ web-api:
 .PHONY: web-api-check
 web-api-check:
 	bash ./.github/scripts/check_api_client_synced.sh
+
+# --- MCP server -------------------------------------------------------------
+# The MCP server runs as its own container in `make dev`. These mirror the
+# backend's targets for working on it.
+
+.PHONY: mcp-format
+mcp-format:
+	bash ./mcp-server/scripts/format.sh
+
+.PHONY: mcp-lint
+mcp-lint:
+	bash ./mcp-server/scripts/lint.sh
+
+.PHONY: mcp-test-unit
+mcp-test-unit:
+	bash ./mcp-server/scripts/test.sh
+
+.PHONY: logs-mcp
+logs-mcp:
+	docker compose logs -f mcp
