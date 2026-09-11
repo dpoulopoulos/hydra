@@ -204,7 +204,10 @@ needs to write a path it does not own, give that path to `node` in the
 `Dockerfile` rather than taking the `USER` line out.
 
 `make web-test-dev` from the repository root builds the dev image and checks
-that it runs unprivileged and still serves a synced file. It needs Docker.
+that it runs unprivileged and still serves a synced file. It needs Docker. CI
+runs the same script on a pull request that touches the `Dockerfile`, what it
+copies in, or the Vite config the dev server reads; an ordinary change to a
+page does not pay for the build.
 
 ## Security headers in production
 
@@ -246,6 +249,8 @@ happens, rather than by reflex.
 
 `make web-test` from the repository root runs the `Caddyfile` in a container and
 checks the headers and the routing. It needs Docker, but not a build of the app.
+CI runs it too, on a pull request that touches the `Caddyfile` or the script
+itself, so a dropped header cannot reach a deploy unnoticed.
 
 ## Notes on the vendored parts
 
