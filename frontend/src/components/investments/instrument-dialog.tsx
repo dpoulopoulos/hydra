@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -66,14 +66,6 @@ const EMPTY: Values = {
   currency_code: '',
 }
 
-// React Compiler will not memoize a component that calls React Hook Form's
-// `watch()`, and skips it whole. That skip is what this form relies on:
-// `form.reset()` empties the field map and counts on the next render calling
-// `register()` again, which a memoized render never repeats, leaving every
-// field unregistered and the form with nothing to save. Nothing goes stale in
-// return, since `watch()` re-renders this component and the controls under it
-// are handed the value from that render.
-/* eslint-disable react-hooks/incompatible-library -- skipping this one is the point; see above */
 export function InstrumentDialog({
   open,
   instrument,
@@ -110,6 +102,11 @@ export function InstrumentDialog({
     resolver: zodResolver(schema),
     defaultValues: EMPTY,
   })
+
+  // Watched through `useWatch()` rather than the form's own `watch()`, which
+  // hands back a function React Compiler will not memoize and skips the whole
+  // component over.
+  const kind = useWatch({ control: form.control, name: 'kind' })
 
   useEffect(() => {
     if (!open) return
@@ -269,7 +266,7 @@ export function InstrumentDialog({
             <Field id="kind" label="Type" error={form.formState.errors.kind?.message}>
               {(props) => (
                 <Select
-                  value={form.watch('kind')}
+                  value={kind}
                   onValueChange={(value) => form.setValue('kind', value as InstrumentKind)}
                 >
                   <SelectTrigger id={props.id} className="w-full">
