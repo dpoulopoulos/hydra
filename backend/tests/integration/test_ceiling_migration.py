@@ -21,12 +21,14 @@ import uuid
 from collections.abc import Generator
 
 import pytest
+from alembic import command
 from sqlalchemy import Engine, text
+from sqlalchemy.exc import IntegrityError
 
 from app.models.category import MAX_SORT_ORDER
 from app.models.fields import MAX_FX_RATE_MICRO, MAX_PRICE_MICRO
 from app.models.recurring_rule import MAX_RECURRENCE_INTERVAL
-from tests.integration.migrations import migrated_database
+from tests.integration.migrations import alembic_config, migrated_database, settings_pointed_at
 
 # The revision under test and the one it follows, which is where the seeded
 # rows are written: at that point none of the ceilings exists yet, so a row
@@ -256,6 +258,40 @@ def _price_columns(engine: Engine, instrument_id: uuid.UUID) -> CachedQuote:
     return row.last_price_micro, row.last_price_at, row.last_priced_at
 
 
+def _unvalidated_checks(engine: Engine) -> list[str]:
+    """List the check constraints Postgres has not yet checked the stored rows against.
+
+    Args:
+        engine: The engine bound to the migrated database.
+
+    Returns:
+        The names of the constraints still marked NOT VALID.
+    """
+    with engine.connect() as connection:
+        rows = connection.execute(
+            text("SELECT conname FROM pg_constraint WHERE contype = 'c' AND NOT convalidated ORDER BY conname")
+        ).all()
+    return [row.conname for row in rows]
+
+
+def _rerun_the_revision(engine: Engine) -> None:
+    """Put the database back at the previous revision and migrate across again.
+
+    What a run that stopped in a validation leaves behind is a database at the
+    previous revision with some of the constraints already on it, which is what
+    stamping back reproduces.
+
+    Args:
+        engine: The engine bound to the migrated database.
+    """
+    database = engine.url.database
+    assert database is not None
+    config = alembic_config()
+    with settings_pointed_at(database):
+        command.stamp(config, PREVIOUS)
+        command.upgrade(config, REVISION)
+
+
 class TestTheCeilingRevision:
     """It repairs the rows that would otherwise stop it, and applies."""
 
@@ -307,3 +343,30 @@ class TestTheCeilingRevision:
     def test_a_quote_already_in_range_is_left_alone(self, migrated_engine: Engine) -> None:
         """The reset touches the instruments priced outside the cap and no others."""
         assert _price_columns(migrated_engine, IN_RANGE_PRICE_INSTRUMENT_ID) == (IN_RANGE_PRICE, PRICED_AT, PRICED_AT)
+
+
+class TestTheCeilingsItApplies:
+    """They are checked against the rows that were already stored, not only against new ones."""
+
+    def test_every_constraint_is_validated(self, migrated_engine: Engine) -> None:
+        """Applying as NOT VALID and stopping there would leave a stored row outside its cap unnoticed."""
+        assert _unvalidated_checks(migrated_engine) == []
+
+    def test_a_row_outside_a_cap_is_refused_afterwards(self, migrated_engine: Engine) -> None:
+        """The ledger is the table the two-step form is really for, so it is the one asserted on."""
+        with pytest.raises(IntegrityError):
+            with migrated_engine.begin() as connection:
+                connection.execute(
+                    text(
+                        "INSERT INTO transaction (id, household_id, account_id, kind, amount_minor, occurred_on)"
+                        " VALUES (gen_random_uuid(), :household_id, :account_id, 'EXPENSE',"
+                        " 4611686018427387905, :march)"
+                    ),
+                    {"household_id": HOUSEHOLD_ID, "account_id": ACCOUNT_ID, "march": MARCH},
+                )
+
+    def test_it_can_be_run_again_over_the_constraints_it_already_applied(self, migrated_engine: Engine) -> None:
+        """A revision that stops in a validation writes no version row, so alembic runs it from the top."""
+        _rerun_the_revision(migrated_engine)
+
+        assert _unvalidated_checks(migrated_engine) == []
