@@ -27,6 +27,7 @@ backend/
 │   ├── core/                       # Core infrastructure
 │   │   ├── config.py               # Settings and configuration
 │   │   ├── db.py                   # Database setup
+│   │   ├── migrations.py           # Helpers the revisions apply constraints through
 │   │   └── security.py             # Authentication utilities
 │   ├── data/                       # Static seed data (default categories)
 │   ├── models/                     # Data models
@@ -94,6 +95,7 @@ The application follows a clean, layered architecture:
 5. **Core Layer** ([src/app/core/](src/app/core/))
    - Application configuration ([config.py](src/app/core/config.py))
    - Database engine and session management ([db.py](src/app/core/db.py))
+   - Schema changes a live database can take ([migrations.py](src/app/core/migrations.py))
    - Security utilities ([security.py](src/app/core/security.py))
 
 Dependencies point inwards. Services are typed against other services and
@@ -367,6 +369,58 @@ uv run alembic downgrade -1 # Rollback one version
 - Drop enum types explicitly in `downgrade()`. Alembic drops the table but leaves the Postgres enum behind, so
   without this a downgrade followed by an upgrade fails with `DuplicateObject`
 - Never edit applied migrations
+
+### Check Constraints
+
+A `CHECK` added to a table that already exists goes on through
+[`app.core.migrations.add_check_constraint`](src/app/core/migrations.py), never through
+`op.create_check_constraint`:
+
+```python
+from app.core.migrations import add_check_constraint, drop_check_constraint
+
+
+def upgrade() -> None:
+    add_check_constraint("ck_transaction_amount_within_cap", "transaction", "amount_minor <= 4611686018427387904")
+
+
+def downgrade() -> None:
+    drop_check_constraint("ck_transaction_amount_within_cap", "transaction")
+```
+
+`op.create_check_constraint` renders a plain `ALTER TABLE ... ADD CONSTRAINT`, which takes an
+`ACCESS EXCLUSIVE` lock on the table and holds it for a sequential scan of every row. On a household
+that started last month that is milliseconds; on a `transaction` table with years of ledger in it, it
+is a window in which nothing can read or write the largest table in the schema. The helper adds the
+constraint as `NOT VALID`, which is quick and already enforces the condition on every insert and
+update, and validates the stored rows in a second statement, which readers and writers do not wait on.
+
+A constraint written into a `create_table()` is a different matter and needs none of this: the table
+is new, so there is nothing to scan and nobody to lock out.
+
+The two statements only help if they commit separately, so the helper runs them in
+`op.get_context().autocommit_block()`, outside the revision's transaction. That block commits whatever
+transaction it finds, which is why `env.py` configures `transaction_per_migration`: the boundary is the
+revision rather than the whole run, so an upgrade that stops leaves every revision before the failing
+one applied and recorded. Two consequences follow, and they are the convention as much as the helper is:
+
+- **A revision that applies a check is not atomic.** If a validation stops on a row outside its bounds,
+  the constraints applied before it stay applied and no version row is written.
+- **Recovering from that means repairing the rows and running the upgrade again**, not undoing anything
+  by hand. Postgres has no `ADD CONSTRAINT IF NOT EXISTS`, so the helper reads `pg_constraint` first and
+  picks up where the previous run stopped: a missing constraint is added and validated, one that is
+  there but unvalidated is only validated, and one that is already validated is left alone.
+  `alembic upgrade head` is therefore safe to re-run, and the error names the constraint whose scan
+  failed, which names the rows to look at.
+
+Stopping is the intended behaviour for a bound on money: a ledger row outside its cap is a record of
+something that happened and is for a person to look at, not for a migration to quietly clamp. Where a
+value is a display hint or a cache of somebody else's number, repair it in the same revision before the
+constraint goes on — `2cd2b8081af4_mirror_the_numeric_ceilings_in_check_.py` is the worked example, and
+does both.
+
+Because the revisions call it, the helper's behaviour has to stay what the revisions that already use it
+were written against. Changing what it emits changes what a fresh database gets from every past revision.
 
 ### Data Migrations
 
@@ -667,6 +721,11 @@ revision does to the rows it finds rather than about the schema it leaves behind
 — `POSTGRES_DB` with `_migration` appended — by walking the revisions, seeds it with rows outside the bounds the
 next revision adds, and migrates across, so the repair that clamps them back into range is exercised rather than
 only read. It drops that database afterwards.
+
+[tests/integration/test_check_constraint_helper.py](tests/integration/test_check_constraint_helper.py) is the
+other test that needs more than a session: it installs alembic's operations proxy over a real connection and
+runs the `CHECK` helper described under [Check Constraints](#check-constraints) against a scratch table, which
+is the only way to see what a validation that stops leaves behind for the next run.
 
 Use the fixtures in [tests/integration/conftest.py](tests/integration/conftest.py), which give you a session, two
 seeded households and every service wired to the real session:
