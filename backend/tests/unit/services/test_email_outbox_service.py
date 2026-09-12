@@ -1,4 +1,5 @@
 import logging
+import smtplib
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -48,6 +49,15 @@ def rate_limited() -> httpx.HTTPStatusError:
     """
     request = httpx.Request("POST", "https://api.resend.com/emails")
     return httpx.HTTPStatusError("429", request=request, response=httpx.Response(429))
+
+
+def rejected() -> smtplib.SMTPResponseException:
+    """Build the error a server raises when it will never take the message.
+
+    Returns:
+        A permanent SMTP refusal of the recipient.
+    """
+    return smtplib.SMTPResponseException(550, "No such user here")
 
 
 class TestDeliverOrQueue:
@@ -635,3 +645,92 @@ class TestStats:
 
         # Assert: Verify the second query was never made
         mock_oldest.assert_not_called()
+
+
+class TestPermanentRejections:
+    """Test what the outbox does with a refusal that will not change."""
+
+    def test_a_permanently_rejected_message_is_not_retried(
+        self,
+        mock_email_outbox_service: EmailOutboxService,
+        mock_db_session: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """An address the server refuses outright is refused just as fast later."""
+        # Arrange: A message with plenty of attempts left is rejected for good
+        entry = EmailOutbox(
+            email_to="recipient@example.com",
+            subject="Test Subject",
+            html_content="<p>Test content</p>",
+        )
+        mock_db_session.exec.return_value.all.side_effect = [[entry], []]
+
+        # Act: Drain the outbox
+        with patch("app.services.email_outbox.send_email", side_effect=rejected()):
+            with caplog.at_level(logging.ERROR, logger="app.services.email_outbox"):
+                delivered = mock_email_outbox_service.dispatch_due()
+
+        # Assert: Verify the row is closed on the first attempt, and says why
+        assert delivered == 0
+        assert entry.status == EmailOutboxStatus.FAILED
+        assert entry.attempts == 1
+        assert "recipient@example.com" in caplog.text
+        assert "rejected outright" in caplog.text
+        assert "No such user here" in (entry.last_error or "")
+
+    def test_a_permanently_rejected_message_keeps_no_body(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """A message nobody will send again has no use for the link it carried."""
+        # Act: Send a message to an address the provider rejects outright
+        with patch("app.services.email_outbox.send_email", side_effect=rejected()):
+            delivered = mock_email_outbox_service.deliver_or_queue(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>https://example.com/reset-password?token=secret</p>",
+            )
+
+        # Assert: Verify the closed row holds nothing anyone could redeem
+        assert delivered is False
+        entry = mock_db_session.add.call_args.args[0]
+        assert entry.status == EmailOutboxStatus.FAILED
+        assert entry.html_content == ""
+
+    def test_a_temporary_refusal_is_still_retried(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """A provider having a bad minute still owes the message an attempt."""
+        # Arrange: The server refused the message for now, not for good
+        entry = EmailOutbox(
+            email_to="recipient@example.com",
+            subject="Test Subject",
+            html_content="<p>Test content</p>",
+        )
+        mock_db_session.exec.return_value.all.side_effect = [[entry], []]
+
+        # Act: Drain the outbox
+        with patch(
+            "app.services.email_outbox.send_email",
+            side_effect=smtplib.SMTPResponseException(451, "Try again later"),
+        ):
+            mock_email_outbox_service.dispatch_due()
+
+        # Assert: Verify the message is still waiting its turn, body and all
+        assert entry.status == EmailOutboxStatus.PENDING
+        assert entry.html_content == "<p>Test content</p>"
+
+    def test_a_bug_of_our_own_is_not_a_rejection(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """Nothing was said about the message, so nothing is settled about it."""
+        # Act: Send a message while our own code is broken
+        with patch("app.services.email_outbox.send_email", side_effect=RuntimeError("boom")):
+            mock_email_outbox_service.deliver_or_queue(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>Test content</p>",
+            )
+
+        # Assert: Verify the message is still owed to its recipient
+        entry = mock_db_session.add.call_args.args[0]
+        assert entry.status == EmailOutboxStatus.PENDING

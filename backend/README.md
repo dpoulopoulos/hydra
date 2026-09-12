@@ -609,6 +609,26 @@ Retention removes that record later, on the `EMAIL_OUTBOX_*_RETENTION_DAYS` wind
 before then, and well inside the lifetime of the token itself. A row that is still `pending` keeps its body, because
 that is what the next attempt sends.
 
+### Which Failures Are Retried
+
+A message that did not go out is attempted again, with the wait doubling each time up to
+`EMAIL_OUTBOX_RETRY_MAX_SECONDS`, until `EMAIL_OUTBOX_MAX_ATTEMPTS` are gone — unless the provider refused the message
+itself. A 5xx SMTP reply, every recipient refused with one, or a 4xx from the mail API means the same send would be
+refused in the same words an hour from now, so the row is marked `failed` immediately and emptied of its body rather
+than kept alive to ask again.
+
+The exceptions are the refusals that are not about the message. Two say "not now" rather than "not ever": `429`, the
+rate limit, and `408`, a request the provider timed out on. The rest are about our own settings — `401` and `403`
+from the mail API, the SMTP replies `530`, `534`, `535` and `538`, and a refusal of the sender address itself, where
+the server turns down `MAIL FROM` before the message is ever offered. One expired key, or one `EMAILS_FROM_EMAIL` on a
+domain nobody has verified, would otherwise fail every queued message on its first attempt and empty all of their
+bodies. Those stay pending instead, so fixing the setting sends the backlog. So do the refusals that arrive before the
+message does: a 5xx on the connection itself, or on the `HELO` greeting, is a server turning down *us* — a blocked
+address, a host it does not recognise — and it will carry the same mail once the block is lifted. Those, an outage, a
+socket that never connected, and any failure the classification does not
+recognise all count as temporary. That default is deliberate: retrying a message that was never going to
+leave costs an hour of one queue row, while giving up on one that would have left costs somebody their mail.
+
 ### API Tokens
 
 A session token is minted for a browser: it expires in eight days and cannot be withdrawn from one client without

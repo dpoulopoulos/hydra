@@ -18,6 +18,84 @@ logger = get_logger(__name__)
 # delivery problem.
 DELIVERY_ERRORS = (httpx.HTTPError, smtplib.SMTPException, OSError)
 
+# The HTTP statuses a mail API answers a request it will not accept with, minus
+# the ones that are not about the message. A rate limit clears and a request the
+# provider timed out was never read, so both say "not now" rather than "not
+# ever"; 401 and 403 are our credential, which somebody can rotate while the
+# queue waits.
+_RETRYABLE_HTTP_STATUSES = frozenset({401, 403, 408, 429})
+
+# The 5xx replies an SMTP server refuses our credential with, rather than the
+# message: authentication required, failed, or with a mechanism too weak
+# (RFC 4954). The message was never offered, and the setting can still be fixed.
+_CREDENTIAL_SMTP_CODES = frozenset({530, 534, 535, 538})
+
+
+def is_permanent_rejection(error: Exception) -> bool:
+    """Say whether sending the same message again could ever go differently.
+
+    A provider that is down, throttling us or unreachable refuses mail it
+    would take later, and the message is worth another attempt. A provider
+    that rejected the message itself - an address that does not exist, a
+    payload it will not accept - will reject it again just as fast, and
+    retrying only keeps the row alive for hours saying so.
+
+    Anything we do not recognise counts as temporary: the cost of retrying a
+    message that was never going to leave is an hour of a queue row, and the
+    cost of giving up on one that would have left is somebody's mail.
+
+    Args:
+        error: What the provider, the library or the network raised.
+
+    Returns:
+        True if the message cannot be delivered by trying it again.
+    """
+    if isinstance(error, smtplib.SMTPAuthenticationError):
+        # Our own credential, not this message: every queued row would fail
+        # alike, and rotating the key makes all of them sendable again.
+        return False
+
+    if isinstance(error, smtplib.SMTPSenderRefused):
+        # The address we send *from*, which is one setting for the whole
+        # queue: a relay that will not carry us, or a domain nobody has
+        # verified yet, refuses MAIL FROM before the message is offered.
+        return False
+
+    if isinstance(error, (smtplib.SMTPConnectError, smtplib.SMTPHeloError)):
+        # The refusal came before the conversation reached our message: a
+        # server that will not take the connection, or will not answer the
+        # greeting, has said nothing about what we were about to send.
+        return False
+
+    if isinstance(error, smtplib.SMTPRecipientsRefused):
+        # Every address has to be beyond hope: one that was only refused for
+        # now is a message that still has somewhere to go.
+        return bool(error.recipients) and all(_is_permanent_smtp_code(code) for code, _ in error.recipients.values())
+
+    if isinstance(error, smtplib.SMTPResponseException):
+        return _is_permanent_smtp_code(error.smtp_code)
+
+    if isinstance(error, httpx.HTTPStatusError):
+        status = error.response.status_code
+        return 400 <= status < 500 and status not in _RETRYABLE_HTTP_STATUSES
+
+    # A transport error, a socket that never connected, or a bug of our own:
+    # nothing was said about the message.
+    return False
+
+
+def _is_permanent_smtp_code(code: int) -> bool:
+    """Read an SMTP reply code as a permanent refusal or a transient one.
+
+    Args:
+        code: The numeric reply the server gave.
+
+    Returns:
+        True for the 5xx range, which RFC 5321 defines as permanent, except
+        the codes that refuse our credential rather than the message.
+    """
+    return 500 <= code < 600 and code not in _CREDENTIAL_SMTP_CODES
+
 
 @dataclass
 class EmailData:
@@ -226,7 +304,8 @@ def send_email(
     Raises:
         AssertionError: If email sending is not enabled in the settings.
         HTTPStatusError: If Resend rejects the request.
-        SMTPException: If the mail server did not accept the message.
+        SMTPResponseException: If the mail server refused the message with a reply code.
+        SMTPException: If the mail server did not accept the message and said nothing about why.
     """
     assert settings.emails_enabled, "no provided configuration for email variables"
     # emails_enabled already implies this, but it is not something mypy can narrow.
@@ -259,9 +338,18 @@ def send_email(
     # response rather than an exception, so a message that never left would
     # otherwise be indistinguishable from a delivered one.
     if not response.success:
-        raise response.error or smtplib.SMTPException(
-            f"The mail server did not accept the message: {response.status_code} {response.status_text}"
-        )
+        if response.error:
+            raise response.error
+
+        reason = f"The mail server did not accept the message: {response.status_text}"
+
+        # The reply code is what says whether sending this again could go any
+        # differently, so it is raised as a code rather than folded into a
+        # sentence nobody downstream can read it back out of.
+        if response.status_code is None:
+            raise smtplib.SMTPException(reason)
+
+        raise smtplib.SMTPResponseException(response.status_code, reason)
 
 
 def generate_household_invite_email(email: str, token: str, household_name: str, inviter_name: str) -> EmailData:
