@@ -61,9 +61,10 @@ async def run_rounds(round_: Callable[[], int], *, interval_seconds: int, failur
             for the count. A round that settled nothing says nothing.
     """
     while True:
-        # The wait comes first: a message queued by a request has already been
-        # attempted by that request, and a process that exits immediately
-        # should not have opened a session at all.
+        # The wait comes first: a process that exits immediately should not have
+        # opened a session at all. It is also what a deferred message waits
+        # out, so a round that is due to a signup leaves up to one interval
+        # after the request that asked for it.
         await asyncio.sleep(interval_seconds)
 
         try:
