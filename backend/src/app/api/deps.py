@@ -704,6 +704,8 @@ def get_account_service(
     household_repository: HouseholdRepositoryDep,
     transaction_repository: TransactionRepositoryDep,
     recurring_rule_repository: RecurringRuleRepositoryDep,
+    income_client_repository: IncomeClientRepositoryDep,
+    trade_repository: TradeRepositoryDep,
 ) -> AccountService:
     """Get an account service instance.
 
@@ -713,6 +715,8 @@ def get_account_service(
         household_repository: The household repository instance.
         transaction_repository: The transaction repository instance.
         recurring_rule_repository: The recurring rule repository instance.
+        income_client_repository: The income client repository instance.
+        trade_repository: The trade repository instance.
 
     Returns:
         An account service instance.
@@ -723,6 +727,8 @@ def get_account_service(
         household_repository=household_repository,
         transaction_repository=transaction_repository,
         recurring_rule_repository=recurring_rule_repository,
+        income_client_repository=income_client_repository,
+        trade_repository=trade_repository,
     )
 
 

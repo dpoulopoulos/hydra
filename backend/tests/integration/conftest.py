@@ -52,8 +52,10 @@ from app.repositories import (
     HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
+    IncomeClientRepository,
     RecurringRuleRepository,
     ReportRepository,
+    TradeRepository,
     TransactionRepository,
     UserRepository,
 )
@@ -263,6 +265,32 @@ def recurring_rule_repository(db_session: Session) -> RecurringRuleRepository:
 
 
 @pytest.fixture
+def income_client_repository(db_session: Session) -> IncomeClientRepository:
+    """Build an income client repository on the real session.
+
+    Args:
+        db_session: The database session.
+
+    Returns:
+        An income client repository.
+    """
+    return IncomeClientRepository(session=db_session)
+
+
+@pytest.fixture
+def trade_repository(db_session: Session) -> TradeRepository:
+    """Build a trade repository on the real session.
+
+    Args:
+        db_session: The database session.
+
+    Returns:
+        A trade repository.
+    """
+    return TradeRepository(session=db_session)
+
+
+@pytest.fixture
 def transaction_repository(db_session: Session) -> TransactionRepository:
     """Build a transaction repository on the real session.
 
@@ -308,6 +336,8 @@ def account_service(
     household_repository: HouseholdRepository,
     transaction_repository: TransactionRepository,
     recurring_rule_repository: RecurringRuleRepository,
+    income_client_repository: IncomeClientRepository,
+    trade_repository: TradeRepository,
 ) -> AccountService:
     """Build an account service on the real session.
 
@@ -317,6 +347,8 @@ def account_service(
         household_repository: The household repository.
         transaction_repository: The transaction repository.
         recurring_rule_repository: The recurring rule repository.
+        income_client_repository: The income client repository.
+        trade_repository: The trade repository.
 
     Returns:
         An account service.
@@ -327,6 +359,8 @@ def account_service(
         household_repository=household_repository,
         transaction_repository=transaction_repository,
         recurring_rule_repository=recurring_rule_repository,
+        income_client_repository=income_client_repository,
+        trade_repository=trade_repository,
     )
 
 

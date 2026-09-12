@@ -517,6 +517,8 @@ def mock_account_service(
     mock_household_repository: HouseholdRepository,
     mock_transaction_repository: TransactionRepository,
     mock_recurring_rule_repository: RecurringRuleRepository,
+    mock_income_client_repository: IncomeClientRepository,
+    mock_trade_repository: TradeRepository,
 ) -> AccountService:
     """Create an AccountService instance with a mocked session.
 
@@ -526,6 +528,8 @@ def mock_account_service(
         mock_household_repository: The household repository instance.
         mock_transaction_repository: The transaction repository instance.
         mock_recurring_rule_repository: The recurring rule repository instance.
+        mock_income_client_repository: The income client repository instance.
+        mock_trade_repository: The trade repository instance.
 
     Returns:
         An AccountService instance with a mocked session.
@@ -536,6 +540,8 @@ def mock_account_service(
         household_repository=mock_household_repository,
         transaction_repository=mock_transaction_repository,
         recurring_rule_repository=mock_recurring_rule_repository,
+        income_client_repository=mock_income_client_repository,
+        trade_repository=mock_trade_repository,
     )
 
 
