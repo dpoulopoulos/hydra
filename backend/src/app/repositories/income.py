@@ -219,6 +219,30 @@ class IncomeClientRepository(HouseholdScopedRepository[IncomeClient]):
         )
         return self.session.exec(statement).all()
 
+    def count_for_default_account(self, account_id: uuid.UUID, household_id: uuid.UUID) -> int:
+        """Count the clients whose earnings are paid into an account.
+
+        Archived clients count too. Archiving hides a client from the user but
+        leaves its foreign key onto the account in place, so the database would
+        still refuse the delete.
+
+        Args:
+            account_id: The ID of the account.
+            household_id: The ID of the household.
+
+        Returns:
+            The number of clients that name the account as their default.
+        """
+        statement = (
+            select(func.count())
+            .select_from(IncomeClient)
+            .where(
+                col(IncomeClient.household_id) == household_id,
+                col(IncomeClient.default_account_id) == account_id,
+            )
+        )
+        return self.session.exec(statement).one()
+
     def count_active_for_household(self, household_id: uuid.UUID) -> int:
         """Count the clients a household still sees.
 

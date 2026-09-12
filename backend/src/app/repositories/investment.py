@@ -187,6 +187,26 @@ class TradeRepository(HouseholdScopedRepository[Trade]):
         )
         return self.session.exec(statement).one()
 
+    def count_for_brokerage_account(self, account_id: uuid.UUID, household_id: uuid.UUID) -> int:
+        """Count the trades settled through an account.
+
+        Only trades that moved cash carry a brokerage account, so a household
+        can hold trades and still have none pointing at a given account.
+
+        Args:
+            account_id: The ID of the account.
+            household_id: The ID of the household that owns it.
+
+        Returns:
+            The number of trades that name the account as where their cash moved.
+        """
+        statement = (
+            select(func.count())
+            .select_from(Trade)
+            .where(Trade.household_id == household_id, Trade.brokerage_account_id == account_id)
+        )
+        return self.session.exec(statement).one()
+
 
 class FxRateRepository(BaseRepository[FxRate]):
     """Repository for FxRate database operations.
