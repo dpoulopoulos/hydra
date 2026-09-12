@@ -668,6 +668,36 @@ def get_recurring_rule_repository(session: SessionDep) -> RecurringRuleRepositor
 RecurringRuleRepositoryDep = Annotated[RecurringRuleRepository, Depends(get_recurring_rule_repository)]
 
 
+def get_trade_repository(session: SessionDep) -> TradeRepository:
+    """Get a trade repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A trade repository instance.
+    """
+    return TradeRepository(session=session)
+
+
+TradeRepositoryDep = Annotated[TradeRepository, Depends(get_trade_repository)]
+
+
+def get_income_client_repository(session: SessionDep) -> IncomeClientRepository:
+    """Get an income client repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        An income client repository instance.
+    """
+    return IncomeClientRepository(session=session)
+
+
+IncomeClientRepositoryDep = Annotated[IncomeClientRepository, Depends(get_income_client_repository)]
+
+
 def get_account_service(
     session: SessionDep,
     account_repository: AccountRepositoryDep,
@@ -868,21 +898,6 @@ def get_instrument_repository(session: SessionDep) -> InstrumentRepository:
 InstrumentRepositoryDep = Annotated[InstrumentRepository, Depends(get_instrument_repository)]
 
 
-def get_trade_repository(session: SessionDep) -> TradeRepository:
-    """Get a trade repository instance.
-
-    Args:
-        session: The database session.
-
-    Returns:
-        A trade repository instance.
-    """
-    return TradeRepository(session=session)
-
-
-TradeRepositoryDep = Annotated[TradeRepository, Depends(get_trade_repository)]
-
-
 def get_fx_rate_repository(session: SessionDep) -> FxRateRepository:
     """Get an FX rate repository instance.
 
@@ -977,21 +992,6 @@ InvestmentServiceDep = Annotated[InvestmentService, Depends(get_investment_servi
 
 IncomeClientFiltersDep = Annotated[IncomeClientFilters, Query()]
 IncomeSessionFiltersDep = Annotated[IncomeSessionFilters, Query()]
-
-
-def get_income_client_repository(session: SessionDep) -> IncomeClientRepository:
-    """Get an income client repository instance.
-
-    Args:
-        session: The database session.
-
-    Returns:
-        An income client repository instance.
-    """
-    return IncomeClientRepository(session=session)
-
-
-IncomeClientRepositoryDep = Annotated[IncomeClientRepository, Depends(get_income_client_repository)]
 
 
 def get_income_session_repository(session: SessionDep) -> IncomeSessionRepository:
