@@ -13,6 +13,7 @@ import {
   usersDeleteUserMe,
   usersUpdatePasswordMe,
   usersUpdateUserMe,
+  VerificationDelivery,
 } from '@/api'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Field, FormError } from '@/components/form-field'
@@ -138,13 +139,16 @@ export function Component() {
 
   const saveDetails = useMutation({
     mutationFn: async (values: z.infer<typeof detailsSchema>) => {
-      const { error } = await usersUpdateUserMe({
+      const { data, error } = await usersUpdateUserMe({
         body: { full_name: values.full_name?.trim() || null, email: values.email },
       })
       if (error) throw error
-      return values.email
+      // The reply says what became of the link a new address was sent, which
+      // is the difference between a message in that inbox and one the outbox
+      // is still holding.
+      return { requestedEmail: values.email, delivery: data?.email_delivery ?? null }
     },
-    onSuccess: (requestedEmail, values) => {
+    onSuccess: ({ requestedEmail, delivery }, values) => {
       // What was saved is the new baseline. Without this the fields stay
       // marked as edited and would ignore every later answer about the user.
       detailsForm.resetField('full_name', { defaultValue: values.full_name })
@@ -157,7 +161,31 @@ export function Component() {
       // actually holds rather than the one that was asked for.
       if (user && requestedEmail !== user.email) {
         detailsForm.resetField('email', { defaultValue: user.email })
-        toast.success(`Open the link we sent to ${requestedEmail} to finish the change`)
+
+        // A deployment with no mail provider sent nothing at all, and the
+        // change cannot be finished until one is configured: that is a
+        // failure, not a link to wait for.
+        if (delivery === VerificationDelivery.NOT_CONFIGURED) {
+          toast.error(
+            `No link could be sent to ${requestedEmail}: email delivery is not configured.`,
+          )
+          return
+        }
+
+        if (delivery === VerificationDelivery.QUEUED) {
+          toast.success(
+            `The link to ${requestedEmail} is queued to go out. Open it when it arrives to finish the change.`,
+          )
+          return
+        }
+
+        if (delivery === VerificationDelivery.SENT) {
+          toast.success(`Open the link we sent to ${requestedEmail} to finish the change.`)
+          return
+        }
+
+        // Nothing was said about the send, so say nothing about it either.
+        toast.success(`Check ${requestedEmail} for the link that finishes the change.`)
         return
       }
 
@@ -271,8 +299,8 @@ export function Component() {
               <AlertTitle>Waiting on {pendingChange.data.new_email}</AlertTitle>
               <AlertDescription className="space-y-3">
                 <p>
-                  Open the link we sent there by {formatDateTime(pendingChange.data.expires_at)} to
-                  finish the change. Until you do, this account keeps the address below.
+                  The link expires {formatDateTime(pendingChange.data.expires_at)}. Open it to
+                  finish the change; until you do, this account keeps the address below.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button
