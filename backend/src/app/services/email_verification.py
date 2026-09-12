@@ -1,6 +1,5 @@
 import uuid
 from datetime import UTC, datetime, timedelta
-from enum import StrEnum
 from typing import Protocol
 
 from sqlmodel import Session
@@ -15,7 +14,14 @@ from app.exceptions import (
     UserExistsError,
     UserNotFoundError,
 )
-from app.models import EmailVerification, EmailVerificationStatus, Message, PendingEmailChange, User
+from app.models import (
+    EmailVerification,
+    EmailVerificationStatus,
+    Message,
+    PendingEmailChange,
+    User,
+    VerificationDelivery,
+)
 from app.repositories.email_verification import EmailVerificationRepository
 from app.services.email_outbox import EmailOutboxService
 from app.services.user import UserService
@@ -27,14 +33,6 @@ from app.utils import generate_email_verification_email
 VERIFICATION_RESEND_MESSAGE = (
     "If an account exists with this email and requires verification, you will receive verification instructions."
 )
-
-
-class VerificationDelivery(StrEnum):
-    """What became of a verification message once the outbox had it."""
-
-    NOT_CONFIGURED = "not_configured"
-    SENT = "sent"
-    QUEUED = "queued"
 
 
 def _delivery_message(delivery: VerificationDelivery, destination: str = "") -> Message:

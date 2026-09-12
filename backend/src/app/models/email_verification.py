@@ -14,6 +14,14 @@ class EmailVerificationStatus(StrEnum):
     EXPIRED = "expired"
 
 
+class VerificationDelivery(StrEnum):
+    """What became of a verification message once the outbox had it."""
+
+    NOT_CONFIGURED = "not_configured"
+    SENT = "sent"
+    QUEUED = "queued"
+
+
 class EmailVerificationBase(SQLModel):
     email: EmailStr = Field(index=True, max_length=255)
     expires_at: datetime.datetime = Field(sa_type=UtcDateTime)
