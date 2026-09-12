@@ -292,13 +292,69 @@ class TestSendEmail:
         response.status_text = "Requested action aborted"
         mock_message_class.return_value.send.return_value = response
 
-        # Act & Assert: Verify the caller sees a delivery failure with the reason
-        with pytest.raises(smtplib.SMTPException, match="451"):
+        # Act & Assert: Verify the refusal carries the code the server gave
+        with pytest.raises(smtplib.SMTPResponseException) as refusal:
             send_email(
                 email_to="recipient@example.com",
                 subject="Test Subject",
                 html_content="<p>Test content</p>",
             )
+
+        assert refusal.value.smtp_code == 451
+        assert "Requested action aborted" in str(refusal.value)
+
+    @patch("app.utils.email_utils.Message")
+    def test_send_email_raises_a_refusal_a_retry_can_be_judged_from(
+        self, mock_message_class: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A server that said the address does not exist must be readable as such."""
+        # Arrange: The server rejected the message permanently, without raising
+        monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        response = MagicMock()
+        response.success = False
+        response.error = None
+        response.status_code = 550
+        response.status_text = "No such user here"
+        mock_message_class.return_value.send.return_value = response
+
+        # Act: Send a message to an address the server will never take
+        with pytest.raises(smtplib.SMTPException) as refusal:
+            send_email(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>Test content</p>",
+            )
+
+        # Assert: Verify the refusal is one nobody has to try again
+        assert is_permanent_rejection(refusal.value) is True
+
+    @patch("app.utils.email_utils.Message")
+    def test_send_email_raises_a_refusal_with_no_code_at_all(
+        self, mock_message_class: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A server that gave no reply code still failed to take the message."""
+        # Arrange: The send failed without the server saying anything
+        monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        response = MagicMock()
+        response.success = False
+        response.error = None
+        response.status_code = None
+        response.status_text = None
+        mock_message_class.return_value.send.return_value = response
+
+        # Act & Assert: Verify the caller sees a delivery failure worth retrying
+        with pytest.raises(smtplib.SMTPException) as refusal:
+            send_email(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>Test content</p>",
+            )
+
+        assert is_permanent_rejection(refusal.value) is False
 
     @patch("app.utils.email_utils.Message")
     def test_send_email_with_ssl(self, mock_message_class: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
