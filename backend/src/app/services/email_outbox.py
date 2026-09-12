@@ -6,7 +6,7 @@ from app.core.config import settings
 from app.logging import get_logger
 from app.models import SUBJECT_MAX_LENGTH, EmailOutbox, EmailOutboxStats, EmailOutboxStatus
 from app.repositories.email_outbox import EmailOutboxRepository
-from app.utils.email_utils import DELIVERY_ERRORS, send_email
+from app.utils.email_utils import DELIVERY_ERRORS, is_permanent_rejection, send_email
 
 logger = get_logger(__name__)
 
@@ -217,7 +217,7 @@ class EmailOutboxService:
         return True
 
     def _record_failure(self, entry: EmailOutbox, error: Exception) -> None:
-        """Schedule another attempt, or give up once there are none left.
+        """Schedule another attempt, or give up once there is nothing left to try.
 
         Args:
             entry: The message that could not be delivered.
@@ -226,14 +226,22 @@ class EmailOutboxService:
         # The column is bounded, and what matters is the head of the message.
         entry.last_error = f"{type(error).__name__}: {error}"[:500]
 
-        if entry.attempts >= settings.EMAIL_OUTBOX_MAX_ATTEMPTS:
+        # A refusal of the message itself will be repeated word for word on
+        # every remaining attempt, so the attempts are worth nothing: the row
+        # would sit pending for an hour or more, holding the link it was
+        # carrying, to arrive at the same answer it already has.
+        permanent = is_permanent_rejection(error)
+
+        if permanent or entry.attempts >= settings.EMAIL_OUTBOX_MAX_ATTEMPTS:
             entry.status = EmailOutboxStatus.FAILED
             self._discard_body(entry)
             logger.error(
-                "Giving up on email %r to %s after %d attempts: %s",
+                "Giving up on email %r to %s %s: %s",
                 entry.subject,
                 entry.email_to,
-                entry.attempts,
+                # Which of the two it was: whoever reads this needs to know
+                # whether the address is wrong or the provider was.
+                "(rejected outright)" if permanent else f"after {entry.attempts} attempts",
                 entry.last_error,
             )
         else:
