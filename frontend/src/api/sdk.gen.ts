@@ -180,7 +180,9 @@ export const usersGetUserMe = <ThrowOnError extends boolean = false>(options?: O
  * current_user: The signed-in user, from a browser session.
  *
  * Returns:
- * The updated user information.
+ * The updated user information, and what became of the verification a
+ * new address was sent, so the caller can tell a message that went out
+ * from one the outbox is still holding.
  *
  * Raises:
  * HTTPException: If a user with the same email already exists (409), the user's token is invalid (401),

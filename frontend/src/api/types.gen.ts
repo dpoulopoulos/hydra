@@ -3201,6 +3201,48 @@ export type UserUpdateMe = {
 };
 
 /**
+ * UserUpdatedMe
+ *
+ * An account as an update left it, and what became of the mail it sent.
+ *
+ * An update that asks for a new address mails a link to it, and that
+ * message may only be queued when the provider is down. Reporting the
+ * outcome here is what lets the screen say the link is on its way rather
+ * than sending someone to look in an inbox that has nothing in it yet.
+ */
+export type UserUpdatedMe = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Full Name
+     */
+    full_name?: string | null;
+    /**
+     * Is Active
+     */
+    is_active?: boolean;
+    /**
+     * Is Superuser
+     */
+    is_superuser?: boolean;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at?: string | null;
+    email_delivery?: VerificationDelivery | null;
+};
+
+/**
  * UsersPublic
  */
 export type UsersPublic = {
@@ -3241,6 +3283,24 @@ export type ValidationError = {
         [key: string]: unknown;
     };
 };
+
+/**
+ * VerificationDelivery
+ *
+ * What became of a verification message once the outbox had it.
+ */
+export const VerificationDelivery = {
+    NOT_CONFIGURED: 'not_configured',
+    SENT: 'sent',
+    QUEUED: 'queued'
+} as const;
+
+/**
+ * VerificationDelivery
+ *
+ * What became of a verification message once the outbox had it.
+ */
+export type VerificationDelivery = typeof VerificationDelivery[keyof typeof VerificationDelivery];
 
 export type UsersGetUsersData = {
     body?: never;
@@ -3378,7 +3438,7 @@ export type UsersUpdateUserMeResponses = {
     /**
      * Successful Response
      */
-    200: UserPublic;
+    200: UserUpdatedMe;
 };
 
 export type UsersUpdateUserMeResponse = UsersUpdateUserMeResponses[keyof UsersUpdateUserMeResponses];

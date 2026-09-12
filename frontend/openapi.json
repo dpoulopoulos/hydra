@@ -210,7 +210,7 @@
           "users"
         ],
         "summary": "Update User Me",
-        "description": "Update the current user's information.\n\nA new email address is not applied here: it is mailed a verification link\nand only becomes the account's address once that link is followed.\n\nA browser session, not an API token: the verification link goes to the new\naddress, so whoever can change it can move the account to somewhere they\nread and then reset the password from there.\n\nArgs:\n    user_service: The user service dependency.\n    email_verification_service: The email verification service dependency.\n    user_in: The user data to update.\n    current_user: The signed-in user, from a browser session.\n\nReturns:\n    The updated user information.\n\nRaises:\n    HTTPException: If a user with the same email already exists (409), the user's token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
+        "description": "Update the current user's information.\n\nA new email address is not applied here: it is mailed a verification link\nand only becomes the account's address once that link is followed.\n\nA browser session, not an API token: the verification link goes to the new\naddress, so whoever can change it can move the account to somewhere they\nread and then reset the password from there.\n\nArgs:\n    user_service: The user service dependency.\n    email_verification_service: The email verification service dependency.\n    user_in: The user data to update.\n    current_user: The signed-in user, from a browser session.\n\nReturns:\n    The updated user information, and what became of the verification a\n    new address was sent, so the caller can tell a message that went out\n    from one the outbox is still holding.\n\nRaises:\n    HTTPException: If a user with the same email already exists (409), the user's token is invalid (401),\n        the user is not found (404), or the user is inactive (403).",
         "operationId": "users-update_user_me",
         "requestBody": {
           "content": {
@@ -228,7 +228,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserPublic"
+                  "$ref": "#/components/schemas/UserUpdatedMe"
                 }
               }
             }
@@ -10778,6 +10778,78 @@
         "type": "object",
         "title": "UserUpdateMe"
       },
+      "UserUpdatedMe": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 255,
+            "format": "email",
+            "title": "Email"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "is_superuser": {
+            "type": "boolean",
+            "title": "Is Superuser",
+            "default": false
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "email_delivery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationDelivery"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "id",
+          "created_at"
+        ],
+        "title": "UserUpdatedMe",
+        "description": "An account as an update left it, and what became of the mail it sent.\n\nAn update that asks for a new address mails a link to it, and that\nmessage may only be queued when the provider is down. Reporting the\noutcome here is what lets the screen say the link is on its way rather\nthan sending someone to look in an inbox that has nothing in it yet."
+      },
       "UsersPublic": {
         "properties": {
           "data": {
@@ -10838,6 +10910,16 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VerificationDelivery": {
+        "type": "string",
+        "enum": [
+          "not_configured",
+          "sent",
+          "queued"
+        ],
+        "title": "VerificationDelivery",
+        "description": "What became of a verification message once the outbox had it."
       }
     },
     "securitySchemes": {
