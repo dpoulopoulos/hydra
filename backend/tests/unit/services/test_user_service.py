@@ -35,6 +35,7 @@ from app.models import (
     UserRegister,
     UserUpdate,
     UserUpdateMe,
+    VerificationDelivery,
 )
 from app.services import EmailVerificationService, UserService
 from app.services.user import SIGNUP_MESSAGE
@@ -1033,7 +1034,9 @@ class TestUpdateUserMe:
         # Arrange: Nothing else holds the new address
         mock_user_service.session.exec = MagicMock()
         mock_user_service.session.exec.return_value.first.return_value = None
-        mock_email_verification_service.send_email_change_verification = MagicMock()
+        mock_email_verification_service.send_email_change_verification = MagicMock(
+            return_value=VerificationDelivery.SENT
+        )
 
         current_email = test_user.email
         user_update = UserUpdateMe(email="newemail@example.com")
@@ -1054,6 +1057,56 @@ class TestUpdateUserMe:
             user=test_user, new_email="newemail@example.com"
         )
 
+    def test_update_user_me_reports_what_became_of_the_verification_mail(
+        self,
+        mock_user_service: UserService,
+        test_user: User,
+        mock_email_verification_service: EmailVerificationService,
+    ) -> None:
+        """Test the reply says a link is only queued rather than promising it was sent."""
+        # Arrange: The provider is down, so the message sits in the outbox
+        mock_user_service.session.exec = MagicMock()
+        mock_user_service.session.exec.return_value.first.return_value = None
+        mock_email_verification_service.send_email_change_verification = MagicMock(
+            return_value=VerificationDelivery.QUEUED
+        )
+
+        user_update = UserUpdateMe(email="newemail@example.com")
+
+        # Act
+        result = mock_user_service.update_user_me(
+            current_user=test_user,
+            user_update=user_update,
+            email_verification_service=mock_email_verification_service,
+        )
+
+        # Assert
+        assert result.email_delivery is VerificationDelivery.QUEUED
+
+    def test_update_user_me_reports_no_delivery_when_it_sent_nothing(
+        self,
+        mock_user_service: UserService,
+        test_user: User,
+        mock_email_verification_service: EmailVerificationService,
+    ) -> None:
+        """Test an update that asks for no new address reports no mail either."""
+        # Arrange
+        mock_user_service.session.exec = MagicMock()
+        mock_user_service.session.exec.return_value.first.return_value = None
+        mock_email_verification_service.send_email_change_verification = MagicMock()
+
+        user_update = UserUpdateMe(full_name="Updated Name")
+
+        # Act
+        result = mock_user_service.update_user_me(
+            current_user=test_user,
+            user_update=user_update,
+            email_verification_service=mock_email_verification_service,
+        )
+
+        # Assert
+        assert result.email_delivery is None
+
     def test_update_user_me_saves_the_rest_of_a_pending_email_change(
         self,
         mock_user_service: UserService,
@@ -1064,7 +1117,9 @@ class TestUpdateUserMe:
         # Arrange: One request carries both a name and a new address
         mock_user_service.session.exec = MagicMock()
         mock_user_service.session.exec.return_value.first.return_value = None
-        mock_email_verification_service.send_email_change_verification = MagicMock()
+        mock_email_verification_service.send_email_change_verification = MagicMock(
+            return_value=VerificationDelivery.SENT
+        )
 
         user_update = UserUpdateMe(full_name="Updated Name", email="newemail@example.com")
 

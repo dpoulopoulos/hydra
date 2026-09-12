@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Generator
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,7 +17,7 @@ from app.exceptions import (
 )
 from app.exceptions.password_exceptions import PasswordIsWrongError
 from app.main import app
-from app.models import Message, User, UserPublic, UsersPublic
+from app.models import Message, User, UserPublic, UsersPublic, UserUpdatedMe, VerificationDelivery
 from app.services import HouseholdService, MailRateLimitService, UserService
 from app.services.user import SIGNUP_MESSAGE
 
@@ -754,6 +755,77 @@ class TestUpdateUserMe:
                 assert response.status_code == 200
                 assert data["full_name"] == "Updated Name"
                 assert data["email"] == test_user.email
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_update_user_me_reports_a_queued_verification(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test the reply carries what became of the mail sent to a new address."""
+
+        # Arrange
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_user
+
+        updated_user = UserUpdatedMe(
+            id=test_user.id,
+            email=test_user.email,
+            full_name=test_user.full_name,
+            is_active=test_user.is_active,
+            is_superuser=test_user.is_superuser,
+            created_at=datetime.now(UTC),
+            email_delivery=VerificationDelivery.QUEUED,
+        )
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        try:
+            with patch.object(UserService, "update_user_me", return_value=updated_user):
+                # Act: Ask to move to a new address
+                response = client.patch(
+                    "/api/v1/users/me",
+                    json={"email": "newemail@example.com"},
+                )
+
+                # Assert: The caller can tell a queued link from a sent one
+                assert response.status_code == 200
+                assert response.json()["email_delivery"] == "queued"
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_update_user_me_reports_no_delivery_when_it_sent_nothing(
+        self,
+        client: TestClient,
+        test_user: User,
+        mock_db_session: MagicMock,
+    ) -> None:
+        """Test an update that mails nothing leaves the field empty."""
+
+        # Arrange
+        def override_get_db() -> Generator[MagicMock]:
+            yield mock_db_session
+
+        def override_get_current_user() -> User:
+            return test_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        try:
+            with patch.object(UserService, "update_user_me", return_value=test_user):
+                # Act
+                response = client.patch("/api/v1/users/me", json={"full_name": "Updated Name"})
+
+                # Assert
+                assert response.status_code == 200
+                assert response.json()["email_delivery"] is None
         finally:
             app.dependency_overrides.clear()
 
