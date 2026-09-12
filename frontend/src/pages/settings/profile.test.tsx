@@ -198,6 +198,80 @@ describe('profile page', () => {
     expect(toast.success).not.toHaveBeenCalledWith('Profile saved')
   })
 
+  it('says a queued link has not gone out yet', async () => {
+    // The provider was down, so the message is in the outbox. Promising it was
+    // sent sends somebody to look in a mailbox that has nothing in it.
+    vi.mocked(api.usersUpdateUserMe).mockResolvedValue({
+      data: { ...user(), email_delivery: 'queued' },
+    } as never)
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.clear(emailField())
+    await person.type(emailField(), 'moving-to@example.com')
+    await person.click(screen.getByRole('button', { name: 'Save details' }))
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'The link to moving-to@example.com is queued to go out. Open it when it arrives to finish the change.',
+      ),
+    )
+  })
+
+  it('says a sent link is there to open', async () => {
+    vi.mocked(api.usersUpdateUserMe).mockResolvedValue({
+      data: { ...user(), email_delivery: 'sent' },
+    } as never)
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.clear(emailField())
+    await person.type(emailField(), 'moving-to@example.com')
+    await person.click(screen.getByRole('button', { name: 'Save details' }))
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Open the link we sent to moving-to@example.com to finish the change.',
+      ),
+    )
+  })
+
+  it('says no link was sent when there is nothing to send mail with', async () => {
+    // A deployment with no mail provider sends nothing at all, and an account
+    // waiting on a link that was never written waits forever.
+    vi.mocked(api.usersUpdateUserMe).mockResolvedValue({
+      data: { ...user(), email_delivery: 'not_configured' },
+    } as never)
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.clear(emailField())
+    await person.type(emailField(), 'moving-to@example.com')
+    await person.click(screen.getByRole('button', { name: 'Save details' }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'No link could be sent to moving-to@example.com: email delivery is not configured.',
+      ),
+    )
+  })
+
+  it('promises nothing when the reply says nothing about the mail', async () => {
+    vi.mocked(api.usersUpdateUserMe).mockResolvedValue({ data: user() } as never)
+    renderProfile()
+    const person = userEvent.setup()
+
+    await person.clear(emailField())
+    await person.type(emailField(), 'moving-to@example.com')
+    await person.click(screen.getByRole('button', { name: 'Save details' }))
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Check moving-to@example.com for the link that finishes the change.',
+      ),
+    )
+  })
+
   it('puts the current address back in the form while the new one is pending', async () => {
     renderProfile()
     const person = userEvent.setup()
