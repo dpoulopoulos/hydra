@@ -102,15 +102,32 @@ async function newViolations() {
   })
 }
 
-/** Runs one step of the walk, and reports what the policy refused during it. */
+/**
+ * Runs one step of the walk, and reports what the policy refused during it.
+ *
+ * A step that throws is reported rather than raised: what it was waiting for
+ * never arrived, and the reason is almost always the refusal this is here to
+ * find. Letting the error out would end the run with a stack trace and no
+ * mention of the directive that caused it. The walk carries on to the next
+ * step, which is what the rest of the checks already do.
+ */
 async function step(what, body) {
-  await body()
+  let failure = null
+
+  try {
+    await body()
+  } catch (error) {
+    failure = error instanceof Error ? error.message.split('\n')[0] : String(error)
+  }
+
   const raised = await newViolations()
   check(
     `${what}: nothing was refused by the policy`,
     'none',
     raised.length === 0 ? 'none' : summarise(raised.map(describe)),
   )
+
+  if (failure !== null) check(`${what}: the step ran to the end`, 'it did', failure)
 }
 
 try {
