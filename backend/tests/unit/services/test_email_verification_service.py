@@ -644,6 +644,103 @@ class TestSendVerificationEmail:
         assert email_verification.expires_at == expected
 
 
+class TestADeferredVerification:
+    """Tests for leaving a verification message to the dispatcher."""
+
+    def test_the_provider_is_not_asked_for_a_deferred_message(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+    ) -> None:
+        """Nothing about the message reaches the provider while the request runs."""
+        # Arrange: The user holds no other pending verification
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        # Act: Ask for a verification that is left for the dispatcher
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            with patch("app.services.email_outbox.send_email") as mock_send_email:
+                result = mock_email_verification_service.send_verification_email(
+                    user_service=mock_user_service, user_email=test_user.email, defer_delivery=True
+                )
+
+        # Assert: Verify the message is queued rather than attempted
+        mock_send_email.assert_not_called()
+        assert isinstance(result, Message)
+        assert result.message == "Verification email queued for delivery."
+
+    def test_a_deferred_message_is_still_written_to_the_outbox(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+    ) -> None:
+        """The dispatcher can only send what the request wrote down for it."""
+        # Arrange: The user holds no other pending verification
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            with patch("app.services.email_verification.EmailOutboxService") as mock_outbox:
+                mock_email_verification_service.send_verification_email(
+                    user_service=mock_user_service, user_email=test_user.email, defer_delivery=True
+                )
+
+        # Assert: Verify the token went to the outbox, and only there
+        outbox = mock_outbox.for_session.return_value
+        outbox.deliver_or_queue.assert_not_called()
+        assert outbox.queue_for_dispatch.call_args.kwargs["email_to"] == test_user.email
+
+    def test_a_deferred_message_is_not_sent_at_all_without_a_provider(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A deployment with no mail provider queues nothing to be dispatched."""
+        # Arrange: The deployment sends no mail at all
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+        monkeypatch.setattr(settings, "SMTP_HOST", None)
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            with patch("app.services.email_verification.EmailOutboxService") as mock_outbox:
+                result = mock_email_verification_service.send_verification_email(
+                    user_service=mock_user_service, user_email=test_user.email, defer_delivery=True
+                )
+
+        # Assert
+        assert result.message == "Email delivery is not configured, so no verification email was sent."
+        mock_outbox.for_session.return_value.queue_for_dispatch.assert_not_called()
+
+    def test_a_verification_is_attempted_at_once_unless_it_is_deferred(
+        self,
+        mock_email_verification_service: EmailVerificationService,
+        mock_user_service: UserService,
+        test_user: User,
+    ) -> None:
+        """Every other caller keeps the send that reaches the address soonest."""
+        # Arrange: The user holds no other pending verification
+        mock_email_verification_service.session.exec = MagicMock()
+        mock_email_verification_service.session.exec.return_value.first.return_value = None
+
+        # Act
+        with patch.object(mock_user_service, "get_user_by_email", return_value=test_user):
+            with patch("app.services.email_verification.EmailOutboxService") as mock_outbox:
+                mock_email_verification_service.send_verification_email(
+                    user_service=mock_user_service, user_email=test_user.email
+                )
+
+        # Assert
+        outbox = mock_outbox.for_session.return_value
+        outbox.queue_for_dispatch.assert_not_called()
+        outbox.deliver_or_queue.assert_called_once()
+
+
 class TestSendEmailChangeVerification:
     """Tests for the send_email_change_verification method."""
 
