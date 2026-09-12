@@ -178,6 +178,63 @@ class TestDeliverOrQueue:
         assert mock_send_email.call_args.kwargs["subject"] == subject[:SUBJECT_MAX_LENGTH]
 
 
+class TestQueueForDispatch:
+    """Test writing a message down for the dispatcher without attempting it."""
+
+    def test_the_provider_is_not_asked_for_the_message(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """Nothing about the message reaches the provider while the request runs."""
+        # Act: Queue a message
+        with patch("app.services.email_outbox.send_email") as mock_send_email:
+            entry = mock_email_outbox_service.queue_for_dispatch(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>Test content</p>",
+            )
+
+        # Assert: Verify the message was written down and left alone
+        mock_send_email.assert_not_called()
+        assert entry.status == EmailOutboxStatus.PENDING
+        assert entry.attempts == 0
+        assert entry.last_error is None
+        assert mock_db_session.add.call_args.args[0] is entry
+
+    def test_the_message_is_committed_and_due_at_once(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """The next round of the dispatcher is what sends it, so it must be there."""
+        # Act: Queue a message
+        with patch("app.services.email_outbox.send_email"):
+            entry = mock_email_outbox_service.queue_for_dispatch(
+                email_to="recipient@example.com",
+                subject="Test Subject",
+                html_content="<p>Test content</p>",
+            )
+
+        # Assert: Verify the row is durable and the dispatcher may take it now
+        mock_db_session.commit.assert_called_once()
+        assert entry.next_attempt_at <= datetime.now(UTC)
+
+    def test_a_long_subject_is_trimmed_to_fit_the_column(
+        self, mock_email_outbox_service: EmailOutboxService, mock_db_session: MagicMock
+    ) -> None:
+        """The column bounds a queued message as much as an attempted one."""
+        # Arrange: A subject longer than the column holds
+        subject = "You have been invited to " + "a" * SUBJECT_MAX_LENGTH
+
+        # Act: Queue a message
+        with patch("app.services.email_outbox.send_email"):
+            entry = mock_email_outbox_service.queue_for_dispatch(
+                email_to="recipient@example.com",
+                subject=subject,
+                html_content="<p>Test content</p>",
+            )
+
+        # Assert: Verify the row fits the column and the subject kept its head
+        assert entry.subject == subject[:SUBJECT_MAX_LENGTH]
+
+
 class TestDispatchDue:
     """Test draining the messages that are waiting to be sent."""
 
