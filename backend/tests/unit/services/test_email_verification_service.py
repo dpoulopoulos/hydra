@@ -17,7 +17,7 @@ from app.exceptions import (
     UserExistsError,
     UserNotFoundError,
 )
-from app.models import EmailVerification, EmailVerificationStatus, Message, User
+from app.models import EmailVerification, EmailVerificationStatus, Message, User, VerificationDelivery
 from app.services import EmailVerificationService, UserService
 
 
@@ -664,7 +664,7 @@ class TestSendEmailChangeVerification:
             )
 
         # Assert
-        assert isinstance(result, Message)
+        assert isinstance(result, VerificationDelivery)
         email_verification = mock_email_verification_service.session.add.call_args[0][0]
         assert email_verification.email == test_user.email
         assert email_verification.new_email == "moving-to@example.com"
@@ -850,7 +850,7 @@ class TestResendPendingEmailChange:
         with patch.object(
             mock_email_verification_service,
             "send_email_change_verification",
-            return_value=Message(message="Verification email sent to the new address."),
+            return_value=VerificationDelivery.SENT,
         ) as mock_send:
             result = mock_email_verification_service.resend_pending_email_change(user=test_user)
 

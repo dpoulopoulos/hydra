@@ -240,24 +240,26 @@ class EmailVerificationService:
             self._issue_verification(user=user, address=user.email, invite_unusable=invite_unusable)
         )
 
-    def send_email_change_verification(self, user: User, new_email: str) -> Message:
+    def send_email_change_verification(self, user: User, new_email: str) -> VerificationDelivery:
         """Send a verification to an address a user has asked to move to.
 
         The account keeps its current address until the token is redeemed, so
         an address nobody has proven can reach is never one a security flow
         will deliver to.
 
+        The outcome is returned rather than a sentence about it: the two
+        callers answer different requests, and one of them reports the change
+        alongside the updated account rather than as a message.
+
         Args:
             user: The account asking for the change.
             new_email: The address the account wants to move to.
 
         Returns:
-            Success message.
+            What became of the message: sent, queued for another attempt, or
+            not sent at all because no provider is configured.
         """
-        return _delivery_message(
-            self._issue_verification(user=user, address=new_email, new_email=new_email),
-            destination=" to the new address",
-        )
+        return self._issue_verification(user=user, address=new_email, new_email=new_email)
 
     def resend_pending_email_change(self, user: User) -> Message:
         """Send another link to the address a user has asked to move to.
@@ -284,7 +286,10 @@ class EmailVerificationService:
         if not pending_verification or not pending_verification.new_email:
             raise EmailVerificationNotFoundError from None
 
-        return self.send_email_change_verification(user=user, new_email=pending_verification.new_email)
+        return _delivery_message(
+            self.send_email_change_verification(user=user, new_email=pending_verification.new_email),
+            destination=" to the new address",
+        )
 
     def _issue_verification(
         self, user: User, address: str, new_email: str | None = None, invite_unusable: bool = False
