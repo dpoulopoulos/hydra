@@ -35,7 +35,11 @@ from app.models import (
     BudgetCreate,
     CategoryCreate,
     HouseholdContext,
+    IncomeClient,
+    Instrument,
     RecurringRule,
+    Trade,
+    TradeSide,
     Transaction,
     TransactionCreate,
     TransactionKind,
@@ -61,6 +65,68 @@ def add_transaction(session: Session, household_id: uuid.UUID, **fields: Any) ->
     session.add(transaction)
     session.flush()
     return transaction
+
+
+def add_income_client(
+    session: Session,
+    household: HouseholdContext,
+    default_account_id: uuid.UUID,
+    archived_at: datetime.datetime | None = None,
+) -> IncomeClient:
+    """Write an income client straight to the session, with no service in the way.
+
+    Args:
+        session: The database session.
+        household: The household that owns the client, and whose owner adds it.
+        default_account_id: The account the client's earnings are paid into.
+        archived_at: When the client was archived, if it was.
+
+    Returns:
+        The stored client.
+    """
+    client = IncomeClient(
+        household_id=household.household_id,
+        owner_user_id=household.user_id,
+        name_ct="ciphertext",
+        default_account_id=default_account_id,
+        archived_at=archived_at,
+    )
+    session.add(client)
+    session.flush()
+    return client
+
+
+def add_trade(session: Session, household_id: uuid.UUID, brokerage_account_id: uuid.UUID | None) -> Trade:
+    """Write a trade, and the instrument it needs, straight to the session.
+
+    Args:
+        session: The database session.
+        household_id: The household that owns the rows.
+        brokerage_account_id: The account the cash moved through, or None for a
+            trade recorded without a cash side.
+
+    Returns:
+        The stored trade.
+    """
+    instrument = Instrument(household_id=household_id, symbol="VWCE.DE", name="Vanguard All-World", currency_code="EUR")
+    session.add(instrument)
+    session.flush()
+
+    trade = Trade(
+        household_id=household_id,
+        instrument_id=instrument.id,
+        side=TradeSide.BUY,
+        traded_on=MARCH,
+        quantity_micro=1_000_000,
+        price_micro=100_000_000,
+        brokerage_account_id=brokerage_account_id,
+        # The cash side is both or neither, so an account without an amount
+        # would be refused by a check constraint before the delete is reached.
+        cash_amount_minor=10_000 if brokerage_account_id else None,
+    )
+    session.add(trade)
+    session.flush()
+    return trade
 
 
 class TestCategoryReferences:
@@ -184,6 +250,70 @@ class TestAccountReferences:
 
         with pytest.raises(AccountInUseError):
             account_service.delete_account(household=household_a, account_id=account.id)
+
+    def test_an_account_an_income_client_is_paid_into_cannot_be_deleted(
+        self,
+        db_session: Session,
+        account_service: AccountService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """The ledger is empty, so the refusal has to name the client instead."""
+        account = make_account(db_session, household_id=household_a.household_id)
+        add_income_client(db_session, household_a, default_account_id=account.id)
+
+        with pytest.raises(AccountInUseError) as excinfo:
+            account_service.delete_account(household=household_a, account_id=account.id)
+
+        assert "income client" in str(excinfo.value)
+
+    def test_an_archived_income_client_holds_the_account_too(
+        self,
+        db_session: Session,
+        account_service: AccountService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """Archiving hides the client from the page but not its foreign key."""
+        account = make_account(db_session, household_id=household_a.household_id)
+        add_income_client(
+            db_session,
+            household_a,
+            default_account_id=account.id,
+            archived_at=datetime.datetime(2024, 3, 1, tzinfo=datetime.UTC),
+        )
+
+        with pytest.raises(AccountInUseError) as excinfo:
+            account_service.delete_account(household=household_a, account_id=account.id)
+
+        assert "income client" in str(excinfo.value)
+
+    def test_an_account_a_trade_settles_through_cannot_be_deleted(
+        self,
+        db_session: Session,
+        account_service: AccountService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """A brokerage account holds no transactions and is still held."""
+        account = make_account(db_session, household_id=household_a.household_id)
+        add_trade(db_session, household_a.household_id, brokerage_account_id=account.id)
+
+        with pytest.raises(AccountInUseError) as excinfo:
+            account_service.delete_account(household=household_a, account_id=account.id)
+
+        assert "investment trades" in str(excinfo.value)
+
+    def test_a_trade_with_no_cash_side_holds_nothing(
+        self,
+        db_session: Session,
+        account_service: AccountService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """A trade recorded without an account cannot be what blocks a delete."""
+        account = make_account(db_session, household_id=household_a.household_id)
+        add_trade(db_session, household_a.household_id, brokerage_account_id=None)
+
+        account_service.delete_account(household=household_a, account_id=account.id)
+
+        assert db_session.get(type(account), account.id) is None
 
     def test_an_account_with_no_history_is_deleted(
         self,

@@ -349,11 +349,13 @@ class TestDeleteAccount:
     @pytest.mark.parametrize(
         ("counts", "blocker"),
         [
-            ([1, 0, 0], "still has transactions"),
-            ([0, 1, 0], "recurring rules paid from it"),
-            ([0, 0, 1], "destination of a recurring transfer"),
+            ([1, 0, 0, 0, 0], "still has transactions"),
+            ([0, 1, 0, 0, 0], "recurring rules paid from it"),
+            ([0, 0, 1, 0, 0], "destination of a recurring transfer"),
+            ([0, 0, 0, 1, 0], "is where an income client is paid"),
+            ([0, 0, 0, 0, 1], "has investment trades settled through it"),
         ],
-        ids=["transactions", "recurring rules", "recurring transfers"],
+        ids=["transactions", "recurring rules", "recurring transfers", "income clients", "trades"],
     )
     def test_refuses_to_delete_an_account_something_references(
         self,
@@ -362,7 +364,13 @@ class TestDeleteAccount:
         counts: list[int],
         blocker: str,
     ) -> None:
-        """The foreign keys onto account are RESTRICT, so an unchecked delete is a 500."""
+        """Every foreign key onto account is RESTRICT, so an unchecked delete is a 500.
+
+        Every one of them has to be asked about up front. A blocker the service
+        does not name reaches the database instead, which refuses the delete
+        without a reason and leaves the user reading about transactions the
+        account does not have.
+        """
         account = make_account(name="Savings")
         mock_account_service.session.exec = MagicMock()
         mock_account_service.session.exec.return_value.first.return_value = account

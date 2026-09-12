@@ -23,6 +23,8 @@ from app.models import (
 )
 from app.repositories.account import AccountRepository
 from app.repositories.household import HouseholdRepository
+from app.repositories.income import IncomeClientRepository
+from app.repositories.investment import TradeRepository
 from app.repositories.recurring_rule import RecurringRuleRepository
 from app.repositories.transaction import TransactionRepository
 
@@ -39,6 +41,8 @@ class AccountService:
         household_repository: HouseholdRepository,
         transaction_repository: TransactionRepository,
         recurring_rule_repository: RecurringRuleRepository,
+        income_client_repository: IncomeClientRepository,
+        trade_repository: TradeRepository,
     ) -> None:
         """Initialize the account service.
 
@@ -51,12 +55,18 @@ class AccountService:
                 what still references an account being deleted.
             recurring_rule_repository: The recurring rule repository instance, used to
                 see what still references an account being deleted.
+            income_client_repository: The income client repository instance, used to
+                see what still references an account being deleted.
+            trade_repository: The trade repository instance, used to see what still
+                references an account being deleted.
         """
         self.session = session
         self.account_repository = account_repository
         self.household_repository = household_repository
         self.transaction_repository = transaction_repository
         self.recurring_rule_repository = recurring_rule_repository
+        self.income_client_repository = income_client_repository
+        self.trade_repository = trade_repository
 
     def create_account(self, household: HouseholdContext, account_create: AccountCreate) -> AccountPublic:
         """Create an account.
@@ -203,7 +213,7 @@ class AccountService:
 
         Raises:
             AccountNotFoundError: If the account does not exist in the household.
-            AccountInUseError: If a transaction or a recurring rule still references the account.
+            AccountInUseError: If anything still references the account.
         """
         account = self.require_account(household=household, account_id=account_id)
 
@@ -228,10 +238,15 @@ class AccountService:
     def _require_nothing_references(self, household: HouseholdContext, account: Account) -> None:
         """Check that an account can be deleted without breaking a reference to it.
 
-        Three foreign keys point at account and every one of them is RESTRICT,
-        yet only one is about transactions. Ask for each reference up front, in
-        the order the user is likeliest to be able to act on, so the refusal
-        names what is actually holding the account.
+        Six foreign keys point at account and every one of them is RESTRICT,
+        yet only two are about transactions. Ask for each reference up front,
+        in the order the user is likeliest to be able to act on, so the refusal
+        names what is actually holding the account. A blocker left unasked
+        reaches the database instead, which refuses the delete without saying
+        why, and the user is told about transactions the account does not have.
+
+        Five checks, not six: a transaction holds an account from either side,
+        and one count covers both.
 
         Args:
             household: The household context.
@@ -250,6 +265,12 @@ class AccountService:
 
         if self.recurring_rule_repository.count_for_counter_account(account_id=account.id, household_id=household_id):
             raise AccountInUseError(name=account.name, reason="is the destination of a recurring transfer") from None
+
+        if self.income_client_repository.count_for_default_account(account_id=account.id, household_id=household_id):
+            raise AccountInUseError(name=account.name, reason="is where an income client is paid") from None
+
+        if self.trade_repository.count_for_brokerage_account(account_id=account.id, household_id=household_id):
+            raise AccountInUseError(name=account.name, reason="has investment trades settled through it") from None
 
     def require_account(self, household: HouseholdContext, account_id: uuid.UUID) -> Account:
         """Load an account of the household.
