@@ -153,7 +153,7 @@ check "an app route falls back to the entry page" 200 "$(status /budgets)"
 # Every response carries a fresh one, so a check reads the value out of the
 # header it is looking at and asserts everything around it.
 policy() {
-  echo "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'nonce-$1'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+  echo "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'nonce-$1'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 }
 
 # The nonce a policy names, or the empty string if it names none.
@@ -170,7 +170,9 @@ entry_csp=$(tr -d '\r' < "$entry_headers" | grep --ignore-case '^content-securit
 entry_nonce=$(nonce_of "$entry_csp")
 
 # The session token lives in localStorage, so the browser's script execution
-# controls are what stands between an injected script and the token.
+# controls are what stands between an injected script and the token. The one
+# thing script-src allows besides this origin is 'wasm-unsafe-eval', which the
+# income vault's Argon2id needs to compile at all.
 check "the entry page carries a content security policy" "$(policy "$entry_nonce")" "$entry_csp"
 # Radix and next-themes build a stylesheet as they run, and style-src-elem
 # takes one only with this nonce, which the app reads out of the page.
