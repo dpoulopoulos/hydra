@@ -192,6 +192,7 @@ from .user import (
     UserRegister,
     UsersPublic,
     UserUpdate,
+    UserUpdatedMe,
     UserUpdateMe,
 )
 
@@ -366,5 +367,6 @@ __all__ = [
     "UsersPublic",
     "UserUpdate",
     "UserUpdateMe",
+    "UserUpdatedMe",
     "VerificationDelivery",
 ]

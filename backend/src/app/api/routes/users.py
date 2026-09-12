@@ -30,6 +30,7 @@ from app.models import (
     UserRegister,
     UsersPublic,
     UserUpdate,
+    UserUpdatedMe,
     UserUpdateMe,
 )
 from app.services.user import SIGNUP_MESSAGE
@@ -203,14 +204,14 @@ def get_users(
     return user_service.get_users(skip=skip, limit=limit)
 
 
-@router.patch("/me", response_model=UserPublic)
+@router.patch("/me", response_model=UserUpdatedMe)
 def update_user_me(
     *,
     user_service: UserServiceDep,
     email_verification_service: EmailVerificationServiceDep,
     user_in: UserUpdateMe,
     current_user: SessionUser,
-) -> UserPublic:
+) -> UserUpdatedMe:
     """Update the current user's information.
 
     A new email address is not applied here: it is mailed a verification link
@@ -227,7 +228,9 @@ def update_user_me(
         current_user: The signed-in user, from a browser session.
 
     Returns:
-        The updated user information.
+        The updated user information, and what became of the verification a
+        new address was sent, so the caller can tell a message that went out
+        from one the outbox is still holding.
 
     Raises:
         HTTPException: If a user with the same email already exists (409), the user's token is invalid (401),

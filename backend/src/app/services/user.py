@@ -28,6 +28,7 @@ from app.models import (
     UserRegister,
     UsersPublic,
     UserUpdate,
+    UserUpdatedMe,
     UserUpdateMe,
 )
 from app.repositories.user import UserRepository
@@ -404,7 +405,7 @@ class UserService:
         current_user: User,
         user_update: UserUpdateMe,
         email_verification_service: "EmailVerificationService",
-    ) -> UserPublic:
+    ) -> UserUpdatedMe:
         """Update the current user's information.
 
         A new address is not written here. It is held in a pending
@@ -420,7 +421,9 @@ class UserService:
                 used to ask the new address to prove itself.
 
         Returns:
-            The updated user, still holding its current address.
+            The updated user, still holding its current address, and what
+            became of the verification the new address was sent: nothing was
+            sent when the update asked for no new address.
 
         Raises:
             UserExistsError: If a user with the same email already exists.
@@ -441,10 +444,17 @@ class UserService:
         current_user = self.user_repository.save(current_user)
         self.session.commit()
 
-        if email_changed:
+        # Say what became of the link rather than letting the caller assume it
+        # is in the new mailbox already: a message the provider could not take
+        # waits in the outbox, and until it goes out there is nothing there to
+        # open.
+        email_delivery = (
             email_verification_service.send_email_change_verification(user=current_user, new_email=new_email)
+            if email_changed
+            else None
+        )
 
-        return UserPublic.model_validate(current_user)
+        return UserUpdatedMe.model_validate(current_user, update={"email_delivery": email_delivery})
 
     def update_user(self, user_id: uuid.UUID, user_update: UserUpdate) -> UserPublic:
         """Update a user's information.

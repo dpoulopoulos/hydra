@@ -4,6 +4,7 @@ import uuid
 from pydantic import EmailStr
 from sqlmodel import Field, SQLModel
 
+from .email_verification import VerificationDelivery
 from .fields import BCRYPT_MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH, Password
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 
@@ -32,6 +33,19 @@ class UserPublic(UserBase):
     id: uuid.UUID
     created_at: datetime.datetime
     updated_at: datetime.datetime | None = None
+
+
+class UserUpdatedMe(UserPublic):
+    """An account as an update left it, and what became of the mail it sent.
+
+    An update that asks for a new address mails a link to it, and that
+    message may only be queued when the provider is down. Reporting the
+    outcome here is what lets the screen say the link is on its way rather
+    than sending someone to look in an inbox that has nothing in it yet.
+    """
+
+    # Unset when the update asked for no new address, so nothing was sent.
+    email_delivery: VerificationDelivery | None = None
 
 
 class UsersPublic(SQLModel):
