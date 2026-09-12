@@ -54,6 +54,7 @@ from .email_verification import (
     EmailVerificationRequest,
     EmailVerificationStatus,
     PendingEmailChange,
+    VerificationDelivery,
 )
 from .household import (
     Household,
@@ -365,4 +366,5 @@ __all__ = [
     "UsersPublic",
     "UserUpdate",
     "UserUpdateMe",
+    "VerificationDelivery",
 ]
