@@ -546,6 +546,19 @@ no extra hash and no repeated write, and the news about it rides on the verifica
 message. Every signup therefore does one bcrypt hash, one account write and one blocking send to the mail provider
 whatever the answer is, and cannot be told apart by the clock either.
 
+### Changing the Address an Account Holds
+
+`PATCH /api/v1/users/me` never writes a new address. It holds the requested one in a pending verification, mails a
+link there, and the account moves only once that link is redeemed — so an address nobody has proven can reach is
+never one a password reset or a verification will be delivered to.
+
+The reply is `UserUpdatedMe`: the account as the update left it, plus `email_delivery`, which says what became of
+that message — `sent`, `queued`, or `not_configured` where the deployment sends no mail at all. Mail is written to
+the outbox before it is attempted, so a provider outage delays the link by minutes; without this field a screen
+could only say the link had been sent, and would send somebody to look in a mailbox that has nothing in it yet.
+The field is unset when the update asked for no new address, since nothing was sent. Every other user endpoint
+still answers with `UserPublic`.
+
 ### Password Management
 
 - Passwords are hashed with bcrypt (cost factor 12) via pwdlib
