@@ -543,8 +543,19 @@ with a household of its own, and the verification email it was going to get anyw
 applied. That paragraph does not say which of the possible reasons applied and does not repeat the token. The
 invitation is settled before anything is written, by `HouseholdService.check_signup_invite`, so dropping one costs
 no extra hash and no repeated write, and the news about it rides on the verification email rather than a second
-message. Every signup therefore does one bcrypt hash, one account write and one blocking send to the mail provider
-whatever the answer is, and cannot be told apart by the clock either.
+message. Every signup therefore does one bcrypt hash, one account write and one queued message whatever the answer
+is, and cannot be told apart by the clock either.
+
+Neither of the two messages is handed to the mail provider while the request runs. They are not the same message —
+one carries a verification token and one must not — so a provider that treated them differently, by a size limit, a
+content filter, a suppression on one of the templates or a rejection of the link, would accept one and refuse the
+other. A send attempted inside the request puts that difference into what the endpoint can say about the delivery
+and into how long the request took, and either one answers the question the shared reply refuses. Both paths write
+their message to the outbox with `EmailOutboxService.queue_for_dispatch` instead, and the dispatcher posts it on its
+next round: the request does one insert either way and hears nothing from the provider to report. The cost is the
+wait — a signup's mail leaves within `EMAIL_OUTBOX_POLL_SECONDS` rather than at once, so the screen that says to go
+and look in a mailbox is up to a poll interval early. Every other flow keeps the inline send, since none of them
+chooses its message by something the caller is not allowed to learn.
 
 ### Changing the Address an Account Holds
 

@@ -194,9 +194,17 @@ class UserService:
         only a free address ever gets as far as reading the token, so an error about it would say
         which addresses are registered. The invitation is settled before anything is written, so
         dropping one costs a signup no writes it would not have done anyway. The verification email
-        says the invitation was not applied, so that every signup sends exactly one message: a
-        second send would cost another blocking HTTPS call to the mail provider and make the two
-        paths tell themselves apart by the clock.
+        says the invitation was not applied, so that every signup queues exactly one message.
+
+        Neither message is handed to the mail provider here. The two paths necessarily send
+        different content — one carries a verification token and one must not — so a provider that
+        treated them differently, by a size limit, a content filter or a suppression on one of the
+        templates, would accept one and refuse the other. Attempting the send inside the request
+        would put that difference in what the endpoint reports about the delivery, and in how long
+        the request took, which is the question the shared reply exists to refuse. Both paths write
+        their message to the outbox instead and the dispatcher posts it, so the request itself does
+        the same work either way and hears nothing from the provider. The cost is the wait: a
+        signup's mail leaves on the dispatcher's next round rather than at once.
 
         The password is hashed once, here, before anything is looked up, and that one hash is used
         by whichever path follows. Every signup therefore pays exactly one bcrypt hash — the
@@ -253,13 +261,11 @@ class UserService:
             self._handle_taken_address(user_register=user_register)
             return Message(message=SIGNUP_MESSAGE)
 
-        # One message per signup, whatever happened. Each send blocks on an HTTPS call to the mail
-        # provider, which costs far more than the single bcrypt hash above, so a second message for
-        # the dropped invitation would make a free address measurably slower than a taken one and
-        # the clock would answer the question the shared reply refuses. The verification email
-        # carries the news about the invitation instead.
+        # One message per signup, whatever happened, and none of them handed to the provider here.
+        # The verification email carries the news about a dropped invitation rather than a second
+        # message, so that no signup posts more mail than another.
         email_verification_service.send_verification_email(
-            user_service=self, user_email=user.email, invite_unusable=invite_unusable
+            user_service=self, user_email=user.email, invite_unusable=invite_unusable, defer_delivery=True
         )
 
         return Message(message=SIGNUP_MESSAGE)
@@ -308,7 +314,9 @@ class UserService:
 
         The password was already hashed by the caller, before the address was looked up, so this
         path has paid the same bcrypt cost as one that goes on to create an account even though
-        nothing here will store the result.
+        nothing here will store the result. The notice is queued rather than posted, like the
+        verification email the other path queues, so that neither the reply nor the clock carries
+        the provider's opinion of a message only one kind of address is sent.
 
         Args:
             user_register: The registration data for the address that is already taken.
@@ -321,7 +329,7 @@ class UserService:
             email_data = generate_signup_attempt_email(
                 email=user_register.email, invited=user_register.invite_token is not None
             )
-            EmailOutboxService.for_session(self.session).deliver_or_queue(
+            EmailOutboxService.for_session(self.session).queue_for_dispatch(
                 email_to=user_register.email,
                 subject=email_data.subject,
                 html_content=email_data.html_content,

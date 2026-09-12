@@ -54,6 +54,19 @@ def outbox_sends(mock_outbox: MagicMock) -> MagicMock:
     return sends
 
 
+def outbox_queues(mock_outbox: MagicMock) -> MagicMock:
+    """The outbox call a service makes to leave a message for the dispatcher.
+
+    Args:
+        mock_outbox: The stand-in for EmailOutboxService the test patched in.
+
+    Returns:
+        The mock that records every message written down without being attempted.
+    """
+    queues: MagicMock = mock_outbox.for_session.return_value.queue_for_dispatch
+    return queues
+
+
 class TestAuthenticate:
     """Tests for the authenticate method."""
 
@@ -385,7 +398,10 @@ class TestRegisterUser:
         assert isinstance(result, Message)
         mock_user_service.create_user.assert_called_once()
         email_verification_service.send_verification_email.assert_called_once_with(
-            user_service=mock_user_service, user_email="newuser@example.com", invite_unusable=False
+            user_service=mock_user_service,
+            user_email="newuser@example.com",
+            invite_unusable=False,
+            defer_delivery=True,
         )
 
     def test_register_user_notifies_a_registered_address(
@@ -416,8 +432,8 @@ class TestRegisterUser:
         assert isinstance(result, Message)
         mock_user_service.create_user.assert_not_called()
         email_verification_service.send_verification_email.assert_not_called()
-        outbox_sends(mock_outbox).assert_called_once()
-        assert outbox_sends(mock_outbox).call_args.kwargs["email_to"] == test_user.email
+        outbox_queues(mock_outbox).assert_called_once()
+        assert outbox_queues(mock_outbox).call_args.kwargs["email_to"] == test_user.email
 
     def test_register_user_answers_both_addresses_alike(self, mock_user_service: UserService, test_user: User) -> None:
         """Test that the reply says the same thing whether or not the address is registered."""
@@ -589,7 +605,7 @@ class TestRegisterUser:
             )
 
         # Assert: Verify the notice mentions the invitation and does not repeat its token
-        html_content = outbox_sends(mock_outbox).call_args.kwargs["html_content"]
+        html_content = outbox_queues(mock_outbox).call_args.kwargs["html_content"]
         assert "invitation" in html_content
         assert "invite-token" not in html_content
 
@@ -635,7 +651,10 @@ class TestRegisterUser:
         assert result == Message(message=SIGNUP_MESSAGE)
         mock_user_service.create_user.assert_called_once()
         email_verification_service.send_verification_email.assert_called_once_with(
-            user_service=mock_user_service, user_email="invited@example.com", invite_unusable=True
+            user_service=mock_user_service,
+            user_email="invited@example.com",
+            invite_unusable=True,
+            defer_delivery=True,
         )
 
     def test_register_user_keeps_an_invitation_that_can_be_applied(self, mock_user_service: UserService) -> None:
@@ -659,7 +678,10 @@ class TestRegisterUser:
         # Assert: Verify the invitation was checked and the verification email says nothing about it
         household_service.check_signup_invite.assert_called_once_with(email="invited@example.com", token="a-token")
         email_verification_service.send_verification_email.assert_called_once_with(
-            user_service=mock_user_service, user_email="invited@example.com", invite_unusable=False
+            user_service=mock_user_service,
+            user_email="invited@example.com",
+            invite_unusable=False,
+            defer_delivery=True,
         )
 
     def test_register_user_answers_an_unusable_invitation_like_a_taken_address(
@@ -731,8 +753,12 @@ class TestRegisterUser:
 
         # Assert: Verify the only message is the verification email, and it says so itself
         outbox_sends(mock_outbox).assert_not_called()
+        outbox_queues(mock_outbox).assert_not_called()
         email_verification_service.send_verification_email.assert_called_once_with(
-            user_service=mock_user_service, user_email="invited@example.com", invite_unusable=True
+            user_service=mock_user_service,
+            user_email="invited@example.com",
+            invite_unusable=True,
+            defer_delivery=True,
         )
 
     def test_register_user_sends_as_many_emails_for_a_free_address_as_for_a_taken_one(
@@ -774,9 +800,60 @@ class TestRegisterUser:
             )
 
         # Assert: Verify one message either way
-        free_total = outbox_sends(free_outbox).call_count + free_verification_service.send_verification_email.call_count
+        free_total = (
+            outbox_queues(free_outbox).call_count + free_verification_service.send_verification_email.call_count
+        )
         assert free_total == 1
-        assert outbox_sends(taken_outbox).call_count == 1
+        assert outbox_queues(taken_outbox).call_count == 1
+
+    def test_register_user_asks_the_provider_for_nothing_on_either_path(
+        self, mock_user_service: UserService, test_user: User, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that neither signup path hands its message to the provider while the request runs.
+
+        The two paths send different messages — one carries a verification token and one must not —
+        so a provider that treated them differently, by a size limit, a content filter or a
+        suppression on one of the templates, would answer one path and refuse the other. Anything
+        the endpoint reports about that send, and the time the send itself took, would then say
+        which addresses are registered. Neither path asks the provider anything: both write the
+        message down and let the dispatcher post it.
+        """
+        # Arrange: Turn mail on so that a send would really reach the provider
+        monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
+        monkeypatch.setattr(settings, "RESEND_API_KEY", "re_test_key")
+        monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "from@example.com")
+
+        mock_user_service.session = MagicMock()
+        user_register = UserRegister(email="newuser@example.com", password="password123")
+
+        # Act: Register a free address, where the verification service does the sending
+        verification_service = MagicMock()
+        with patch("app.services.user.EmailOutboxService") as free_outbox:
+            mock_user_service.get_user_by_email = MagicMock(return_value=None)
+            mock_user_service.create_user = MagicMock(return_value=MagicMock(email="newuser@example.com"))
+            mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=MagicMock(),
+                email_verification_service=verification_service,
+            )
+
+        # Act: Register a taken address, where the service sends the notice itself
+        with patch("app.services.user.EmailOutboxService") as taken_outbox:
+            mock_user_service.get_user_by_email = MagicMock(return_value=test_user)
+            mock_user_service.create_user = MagicMock()
+            mock_user_service.register_user(
+                user_register=user_register,
+                category_service=MagicMock(),
+                household_service=MagicMock(),
+                email_verification_service=MagicMock(),
+            )
+
+        # Assert: Verify both messages were left for the dispatcher rather than attempted
+        assert verification_service.send_verification_email.call_args.kwargs["defer_delivery"] is True
+        outbox_sends(free_outbox).assert_not_called()
+        outbox_sends(taken_outbox).assert_not_called()
+        outbox_queues(taken_outbox).assert_called_once()
 
     def test_register_user_reraises_a_failure_that_is_not_a_taken_address(self, mock_user_service: UserService) -> None:
         """Test that an IntegrityError on something other than the address is not reported as success.
@@ -804,6 +881,7 @@ class TestRegisterUser:
         # Assert: Verify the write was undone and nothing was mailed about an account
         mock_user_service.session.rollback.assert_called_once()
         outbox_sends(mock_outbox).assert_not_called()
+        outbox_queues(mock_outbox).assert_not_called()
 
 
 class TestGetAuthenticatedUser:

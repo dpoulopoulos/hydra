@@ -61,6 +61,36 @@ class EmailOutboxService:
             is EmailOutboxStatus.SENT
         )
 
+    def queue_for_dispatch(self, *, email_to: str, subject: str, html_content: str) -> EmailOutbox:
+        """Write a message down and leave it for the dispatcher, without trying it.
+
+        The provider is not called at all while the request runs, so nothing
+        about the message - its size, its template, its recipient, the links
+        it carries - can be answered for differently inside the response. That
+        matters where two messages are sent from the same endpoint and the
+        caller must not be able to tell which one it got: a send that is
+        attempted inline hands the provider's opinion of the message back to
+        whoever asked for it, in the reply and on the clock.
+
+        The cost is the wait: the message leaves on the next round of the
+        dispatcher, up to ``EMAIL_OUTBOX_POLL_SECONDS`` later, rather than
+        during the request. Use ``deliver_or_queue`` where promptness matters
+        more than that.
+
+        Args:
+            email_to: The recipient's email address.
+            subject: The subject of the email.
+            html_content: The HTML content of the email.
+
+        Returns:
+            The queued row, due immediately and never attempted.
+        """
+        entry = EmailOutbox(email_to=email_to, subject=subject[:SUBJECT_MAX_LENGTH], html_content=html_content)
+        self.email_outbox_repository.save(entry)
+        self.session.commit()
+
+        return entry
+
     def record_and_attempt(self, *, email_to: str, subject: str, html_content: str) -> EmailOutbox:
         """Write a message down and try it once, handing back its row.
 

@@ -213,7 +213,11 @@ class EmailVerificationService:
             )
 
     def send_verification_email(
-        self, user_service: UserService, user_email: str, invite_unusable: bool = False
+        self,
+        user_service: UserService,
+        user_email: str,
+        invite_unusable: bool = False,
+        defer_delivery: bool = False,
     ) -> Message:
         """Send an email verification to a user.
 
@@ -224,6 +228,10 @@ class EmailVerificationService:
                 verification email says so as well when it did, so that a signup sends one message
                 whatever happened to its invitation and cannot be told apart by how long the send
                 took.
+            defer_delivery: Whether to leave the message for the dispatcher instead of handing it
+                to the provider here. For a caller that must not let the provider's opinion of this
+                particular message show in what it answers; it costs the wait for the next round of
+                the dispatcher.
 
         Returns:
             What became of the message: sent, queued for another attempt, or
@@ -237,7 +245,9 @@ class EmailVerificationService:
             raise UserNotFoundError from None
 
         return _delivery_message(
-            self._issue_verification(user=user, address=user.email, invite_unusable=invite_unusable)
+            self._issue_verification(
+                user=user, address=user.email, invite_unusable=invite_unusable, defer_delivery=defer_delivery
+            )
         )
 
     def send_email_change_verification(self, user: User, new_email: str) -> VerificationDelivery:
@@ -292,7 +302,12 @@ class EmailVerificationService:
         )
 
     def _issue_verification(
-        self, user: User, address: str, new_email: str | None = None, invite_unusable: bool = False
+        self,
+        user: User,
+        address: str,
+        new_email: str | None = None,
+        invite_unusable: bool = False,
+        defer_delivery: bool = False,
     ) -> VerificationDelivery:
         """Write a pending verification for a user and mail its token out.
 
@@ -305,6 +320,8 @@ class EmailVerificationService:
                 redeemed, or None when the verification activates the account.
             invite_unusable: Whether the signup carried an invitation that could
                 not be applied, which the message says so too.
+            defer_delivery: Whether to write the message down for the dispatcher
+                rather than attempt it here.
 
         Returns:
             What became of the message: sent, queued for another attempt, or
@@ -348,7 +365,17 @@ class EmailVerificationService:
             return VerificationDelivery.NOT_CONFIGURED
 
         email_data = generate_email_verification_email(email=address, token=token, invite_unusable=invite_unusable)
-        delivered = EmailOutboxService.for_session(self.session).deliver_or_queue(
+        outbox = EmailOutboxService.for_session(self.session)
+
+        if defer_delivery:
+            outbox.queue_for_dispatch(
+                email_to=address,
+                subject=email_data.subject,
+                html_content=email_data.html_content,
+            )
+            return VerificationDelivery.QUEUED
+
+        delivered = outbox.deliver_or_queue(
             email_to=address,
             subject=email_data.subject,
             html_content=email_data.html_content,
