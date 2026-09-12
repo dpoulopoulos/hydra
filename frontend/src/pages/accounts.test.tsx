@@ -98,17 +98,28 @@ describe('the delete confirmation', () => {
     expect(within(dialog).getByText('Delete Rainy day?')).toBeInTheDocument()
   })
 
-  it('names a recurring rule as a blocker too, not transactions alone', async () => {
+  it('names every blocker, not transactions alone', async () => {
     // Arrange & Act: Read the dialog before confirming anything
     const { dialog } = await openDeleteDialog()
 
-    // Assert: Recurring rules refuse the delete as surely as transactions do,
-    // so an empty ledger is not enough. The copy names them as examples rather
-    // than as the whole list, because more references block the delete than
-    // the service checks. Read through the accessible description, which is
-    // the text the dialog actually hands the user.
+    // Assert: Four other things refuse the delete as surely as transactions
+    // do, so an empty ledger is not enough. The server now checks each of
+    // them by name, so the copy can list them all rather than trail off into
+    // examples. Read through the accessible description, which is the text
+    // the dialog actually hands the user.
     expect(dialog).toHaveAccessibleDescription(/transactions/i)
     expect(dialog).toHaveAccessibleDescription(/recurring rules/i)
+    expect(dialog).toHaveAccessibleDescription(/income clients?/i)
+    expect(dialog).toHaveAccessibleDescription(/trades/i)
+  })
+
+  it('reads as a complete list rather than an open-ended one', async () => {
+    // Arrange & Act: Read the dialog before confirming anything
+    const { dialog } = await openDeleteDialog()
+
+    // Assert: "such as" would promise less than the server delivers. Every
+    // blocker is named, so nothing is left for the user to guess at.
+    expect(dialog).not.toHaveAccessibleDescription(/such as/i)
   })
 
   it('leaves the account alone until the delete is confirmed', async () => {
