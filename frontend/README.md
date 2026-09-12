@@ -215,13 +215,13 @@ The session token is kept in `localStorage`, so any script running on the origin
 can read it. What keeps a script that should not be there from running at all is
 the browser, told what to allow by the response headers `Caddyfile` sets:
 
-| Header                      | Value                                                         |
-| --------------------------- | ------------------------------------------------------------- |
-| `Content-Security-Policy`   | `'self'` throughout, plus `data:` images and style attributes |
-| `X-Content-Type-Options`    | `nosniff`                                                     |
-| `Referrer-Policy`           | `no-referrer`                                                 |
-| `X-Frame-Options`           | `DENY`                                                        |
-| `Strict-Transport-Security` | one year, including subdomains                                |
+| Header                      | Value                                                                      |
+| --------------------------- | -------------------------------------------------------------------------- |
+| `Content-Security-Policy`   | `'self'` throughout, plus `data:` images, style attributes and WebAssembly |
+| `X-Content-Type-Options`    | `nosniff`                                                                  |
+| `Referrer-Policy`           | `no-referrer`                                                              |
+| `X-Frame-Options`           | `DENY`                                                                     |
+| `Strict-Transport-Security` | one year, including subdomains                                             |
 
 Two of those are worth a word. The policy is nearly all `'self'` because there is
 one origin to allow: the bundles and fonts under `/static`, and the API under
@@ -242,6 +242,27 @@ off that path entirely: shadcn's chart wrapper, which sets its colours on the
 container's style attribute instead of emitting a stylesheet, and sonner, whose
 stylesheet is imported from `sonner/dist/styles.css` and bundled rather than
 injected. See `withoutSonnerStyleInjection` in `vite.config.ts`.
+
+`script-src` allows one thing besides this origin: `'wasm-unsafe-eval'`. A
+browser compiles no WebAssembly module without it, and the income vault
+stretches the PIN that guards the client names with Argon2id, which `hash-wasm`
+ships as WebAssembly. Without the source the vault can neither be created nor
+opened: the names stay ciphertext and the screen reports a failure nobody can
+act on.
+
+It is worth being clear about what it costs, since the name invites the worst
+reading. `'wasm-unsafe-eval'` permits no `eval` and no `new Function`; it permits
+the compilation of a WebAssembly module, and `script-src` is otherwise `'self'`,
+so the only modules that reach the compiler are ones this origin served. What it
+does give up is that it applies to the whole origin rather than to one module:
+any WebAssembly a future dependency brings with it will compile too, and the
+policy will not be the thing that notices. The alternative was to derive the key
+with `crypto.subtle` instead, which the policy already allows -- but the only KDF
+it offers is PBKDF2, which is not memory hard, and against a six digit PIN that
+is the difference between days of guessing and minutes. It would also strand
+every vault already wrapped under Argon2id. So the source is carried on purpose,
+and `scripts/test-caddyfile.sh` asserts the whole policy string, which is what
+makes adding the next source a decision rather than an edit.
 
 A new front end dependency that loads something from elsewhere will be blocked,
 and will say so in the browser console. Widen the policy deliberately when that
