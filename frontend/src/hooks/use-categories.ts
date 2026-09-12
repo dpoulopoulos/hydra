@@ -19,10 +19,21 @@ export function useInvalidateCategories() {
   }, [queryClient])
 }
 
-/** The category tree, for pickers and for the categories page. */
-export function useCategoryTree(options?: { includeArchived?: boolean; kind?: CategoryKind }) {
+/**
+ * The category tree, for pickers and for the categories page.
+ *
+ * `enabled` is kept out of the key: a caller that only wants the tree while its
+ * dialog is open still shares the one cached answer with everything else, and
+ * gets a fresh attempt each time it opens rather than being stuck with a
+ * failure from earlier in the visit.
+ */
+export function useCategoryTree(
+  options?: { includeArchived?: boolean; kind?: CategoryKind },
+  { enabled = true }: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: ['categories', 'tree', options],
+    enabled,
     queryFn: async () => {
       const { data, error } = await categoriesGetCategoryTree({
         query: { include_archived: options?.includeArchived ?? false, kind: options?.kind ?? null },
