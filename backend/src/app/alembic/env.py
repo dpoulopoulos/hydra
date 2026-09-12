@@ -73,8 +73,20 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         # compare_type detects column type changes, which alembic skips by default.
+        #
+        # transaction_per_migration gives every revision its own transaction
+        # rather than wrapping the whole run in one. Revisions that apply a
+        # CHECK through app.core.migrations run an autocommit block, which
+        # commits whatever transaction it finds; under a single run-wide
+        # transaction that would silently commit every earlier revision in the
+        # chain as well. A transaction per revision makes that the rule instead
+        # of a side effect: an upgrade that stops leaves the revisions before
+        # it applied and recorded, and only the one that stopped to be re-run.
         context.configure(
-            connection=connection, target_metadata=target_metadata, compare_type=True
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            transaction_per_migration=True,
         )
 
         with context.begin_transaction():
