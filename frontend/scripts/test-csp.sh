@@ -9,7 +9,9 @@
 # answer, and the part of the policy that is easiest to break is exactly that:
 # `style-src-elem` takes only this origin and the page's nonce, so a dependency
 # that builds a stylesheet while it runs has to carry the nonce or be refused.
-# Nothing reports that but the browser.
+# Nothing reports that but the browser. The same goes for WebAssembly: the
+# income vault's Argon2id compiles only if `script-src` names it, and only when
+# a PIN is typed, which no request from here does.
 #
 # So this builds the app, serves it the way it will be served, and drives a
 # real browser through it: see the walk in csp-walk.mjs. The backend is stood

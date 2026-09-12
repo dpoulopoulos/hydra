@@ -281,9 +281,12 @@ itself, so a dropped header cannot reach a deploy unnoticed.
 `make web-test-csp` covers the other half, the half a request cannot see: it
 builds the app, serves it with the same `Caddyfile` and a stub backend, and
 walks it in a headless browser -- signing in, opening the reports and their
-charts, a dialog, a toast, a theme change -- failing on anything the policy
-refused along the way. Everything in the two paragraphs above is a run time
-behaviour of a dependency, so this is what notices when one of them changes its
+charts, a dialog, a toast, a theme change, and unlocking the income vault --
+failing on anything the policy refused along the way. The vault is the step that
+covers the WebAssembly: the stub serves a real Argon2id vault, made by
+`scripts/make-stub-vault.mjs`, and the walk types its PIN and then reads a client
+name that was ciphertext a moment earlier. Everything in the paragraphs above is
+a run time behaviour of a dependency, so this is what notices when one of them changes its
 mind. It needs Docker and downloads a browser on first use. CI runs it for any
 pull request that touches the front end, because that is where a new dependency
 arrives from.
