@@ -1,6 +1,7 @@
 import smtplib
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 from app.core.config import settings
@@ -10,6 +11,7 @@ from app.utils.email_utils import (
     generate_new_account_email,
     generate_password_reset_email,
     generate_signup_attempt_email,
+    is_permanent_rejection,
     mask_email,
     send_email,
 )
@@ -502,3 +504,112 @@ class TestMaskEmail:
     def test_masks_a_string_that_is_not_an_address(self) -> None:
         """It is only ever fed stored addresses, but it must not leak one if it is not."""
         assert mask_email("not-an-address") == "*****"
+
+
+def http_status(code: int) -> httpx.HTTPStatusError:
+    """Build the error httpx raises for a status the provider answered with.
+
+    Args:
+        code: The HTTP status code the provider returned.
+
+    Returns:
+        The error raise_for_status would have raised.
+    """
+    request = httpx.Request("POST", "https://api.resend.com/emails")
+    return httpx.HTTPStatusError(str(code), request=request, response=httpx.Response(code))
+
+
+class TestIsPermanentRejection:
+    """Test telling a refusal that will not change from one that might."""
+
+    def test_a_five_hundred_series_smtp_reply_is_permanent(self) -> None:
+        """The server said the message is undeliverable, not that it is busy."""
+        assert is_permanent_rejection(smtplib.SMTPResponseException(550, "No such user here")) is True
+
+    def test_a_four_hundred_series_smtp_reply_is_not(self) -> None:
+        """A greylisted or throttled message is worth another attempt."""
+        assert is_permanent_rejection(smtplib.SMTPResponseException(451, "Try again later")) is False
+
+    def test_a_recipient_refused_outright_is_permanent(self) -> None:
+        """Every recipient was rejected with a code that will not change."""
+        error = smtplib.SMTPRecipientsRefused({"recipient@example.com": (550, b"No such user here")})
+
+        assert is_permanent_rejection(error) is True
+
+    def test_a_recipient_refused_for_now_is_not(self) -> None:
+        """A temporary refusal of the only recipient still deserves a retry."""
+        error = smtplib.SMTPRecipientsRefused({"recipient@example.com": (450, b"Mailbox busy")})
+
+        assert is_permanent_rejection(error) is False
+
+    def test_a_mixed_refusal_is_not_permanent(self) -> None:
+        """One address that may yet accept the message is enough to try again."""
+        error = smtplib.SMTPRecipientsRefused(
+            {"gone@example.com": (550, b"No such user here"), "busy@example.com": (450, b"Mailbox busy")}
+        )
+
+        assert is_permanent_rejection(error) is False
+
+    def test_a_refused_credential_is_not_permanent(self) -> None:
+        """A wrong password is our setting to fix, not this message's fault."""
+        error = smtplib.SMTPAuthenticationError(535, b"Authentication credentials invalid")
+
+        assert is_permanent_rejection(error) is False
+
+    @pytest.mark.parametrize("code", [530, 534, 535, 538])
+    def test_an_smtp_reply_about_our_credential_is_not_permanent(self, code: int) -> None:
+        """The server never looked at the message, so it settled nothing."""
+        assert is_permanent_rejection(smtplib.SMTPResponseException(code, "Authentication required")) is False
+
+    @pytest.mark.parametrize("code", [550, 553])
+    def test_a_refused_sender_is_not_permanent(self, code: int) -> None:
+        """The address we send from is one setting, not this message."""
+        error = smtplib.SMTPSenderRefused(code, b"Sender address not verified", "noreply@example.com")
+
+        assert is_permanent_rejection(error) is False
+
+    def test_a_refused_connection_is_not_permanent(self) -> None:
+        """A server that will not be talked to has not read the message."""
+        error = smtplib.SMTPConnectError(554, b"Transaction failed")
+
+        assert is_permanent_rejection(error) is False
+
+    def test_a_refused_greeting_is_not_permanent(self) -> None:
+        """A block on who is calling settles nothing about what we would send."""
+        error = smtplib.SMTPHeloError(550, b"Access denied for this host")
+
+        assert is_permanent_rejection(error) is False
+
+    def test_an_smtp_error_without_a_code_is_not_permanent(self) -> None:
+        """Nothing was said about the message, so nothing is settled about it."""
+        assert is_permanent_rejection(smtplib.SMTPServerDisconnected("connection lost")) is False
+
+    def test_a_rejected_request_is_permanent(self) -> None:
+        """The provider refused what we sent, and we would send it again."""
+        assert is_permanent_rejection(http_status(422)) is True
+
+    def test_being_rate_limited_is_not_permanent(self) -> None:
+        """Too much mail now is not too much mail later."""
+        assert is_permanent_rejection(http_status(429)) is False
+
+    def test_a_request_timeout_is_not_permanent(self) -> None:
+        """The provider ran out of patience, not out of willingness."""
+        assert is_permanent_rejection(http_status(408)) is False
+
+    @pytest.mark.parametrize("code", [401, 403])
+    def test_a_rejected_api_key_is_not_permanent(self, code: int) -> None:
+        """An expired key fails every queued message, and can be rotated."""
+        assert is_permanent_rejection(http_status(code)) is False
+
+    def test_a_provider_fault_is_not_permanent(self) -> None:
+        """A provider having a bad minute owes us another attempt."""
+        assert is_permanent_rejection(http_status(503)) is False
+
+    def test_a_network_failure_is_not_permanent(self) -> None:
+        """Nothing reached the provider, so it refused nothing."""
+        assert is_permanent_rejection(httpx.ConnectError("connection refused")) is False
+        assert is_permanent_rejection(ConnectionRefusedError("[Errno 111] Connection refused")) is False
+
+    def test_anything_else_is_not_permanent(self) -> None:
+        """A failure we do not recognise is not one we may give up on."""
+        assert is_permanent_rejection(ValueError("something else went wrong")) is False
