@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-import { budgetsBulkUpsertBudgets, budgetsListBudgets, CategoryKind } from '@/api'
+import { budgetsBulkUpsertBudgets, CategoryKind } from '@/api'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ErrorState, LoadingRows } from '@/components/data-state'
 import { FormError } from '@/components/form-field'
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useMonthBudgets } from '@/hooks/use-budgets'
 import { useCategoryTree } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
@@ -100,15 +101,7 @@ export function BudgetEditor({
     removing: string[]
   } | null>(null)
 
-  const existing = useQuery({
-    queryKey: ['budgets', month],
-    queryFn: async () => {
-      const { data, error } = await budgetsListBudgets({ query: { month } })
-      if (error) throw error
-      return data
-    },
-    enabled: open,
-  })
+  const existing = useMonthBudgets(month, { enabled: open })
 
   const saved = useMemo(
     () =>
