@@ -12,9 +12,13 @@
 // asked for one, breaks a screen in production and nothing else notices. The
 // browser notices: it refuses the stylesheet and says so.
 //
-// So the walk visits the screens those three show up on, and reports every
-// violation the browser raised along the way, plus anything it logged as an
-// error. Each step also asserts something it should be able to see, because a
+// The other half is WebAssembly: `script-src` has to name 'wasm-unsafe-eval'
+// by hand, and the one module the app compiles is the Argon2id behind the
+// income vault, which is not touched until somebody types a PIN.
+//
+// So the walk visits the screens those three show up on, unlocks a vault, and
+// reports every violation the browser raised along the way, plus anything it
+// logged as an error. Each step also asserts something it should be able to see, because a
 // walk that never arrived would otherwise pass with no violations at all.
 
 import { chromium } from 'playwright'
@@ -239,6 +243,34 @@ try {
       true,
       await page.evaluate(() => document.documentElement.classList.contains('dark')),
     )
+  })
+
+  // The income screen, which is the one place the app compiles WebAssembly:
+  // the client names are encrypted under a key stretched from a PIN by
+  // hash-wasm's Argon2id, and a browser refuses to compile a module unless
+  // `script-src` says it may. Nothing short of unlocking a vault finds that
+  // out, because the module is not fetched until a PIN is entered.
+  await step('unlocking the income vault', async () => {
+    await page.goto(`${base}/income`, { waitUntil: 'networkidle' })
+    await page.getByRole('button', { name: 'Unlock names' }).click()
+    // The PIN the stub's vault was wrapped under; see scripts/make-stub-vault.mjs.
+    await page.getByRole('dialog').getByLabel('PIN').fill('135790')
+    await page.getByRole('dialog').getByRole('button', { name: 'Unlock' }).click()
+    // The header says which it is, and it only says this once the wrapped key
+    // has actually been unwrapped -- which is the Argon2id run, and the
+    // WebAssembly with it.
+    const unlocked = page.getByRole('button', { name: 'Names visible' })
+    await unlocked.waitFor()
+    check('the vault is unlocked', true, await unlocked.isVisible())
+  })
+
+  // And the names it was hiding. A vault that unlocked but decrypted nothing
+  // would leave the rows showing dots, which is what production showed.
+  await step('a client name behind the PIN', async () => {
+    await page.getByRole('tab', { name: 'Clients' }).click()
+    const name = page.getByRole('cell', { name: 'Wanda Walker' })
+    await name.waitFor()
+    check('the client name is readable', true, await name.isVisible())
   })
 
   // The last step's check is taken before the page has finished settling, and

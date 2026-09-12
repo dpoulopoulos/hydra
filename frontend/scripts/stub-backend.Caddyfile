@@ -28,6 +28,13 @@
 		respond `{"id": "00000000-0000-4000-8000-000000000001", "email": "walker@example.com", "full_name": "Wanda Walker", "is_active": true, "is_superuser": false, "created_at": "2026-01-01T00:00:00Z", "updated_at": null}` 200
 	}
 
+	# Who else is in the household. The income screen reads it to find out
+	# whether the reader owns the household, which is what decides whether the
+	# ledger label can be renamed from there.
+	handle /api/v1/households/me/members {
+		respond `{"data": [{"id": "00000000-0000-4000-8000-000000000005", "household_id": "00000000-0000-4000-8000-000000000002", "user_id": "00000000-0000-4000-8000-000000000001", "email": "walker@example.com", "full_name": "Wanda Walker", "role": "owner", "created_at": "2026-01-01T00:00:00Z"}], "count": 1}` 200
+	}
+
 	handle /api/v1/households/me {
 		respond `{"id": "00000000-0000-4000-8000-000000000002", "name": "The Walkers", "currency_code": "EUR", "session_merchant_label": "Session", "member_count": 2, "created_at": "2026-01-01T00:00:00Z", "updated_at": null}` 200
 	}
@@ -46,8 +53,42 @@
 	# The income vault, which the app asks about as soon as anyone signs in.
 	# An answer rather than a 404: a run that ended with a failed request in
 	# the console could not tell that one apart from a real one.
+	#
+	# Unlike everything else here, this one is not made up: the salt and the
+	# wrapped data key are a real Argon2id vault, stretched from the PIN
+	# 135790 at the parameters named below, so the walk can actually open it
+	# and the browser has to compile the WebAssembly to do so. They were made
+	# once with the app's own `createVault`, from a fixed salt, key and nonce
+	# so that they never move; see scripts/make-stub-vault.mjs.
 	handle /api/v1/income/vault {
-		respond `{"user_id": "00000000-0000-4000-8000-000000000001", "kdf": "argon2id", "kdf_salt": "c3R1Yi1zYWx0LTAwMDAwMDAw", "kdf_memory_kib": 65536, "kdf_iterations": 3, "kdf_parallelism": 1, "wrapped_dek": "c3R1Yi13cmFwcGVkLWRhdGEta2V5", "created_at": "2026-01-01T00:00:00Z", "updated_at": null}` 200
+		respond `{"user_id": "00000000-0000-4000-8000-000000000001", "kdf": "argon2id", "kdf_salt": "c3R1Yi1zYWx0LTAwMDAwMA==", "kdf_memory_kib": 65536, "kdf_iterations": 3, "kdf_parallelism": 1, "wrapped_dek": "c3R1Ym5vbmNlLTAxwras2livIUdNXaZBMTC0y5UgqzOwuAOi+/P6Cfl+YcDqK86JG1fACvyXOxu4AJf8", "created_at": "2026-01-01T00:00:00Z", "updated_at": null}` 200
+	}
+
+	# The people the practice sees. One client, whose name is ciphertext under
+	# the data key the vault above wraps: unlocked, the screen shows "Wanda
+	# Walker", and that is the whole point of walking this screen. The owner is
+	# the signed in user, because a name belonging to anyone else is never even
+	# attempted.
+	handle /api/v1/income/clients {
+		respond `{"data": [{"id": "00000000-0000-4000-8000-000000000031", "household_id": "00000000-0000-4000-8000-000000000002", "owner_user_id": "00000000-0000-4000-8000-000000000001", "name_ct": "c3R1Ym5vbmNlLTAyGC5gXM6B1+veO4NTa9zrrSdZPbayi4buAy748A==", "note_ct": null, "cadence_frequency": "weekly", "cadence_interval": 1, "cadence_anchor_on": "2026-09-01", "cadence_weekdays": [0], "default_rate_minor": 6000, "default_account_id": "00000000-0000-4000-8000-000000000003", "default_category_id": null, "archived_at": null, "created_at": "2026-01-01T00:00:00Z", "updated_at": null}], "count": 1}` 200
+	}
+
+	handle /api/v1/income/sessions {
+		respond `{"data": [], "count": 0, "earned_total_minor": 0, "outstanding_total_minor": 0}` 200
+	}
+
+	handle /api/v1/income/summary {
+		respond `{"month": "2026-09", "currency_code": "EUR", "earned_minor": 24000, "received_minor": 18000, "outstanding_minor": 6000, "total_outstanding_minor": 6000, "oldest_unpaid_on": "2026-09-07", "attended_count": 4, "unpaid_count": 1, "scheduled_minor": 6000, "scheduled_count": 1, "missed_count": 0, "cancelled_count": 0, "active_client_count": 1, "year": 2026, "year_earned_minor": 216000, "year_session_count": 36}` 200
+	}
+
+	handle /api/v1/income/forecast {
+		respond `{"month": "2026-09", "currency_code": "EUR", "likely_minor": 24000, "low_minor": 18000, "high_minor": 30000, "basis": "history", "months_used": 6, "history": [{"month": "2026-08", "earned_minor": 24000, "received_minor": 24000, "outstanding_minor": 0, "attended_count": 4, "missed_count": 0, "cancelled_count": 0, "unpaid_count": 0, "client_count": 1, "owed_balance_minor": 0}], "booked_minor": 6000, "booked_session_count": 1, "earned_so_far_minor": 18000, "expected_from_diary_minor": 6000, "diary_realisation_rate": 0.9, "trial_count": 0, "expected_session_count": 4, "new_client_session_rate": null, "confidence_percent": 80, "monthly_churn_rate": null, "expected_client_months": null, "client_lifetime_value_minor": null, "average_sessions_per_month": 4, "active_client_count": 1, "priced_client_count": 1, "clients": [{"client_id": "00000000-0000-4000-8000-000000000031", "name_ct": "c3R1Ym5vbmNlLTAyGC5gXM6B1+veO4NTa9zrrSdZPbayi4buAy748A==", "attended_count": 4, "missed_count": 0, "attendance_rate": 1.0, "outstanding_minor": 6000, "oldest_unpaid_on": "2026-09-07", "average_monthly_minor": 24000, "booked_minor": 6000, "last_session_on": "2026-09-07", "is_archived": false}]}` 200
+	}
+
+	# The categories a session's income can be booked against, which the client
+	# dialog on the income screen asks for as soon as the screen loads.
+	handle /api/v1/categories/ {
+		respond `{"data": [{"id": "00000000-0000-4000-8000-000000000014", "household_id": "00000000-0000-4000-8000-000000000002", "name": "Sessions", "kind": "income", "icon": null, "color": null, "sort_order": 0, "parent_id": null, "is_system": false, "archived_at": null, "created_at": "2026-01-01T00:00:00Z", "updated_at": null}], "count": 1}` 200
 	}
 
 	handle /api/v1/transactions/ {
