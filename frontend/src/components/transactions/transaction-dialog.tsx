@@ -36,6 +36,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useAccountCurrency, useAccounts } from '@/hooks/use-accounts'
+import { useGoals } from '@/hooks/use-goals'
 import { useCategoryTree } from '@/hooks/use-categories'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
@@ -46,6 +47,7 @@ import { today } from '@/lib/month'
 import { optionSource } from '@/lib/option-source'
 
 const NO_CATEGORY = 'none'
+const NO_GOAL = 'none'
 
 /** How an account reads in a picker, saying so when it is archived. */
 function accountLabel(account: AccountPublic) {
@@ -68,6 +70,7 @@ function buildSchema(currency: string, locale: string | undefined) {
       account_id: z.string().min(1, 'Choose an account.'),
       counter_account_id: z.string(),
       category_id: z.string(),
+      goal_id: z.string(),
       merchant: z.string().trim().max(255).optional(),
       note: z.string().trim().max(1024).optional(),
     })
@@ -127,6 +130,7 @@ export function TransactionDialog({
       account_id: '',
       counter_account_id: '',
       category_id: NO_CATEGORY,
+      goal_id: NO_GOAL,
       merchant: '',
       note: '',
     },
@@ -140,7 +144,18 @@ export function TransactionDialog({
   const accountId = useWatch({ control, name: 'account_id' })
   const counterAccountId = useWatch({ control, name: 'counter_account_id' })
   const categoryId = useWatch({ control, name: 'category_id' })
+  const goalId = useWatch({ control, name: 'goal_id' })
   const isTransfer = kind === TransactionKind.TRANSFER
+
+  // A transfer into or out of a savings account can say which goal the money
+  // is for. Only the goals of an account on either side fit, and a reached
+  // goal is no longer offered unless this transaction already carries it.
+  const goalsQuery = useGoals({ enabled: open && isTransfer })
+  const goalOptions = (goalsQuery.data?.data ?? []).filter(
+    (goal) =>
+      (goal.account_id === accountId || goal.account_id === counterAccountId) &&
+      (!goal.achieved_at || goal.id === transaction?.goal_id),
+  )
   // What the amount field says it is in, so the account and the figure next to
   // it never disagree about what was typed.
   const currency = currencyOf(accountId)
@@ -178,6 +193,7 @@ export function TransactionDialog({
       account_id: transaction?.account_id ?? '',
       counter_account_id: transaction?.counter_account_id ?? '',
       category_id: transaction?.category_id ?? NO_CATEGORY,
+      goal_id: transaction?.goal_id ?? NO_GOAL,
       merchant: transaction?.merchant ?? '',
       note: transaction?.note ?? '',
     })
@@ -208,6 +224,13 @@ export function TransactionDialog({
           parsed.kind === TransactionKind.TRANSFER || parsed.category_id === NO_CATEGORY
             ? null
             : parsed.category_id,
+        // Dropped once the accounts no longer fit it, rather than sent for the
+        // API to refuse: changing the accounts is what makes it stop fitting.
+        goal_id:
+          parsed.kind === TransactionKind.TRANSFER &&
+          goalOptions.some((goal) => goal.id === parsed.goal_id)
+            ? parsed.goal_id
+            : null,
         merchant: parsed.merchant || null,
         note: parsed.note || null,
       }
@@ -229,6 +252,7 @@ export function TransactionDialog({
       // Balances and every report depend on the ledger.
       void queryClient.invalidateQueries({ queryKey: ['accounts'] })
       void queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void queryClient.invalidateQueries({ queryKey: ['goals'] })
       toast.success(isEdit ? 'Transaction saved' : 'Transaction recorded')
       onOpenChange(false)
     },
@@ -378,6 +402,30 @@ export function TransactionDialog({
               )}
             </Field>
           )}
+
+          {isTransfer && goalOptions.length > 0 ? (
+            <Field
+              id="goal_id"
+              label="Goal"
+              hint="Which goal this money is for. Leave it out to keep it unassigned."
+            >
+              {(props) => (
+                <Select value={goalId} onValueChange={(value) => form.setValue('goal_id', value)}>
+                  <SelectTrigger id={props.id} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_GOAL}>No goal</SelectItem>
+                    {goalOptions.map((goal) => (
+                      <SelectItem key={goal.id} value={goal.id}>
+                        {goal.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field id="merchant" label="Merchant" error={errors.merchant?.message}>

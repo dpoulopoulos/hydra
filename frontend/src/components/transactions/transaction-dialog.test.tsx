@@ -18,6 +18,7 @@ vi.mock('@/api', async (importOriginal) => {
     ...actual,
     accountsListAccounts: vi.fn(),
     categoriesGetCategoryTree: vi.fn(),
+    goalsListGoals: vi.fn(),
     householdsGetHouseholdMe: vi.fn(),
     transactionsUpdateTransaction: vi.fn(),
     transactionsCreateTransaction: vi.fn(),
@@ -155,8 +156,16 @@ beforeEach(() => {
     data: { data: [], count: 0 },
   } as never)
   vi.mocked(api.transactionsUpdateTransaction).mockResolvedValue({ data: {} } as never)
+  goalsAre()
   householdSpends('EUR')
 })
+
+/** The household's goals, each saving into the account named. */
+function goalsAre(...goals: { id: string; name: string; account_id: string }[]) {
+  vi.mocked(api.goalsListGoals).mockResolvedValue({
+    data: { data: goals, count: goals.length, accounts: [] },
+  } as never)
+}
 
 describe('a background account refetch', () => {
   it('leaves what the user has typed alone', async () => {
@@ -469,6 +478,56 @@ describe('recording a transfer', () => {
       counter_account_id: SAVINGS,
       category_id: null,
     })
+  })
+})
+
+describe('tagging a transfer with a goal', () => {
+  beforeEach(pickersAreStocked)
+
+  it('offers only the goals of an account on either side', async () => {
+    goalsAre(
+      { id: 'car', name: 'New car', account_id: SAVINGS },
+      { id: 'elsewhere', name: 'Elsewhere', account_id: 'another-account' },
+    )
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(await screen.findByRole('tab', { name: 'Transfer' }))
+    await user.click(await screen.findByRole('combobox', { name: 'To account' }))
+    await user.click(await screen.findByRole('option', { name: 'Rainy day' }))
+    await user.click(await screen.findByRole('combobox', { name: 'Goal' }))
+
+    expect(await screen.findByRole('option', { name: 'New car' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Elsewhere' })).not.toBeInTheDocument()
+  })
+
+  it('saves the goal that was picked', async () => {
+    goalsAre({ id: 'car', name: 'New car', account_id: SAVINGS })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Amount'), '500')
+    await user.click(screen.getByRole('tab', { name: 'Transfer' }))
+    await user.click(await screen.findByRole('combobox', { name: 'To account' }))
+    await user.click(await screen.findByRole('option', { name: 'Rainy day' }))
+    await user.click(await screen.findByRole('combobox', { name: 'Goal' }))
+    await user.click(await screen.findByRole('option', { name: 'New car' }))
+    await user.click(screen.getByRole('button', { name: 'Record it' }))
+
+    await waitFor(() => expect(api.transactionsCreateTransaction).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({ counter_account_id: SAVINGS, goal_id: 'car' })
+  })
+
+  it('asks for no goal when no account on either side has one', async () => {
+    goalsAre({ id: 'car', name: 'New car', account_id: 'another-account' })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(await screen.findByRole('tab', { name: 'Transfer' }))
+    await user.click(await screen.findByRole('combobox', { name: 'To account' }))
+    await user.click(await screen.findByRole('option', { name: 'Rainy day' }))
+
+    expect(screen.queryByRole('combobox', { name: 'Goal' })).not.toBeInTheDocument()
   })
 })
 
