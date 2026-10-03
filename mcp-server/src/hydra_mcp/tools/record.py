@@ -6,6 +6,7 @@ from pydantic import Field
 
 from ..money import to_minor
 from ._common import DESTRUCTIVE, WRITES, as_str, current_token, household_context, hydra
+from .goals import goals_of
 from .transactions import describe_transaction
 
 Amount = Annotated[
@@ -15,6 +16,10 @@ Amount = Annotated[
 Account = Annotated[str, Field(description="The account, by name.")]
 Merchant = Annotated[str | None, Field(description="Who it was with.", max_length=255)]
 Note = Annotated[str | None, Field(description="Anything worth remembering about it.", max_length=1024)]
+Goal = Annotated[
+    str | None,
+    Field(description="The savings goal the money is for, by name. Only for a transfer into or out of its account."),
+]
 
 
 def register(mcp: MCPServer) -> None:
@@ -101,6 +106,7 @@ def register(mcp: MCPServer) -> None:
         to_account: Annotated[str, Field(description="The account it arrives in, by name.")],
         occurred_on: Annotated[datetime.date, Field(description="The day it moved.")],
         note: Note = None,
+        goal: Goal = None,
     ) -> dict[str, Any]:
         """Move money between two of the household's own accounts.
 
@@ -114,6 +120,8 @@ def register(mcp: MCPServer) -> None:
             to_account: Where it arrives.
             occurred_on: The day it moved.
             note: Anything worth remembering.
+            goal: The savings goal the money is for, when it moves into or
+                out of that goal's savings account.
 
         Returns:
             The transaction as recorded.
@@ -125,6 +133,7 @@ def register(mcp: MCPServer) -> None:
             occurred_on=occurred_on,
             to_account=to_account,
             note=note,
+            goal=goal,
         )
 
     @mcp.tool(annotations=DESTRUCTIVE)
@@ -136,6 +145,7 @@ def register(mcp: MCPServer) -> None:
         category: Annotated[str | None, Field(description="A different category, by name.")] = None,
         merchant: Merchant = None,
         note: Note = None,
+        goal: Goal = None,
     ) -> dict[str, Any]:
         """Change a transaction that is already recorded.
 
@@ -156,12 +166,14 @@ def register(mcp: MCPServer) -> None:
             category: A different category.
             merchant: A different merchant.
             note: A different note.
+            goal: A savings goal to tag a transfer with.
 
         Returns:
             The transaction as it now stands.
         """
         token = current_token()
         accounts, categories, currency = await household_context(token)
+        goal_id = (await goals_of(token))[0].id(goal) if goal is not None else None
 
         changes: dict[str, Any] = {
             "amount_minor": to_minor(amount, currency) if amount is not None else None,
@@ -170,6 +182,7 @@ def register(mcp: MCPServer) -> None:
             "category_id": as_str(categories.id(category)),
             "merchant": merchant,
             "note": note,
+            "goal_id": as_str(goal_id),
         }
         given = {field: value for field, value in changes.items() if value is not None}
 
@@ -208,6 +221,7 @@ async def _record(
     to_account: str | None = None,
     merchant: str | None = None,
     note: str | None = None,
+    goal: str | None = None,
 ) -> dict[str, Any]:
     """Record one transaction of a given kind.
 
@@ -220,6 +234,7 @@ async def _record(
         to_account: Where a transfer arrives.
         merchant: Who it was with.
         note: Anything worth remembering.
+        goal: The savings goal a transfer is for.
 
     Returns:
         The transaction as recorded.
@@ -241,6 +256,9 @@ async def _record(
         body["merchant"] = merchant
     if note is not None:
         body["note"] = note
+    if goal is not None:
+        goals, _ = await goals_of(token)
+        body["goal_id"] = as_str(goals.id(goal))
 
     payload = await hydra().post("/transactions/", token=token, subject="transaction", json=body)
 

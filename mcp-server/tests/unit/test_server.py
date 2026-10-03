@@ -12,6 +12,8 @@ READS = {
     "get_transaction",
     "list_budgets",
     "get_budget_progress",
+    "list_goals",
+    "get_goal_history",
     "get_month_summary",
     "get_spending_by_category",
     "get_spending_over_time",
@@ -28,11 +30,14 @@ WRITES = {
     "update_transaction",
     "delete_transaction",
     "set_budget",
+    "create_goal",
+    "update_goal",
+    "delete_goal",
 }
 
 # The subset of the writes that change or remove something already recorded,
 # rather than only adding to it.
-DESTRUCTIVE = {"update_transaction", "delete_transaction"}
+DESTRUCTIVE = {"update_transaction", "delete_transaction", "delete_goal"}
 
 
 @pytest.fixture(scope="module")
