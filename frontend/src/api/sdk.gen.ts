@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { AccountsCreateAccountData, AccountsCreateAccountErrors, AccountsCreateAccountResponses, AccountsDeleteAccountData, AccountsDeleteAccountErrors, AccountsDeleteAccountResponses, AccountsGetAccountData, AccountsGetAccountErrors, AccountsGetAccountResponses, AccountsListAccountsData, AccountsListAccountsErrors, AccountsListAccountsResponses, AccountsUpdateAccountData, AccountsUpdateAccountErrors, AccountsUpdateAccountResponses, ApiTokensCreateApiTokenData, ApiTokensCreateApiTokenErrors, ApiTokensCreateApiTokenResponses, ApiTokensListApiTokensData, ApiTokensListApiTokensErrors, ApiTokensListApiTokensResponses, ApiTokensRevokeApiTokenData, ApiTokensRevokeApiTokenErrors, ApiTokensRevokeApiTokenResponses, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsErrors, BudgetsBulkUpsertBudgetsResponses, BudgetsCopyBudgetsData, BudgetsCopyBudgetsErrors, BudgetsCopyBudgetsResponses, BudgetsCreateBudgetData, BudgetsCreateBudgetErrors, BudgetsCreateBudgetResponses, BudgetsDeleteBudgetData, BudgetsDeleteBudgetErrors, BudgetsDeleteBudgetResponses, BudgetsGetBudgetData, BudgetsGetBudgetErrors, BudgetsGetBudgetResponses, BudgetsListBudgetsData, BudgetsListBudgetsErrors, BudgetsListBudgetsResponses, BudgetsUpdateBudgetData, BudgetsUpdateBudgetErrors, BudgetsUpdateBudgetResponses, CategoriesCreateCategoryData, CategoriesCreateCategoryErrors, CategoriesCreateCategoryResponses, CategoriesDeleteCategoryData, CategoriesDeleteCategoryErrors, CategoriesDeleteCategoryResponses, CategoriesGetCategoryData, CategoriesGetCategoryErrors, CategoriesGetCategoryResponses, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeErrors, CategoriesGetCategoryTreeResponses, CategoriesListCategoriesData, CategoriesListCategoriesErrors, CategoriesListCategoriesResponses, CategoriesUpdateCategoryData, CategoriesUpdateCategoryErrors, CategoriesUpdateCategoryResponses, EmailOutboxReadEmailOutboxStatsData, EmailOutboxReadEmailOutboxStatsResponses, EmailVerificationCancelPendingEmailChangeMeData, EmailVerificationCancelPendingEmailChangeMeResponses, EmailVerificationGetPendingEmailChangeMeData, EmailVerificationGetPendingEmailChangeMeResponses, EmailVerificationResendPendingEmailChangeMeData, EmailVerificationResendPendingEmailChangeMeResponses, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailErrors, EmailVerificationResendVerificationEmailResponses, EmailVerificationSendVerificationEmailMeData, EmailVerificationSendVerificationEmailMeResponses, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailErrors, EmailVerificationVerifyEmailResponses, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteErrors, HouseholdsAcceptHouseholdInviteResponses, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteErrors, HouseholdsCreateHouseholdInviteResponses, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponses, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponses, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesErrors, HouseholdsListHouseholdInvitesResponses, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponses, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteErrors, HouseholdsPreviewHouseholdInviteResponses, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberErrors, HouseholdsRemoveHouseholdMemberResponses, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteErrors, HouseholdsRevokeHouseholdInviteResponses, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeErrors, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberErrors, HouseholdsUpdateHouseholdMemberResponses, HouseholdsUpdateHouseholdMeResponses, IncomeCreateClientData, IncomeCreateClientErrors, IncomeCreateClientResponses, IncomeCreateSessionData, IncomeCreateSessionErrors, IncomeCreateSessionResponses, IncomeDeleteClientData, IncomeDeleteClientErrors, IncomeDeleteClientResponses, IncomeDeleteSessionData, IncomeDeleteSessionErrors, IncomeDeleteSessionResponses, IncomeGetClientData, IncomeGetClientErrors, IncomeGetClientResponses, IncomeGetForecastData, IncomeGetForecastErrors, IncomeGetForecastResponses, IncomeGetSessionData, IncomeGetSessionErrors, IncomeGetSessionResponses, IncomeGetSummaryData, IncomeGetSummaryErrors, IncomeGetSummaryResponses, IncomeGetVaultData, IncomeGetVaultResponses, IncomeListClientsData, IncomeListClientsErrors, IncomeListClientsResponses, IncomeListSessionsData, IncomeListSessionsErrors, IncomeListSessionsResponses, IncomeResetVaultData, IncomeResetVaultErrors, IncomeResetVaultResponses, IncomeUpdateClientData, IncomeUpdateClientErrors, IncomeUpdateClientResponses, IncomeUpdateSessionData, IncomeUpdateSessionErrors, IncomeUpdateSessionResponses, IncomeUpsertVaultData, IncomeUpsertVaultErrors, IncomeUpsertVaultResponses, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentErrors, InvestmentsCreateInstrumentResponses, InvestmentsCreateTradeData, InvestmentsCreateTradeErrors, InvestmentsCreateTradeResponses, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentErrors, InvestmentsDeleteInstrumentResponses, InvestmentsDeleteTradeData, InvestmentsDeleteTradeErrors, InvestmentsDeleteTradeResponses, InvestmentsGetInstrumentData, InvestmentsGetInstrumentErrors, InvestmentsGetInstrumentResponses, InvestmentsGetPortfolioData, InvestmentsGetPortfolioErrors, InvestmentsGetPortfolioResponses, InvestmentsGetTradeData, InvestmentsGetTradeErrors, InvestmentsGetTradeResponses, InvestmentsListFxRatesData, InvestmentsListFxRatesResponses, InvestmentsListInstrumentsData, InvestmentsListInstrumentsErrors, InvestmentsListInstrumentsResponses, InvestmentsListTradesData, InvestmentsListTradesErrors, InvestmentsListTradesResponses, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponses, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsErrors, InvestmentsSearchSymbolsResponses, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceErrors, InvestmentsSetInstrumentPriceResponses, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentErrors, InvestmentsUpdateInstrumentResponses, InvestmentsUpdateTradeData, InvestmentsUpdateTradeErrors, InvestmentsUpdateTradeResponses, LoginLoginAccessTokenData, LoginLoginAccessTokenErrors, LoginLoginAccessTokenResponses, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetErrors, PasswordResetConfirmPasswordResetResponses, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetErrors, PasswordResetRequestPasswordResetResponses, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenErrors, PasswordResetVerifyPasswordResetTokenResponses, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleErrors, RecurringRulesCreateRecurringRuleResponses, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleErrors, RecurringRulesDeleteRecurringRuleResponses, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleErrors, RecurringRulesGetRecurringRuleResponses, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesErrors, RecurringRulesListRecurringRulesResponses, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesErrors, RecurringRulesListUpcomingOccurrencesResponses, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesErrors, RecurringRulesRunRecurringRulesResponses, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleErrors, RecurringRulesUpdateRecurringRuleResponses, ReportsBudgetProgressData, ReportsBudgetProgressErrors, ReportsBudgetProgressResponses, ReportsIncomeExpenseData, ReportsIncomeExpenseErrors, ReportsIncomeExpenseResponses, ReportsMonthSummaryData, ReportsMonthSummaryErrors, ReportsMonthSummaryResponses, ReportsSpendByCategoryData, ReportsSpendByCategoryErrors, ReportsSpendByCategoryResponses, ReportsSpendOverTimeData, ReportsSpendOverTimeErrors, ReportsSpendOverTimeResponses, TransactionsCreateTransactionData, TransactionsCreateTransactionErrors, TransactionsCreateTransactionResponses, TransactionsDeleteTransactionData, TransactionsDeleteTransactionErrors, TransactionsDeleteTransactionResponses, TransactionsGetTransactionData, TransactionsGetTransactionErrors, TransactionsGetTransactionResponses, TransactionsListTransactionsData, TransactionsListTransactionsErrors, TransactionsListTransactionsResponses, TransactionsUpdateTransactionData, TransactionsUpdateTransactionErrors, TransactionsUpdateTransactionResponses, UsersCreateUserData, UsersCreateUserErrors, UsersCreateUserResponses, UsersDeleteUserData, UsersDeleteUserErrors, UsersDeleteUserMeData, UsersDeleteUserMeResponses, UsersDeleteUserResponses, UsersGetUserByIdData, UsersGetUserByIdErrors, UsersGetUserByIdResponses, UsersGetUserMeData, UsersGetUserMeResponses, UsersGetUsersData, UsersGetUsersErrors, UsersGetUsersResponses, UsersRegisterUserData, UsersRegisterUserErrors, UsersRegisterUserResponses, UsersUpdatePasswordMeData, UsersUpdatePasswordMeErrors, UsersUpdatePasswordMeResponses, UsersUpdateUserData, UsersUpdateUserErrors, UsersUpdateUserMeData, UsersUpdateUserMeErrors, UsersUpdateUserMeResponses, UsersUpdateUserResponses } from './types.gen';
+import type { AccountsCreateAccountData, AccountsCreateAccountErrors, AccountsCreateAccountResponses, AccountsDeleteAccountData, AccountsDeleteAccountErrors, AccountsDeleteAccountResponses, AccountsGetAccountData, AccountsGetAccountErrors, AccountsGetAccountResponses, AccountsListAccountsData, AccountsListAccountsErrors, AccountsListAccountsResponses, AccountsUpdateAccountData, AccountsUpdateAccountErrors, AccountsUpdateAccountResponses, ApiTokensCreateApiTokenData, ApiTokensCreateApiTokenErrors, ApiTokensCreateApiTokenResponses, ApiTokensListApiTokensData, ApiTokensListApiTokensErrors, ApiTokensListApiTokensResponses, ApiTokensRevokeApiTokenData, ApiTokensRevokeApiTokenErrors, ApiTokensRevokeApiTokenResponses, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsErrors, BudgetsBulkUpsertBudgetsResponses, BudgetsCopyBudgetsData, BudgetsCopyBudgetsErrors, BudgetsCopyBudgetsResponses, BudgetsCreateBudgetData, BudgetsCreateBudgetErrors, BudgetsCreateBudgetResponses, BudgetsDeleteBudgetData, BudgetsDeleteBudgetErrors, BudgetsDeleteBudgetResponses, BudgetsGetBudgetData, BudgetsGetBudgetErrors, BudgetsGetBudgetResponses, BudgetsListBudgetsData, BudgetsListBudgetsErrors, BudgetsListBudgetsResponses, BudgetsUpdateBudgetData, BudgetsUpdateBudgetErrors, BudgetsUpdateBudgetResponses, CategoriesCreateCategoryData, CategoriesCreateCategoryErrors, CategoriesCreateCategoryResponses, CategoriesDeleteCategoryData, CategoriesDeleteCategoryErrors, CategoriesDeleteCategoryResponses, CategoriesGetCategoryData, CategoriesGetCategoryErrors, CategoriesGetCategoryResponses, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeErrors, CategoriesGetCategoryTreeResponses, CategoriesListCategoriesData, CategoriesListCategoriesErrors, CategoriesListCategoriesResponses, CategoriesUpdateCategoryData, CategoriesUpdateCategoryErrors, CategoriesUpdateCategoryResponses, EmailOutboxReadEmailOutboxStatsData, EmailOutboxReadEmailOutboxStatsResponses, EmailVerificationCancelPendingEmailChangeMeData, EmailVerificationCancelPendingEmailChangeMeResponses, EmailVerificationGetPendingEmailChangeMeData, EmailVerificationGetPendingEmailChangeMeResponses, EmailVerificationResendPendingEmailChangeMeData, EmailVerificationResendPendingEmailChangeMeResponses, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailErrors, EmailVerificationResendVerificationEmailResponses, EmailVerificationSendVerificationEmailMeData, EmailVerificationSendVerificationEmailMeResponses, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailErrors, EmailVerificationVerifyEmailResponses, GoalsCreateGoalData, GoalsCreateGoalErrors, GoalsCreateGoalResponses, GoalsDeleteGoalData, GoalsDeleteGoalErrors, GoalsDeleteGoalResponses, GoalsGetGoalData, GoalsGetGoalErrors, GoalsGetGoalHistoryData, GoalsGetGoalHistoryErrors, GoalsGetGoalHistoryResponses, GoalsGetGoalResponses, GoalsListGoalsData, GoalsListGoalsResponses, GoalsUpdateGoalData, GoalsUpdateGoalErrors, GoalsUpdateGoalResponses, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteErrors, HouseholdsAcceptHouseholdInviteResponses, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteErrors, HouseholdsCreateHouseholdInviteResponses, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponses, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponses, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesErrors, HouseholdsListHouseholdInvitesResponses, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponses, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteErrors, HouseholdsPreviewHouseholdInviteResponses, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberErrors, HouseholdsRemoveHouseholdMemberResponses, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteErrors, HouseholdsRevokeHouseholdInviteResponses, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeErrors, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberErrors, HouseholdsUpdateHouseholdMemberResponses, HouseholdsUpdateHouseholdMeResponses, IncomeCreateClientData, IncomeCreateClientErrors, IncomeCreateClientResponses, IncomeCreateSessionData, IncomeCreateSessionErrors, IncomeCreateSessionResponses, IncomeDeleteClientData, IncomeDeleteClientErrors, IncomeDeleteClientResponses, IncomeDeleteSessionData, IncomeDeleteSessionErrors, IncomeDeleteSessionResponses, IncomeGetClientData, IncomeGetClientErrors, IncomeGetClientResponses, IncomeGetForecastData, IncomeGetForecastErrors, IncomeGetForecastResponses, IncomeGetSessionData, IncomeGetSessionErrors, IncomeGetSessionResponses, IncomeGetSummaryData, IncomeGetSummaryErrors, IncomeGetSummaryResponses, IncomeGetVaultData, IncomeGetVaultResponses, IncomeListClientsData, IncomeListClientsErrors, IncomeListClientsResponses, IncomeListSessionsData, IncomeListSessionsErrors, IncomeListSessionsResponses, IncomeResetVaultData, IncomeResetVaultErrors, IncomeResetVaultResponses, IncomeUpdateClientData, IncomeUpdateClientErrors, IncomeUpdateClientResponses, IncomeUpdateSessionData, IncomeUpdateSessionErrors, IncomeUpdateSessionResponses, IncomeUpsertVaultData, IncomeUpsertVaultErrors, IncomeUpsertVaultResponses, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentErrors, InvestmentsCreateInstrumentResponses, InvestmentsCreateTradeData, InvestmentsCreateTradeErrors, InvestmentsCreateTradeResponses, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentErrors, InvestmentsDeleteInstrumentResponses, InvestmentsDeleteTradeData, InvestmentsDeleteTradeErrors, InvestmentsDeleteTradeResponses, InvestmentsGetInstrumentData, InvestmentsGetInstrumentErrors, InvestmentsGetInstrumentResponses, InvestmentsGetPortfolioData, InvestmentsGetPortfolioErrors, InvestmentsGetPortfolioResponses, InvestmentsGetTradeData, InvestmentsGetTradeErrors, InvestmentsGetTradeResponses, InvestmentsListFxRatesData, InvestmentsListFxRatesResponses, InvestmentsListInstrumentsData, InvestmentsListInstrumentsErrors, InvestmentsListInstrumentsResponses, InvestmentsListTradesData, InvestmentsListTradesErrors, InvestmentsListTradesResponses, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponses, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsErrors, InvestmentsSearchSymbolsResponses, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceErrors, InvestmentsSetInstrumentPriceResponses, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentErrors, InvestmentsUpdateInstrumentResponses, InvestmentsUpdateTradeData, InvestmentsUpdateTradeErrors, InvestmentsUpdateTradeResponses, LoginLoginAccessTokenData, LoginLoginAccessTokenErrors, LoginLoginAccessTokenResponses, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetErrors, PasswordResetConfirmPasswordResetResponses, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetErrors, PasswordResetRequestPasswordResetResponses, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenErrors, PasswordResetVerifyPasswordResetTokenResponses, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleErrors, RecurringRulesCreateRecurringRuleResponses, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleErrors, RecurringRulesDeleteRecurringRuleResponses, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleErrors, RecurringRulesGetRecurringRuleResponses, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesErrors, RecurringRulesListRecurringRulesResponses, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesErrors, RecurringRulesListUpcomingOccurrencesResponses, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesErrors, RecurringRulesRunRecurringRulesResponses, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleErrors, RecurringRulesUpdateRecurringRuleResponses, ReportsBudgetProgressData, ReportsBudgetProgressErrors, ReportsBudgetProgressResponses, ReportsIncomeExpenseData, ReportsIncomeExpenseErrors, ReportsIncomeExpenseResponses, ReportsMonthSummaryData, ReportsMonthSummaryErrors, ReportsMonthSummaryResponses, ReportsSpendByCategoryData, ReportsSpendByCategoryErrors, ReportsSpendByCategoryResponses, ReportsSpendOverTimeData, ReportsSpendOverTimeErrors, ReportsSpendOverTimeResponses, TransactionsCreateTransactionData, TransactionsCreateTransactionErrors, TransactionsCreateTransactionResponses, TransactionsDeleteTransactionData, TransactionsDeleteTransactionErrors, TransactionsDeleteTransactionResponses, TransactionsGetTransactionData, TransactionsGetTransactionErrors, TransactionsGetTransactionResponses, TransactionsListTransactionsData, TransactionsListTransactionsErrors, TransactionsListTransactionsResponses, TransactionsUpdateTransactionData, TransactionsUpdateTransactionErrors, TransactionsUpdateTransactionResponses, UsersCreateUserData, UsersCreateUserErrors, UsersCreateUserResponses, UsersDeleteUserData, UsersDeleteUserErrors, UsersDeleteUserMeData, UsersDeleteUserMeResponses, UsersDeleteUserResponses, UsersGetUserByIdData, UsersGetUserByIdErrors, UsersGetUserByIdResponses, UsersGetUserMeData, UsersGetUserMeResponses, UsersGetUsersData, UsersGetUsersErrors, UsersGetUsersResponses, UsersRegisterUserData, UsersRegisterUserErrors, UsersRegisterUserResponses, UsersUpdatePasswordMeData, UsersUpdatePasswordMeErrors, UsersUpdatePasswordMeResponses, UsersUpdateUserData, UsersUpdateUserErrors, UsersUpdateUserMeData, UsersUpdateUserMeErrors, UsersUpdateUserMeResponses, UsersUpdateUserResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -1291,6 +1291,157 @@ export const budgetsUpdateBudget = <ThrowOnError extends boolean = false>(option
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * List Goals
+ *
+ * List the goals of the household with their progress.
+ *
+ * Each savings account holding a goal is summed up as well, splitting its
+ * balance into what the goals hold and what is unassigned.
+ *
+ * Args:
+ * goal_service: The goal service dependency.
+ * household: The current household context.
+ *
+ * Returns:
+ * The goals, and one summary per account.
+ */
+export const goalsListGoals = <ThrowOnError extends boolean = false>(options?: Options<GoalsListGoalsData, ThrowOnError>): RequestResult<GoalsListGoalsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GoalsListGoalsResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/goals/',
+    ...options
+});
+
+/**
+ * Create Goal
+ *
+ * Set up a goal to save towards.
+ *
+ * Args:
+ * goal_service: The goal service dependency.
+ * household: The current household context.
+ * goal_in: The name, savings account, target and optional date.
+ *
+ * Returns:
+ * The created goal.
+ *
+ * Raises:
+ * HTTPException: If the account does not exist in the household (404),
+ * another goal has the name (409), or the account is archived or not a
+ * savings account (400).
+ */
+export const goalsCreateGoal = <ThrowOnError extends boolean = false>(options: Options<GoalsCreateGoalData, ThrowOnError>): RequestResult<GoalsCreateGoalResponses, GoalsCreateGoalErrors, ThrowOnError> => (options.client ?? client).post<GoalsCreateGoalResponses, GoalsCreateGoalErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/goals/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Goal
+ *
+ * Delete a goal.
+ *
+ * Its transfers stay in the ledger. Their money becomes unassigned.
+ *
+ * Args:
+ * goal_service: The goal service dependency.
+ * household: The current household context.
+ * goal_id: The ID of the goal.
+ *
+ * Returns:
+ * A confirmation message.
+ *
+ * Raises:
+ * HTTPException: If the goal does not exist in the household (404).
+ */
+export const goalsDeleteGoal = <ThrowOnError extends boolean = false>(options: Options<GoalsDeleteGoalData, ThrowOnError>): RequestResult<GoalsDeleteGoalResponses, GoalsDeleteGoalErrors, ThrowOnError> => (options.client ?? client).delete<GoalsDeleteGoalResponses, GoalsDeleteGoalErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/goals/{goal_id}',
+    ...options
+});
+
+/**
+ * Get Goal
+ *
+ * Get one goal of the household with its progress.
+ *
+ * Args:
+ * goal_service: The goal service dependency.
+ * household: The current household context.
+ * goal_id: The ID of the goal.
+ *
+ * Returns:
+ * The goal.
+ *
+ * Raises:
+ * HTTPException: If the goal does not exist in the household (404).
+ */
+export const goalsGetGoal = <ThrowOnError extends boolean = false>(options: Options<GoalsGetGoalData, ThrowOnError>): RequestResult<GoalsGetGoalResponses, GoalsGetGoalErrors, ThrowOnError> => (options.client ?? client).get<GoalsGetGoalResponses, GoalsGetGoalErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/goals/{goal_id}',
+    ...options
+});
+
+/**
+ * Update Goal
+ *
+ * Edit a goal, or mark it reached.
+ *
+ * Args:
+ * goal_service: The goal service dependency.
+ * household: The current household context.
+ * goal_id: The ID of the goal.
+ * goal_in: The fields to change.
+ *
+ * Returns:
+ * The updated goal.
+ *
+ * Raises:
+ * HTTPException: If the goal or the new account does not exist in the
+ * household (404), the name is taken or the account changes while
+ * transfers are tagged with the goal (409), or the new account is
+ * archived or not a savings account (400).
+ */
+export const goalsUpdateGoal = <ThrowOnError extends boolean = false>(options: Options<GoalsUpdateGoalData, ThrowOnError>): RequestResult<GoalsUpdateGoalResponses, GoalsUpdateGoalErrors, ThrowOnError> => (options.client ?? client).patch<GoalsUpdateGoalResponses, GoalsUpdateGoalErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/goals/{goal_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Goal History
+ *
+ * Show what a goal saved, month by month.
+ *
+ * Args:
+ * goal_service: The goal service dependency.
+ * household: The current household context.
+ * goal_id: The ID of the goal.
+ * month_from: The first month, "YYYY-MM". Defaults to a year before the last.
+ * month_to: The last month, "YYYY-MM". Defaults to the current month.
+ *
+ * Returns:
+ * Every month of the range, with what went in, what came out, and the
+ * running total.
+ *
+ * Raises:
+ * HTTPException: If the goal does not exist in the household (404), or
+ * the range is backwards or longer than ten years (400).
+ */
+export const goalsGetGoalHistory = <ThrowOnError extends boolean = false>(options: Options<GoalsGetGoalHistoryData, ThrowOnError>): RequestResult<GoalsGetGoalHistoryResponses, GoalsGetGoalHistoryErrors, ThrowOnError> => (options.client ?? client).get<GoalsGetGoalHistoryResponses, GoalsGetGoalHistoryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/goals/{goal_id}/history',
+    ...options
 });
 
 /**

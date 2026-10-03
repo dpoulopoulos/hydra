@@ -946,6 +946,234 @@ export type FxRatesPublic = {
 };
 
 /**
+ * GoalAccountSummary
+ *
+ * How one savings account's balance splits across its goals.
+ */
+export type GoalAccountSummary = {
+    /**
+     * Account Id
+     */
+    account_id: string;
+    /**
+     * Account Name
+     */
+    account_name: string;
+    /**
+     * Currency Code
+     */
+    currency_code: string;
+    /**
+     * Balance Minor
+     */
+    balance_minor: number;
+    /**
+     * Assigned Minor
+     */
+    assigned_minor: number;
+    /**
+     * Unassigned Minor
+     */
+    unassigned_minor: number;
+};
+
+/**
+ * GoalCreate
+ */
+export type GoalCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Account Id
+     */
+    account_id: string;
+    /**
+     * Target Minor
+     */
+    target_minor: number;
+    /**
+     * Target Date
+     */
+    target_date?: string | null;
+};
+
+/**
+ * GoalHistory
+ */
+export type GoalHistory = {
+    /**
+     * Goal Id
+     */
+    goal_id: string;
+    /**
+     * Month From
+     */
+    month_from: string;
+    /**
+     * Month To
+     */
+    month_to: string;
+    /**
+     * Months
+     */
+    months: Array<GoalMonth>;
+};
+
+/**
+ * GoalMonth
+ */
+export type GoalMonth = {
+    /**
+     * Month
+     */
+    month: string;
+    /**
+     * Saved In Minor
+     */
+    saved_in_minor: number;
+    /**
+     * Saved Out Minor
+     */
+    saved_out_minor: number;
+    /**
+     * Net Minor
+     */
+    net_minor: number;
+    /**
+     * Cumulative Minor
+     */
+    cumulative_minor: number;
+};
+
+/**
+ * GoalPublic
+ */
+export type GoalPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Household Id
+     */
+    household_id: string;
+    /**
+     * Account Id
+     */
+    account_id: string;
+    /**
+     * Account Name
+     */
+    account_name: string;
+    /**
+     * Currency Code
+     */
+    currency_code: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Target Minor
+     */
+    target_minor: number;
+    /**
+     * Target Date
+     */
+    target_date?: string | null;
+    /**
+     * Achieved At
+     */
+    achieved_at?: string | null;
+    /**
+     * Saved Minor
+     */
+    saved_minor: number;
+    /**
+     * Peak Saved Minor
+     */
+    peak_saved_minor: number;
+    /**
+     * Remaining Minor
+     */
+    remaining_minor: number;
+    /**
+     * Progress
+     */
+    progress: number;
+    /**
+     * Months Left
+     */
+    months_left?: number | null;
+    /**
+     * Needed Per Month Minor
+     */
+    needed_per_month_minor?: number | null;
+    /**
+     * Average Monthly Minor
+     */
+    average_monthly_minor: number;
+    /**
+     * On Track
+     */
+    on_track?: boolean | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at?: string | null;
+};
+
+/**
+ * GoalUpdate
+ */
+export type GoalUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Account Id
+     */
+    account_id?: string | null;
+    /**
+     * Target Minor
+     */
+    target_minor?: number | null;
+    /**
+     * Target Date
+     */
+    target_date?: string | null;
+    /**
+     * Is Achieved
+     */
+    is_achieved?: boolean | null;
+};
+
+/**
+ * GoalsPublic
+ */
+export type GoalsPublic = {
+    /**
+     * Data
+     */
+    data: Array<GoalPublic>;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Accounts
+     */
+    accounts: Array<GoalAccountSummary>;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -2880,6 +3108,10 @@ export type TransactionCreate = {
      * Counter Account Id
      */
     counter_account_id?: string | null;
+    /**
+     * Goal Id
+     */
+    goal_id?: string | null;
 };
 
 /**
@@ -2937,6 +3169,10 @@ export type TransactionPublic = {
      * Counter Account Id
      */
     counter_account_id?: string | null;
+    /**
+     * Goal Id
+     */
+    goal_id?: string | null;
     /**
      * Recurring Rule Id
      */
@@ -3007,6 +3243,10 @@ export type TransactionUpdate = {
      * Counter Account Id
      */
     counter_account_id?: string | null;
+    /**
+     * Goal Id
+     */
+    goal_id?: string | null;
 };
 
 /**
@@ -4305,6 +4545,10 @@ export type TransactionsListTransactionsData = {
          */
         category_id?: string | null;
         /**
+         * Goal Id
+         */
+        goal_id?: string | null;
+        /**
          * Include Subcategories
          */
         include_subcategories?: boolean;
@@ -4664,6 +4908,176 @@ export type BudgetsUpdateBudgetResponses = {
 };
 
 export type BudgetsUpdateBudgetResponse = BudgetsUpdateBudgetResponses[keyof BudgetsUpdateBudgetResponses];
+
+export type GoalsListGoalsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/goals/';
+};
+
+export type GoalsListGoalsResponses = {
+    /**
+     * Successful Response
+     */
+    200: GoalsPublic;
+};
+
+export type GoalsListGoalsResponse = GoalsListGoalsResponses[keyof GoalsListGoalsResponses];
+
+export type GoalsCreateGoalData = {
+    body: GoalCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/goals/';
+};
+
+export type GoalsCreateGoalErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GoalsCreateGoalError = GoalsCreateGoalErrors[keyof GoalsCreateGoalErrors];
+
+export type GoalsCreateGoalResponses = {
+    /**
+     * Successful Response
+     */
+    200: GoalPublic;
+};
+
+export type GoalsCreateGoalResponse = GoalsCreateGoalResponses[keyof GoalsCreateGoalResponses];
+
+export type GoalsDeleteGoalData = {
+    body?: never;
+    path: {
+        /**
+         * Goal Id
+         */
+        goal_id: string;
+    };
+    query?: never;
+    url: '/api/v1/goals/{goal_id}';
+};
+
+export type GoalsDeleteGoalErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GoalsDeleteGoalError = GoalsDeleteGoalErrors[keyof GoalsDeleteGoalErrors];
+
+export type GoalsDeleteGoalResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type GoalsDeleteGoalResponse = GoalsDeleteGoalResponses[keyof GoalsDeleteGoalResponses];
+
+export type GoalsGetGoalData = {
+    body?: never;
+    path: {
+        /**
+         * Goal Id
+         */
+        goal_id: string;
+    };
+    query?: never;
+    url: '/api/v1/goals/{goal_id}';
+};
+
+export type GoalsGetGoalErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GoalsGetGoalError = GoalsGetGoalErrors[keyof GoalsGetGoalErrors];
+
+export type GoalsGetGoalResponses = {
+    /**
+     * Successful Response
+     */
+    200: GoalPublic;
+};
+
+export type GoalsGetGoalResponse = GoalsGetGoalResponses[keyof GoalsGetGoalResponses];
+
+export type GoalsUpdateGoalData = {
+    body: GoalUpdate;
+    path: {
+        /**
+         * Goal Id
+         */
+        goal_id: string;
+    };
+    query?: never;
+    url: '/api/v1/goals/{goal_id}';
+};
+
+export type GoalsUpdateGoalErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GoalsUpdateGoalError = GoalsUpdateGoalErrors[keyof GoalsUpdateGoalErrors];
+
+export type GoalsUpdateGoalResponses = {
+    /**
+     * Successful Response
+     */
+    200: GoalPublic;
+};
+
+export type GoalsUpdateGoalResponse = GoalsUpdateGoalResponses[keyof GoalsUpdateGoalResponses];
+
+export type GoalsGetGoalHistoryData = {
+    body?: never;
+    path: {
+        /**
+         * Goal Id
+         */
+        goal_id: string;
+    };
+    query?: {
+        /**
+         * Month From
+         */
+        month_from?: string | null;
+        /**
+         * Month To
+         */
+        month_to?: string | null;
+    };
+    url: '/api/v1/goals/{goal_id}/history';
+};
+
+export type GoalsGetGoalHistoryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GoalsGetGoalHistoryError = GoalsGetGoalHistoryErrors[keyof GoalsGetGoalHistoryErrors];
+
+export type GoalsGetGoalHistoryResponses = {
+    /**
+     * Successful Response
+     */
+    200: GoalHistory;
+};
+
+export type GoalsGetGoalHistoryResponse = GoalsGetGoalHistoryResponses[keyof GoalsGetGoalHistoryResponses];
 
 export type RecurringRulesListRecurringRulesData = {
     body?: never;

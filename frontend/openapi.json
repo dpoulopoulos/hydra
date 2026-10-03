@@ -1847,6 +1847,23 @@
             }
           },
           {
+            "name": "goal_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Goal Id"
+            }
+          },
+          {
             "name": "include_subcategories",
             "in": "query",
             "required": false,
@@ -2459,6 +2476,314 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/goals/": {
+      "get": {
+        "tags": [
+          "goals"
+        ],
+        "summary": "List Goals",
+        "description": "List the goals of the household with their progress.\n\nEach savings account holding a goal is summed up as well, splitting its\nbalance into what the goals hold and what is unassigned.\n\nArgs:\n    goal_service: The goal service dependency.\n    household: The current household context.\n\nReturns:\n    The goals, and one summary per account.",
+        "operationId": "goals-list_goals",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalsPublic"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "goals"
+        ],
+        "summary": "Create Goal",
+        "description": "Set up a goal to save towards.\n\nArgs:\n    goal_service: The goal service dependency.\n    household: The current household context.\n    goal_in: The name, savings account, target and optional date.\n\nReturns:\n    The created goal.\n\nRaises:\n    HTTPException: If the account does not exist in the household (404),\n        another goal has the name (409), or the account is archived or not a\n        savings account (400).",
+        "operationId": "goals-create_goal",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/goals/{goal_id}": {
+      "get": {
+        "tags": [
+          "goals"
+        ],
+        "summary": "Get Goal",
+        "description": "Get one goal of the household with its progress.\n\nArgs:\n    goal_service: The goal service dependency.\n    household: The current household context.\n    goal_id: The ID of the goal.\n\nReturns:\n    The goal.\n\nRaises:\n    HTTPException: If the goal does not exist in the household (404).",
+        "operationId": "goals-get_goal",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "goal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Goal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "goals"
+        ],
+        "summary": "Update Goal",
+        "description": "Edit a goal, or mark it reached.\n\nArgs:\n    goal_service: The goal service dependency.\n    household: The current household context.\n    goal_id: The ID of the goal.\n    goal_in: The fields to change.\n\nReturns:\n    The updated goal.\n\nRaises:\n    HTTPException: If the goal or the new account does not exist in the\n        household (404), the name is taken or the account changes while\n        transfers are tagged with the goal (409), or the new account is\n        archived or not a savings account (400).",
+        "operationId": "goals-update_goal",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "goal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Goal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "goals"
+        ],
+        "summary": "Delete Goal",
+        "description": "Delete a goal.\n\nIts transfers stay in the ledger. Their money becomes unassigned.\n\nArgs:\n    goal_service: The goal service dependency.\n    household: The current household context.\n    goal_id: The ID of the goal.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the goal does not exist in the household (404).",
+        "operationId": "goals-delete_goal",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "goal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Goal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/goals/{goal_id}/history": {
+      "get": {
+        "tags": [
+          "goals"
+        ],
+        "summary": "Get Goal History",
+        "description": "Show what a goal saved, month by month.\n\nArgs:\n    goal_service: The goal service dependency.\n    household: The current household context.\n    goal_id: The ID of the goal.\n    month_from: The first month, \"YYYY-MM\". Defaults to a year before the last.\n    month_to: The last month, \"YYYY-MM\". Defaults to the current month.\n\nReturns:\n    Every month of the range, with what went in, what came out, and the\n    running total.\n\nRaises:\n    HTTPException: If the goal does not exist in the household (404), or\n        the range is backwards or longer than ten years (400).",
+        "operationId": "goals-get_goal_history",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "goal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Goal Id"
+            }
+          },
+          {
+            "name": "month_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month From"
+            }
+          },
+          {
+            "name": "month_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalHistory"
                 }
               }
             }
@@ -6770,6 +7095,396 @@
         "title": "FxRatesPublic",
         "description": "The rates behind a household's converted figures."
       },
+      "GoalAccountSummary": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "account_name": {
+            "type": "string",
+            "title": "Account Name"
+          },
+          "currency_code": {
+            "type": "string",
+            "title": "Currency Code"
+          },
+          "balance_minor": {
+            "type": "integer",
+            "title": "Balance Minor"
+          },
+          "assigned_minor": {
+            "type": "integer",
+            "title": "Assigned Minor"
+          },
+          "unassigned_minor": {
+            "type": "integer",
+            "title": "Unassigned Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "account_name",
+          "currency_code",
+          "balance_minor",
+          "assigned_minor",
+          "unassigned_minor"
+        ],
+        "title": "GoalAccountSummary",
+        "description": "How one savings account's balance splits across its goals."
+      },
+      "GoalCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "target_minor": {
+            "type": "integer",
+            "maximum": 4.611686018427388e+18,
+            "exclusiveMinimum": 0.0,
+            "title": "Target Minor"
+          },
+          "target_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "account_id",
+          "target_minor"
+        ],
+        "title": "GoalCreate"
+      },
+      "GoalHistory": {
+        "properties": {
+          "goal_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Goal Id"
+          },
+          "month_from": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Month From"
+          },
+          "month_to": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Month To"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/GoalMonth"
+            },
+            "type": "array",
+            "title": "Months"
+          }
+        },
+        "type": "object",
+        "required": [
+          "goal_id",
+          "month_from",
+          "month_to",
+          "months"
+        ],
+        "title": "GoalHistory"
+      },
+      "GoalMonth": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Month"
+          },
+          "saved_in_minor": {
+            "type": "integer",
+            "title": "Saved In Minor"
+          },
+          "saved_out_minor": {
+            "type": "integer",
+            "title": "Saved Out Minor"
+          },
+          "net_minor": {
+            "type": "integer",
+            "title": "Net Minor"
+          },
+          "cumulative_minor": {
+            "type": "integer",
+            "title": "Cumulative Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "saved_in_minor",
+          "saved_out_minor",
+          "net_minor",
+          "cumulative_minor"
+        ],
+        "title": "GoalMonth"
+      },
+      "GoalPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Household Id"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "account_name": {
+            "type": "string",
+            "title": "Account Name"
+          },
+          "currency_code": {
+            "type": "string",
+            "title": "Currency Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "target_minor": {
+            "type": "integer",
+            "title": "Target Minor"
+          },
+          "target_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Date"
+          },
+          "achieved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Achieved At"
+          },
+          "saved_minor": {
+            "type": "integer",
+            "title": "Saved Minor"
+          },
+          "peak_saved_minor": {
+            "type": "integer",
+            "title": "Peak Saved Minor"
+          },
+          "remaining_minor": {
+            "type": "integer",
+            "title": "Remaining Minor"
+          },
+          "progress": {
+            "type": "number",
+            "title": "Progress"
+          },
+          "months_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Months Left"
+          },
+          "needed_per_month_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needed Per Month Minor"
+          },
+          "average_monthly_minor": {
+            "type": "integer",
+            "title": "Average Monthly Minor"
+          },
+          "on_track": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Track"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "household_id",
+          "account_id",
+          "account_name",
+          "currency_code",
+          "name",
+          "target_minor",
+          "saved_minor",
+          "peak_saved_minor",
+          "remaining_minor",
+          "progress",
+          "average_monthly_minor",
+          "created_at"
+        ],
+        "title": "GoalPublic"
+      },
+      "GoalUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "target_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4.611686018427388e+18,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Minor"
+          },
+          "target_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Date"
+          },
+          "is_achieved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Achieved"
+          }
+        },
+        "type": "object",
+        "title": "GoalUpdate"
+      },
+      "GoalsPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/GoalPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/GoalAccountSummary"
+            },
+            "type": "array",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count",
+          "accounts"
+        ],
+        "title": "GoalsPublic"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -10158,6 +10873,18 @@
               }
             ],
             "title": "Counter Account Id"
+          },
+          "goal_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Id"
           }
         },
         "type": "object",
@@ -10255,6 +10982,18 @@
               }
             ],
             "title": "Counter Account Id"
+          },
+          "goal_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Id"
           },
           "recurring_rule_id": {
             "anyOf": [
@@ -10421,6 +11160,18 @@
               }
             ],
             "title": "Counter Account Id"
+          },
+          "goal_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Id"
           }
         },
         "type": "object",
