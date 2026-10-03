@@ -26,6 +26,8 @@ What it creates:
 - a few custom categories, and one archived;
 - about six months of transactions: expenses, income and transfers;
 - budgets for the last few months, this one and the next;
+- savings goals sharing the savings account, filled by tagged transfers,
+  one on track, one behind, and one already reached;
 - recurring rules: monthly, weekly and yearly, one paused, one ended, and one
   blocked by its archived account;
 - instruments, trades through the brokerage account and typed prices, so the
@@ -743,6 +745,75 @@ class Seeder:
         )
         log(f"Set {len(limits)} limits from {month_key(first)} through next month, with a tight one this month")
 
+    # --- goals ------------------------------------------------------------- #
+
+    def goals(self) -> None:
+        step("Goals")
+        everyday = self.accounts["Everyday"]
+        savings = self.accounts["Savings"]
+
+        def goal(name: str, target: float, months_ahead: int | None) -> str:
+            due = on_day(month_start(-months_ahead), 28) if months_ahead is not None else None
+            created = self.owner.post(
+                "/goals/",
+                {
+                    "name": name,
+                    "account_id": savings,
+                    "target_minor": minor(target),
+                    "target_date": due.isoformat() if due else None,
+                },
+            )
+            return str(created["id"])
+
+        car = goal("New car", 20_000, 18)
+        holiday = goal("Summer holiday", 3_500, 5)
+        laptop = goal("Laptop", 1_200, None)
+
+        # Monthly top ups. The car gets enough to stay on track; the holiday
+        # falls short of what its date needs, so the page has one of each.
+        # The opening balance and the recurring "Into savings" transfer stay
+        # untagged, which is what the account's unassigned share is for.
+        count = 0
+        for months_back in range(5, -1, -1):
+            for goal_id, amount in ((car, 1_100), (holiday, 250)):
+                day = on_day(month_start(months_back), 2)
+                if day <= TODAY:
+                    self.owner.post(
+                        "/transactions/",
+                        {
+                            "kind": "transfer",
+                            "amount_minor": minor(amount),
+                            "occurred_on": day.isoformat(),
+                            "account_id": everyday,
+                            "counter_account_id": savings,
+                            "goal_id": goal_id,
+                            "note": "Goal top up",
+                        },
+                    )
+                    count += 1
+
+        # Saved up, then spent out of the account, and marked as reached.
+        for months_back, source, destination, note in (
+            (4, everyday, savings, "Laptop fund"),
+            (1, savings, everyday, "Bought the laptop"),
+        ):
+            self.owner.post(
+                "/transactions/",
+                {
+                    "kind": "transfer",
+                    "amount_minor": minor(1_200),
+                    "occurred_on": on_day(month_start(months_back), 10).isoformat(),
+                    "account_id": source,
+                    "counter_account_id": destination,
+                    "goal_id": laptop,
+                    "note": note,
+                },
+            )
+            count += 1
+        self.owner.patch(f"/goals/{laptop}", {"is_achieved": True})
+
+        log(f"Set 3 goals on the savings account, and tagged {count} transfers to them")
+
     # --- investments ------------------------------------------------------- #
 
     def investments(self) -> None:
@@ -991,6 +1062,7 @@ class Seeder:
         self.recurring_rules()
         self.transactions()
         self.budgets()
+        self.goals()
         self.investments()
         self.income()
         self.api_tokens()

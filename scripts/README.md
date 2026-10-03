@@ -52,6 +52,7 @@ seeded. The random choices use a fixed seed, so two runs tell the same story.
 | Categories   | A new parent with a child, a new child under a default parent, a new income category. One default archived.                     |
 | Transactions | About six months of expenses, income and transfers, by both members. The card is paid off each month for the month before.      |
 | Budgets      | Limits from three months back through next month, made with bulk set and copy. One category is over its limit this month.       |
+| Goals        | Three goals on the savings account, filled by tagged monthly transfers: one on track, one behind, one reached.                  |
 | Recurring    | Monthly, weekly and yearly rules: rent, salary, subscriptions, transfers. One paused, one ended, one blocked by its archived account. |
 | Investments  | Five instruments, one with no trades. Buys and a sell through the brokerage account, and typed prices.                          |
 | Clients      | Turned on for both members. A PIN for each member. Clients on every kind of schedule, one archived, one free intake. Sessions attended, missed, cancelled, paid, owed, waived and still ahead. |
