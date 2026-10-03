@@ -288,6 +288,7 @@ def get_transaction_service(
     session: SessionDep,
     transaction_repository: TransactionRepositoryDep,
     reference_resolver: LedgerReferenceResolverDep,
+    goal_service: GoalServiceDep,
 ) -> TransactionService:
     """Get a transaction service instance.
 
@@ -295,6 +296,7 @@ def get_transaction_service(
         session: The database session.
         transaction_repository: The transaction repository instance.
         reference_resolver: The ledger reference resolver instance.
+        goal_service: The goal service instance.
 
     Returns:
         A transaction service instance.
@@ -303,6 +305,7 @@ def get_transaction_service(
         session=session,
         transaction_repository=transaction_repository,
         reference_resolver=reference_resolver,
+        goal_service=goal_service,
     )
 
 

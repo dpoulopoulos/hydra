@@ -624,6 +624,7 @@ def mock_transaction_service(
     mock_db_session: MagicMock,
     mock_transaction_repository: TransactionRepository,
     mock_reference_resolver: LedgerReferenceResolver,
+    mock_goal_service: GoalService,
 ) -> TransactionService:
     """Create a TransactionService instance with a mocked session.
 
@@ -631,6 +632,7 @@ def mock_transaction_service(
         mock_db_session: The mock database session.
         mock_transaction_repository: The transaction repository instance.
         mock_reference_resolver: The ledger reference resolver instance.
+        mock_goal_service: The goal service instance.
 
     Returns:
         A TransactionService instance with a mocked session.
@@ -639,6 +641,7 @@ def mock_transaction_service(
         session=mock_db_session,
         transaction_repository=mock_transaction_repository,
         reference_resolver=mock_reference_resolver,
+        goal_service=mock_goal_service,
     )
 
 

@@ -49,6 +49,9 @@ class TransactionCreate(TransactionBase):
     category_id: uuid.UUID | None = None
     # Set only for a transfer, where it is the destination account.
     counter_account_id: uuid.UUID | None = None
+    # Set only for a transfer into or out of the savings account a goal lives
+    # in, to say which goal the money belongs to.
+    goal_id: uuid.UUID | None = None
 
 
 class TransactionUpdate(SQLModel):
@@ -60,6 +63,7 @@ class TransactionUpdate(SQLModel):
     account_id: uuid.UUID | None = Field(default=None)
     category_id: uuid.UUID | None = Field(default=None)
     counter_account_id: uuid.UUID | None = Field(default=None)
+    goal_id: uuid.UUID | None = Field(default=None)
 
 
 class TransactionPublic(TransactionBase):
@@ -68,6 +72,7 @@ class TransactionPublic(TransactionBase):
     account_id: uuid.UUID
     category_id: uuid.UUID | None = None
     counter_account_id: uuid.UUID | None = None
+    goal_id: uuid.UUID | None = None
     recurring_rule_id: uuid.UUID | None = None
     income_session_id: uuid.UUID | None = None
     is_generated: bool = False
@@ -92,6 +97,7 @@ class TransactionFilters(SQLModel):
     date_to: datetime.date | None = None
     account_id: uuid.UUID | None = None
     category_id: uuid.UUID | None = None
+    goal_id: uuid.UUID | None = None
     # Whether a parent category also matches spending filed under its children.
     include_subcategories: bool = True
     kind: TransactionKind | None = None

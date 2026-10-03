@@ -159,6 +159,9 @@ class TransactionRepository(HouseholdScopedRepository[Transaction]):
         if category_ids is not None:
             conditions.append(col(Transaction.category_id).in_(category_ids))
 
+        if filters.goal_id is not None:
+            conditions.append(Transaction.goal_id == filters.goal_id)
+
         if filters.kind is not None:
             conditions.append(Transaction.kind == filters.kind)
 

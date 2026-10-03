@@ -8,6 +8,7 @@ from app.exceptions import (
     AccountArchivedError,
     AccountNotFoundError,
     CategoryNotFoundError,
+    GoalTransferMismatchError,
     SameAccountTransferError,
     TransactionCategoryKindError,
     TransactionFromSessionError,
@@ -696,3 +697,129 @@ class TestSessionGeneratedTransactions:
         )
 
         assert message.message == "Transaction deleted."
+
+
+class TestGoalTag:
+    """Tests for tagging a transfer with a goal."""
+
+    def test_checks_the_tag_on_create(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        source = make_account()
+        savings = make_account(name="Savings")
+        goal_id = uuid.uuid4()
+        mock_transaction_service.goal_service = MagicMock()
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [source, savings]
+
+        result = mock_transaction_service.create_transaction(
+            household=household_context,
+            transaction_create=TransactionCreate(
+                kind=TransactionKind.TRANSFER,
+                amount_minor=50_000,
+                occurred_on=date(2026, 3, 4),
+                account_id=source.id,
+                counter_account_id=savings.id,
+                goal_id=goal_id,
+            ),
+        )
+
+        assert result.goal_id == goal_id
+        mock_transaction_service.goal_service.check_tag.assert_called_once_with(
+            household=household_context,
+            goal_id=goal_id,
+            kind=TransactionKind.TRANSFER,
+            account_id=source.id,
+            counter_account_id=savings.id,
+        )
+
+    def test_skips_the_check_without_a_tag(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        account = make_account()
+        category = make_category()
+        mock_transaction_service.goal_service = MagicMock()
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [account, category]
+
+        mock_transaction_service.create_transaction(
+            household=household_context,
+            transaction_create=TransactionCreate(
+                kind=TransactionKind.EXPENSE,
+                amount_minor=4250,
+                occurred_on=date(2026, 3, 4),
+                account_id=account.id,
+                category_id=category.id,
+            ),
+        )
+
+        mock_transaction_service.goal_service.check_tag.assert_not_called()
+
+    def test_refuses_a_tag_that_does_not_fit(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        source = make_account()
+        other = make_account(name="Other")
+        mock_transaction_service.goal_service = MagicMock()
+        mock_transaction_service.goal_service.check_tag.side_effect = GoalTransferMismatchError("no")
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [source, other]
+
+        with pytest.raises(GoalTransferMismatchError):
+            mock_transaction_service.create_transaction(
+                household=household_context,
+                transaction_create=TransactionCreate(
+                    kind=TransactionKind.TRANSFER,
+                    amount_minor=1,
+                    occurred_on=date(2026, 3, 4),
+                    account_id=source.id,
+                    counter_account_id=other.id,
+                    goal_id=uuid.uuid4(),
+                ),
+            )
+
+        mock_transaction_service.session.commit.assert_not_called()
+
+    def test_drops_the_tag_when_a_transfer_becomes_an_expense(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        account = make_account()
+        category = make_category()
+        transaction = make_transaction(
+            kind=TransactionKind.TRANSFER, account_id=account.id, counter_account_id=uuid.uuid4()
+        )
+        transaction.goal_id = uuid.uuid4()
+        mock_transaction_service.goal_service = MagicMock()
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [transaction, account, category]
+
+        result = mock_transaction_service.update_transaction(
+            household=household_context,
+            transaction_id=transaction.id,
+            transaction_update=TransactionUpdate(kind=TransactionKind.EXPENSE, category_id=category.id),
+        )
+
+        assert result.goal_id is None
+        mock_transaction_service.goal_service.check_tag.assert_not_called()
+
+    def test_rechecks_the_tag_when_a_transfer_moves(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        source = make_account()
+        savings = make_account(name="Savings")
+        moved_to = make_account(name="Elsewhere")
+        transaction = make_transaction(
+            kind=TransactionKind.TRANSFER, account_id=source.id, counter_account_id=savings.id
+        )
+        transaction.goal_id = uuid.uuid4()
+        mock_transaction_service.goal_service = MagicMock()
+        mock_transaction_service.goal_service.check_tag.side_effect = GoalTransferMismatchError("no")
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [transaction, source, moved_to]
+
+        with pytest.raises(GoalTransferMismatchError):
+            mock_transaction_service.update_transaction(
+                household=household_context,
+                transaction_id=transaction.id,
+                transaction_update=TransactionUpdate(counter_account_id=moved_to.id),
+            )

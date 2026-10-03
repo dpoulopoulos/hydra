@@ -459,6 +459,7 @@ def transaction_service(
     db_session: Session,
     transaction_repository: TransactionRepository,
     reference_resolver: LedgerReferenceResolver,
+    goal_service: GoalService,
 ) -> TransactionService:
     """Build a transaction service on the real session.
 
@@ -466,6 +467,7 @@ def transaction_service(
         db_session: The database session.
         transaction_repository: The transaction repository.
         reference_resolver: The ledger reference resolver.
+        goal_service: The goal service.
 
     Returns:
         A transaction service.
@@ -474,6 +476,7 @@ def transaction_service(
         session=db_session,
         transaction_repository=transaction_repository,
         reference_resolver=reference_resolver,
+        goal_service=goal_service,
     )
 
 
@@ -630,6 +633,7 @@ def make_account(
     name: str = "Checking",
     opening_balance_minor: int = 0,
     opening_balance_date: datetime.date = datetime.date(2024, 1, 1),
+    account_type: AccountType = AccountType.CURRENT,
 ) -> Account:
     """Seed an account directly, bypassing the service.
 
@@ -639,6 +643,7 @@ def make_account(
         name: The name of the account.
         opening_balance_minor: The balance it held before tracking started.
         opening_balance_date: The date that balance was taken on.
+        account_type: The kind of account.
 
     Returns:
         The stored account.
@@ -646,7 +651,7 @@ def make_account(
     account = Account(
         household_id=household_id,
         name=name,
-        type=AccountType.CURRENT,
+        type=account_type,
         opening_balance_minor=opening_balance_minor,
         opening_balance_date=opening_balance_date,
     )

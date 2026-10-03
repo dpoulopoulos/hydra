@@ -16,6 +16,7 @@ from app.models import (
     TransactionUpdate,
 )
 from app.repositories.transaction import TransactionRepository
+from app.services.goal import GoalService
 from app.services.ledger import LedgerReferenceResolver
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ class TransactionService:
         session: Session,
         transaction_repository: TransactionRepository,
         reference_resolver: LedgerReferenceResolver,
+        goal_service: GoalService,
     ) -> None:
         """Initialize the transaction service.
 
@@ -37,10 +39,12 @@ class TransactionService:
             session: The database session.
             transaction_repository: The transaction repository instance.
             reference_resolver: The resolver for the accounts and category a transaction points at.
+            goal_service: The goal service, which checks a goal tag fits the transaction.
         """
         self.session = session
         self.transaction_repository = transaction_repository
         self.reference_resolver = reference_resolver
+        self.goal_service = goal_service
 
     def create_transaction(
         self, household: HouseholdContext, transaction_create: TransactionCreate
@@ -64,6 +68,8 @@ class TransactionService:
             SameAccountTransferError: If a transfer names the same account twice.
             TransferShapeError: If the transaction does not match its kind.
             TransactionCategoryKindError: If the category is the wrong kind.
+            GoalNotFoundError: If the goal does not exist in the household.
+            GoalTransferMismatchError: If the transaction cannot carry the goal.
         """
         self.reference_resolver.resolve(
             household=household,
@@ -72,6 +78,15 @@ class TransactionService:
             counter_account_id=transaction_create.counter_account_id,
             category_id=transaction_create.category_id,
         )
+
+        if transaction_create.goal_id is not None:
+            self.goal_service.check_tag(
+                household=household,
+                goal_id=transaction_create.goal_id,
+                kind=transaction_create.kind,
+                account_id=transaction_create.account_id,
+                counter_account_id=transaction_create.counter_account_id,
+            )
 
         transaction = Transaction.model_validate(
             transaction_create,
@@ -189,6 +204,8 @@ class TransactionService:
             SameAccountTransferError: If a transfer names the same account twice.
             TransferShapeError: If the change does not match the kind.
             TransactionCategoryKindError: If the category is the wrong kind.
+            GoalNotFoundError: If the goal does not exist in the household.
+            GoalTransferMismatchError: If the transaction cannot carry the goal.
         """
         transaction = self._require_transaction(household=household, transaction_id=transaction_id)
         self._check_not_from_session(transaction)
@@ -198,6 +215,7 @@ class TransactionService:
         account_id = fields.get("account_id", transaction.account_id)
         counter_account_id = fields.get("counter_account_id", transaction.counter_account_id)
         category_id = fields.get("category_id", transaction.category_id)
+        goal_id = fields.get("goal_id", transaction.goal_id)
 
         # Changing to a transfer means the category has to go, and changing away
         # from one means the counter account has to. Rather than reject the
@@ -208,6 +226,12 @@ class TransactionService:
 
         if kind is not TransactionKind.TRANSFER and "counter_account_id" not in fields:
             counter_account_id = None
+
+        # The same goes for a goal tag, which only a transfer can carry. Moving
+        # a tagged transfer between accounts keeps the tag, and the check
+        # below refuses it if the goal's account is no longer on either side.
+        if kind is not TransactionKind.TRANSFER and "goal_id" not in fields:
+            goal_id = None
 
         # An account the row already draws on is looked up, but not held to
         # being open: an edit that leaves the row where it is adds nothing to
@@ -222,6 +246,15 @@ class TransactionService:
             settled_account_ids=self._accounts_already_used(transaction),
         )
 
+        if goal_id is not None:
+            self.goal_service.check_tag(
+                household=household,
+                goal_id=goal_id,
+                kind=kind,
+                account_id=account_id,
+                counter_account_id=counter_account_id,
+            )
+
         transaction.sqlmodel_update(
             {
                 **fields,
@@ -229,6 +262,7 @@ class TransactionService:
                 "account_id": account_id,
                 "counter_account_id": counter_account_id,
                 "category_id": category_id,
+                "goal_id": goal_id,
             }
         )
         self.transaction_repository.save(transaction)
