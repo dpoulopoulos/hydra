@@ -245,13 +245,13 @@ try {
     )
   })
 
-  // The income screen, which is the one place the app compiles WebAssembly:
+  // The Clients screen, which is the one place the app compiles WebAssembly:
   // the client names are encrypted under a key stretched from a PIN by
   // hash-wasm's Argon2id, and a browser refuses to compile a module unless
   // `script-src` says it may. Nothing short of unlocking a vault finds that
   // out, because the module is not fetched until a PIN is entered.
   await step('unlocking the income vault', async () => {
-    await page.goto(`${base}/income`, { waitUntil: 'networkidle' })
+    await page.goto(`${base}/clients`, { waitUntil: 'networkidle' })
     await page.getByRole('button', { name: 'Unlock names' }).click()
     // The PIN the stub's vault was wrapped under; see scripts/make-stub-vault.mjs.
     await page.getByRole('dialog').getByLabel('PIN').fill('135790')

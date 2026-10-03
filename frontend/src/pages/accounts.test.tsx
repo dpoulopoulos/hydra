@@ -109,7 +109,7 @@ describe('the delete confirmation', () => {
     // the dialog actually hands the user.
     expect(dialog).toHaveAccessibleDescription(/transactions/i)
     expect(dialog).toHaveAccessibleDescription(/recurring rules/i)
-    expect(dialog).toHaveAccessibleDescription(/income clients?/i)
+    expect(dialog).toHaveAccessibleDescription(/clients paid into it/i)
     expect(dialog).toHaveAccessibleDescription(/trades/i)
   })
 

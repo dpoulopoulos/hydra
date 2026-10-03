@@ -14,7 +14,7 @@ import {
   type IncomeSummary,
 } from '@/api'
 import { VaultContext, type VaultValue } from '@/lib/vault-context'
-import { Component as IncomePage } from '@/pages/income'
+import { Component as ClientsPage } from '@/pages/clients'
 
 // The page talks to the generated client directly, so the tests stand in for
 // the endpoints rather than for the component's own hooks.
@@ -200,14 +200,14 @@ function renderPage(
         )}
       >
         <MemoryRouter>
-          <IncomePage />
+          <ClientsPage />
         </MemoryRouter>
       </VaultContext>
     </QueryClientProvider>,
   )
 }
 
-describe('the income page', () => {
+describe('the clients page', () => {
   it('shows the client name once the vault is unlocked', async () => {
     renderPage()
 

@@ -237,9 +237,9 @@ export function Component() {
                           <DropdownMenuContent align="end">
                             {fromSession ? (
                               <DropdownMenuItem asChild>
-                                <Link to="/income">
+                                <Link to="/clients">
                                   <HandCoins className="size-4" />
-                                  Change it on the Income page
+                                  Change it on the Clients page
                                 </Link>
                               </DropdownMenuItem>
                             ) : (

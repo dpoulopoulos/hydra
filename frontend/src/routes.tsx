@@ -1,4 +1,4 @@
-import { createBrowserRouter, type RouteObject } from 'react-router'
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router'
 
 import { AppShell } from '@/components/layout/app-shell'
 import { RedirectIfSignedIn, RequireAuth } from '@/components/require-auth'
@@ -38,7 +38,9 @@ const appRoutes: RouteObject[] = [
   { index: true, lazy: () => import('@/pages/dashboard') },
   { path: '/transactions', lazy: () => import('@/pages/transactions') },
   { path: '/accounts', lazy: () => import('@/pages/accounts') },
-  { path: '/income', lazy: () => import('@/pages/income') },
+  { path: '/clients', lazy: () => import('@/pages/clients') },
+  // The screen's old address, for bookmarks made before it was renamed.
+  { path: '/income', element: <Navigate to="/clients" replace /> },
   { path: '/budgets', lazy: () => import('@/pages/budgets') },
   { path: '/investments', lazy: () => import('@/pages/investments') },
   { path: '/recurring', lazy: () => import('@/pages/recurring') },

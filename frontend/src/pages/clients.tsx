@@ -359,8 +359,8 @@ export function Component() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Income"
-        description="The people you see, what they owe, and what next month is likely to bring."
+        title="Clients"
+        description="The people you bill by the session, what they owe, and what next month is likely to bring."
       >
         {/* Left out rather than disabled for a member who is not an owner:
             the household refuses the change, and a control that is there to be
@@ -761,7 +761,7 @@ export function Component() {
             <EmptyState
               icon={UserPlus}
               title="No clients yet"
-              description="Add the people you see. Their names are scrambled on this device under your own PIN, so nobody else in the household can read them."
+              description="Add the people you bill by the session. Their names are scrambled on this device under your own PIN, so nobody else in the household can read them."
             >
               <Button onClick={() => setPinMode(vault.status === 'absent' ? 'set-up' : 'unlock')}>
                 {vault.status === 'absent' ? 'Set a PIN to start' : 'Unlock to add clients'}

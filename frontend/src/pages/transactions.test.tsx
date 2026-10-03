@@ -96,7 +96,7 @@ describe('income a session generated', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Manage transaction' }))
 
     expect(
-      await screen.findByRole('menuitem', { name: 'Change it on the Income page' }),
+      await screen.findByRole('menuitem', { name: 'Change it on the Clients page' }),
     ).toBeInTheDocument()
   })
 })
