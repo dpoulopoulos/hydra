@@ -121,6 +121,9 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
             "counter_account_id IS NULL OR counter_account_id <> account_id",
             name="ck_transaction_distinct_accounts",
         ),
+        # Only a transfer moves money into or out of a goal. Income and spending
+        # change what the household has, not what it has put aside for what.
+        CheckConstraint("goal_id IS NULL OR kind = 'TRANSFER'", name="ck_transaction_goal_transfer_only"),
         # Composite foreign keys, so a transaction cannot reference an account
         # or category belonging to another household. This holds even if a
         # service forgets to scope a query.
@@ -142,6 +145,15 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
             name="fk_transaction_category_household",
             ondelete="RESTRICT",
         ),
+        # Deleting a goal keeps its transfers, which happened, and clears only
+        # the tag, so the money falls back to the account's unassigned share.
+        # The column list matters: a bare SET NULL would null household_id too.
+        ForeignKeyConstraint(
+            ["goal_id", "household_id"],
+            ["goal.id", "goal.household_id"],
+            name="fk_transaction_goal_household",
+            ondelete="SET NULL (goal_id)",
+        ),
         Index("ix_transaction_household_occurred", "household_id", "occurred_on"),
         # The highest value index here: it serves income against expense, the
         # savings trend, and every report that has to exclude transfers.
@@ -154,6 +166,12 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
             postgresql_where=text("category_id IS NOT NULL"),
         ),
         Index("ix_transaction_account_occurred", "account_id", "occurred_on"),
+        Index(
+            "ix_transaction_goal_occurred",
+            "goal_id",
+            "occurred_on",
+            postgresql_where=text("goal_id IS NOT NULL"),
+        ),
         # Partial, because most rows are not transfers and so leave this null.
         Index(
             "ix_transaction_counter_account_occurred",
@@ -189,6 +207,7 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
     account_id: uuid.UUID = Field(nullable=False)
     counter_account_id: uuid.UUID | None = Field(default=None)
     category_id: uuid.UUID | None = Field(default=None)
+    goal_id: uuid.UUID | None = Field(default=None)
     created_by_user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", ondelete="SET NULL")
     # Set when a recurring rule created this row. SET NULL on delete, so
     # removing a rule keeps the transactions it already made: they happened.

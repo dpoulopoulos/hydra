@@ -56,6 +56,16 @@ from .email_verification import (
     PendingEmailChange,
     VerificationDelivery,
 )
+from .goal import (
+    Goal,
+    GoalAccountSummary,
+    GoalCreate,
+    GoalHistory,
+    GoalMonth,
+    GoalPublic,
+    GoalsPublic,
+    GoalUpdate,
+)
 from .household import (
     Household,
     HouseholdBase,
@@ -246,6 +256,14 @@ __all__ = [
     "EmailVerificationRequest",
     "EmailVerificationStatus",
     "PendingEmailChange",
+    "Goal",
+    "GoalAccountSummary",
+    "GoalCreate",
+    "GoalHistory",
+    "GoalMonth",
+    "GoalPublic",
+    "GoalUpdate",
+    "GoalsPublic",
     "Household",
     "HouseholdBase",
     "HouseholdContext",
