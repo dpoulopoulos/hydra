@@ -23,9 +23,10 @@
 	}
 
 	# Who the token belongs to. The app shell greets this person and reads the
-	# household's currency from the next one.
+	# household's currency from the next one. Clients is turned on, or the walk
+	# could not reach the screen that unlocks the vault.
 	handle /api/v1/users/me {
-		respond `{"id": "00000000-0000-4000-8000-000000000001", "email": "walker@example.com", "full_name": "Wanda Walker", "is_active": true, "is_superuser": false, "created_at": "2026-01-01T00:00:00Z", "updated_at": null}` 200
+		respond `{"id": "00000000-0000-4000-8000-000000000001", "email": "walker@example.com", "full_name": "Wanda Walker", "is_active": true, "is_superuser": false, "clients_enabled": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": null}` 200
 	}
 
 	# Who else is in the household. The income screen reads it to find out
@@ -50,7 +51,8 @@
 		respond `{"data": [{"id": "00000000-0000-4000-8000-000000000003", "household_id": "00000000-0000-4000-8000-000000000002", "name": "Everyday", "type": "current", "institution": "A Bank", "iban": null, "currency_code": "EUR", "opening_balance_minor": 100000, "opening_balance_date": "2026-01-01", "current_balance_minor": 124500, "archived_at": null, "created_at": "2026-01-01T00:00:00Z", "updated_at": null}], "count": 1, "total_balance_minor": 124500}` 200
 	}
 
-	# The income vault, which the app asks about as soon as anyone signs in.
+	# The income vault, which the app asks about as soon as anyone with Clients
+	# turned on signs in.
 	# An answer rather than a 404: a run that ended with a failed request in
 	# the console could not tell that one apart from a real one.
 	#

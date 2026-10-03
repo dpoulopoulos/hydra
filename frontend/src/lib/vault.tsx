@@ -27,7 +27,14 @@ const AUTO_LOCK_MS = 15 * 60_000
  */
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'focusin'] as const
 
-export function VaultProvider({ children }: { children: ReactNode }) {
+/**
+ * Holds the client-name key for the whole signed-in shell, so moving between
+ * screens does not lock the names.
+ *
+ * `enabled` is whether the user turned the Clients screen on. Off, the vault is
+ * never asked for: someone who does not use the screen has no PIN to look up.
+ */
+export function VaultProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
   const queryClient = useQueryClient()
   // The unwrapped key lives here and only here: never localStorage, never
   // sessionStorage, never a cookie. Closing the tab is what locks it, and there
@@ -46,6 +53,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     },
     retry: false,
     staleTime: 5 * 60_000,
+    enabled,
   })
 
   // Locking has to take the decrypted names with it. They are cached by

@@ -61,6 +61,9 @@ vi.mock('@/api', async (importOriginal) => {
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+const lockVault = vi.hoisted(() => vi.fn())
+vi.mock('@/hooks/use-vault', () => ({ useVault: () => ({ lock: lockVault }) }))
+
 const pendingChange: PendingEmailChange = {
   new_email: 'moving-to@example.com',
   expires_at: '2026-01-02T00:00:00Z',
@@ -524,5 +527,41 @@ describe('a pending change of address', () => {
     await person.click(await screen.findByRole('button', { name: 'Send the link again' }))
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled())
+  })
+})
+
+describe('the Clients switch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(api.usersUpdateUserMe).mockResolvedValue({ data: user() } as never)
+    vi.mocked(api.emailVerificationGetPendingEmailChangeMe).mockResolvedValue({
+      data: null,
+    } as never)
+  })
+
+  it('turns the screen on for this user only', async () => {
+    authStore.publish(user({ clients_enabled: false }))
+    renderProfile()
+
+    const toggle = screen.getByRole('switch', { name: 'Clients' })
+    expect(toggle).not.toBeChecked()
+    await userEvent.click(toggle)
+
+    await waitFor(() =>
+      expect(api.usersUpdateUserMe).toHaveBeenCalledWith({ body: { clients_enabled: true } }),
+    )
+    expect(lockVault).not.toHaveBeenCalled()
+  })
+
+  it('locks the names when the screen is turned off', async () => {
+    authStore.publish(user({ clients_enabled: true }))
+    renderProfile()
+
+    await userEvent.click(screen.getByRole('switch', { name: 'Clients' }))
+
+    await waitFor(() =>
+      expect(api.usersUpdateUserMe).toHaveBeenCalledWith({ body: { clients_enabled: false } }),
+    )
+    await waitFor(() => expect(lockVault).toHaveBeenCalled())
   })
 })

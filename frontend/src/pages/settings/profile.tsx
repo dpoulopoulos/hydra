@@ -24,7 +24,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { useAuth } from '@/hooks/use-auth'
+import { useVault } from '@/hooks/use-vault'
 import { errorMessage, errorStatus } from '@/lib/api'
 import { refill } from '@/lib/form'
 import { formatDateTime } from '@/lib/month'
@@ -225,6 +228,24 @@ export function Component() {
     onError: (error) => toast.error(errorMessage(error)),
   })
 
+  // Clients is opt-in per person: one partner may bill clients while the other
+  // is on a salary. Turning it off locks the names, so a hidden screen does not
+  // leave them readable in memory.
+  const vault = useVault()
+  const toggleClients = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { error } = await usersUpdateUserMe({ body: { clients_enabled: enabled } })
+      if (error) throw error
+      return enabled
+    },
+    onSuccess: (enabled) => {
+      if (!enabled) vault.lock()
+      void queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+      toast.success(enabled ? 'Clients is on. Find it in the sidebar.' : 'Clients is off.')
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  })
+
   const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
     resolver: zodResolver(passwordFormSchema),
     defaultValues: { current_password: '', new_password: '', confirm: '' },
@@ -368,6 +389,35 @@ export function Component() {
           >
             Send confirmation email
           </SubmitButton>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Features</CardTitle>
+          <CardDescription>
+            Turn on the screens you need. These choices are yours alone.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex max-w-md items-start justify-between gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="clients-enabled">Clients</Label>
+              <p className="text-muted-foreground text-sm">
+                For freelancers who bill by the session: track clients, what they owe and what next
+                month is likely to bring. Turning it off hides the screen; your data stays.
+              </p>
+            </div>
+            <Switch
+              id="clients-enabled"
+              // Shows the choice straight away rather than after the round trip.
+              checked={
+                toggleClients.isPending ? toggleClients.variables : (user?.clients_enabled ?? false)
+              }
+              disabled={!user || toggleClients.isPending}
+              onCheckedChange={(next) => toggleClients.mutate(next)}
+            />
+          </div>
         </CardContent>
       </Card>
 

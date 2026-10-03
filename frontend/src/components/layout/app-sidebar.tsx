@@ -24,13 +24,15 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { useAuth } from '@/hooks/use-auth'
 import { useHousehold } from '@/hooks/use-household'
 
 const money = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/accounts', label: 'Accounts', icon: Wallet },
-  { to: '/clients', label: 'Clients', icon: HandCoins },
+  // Only for a user who turned it on: see `clientsOnly` below.
+  { to: '/clients', label: 'Clients', icon: HandCoins, clientsOnly: true },
   { to: '/investments', label: 'Investments', icon: TrendingUp },
 ]
 
@@ -44,6 +46,11 @@ const insight = [{ to: '/reports', label: 'Reports', icon: ChartColumnIncreasing
 
 export function AppSidebar() {
   const { data: household } = useHousehold()
+  const { user } = useAuth()
+
+  // Clients is for people paid by the session. It only shows for a user who
+  // turned it on, so someone on a salary never meets it.
+  const moneyItems = money.filter((item) => !item.clientsOnly || user?.clients_enabled)
 
   return (
     <Sidebar collapsible="icon">
@@ -69,7 +76,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         {[
-          { label: 'Money', items: money },
+          { label: 'Money', items: moneyItems },
           { label: 'Planning', items: planning },
           { label: 'Insight', items: insight },
         ].map((group) => (

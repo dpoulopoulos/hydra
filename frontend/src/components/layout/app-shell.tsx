@@ -5,13 +5,16 @@ import { UserMenu } from '@/components/layout/user-menu'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Separator } from '@/components/ui/separator'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { useAuth } from '@/hooks/use-auth'
 import { LocaleProvider } from '@/lib/locale'
 import { VaultProvider } from '@/lib/vault'
 
 export function AppShell() {
+  const { user } = useAuth()
+
   return (
     <LocaleProvider>
-      <VaultProvider>
+      <VaultProvider enabled={Boolean(user?.clients_enabled)}>
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>

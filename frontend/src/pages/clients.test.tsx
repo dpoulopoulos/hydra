@@ -38,8 +38,11 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }))
 
+// Mutable, so the screen a user has not turned on can be rendered too.
+let clientsEnabled = true
+
 vi.mock('@/hooks/use-auth', () => ({
-  useAuth: () => ({ user: { id: USER_ID } }),
+  useAuth: () => ({ user: { id: USER_ID, clients_enabled: clientsEnabled } }),
 }))
 
 // Mutable, so the owner-only branch can actually be entered. Hardcoding it
@@ -54,6 +57,7 @@ vi.mock('@/hooks/use-household', () => ({
 
 beforeEach(() => {
   isOwner = true
+  clientsEnabled = true
 })
 
 const api = await import('@/api')
@@ -206,6 +210,20 @@ function renderPage(
     </QueryClientProvider>,
   )
 }
+
+describe('a user who has not turned Clients on', () => {
+  it('says where to turn it on and asks the server for nothing', async () => {
+    clientsEnabled = false
+    renderPage()
+
+    expect(await screen.findByText('Clients is turned off')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Go to settings' })).toHaveAttribute(
+      'href',
+      '/settings/profile',
+    )
+    expect(api.incomeListClients).not.toHaveBeenCalled()
+  })
+})
 
 describe('the clients page', () => {
   it('shows the client name once the vault is unlocked', async () => {

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BanknoteArrowUp,
   CalendarClock,
+  HandCoins,
   Lock,
   LockOpen,
   MoreHorizontal,
@@ -13,6 +14,7 @@ import {
   UserPlus,
 } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { toast } from 'sonner'
 
 import {
@@ -99,6 +101,32 @@ function paymentVariant(payment: PaymentStatus) {
 const DEFAULT_PAGE_SIZE = 20
 
 export function Component() {
+  const { user } = useAuth()
+
+  // Reached from an old bookmark or a link on another screen by someone who
+  // has not turned the screen on. Say where the switch is rather than
+  // pretending the page is not there.
+  if (user && !user.clients_enabled) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Clients" />
+        <EmptyState
+          icon={HandCoins}
+          title="Clients is turned off"
+          description="It tracks the people you bill by the session, what they owe and what next month is likely to bring. Turn it on in your profile settings."
+        >
+          <Button asChild>
+            <Link to="/settings/profile">Go to settings</Link>
+          </Button>
+        </EmptyState>
+      </div>
+    )
+  }
+
+  return <ClientsPage />
+}
+
+function ClientsPage() {
   const queryClient = useQueryClient()
   const currency = useCurrency()
   const locale = useLocale()
