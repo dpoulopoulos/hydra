@@ -1024,6 +1024,41 @@ class TestUpdateUserMe:
         mock_user_service.session.commit.assert_called_once()
         mock_user_service.session.refresh.assert_called_once()
 
+    def test_update_user_me_turns_the_clients_screen_on_and_off(
+        self,
+        mock_user_service: UserService,
+        test_user: User,
+        mock_email_verification_service: EmailVerificationService,
+    ) -> None:
+        """The Clients screen is off until its user turns it on, and other updates leave it alone."""
+        # Arrange: Mock database operations
+        mock_user_service.session.exec = MagicMock()
+        mock_user_service.session.exec.return_value.first.return_value = None
+        assert test_user.clients_enabled is False
+
+        # Act: Turn it on, then change something else
+        turned_on = mock_user_service.update_user_me(
+            current_user=test_user,
+            user_update=UserUpdateMe(clients_enabled=True),
+            email_verification_service=mock_email_verification_service,
+        )
+        renamed = mock_user_service.update_user_me(
+            current_user=test_user,
+            user_update=UserUpdateMe(full_name="Updated Name"),
+            email_verification_service=mock_email_verification_service,
+        )
+
+        # Assert: It stays on until it is turned off
+        assert turned_on.clients_enabled is True
+        assert renamed.clients_enabled is True
+
+        turned_off = mock_user_service.update_user_me(
+            current_user=test_user,
+            user_update=UserUpdateMe(clients_enabled=False),
+            email_verification_service=mock_email_verification_service,
+        )
+        assert turned_off.clients_enabled is False
+
     def test_update_user_me_email_change_is_held_until_it_is_verified(
         self,
         mock_user_service: UserService,

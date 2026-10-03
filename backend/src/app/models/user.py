@@ -14,6 +14,11 @@ class UserBase(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
     is_active: bool = True
     is_superuser: bool = False
+    # The Clients screen is for people who bill clients by the session. Someone
+    # on a salary has no use for it, so it stays out of their way until they
+    # turn it on. Turning it off only hides it: clients, sessions and the
+    # income they put in the ledger are kept.
+    clients_enabled: bool = False
 
 
 class UserCreate(UserBase):
@@ -56,6 +61,7 @@ class UsersPublic(SQLModel):
 class UserUpdateMe(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
     email: EmailStr | None = Field(default=None, max_length=255)
+    clients_enabled: bool | None = Field(default=None)
 
 
 class UserUpdate(SQLModel):
