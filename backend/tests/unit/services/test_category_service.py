@@ -522,11 +522,12 @@ class TestDeleteCategory:
     @pytest.mark.parametrize(
         ("counts", "blocker"),
         [
-            ([0, 1, 0, 0], "transactions"),
-            ([0, 0, 1, 0], "budget"),
-            ([0, 0, 0, 1], "recurring"),
+            ([0, 1, 0, 0, 0], "transactions"),
+            ([0, 0, 1, 0, 0], "budget"),
+            ([0, 0, 0, 1, 0], "recurring"),
+            ([0, 0, 0, 0, 1], "client"),
         ],
-        ids=["transactions", "budgets", "recurring rules"],
+        ids=["transactions", "budgets", "recurring rules", "clients"],
     )
     def test_refuses_to_delete_a_category_the_ledger_references(
         self,

@@ -457,6 +457,7 @@ def mock_category_service(
     mock_transaction_repository: TransactionRepository,
     mock_budget_repository: BudgetRepository,
     mock_recurring_rule_repository: RecurringRuleRepository,
+    mock_income_client_repository: IncomeClientRepository,
 ) -> CategoryService:
     """Create a CategoryService instance with a mocked session.
 
@@ -466,6 +467,7 @@ def mock_category_service(
         mock_transaction_repository: The transaction repository instance.
         mock_budget_repository: The budget repository instance.
         mock_recurring_rule_repository: The recurring rule repository instance.
+        mock_income_client_repository: The income client repository instance.
 
     Returns:
         A CategoryService instance with a mocked session.
@@ -476,6 +478,7 @@ def mock_category_service(
         transaction_repository=mock_transaction_repository,
         budget_repository=mock_budget_repository,
         recurring_rule_repository=mock_recurring_rule_repository,
+        income_client_repository=mock_income_client_repository,
     )
 
 

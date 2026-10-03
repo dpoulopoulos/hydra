@@ -243,6 +243,29 @@ class IncomeClientRepository(HouseholdScopedRepository[IncomeClient]):
         )
         return self.session.exec(statement).one()
 
+    def count_for_default_category(self, category_id: uuid.UUID, household_id: uuid.UUID) -> int:
+        """Count the clients whose earnings are filed under a category.
+
+        Archived clients count too, for the same reason as with accounts: the
+        foreign key onto the category stays in place.
+
+        Args:
+            category_id: The ID of the category.
+            household_id: The ID of the household.
+
+        Returns:
+            The number of clients that name the category as their default.
+        """
+        statement = (
+            select(func.count())
+            .select_from(IncomeClient)
+            .where(
+                col(IncomeClient.household_id) == household_id,
+                col(IncomeClient.default_category_id) == category_id,
+            )
+        )
+        return self.session.exec(statement).one()
+
     def count_active_for_household(self, household_id: uuid.UUID) -> int:
         """Count the clients a household still sees.
 

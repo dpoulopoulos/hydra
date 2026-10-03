@@ -371,6 +371,7 @@ def category_service(
     transaction_repository: TransactionRepository,
     budget_repository: BudgetRepository,
     recurring_rule_repository: RecurringRuleRepository,
+    income_client_repository: IncomeClientRepository,
 ) -> CategoryService:
     """Build a category service on the real session.
 
@@ -380,6 +381,7 @@ def category_service(
         transaction_repository: The transaction repository.
         budget_repository: The budget repository.
         recurring_rule_repository: The recurring rule repository.
+        income_client_repository: The income client repository.
 
     Returns:
         A category service.
@@ -390,6 +392,7 @@ def category_service(
         transaction_repository=transaction_repository,
         budget_repository=budget_repository,
         recurring_rule_repository=recurring_rule_repository,
+        income_client_repository=income_client_repository,
     )
 
 

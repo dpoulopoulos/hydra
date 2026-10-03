@@ -29,6 +29,7 @@ from app.models import (
 )
 from app.repositories.budget import BudgetRepository
 from app.repositories.category import CategoryRepository
+from app.repositories.income import IncomeClientRepository
 from app.repositories.recurring_rule import RecurringRuleRepository
 from app.repositories.transaction import TransactionRepository
 
@@ -50,6 +51,7 @@ class CategoryService:
         transaction_repository: TransactionRepository,
         budget_repository: BudgetRepository,
         recurring_rule_repository: RecurringRuleRepository,
+        income_client_repository: IncomeClientRepository,
     ) -> None:
         """Initialize the category service.
 
@@ -59,12 +61,14 @@ class CategoryService:
             transaction_repository: The transaction repository instance.
             budget_repository: The budget repository instance.
             recurring_rule_repository: The recurring rule repository instance.
+            income_client_repository: The income client repository instance.
         """
         self.session = session
         self.category_repository = category_repository
         self.transaction_repository = transaction_repository
         self.budget_repository = budget_repository
         self.recurring_rule_repository = recurring_rule_repository
+        self.income_client_repository = income_client_repository
 
     def seed_defaults(self, household_id: uuid.UUID) -> None:
         """Create the default categories of a household, without committing.
@@ -353,6 +357,9 @@ class CategoryService:
 
         if self.recurring_rule_repository.count_for_category(category_id=category.id, household_id=household_id):
             raise CategoryInUseError(name=category.name, reason="has recurring rules filed under it") from None
+
+        if self.income_client_repository.count_for_default_category(category_id=category.id, household_id=household_id):
+            raise CategoryInUseError(name=category.name, reason="is where a client's sessions are filed") from None
 
     def _build_tree(self, categories: Sequence[Category]) -> list[CategoryTreeNode]:
         """Assemble a flat list of categories into a two level tree.

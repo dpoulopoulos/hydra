@@ -72,6 +72,7 @@ def add_income_client(
     household: HouseholdContext,
     default_account_id: uuid.UUID,
     archived_at: datetime.datetime | None = None,
+    default_category_id: uuid.UUID | None = None,
 ) -> IncomeClient:
     """Write an income client straight to the session, with no service in the way.
 
@@ -80,6 +81,7 @@ def add_income_client(
         household: The household that owns the client, and whose owner adds it.
         default_account_id: The account the client's earnings are paid into.
         archived_at: When the client was archived, if it was.
+        default_category_id: The category the client's earnings are filed under, if any.
 
     Returns:
         The stored client.
@@ -89,6 +91,7 @@ def add_income_client(
         owner_user_id=household.user_id,
         name_ct="ciphertext",
         default_account_id=default_account_id,
+        default_category_id=default_category_id,
         archived_at=archived_at,
     )
     session.add(client)
@@ -213,6 +216,22 @@ class TestCategoryReferences:
 
         with pytest.raises(CategoryInUseError):
             category_service.delete_category(household=household_a, category_id=parent.id)
+
+    def test_a_category_a_client_files_its_sessions_under_cannot_be_deleted(
+        self,
+        db_session: Session,
+        category_service: CategoryService,
+        household_a: HouseholdContext,
+    ) -> None:
+        """The client's foreign key is RESTRICT, so without the check this was a 500."""
+        category = make_category(db_session, household_id=household_a.household_id)
+        account = make_account(db_session, household_id=household_a.household_id)
+        add_income_client(db_session, household_a, default_account_id=account.id, default_category_id=category.id)
+
+        with pytest.raises(CategoryInUseError) as excinfo:
+            category_service.delete_category(household=household_a, category_id=category.id)
+
+        assert "client" in str(excinfo.value)
 
     def test_a_category_nothing_references_is_deleted(
         self,

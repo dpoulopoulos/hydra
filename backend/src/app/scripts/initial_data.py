@@ -9,6 +9,7 @@ from app.repositories import (
     HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
+    IncomeClientRepository,
     RecurringRuleRepository,
     TransactionRepository,
     UserRepository,
@@ -37,6 +38,7 @@ def init() -> None:
             transaction_repository=TransactionRepository(session=session),
             budget_repository=BudgetRepository(session=session),
             recurring_rule_repository=RecurringRuleRepository(session=session),
+            income_client_repository=IncomeClientRepository(session=session),
         )
         init_db(
             user_service=user_service,

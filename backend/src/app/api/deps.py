@@ -741,6 +741,7 @@ def get_category_service(
     transaction_repository: TransactionRepositoryDep,
     budget_repository: BudgetRepositoryDep,
     recurring_rule_repository: RecurringRuleRepositoryDep,
+    income_client_repository: IncomeClientRepositoryDep,
 ) -> CategoryService:
     """Get a category service instance.
 
@@ -750,6 +751,7 @@ def get_category_service(
         transaction_repository: The transaction repository instance.
         budget_repository: The budget repository instance.
         recurring_rule_repository: The recurring rule repository instance.
+        income_client_repository: The income client repository instance.
 
     Returns:
         A category service instance.
@@ -760,6 +762,7 @@ def get_category_service(
         transaction_repository=transaction_repository,
         budget_repository=budget_repository,
         recurring_rule_repository=recurring_rule_repository,
+        income_client_repository=income_client_repository,
     )
 
 
