@@ -225,6 +225,14 @@ describe('a user who has not turned Clients on', () => {
   })
 })
 
+describe('a user with no clients yet', () => {
+  it('starts on the tab that says how to add one', async () => {
+    renderPage({ clients: [], sessions: [] })
+
+    expect(await screen.findByText('No clients yet')).toBeInTheDocument()
+  })
+})
+
 describe('the clients page', () => {
   it('shows the client name once the vault is unlocked', async () => {
     renderPage()

@@ -161,7 +161,9 @@ function ClientsPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   // Controlled, because the control that belongs to each tab sits beside the
   // tabs themselves rather than inside the panel below them.
-  const [tab, setTab] = useState('sessions')
+  // Someone who has not added a client yet starts on the tab that says how to
+  // add one, rather than on an empty list of sessions.
+  const [chosenTab, setTab] = useState<string | null>(null)
   // The ledger label lives on the household, and only an owner may change it.
   const isOwner = useIsHouseholdOwner()
 
@@ -380,6 +382,7 @@ function ClientsPage() {
   // walks to the end of the list rather than stopping at a page: a name is not
   // optional because its client sits on page two.
   const byId = new Map((clients.data?.data ?? []).map((one) => [one.id, one]))
+  const tab = chosenTab ?? (clients.data?.count === 0 ? 'clients' : 'sessions')
   const clientsOnPage = clientList.data?.data ?? []
   const forecastRows = forecast.data?.clients ?? []
   const tallyById = new Map(forecastRows.map((one) => [one.client_id, one]))
