@@ -163,6 +163,7 @@ Eighteen routes cover the whole API.
 | `/clients`                            | Clients, sessions, what is owed, and where this month and next will land. Off until the user turns it on; `/income` redirects here |
 | `/categories`                         | The two-level category tree                                                                                                        |
 | `/budgets`                            | Monthly limits, per category or a month at a time                                                                                  |
+| `/goals`                              | Savings goals, what each needs per month, and their monthly history                                                                |
 | `/recurring`                          | Recurring rules and what is still to come                                                                                          |
 | `/reports`                            | The four charts, with a table view                                                                                                 |
 | `/settings/household`                 | Household, members, invitations                                                                                                    |
