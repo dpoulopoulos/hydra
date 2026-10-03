@@ -10,6 +10,7 @@ help:
 	@echo "  make lint          - Scan Python files for linting errors"
 	@echo "  make test-unit     - Run unit tests and report coverage"
 	@echo "  make test-integration - Run the integration tests against a real Postgres"
+	@echo "  make seed          - Fill a fresh local stack with demo data for every feature"
 	@echo ""
 	@echo "  make web           - Start the frontend outside Docker (make dev runs it inside)"
 	@echo "  make web-install   - Install frontend dependencies"
@@ -82,6 +83,13 @@ test-unit:
 .PHONY: test-integration
 test-integration:
 	bash ./backend/scripts/test-integration.sh
+
+# Fills the FIRST_SUPERUSER's household with demo data covering every feature,
+# through the API of a running stack (`make dev`). It refuses a household that
+# already has accounts, so start from an empty one: make clean && make dev.
+.PHONY: seed
+seed: check-env
+	uv run scripts/seed.py
 
 # --- frontend outside Docker -----------------------------------------------
 # `make dev` already runs the web app in a container. These targets are for
