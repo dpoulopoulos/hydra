@@ -3099,6 +3099,10 @@ export type UserCreate = {
      */
     is_superuser?: boolean;
     /**
+     * Clients Enabled
+     */
+    clients_enabled?: boolean;
+    /**
      * Password
      */
     password: string;
@@ -3124,6 +3128,10 @@ export type UserPublic = {
      * Is Superuser
      */
     is_superuser?: boolean;
+    /**
+     * Clients Enabled
+     */
+    clients_enabled?: boolean;
     /**
      * Id
      */
@@ -3198,6 +3206,10 @@ export type UserUpdateMe = {
      * Email
      */
     email?: string | null;
+    /**
+     * Clients Enabled
+     */
+    clients_enabled?: boolean | null;
 };
 
 /**
@@ -3227,6 +3239,10 @@ export type UserUpdatedMe = {
      * Is Superuser
      */
     is_superuser?: boolean;
+    /**
+     * Clients Enabled
+     */
+    clients_enabled?: boolean;
     /**
      * Id
      */
