@@ -35,6 +35,13 @@ from .email_verification_exceptions import (
     EmailVerificationTokenNotValidError,
     EmailVerificationUsedError,
 )
+from .goal_exceptions import (
+    GoalAccountLockedError,
+    GoalAccountNotSavingsError,
+    GoalExistsError,
+    GoalNotFoundError,
+    GoalTransferMismatchError,
+)
 from .household_exceptions import (
     HouseholdInviteEmailMismatchError,
     HouseholdInviteExistsError,
@@ -132,6 +139,11 @@ __all__ = [
     "CategoryNotFoundError",
     "CategorySelfParentError",
     "SystemCategoryError",
+    "GoalAccountLockedError",
+    "GoalAccountNotSavingsError",
+    "GoalExistsError",
+    "GoalNotFoundError",
+    "GoalTransferMismatchError",
     "EmailVerificationExpiredError",
     "EmailVerificationNotFoundError",
     "EmailVerificationTokenNotValidError",

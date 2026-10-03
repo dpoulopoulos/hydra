@@ -26,6 +26,7 @@ from app.repositories import (
     CategoryRepository,
     EmailVerificationRepository,
     FxRateRepository,
+    GoalRepository,
     HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
@@ -46,6 +47,7 @@ from app.services import (
     BudgetService,
     CategoryService,
     EmailVerificationService,
+    GoalService,
     HouseholdService,
     IncomeService,
     InvestmentService,
@@ -578,6 +580,42 @@ def mock_reference_resolver(
     return LedgerReferenceResolver(
         account_repository=mock_account_repository,
         category_repository=mock_category_repository,
+    )
+
+
+@pytest.fixture
+def mock_goal_repository(mock_db_session: MagicMock) -> GoalRepository:
+    """Create a GoalRepository instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+
+    Returns:
+        A GoalRepository instance with a mocked session.
+    """
+    return GoalRepository(session=mock_db_session)
+
+
+@pytest.fixture
+def mock_goal_service(
+    mock_db_session: MagicMock,
+    mock_goal_repository: GoalRepository,
+    mock_account_repository: AccountRepository,
+) -> GoalService:
+    """Create a GoalService instance with a mocked session.
+
+    Args:
+        mock_db_session: The mock database session.
+        mock_goal_repository: The goal repository instance.
+        mock_account_repository: The account repository instance.
+
+    Returns:
+        A GoalService instance with a mocked session.
+    """
+    return GoalService(
+        session=mock_db_session,
+        goal_repository=mock_goal_repository,
+        account_repository=mock_account_repository,
     )
 
 

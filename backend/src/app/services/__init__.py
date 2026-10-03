@@ -4,6 +4,7 @@ from .budget import BudgetService
 from .category import CategoryService
 from .email_outbox import EmailOutboxService
 from .email_verification import EmailVerificationService
+from .goal import GoalService
 from .household import HouseholdService
 from .income import IncomeService
 from .investment import InvestmentService
@@ -22,6 +23,7 @@ __all__ = [
     "CategoryService",
     "EmailOutboxService",
     "EmailVerificationService",
+    "GoalService",
     "HouseholdService",
     "IncomeService",
     "InvestmentService",

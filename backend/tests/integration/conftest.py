@@ -49,6 +49,7 @@ from app.repositories import (
     BudgetRepository,
     CategoryRepository,
     EmailVerificationRepository,
+    GoalRepository,
     HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
@@ -63,6 +64,7 @@ from app.services import (
     AccountService,
     BudgetService,
     CategoryService,
+    GoalService,
     HouseholdService,
     LedgerReferenceResolver,
     RecurringRuleService,
@@ -413,6 +415,42 @@ def reference_resolver(
     return LedgerReferenceResolver(
         account_repository=account_repository,
         category_repository=category_repository,
+    )
+
+
+@pytest.fixture
+def goal_repository(db_session: Session) -> GoalRepository:
+    """Build a goal repository on the real session.
+
+    Args:
+        db_session: The database session.
+
+    Returns:
+        A goal repository.
+    """
+    return GoalRepository(session=db_session)
+
+
+@pytest.fixture
+def goal_service(
+    db_session: Session,
+    goal_repository: GoalRepository,
+    account_repository: AccountRepository,
+) -> GoalService:
+    """Build a goal service on the real session.
+
+    Args:
+        db_session: The database session.
+        goal_repository: The goal repository.
+        account_repository: The account repository.
+
+    Returns:
+        A goal service.
+    """
+    return GoalService(
+        session=db_session,
+        goal_repository=goal_repository,
+        account_repository=account_repository,
     )
 
 

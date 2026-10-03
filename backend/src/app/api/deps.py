@@ -33,6 +33,7 @@ from app.repositories import (
     EmailOutboxRepository,
     EmailVerificationRepository,
     FxRateRepository,
+    GoalRepository,
     HouseholdInviteRepository,
     HouseholdMemberRepository,
     HouseholdRepository,
@@ -55,6 +56,7 @@ from app.services import (
     CategoryService,
     EmailOutboxService,
     EmailVerificationService,
+    GoalService,
     HouseholdService,
     IncomeService,
     InvestmentService,
@@ -240,6 +242,46 @@ def get_transaction_repository(session: SessionDep) -> TransactionRepository:
 
 
 TransactionRepositoryDep = Annotated[TransactionRepository, Depends(get_transaction_repository)]
+
+
+def get_goal_repository(session: SessionDep) -> GoalRepository:
+    """Get a goal repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A goal repository instance.
+    """
+    return GoalRepository(session=session)
+
+
+GoalRepositoryDep = Annotated[GoalRepository, Depends(get_goal_repository)]
+
+
+def get_goal_service(
+    session: SessionDep,
+    goal_repository: GoalRepositoryDep,
+    account_repository: AccountRepositoryDep,
+) -> GoalService:
+    """Get a goal service instance.
+
+    Args:
+        session: The database session.
+        goal_repository: The goal repository instance.
+        account_repository: The account repository instance.
+
+    Returns:
+        A goal service instance.
+    """
+    return GoalService(
+        session=session,
+        goal_repository=goal_repository,
+        account_repository=account_repository,
+    )
+
+
+GoalServiceDep = Annotated[GoalService, Depends(get_goal_service)]
 
 
 def get_transaction_service(

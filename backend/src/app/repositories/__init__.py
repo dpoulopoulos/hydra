@@ -5,6 +5,7 @@ from app.repositories.budget import BudgetRepository
 from app.repositories.category import CategoryRepository
 from app.repositories.email_outbox import EmailOutboxRepository
 from app.repositories.email_verification import EmailVerificationRepository
+from app.repositories.goal import GoalRepository
 from app.repositories.household import (
     HouseholdInviteRepository,
     HouseholdMemberRepository,
@@ -36,6 +37,7 @@ __all__ = [
     "BaseRepository",
     "BudgetRepository",
     "CategoryRepository",
+    "GoalRepository",
     "EmailOutboxRepository",
     "EmailVerificationRepository",
     "MailRateLimitRepository",
