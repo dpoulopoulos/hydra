@@ -22,8 +22,8 @@ When it finishes, it prints what you need to sign in and look around:
 
 ```
 Done. Sign in at http://localhost:5173
-  Owner:   admin@example.com (Income PIN 123456)
-  Partner: partner@example.com / demo-partner-password (Income PIN 654321)
+  Owner:   admin@example.com (Clients PIN 123456)
+  Partner: partner@example.com / demo-partner-password (Clients PIN 654321)
   Read/write API token for the MCP server: hyd_...
 ```
 
@@ -54,7 +54,7 @@ seeded. The random choices use a fixed seed, so two runs tell the same story.
 | Budgets      | Limits from three months back through next month, made with bulk set and copy. One category is over its limit this month.       |
 | Recurring    | Monthly, weekly and yearly rules: rent, salary, subscriptions, transfers. One paused, one ended, one blocked by its archived account. |
 | Investments  | Five instruments, one with no trades. Buys and a sell through the brokerage account, and typed prices.                          |
-| Income       | A PIN for each member. Clients on every kind of schedule, one archived, one free intake. Sessions attended, missed, cancelled, paid, owed, waived and still ahead. |
+| Clients      | Turned on for both members. A PIN for each member. Clients on every kind of schedule, one archived, one free intake. Sessions attended, missed, cancelled, paid, owed, waived and still ahead. |
 | API tokens   | A read token, a read/write token, and a revoked one.                                                                             |
 | Reports      | Nothing of their own: they read everything above.                                                                                |
 
@@ -73,7 +73,7 @@ rest.
 **Client names are encrypted as the browser does it.** Argon2id stretches the
 PIN, which wraps a random data key, which encrypts each name with AES-GCM. The
 parameters match `frontend/src/lib/income-vault.ts`, so the printed PINs
-unlock the names on the Income page. If that file changes how it encrypts, this
+unlock the names on the Clients page. If that file changes how it encrypts, this
 script has to change with it.
 
 **Prices are typed, not fetched.** The portfolio is valued without a market

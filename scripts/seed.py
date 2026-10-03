@@ -30,14 +30,14 @@ What it creates:
   blocked by its archived account;
 - instruments, trades through the brokerage account and typed prices, so the
   portfolio is valued without a market data key;
-- an income practice for each member: a PIN, clients on every kind of
-  schedule, one archived, and sessions attended, missed, cancelled, paid,
+- a practice for each member, with Clients turned on: a PIN, clients on
+  every kind of schedule, one archived, and sessions attended, missed, cancelled, paid,
   owed, waived and still ahead;
 - API tokens, one of them revoked, and the secret of a read/write one for
   trying the MCP server.
 
 Client names are encrypted here exactly as the browser does it, so the PINs
-printed at the end unlock them on the Income page.
+printed at the end unlock them on the Clients page.
 
 Every date is relative to today, so the data looks current whenever it is
 seeded. It is not idempotent: it refuses a household that already has
@@ -807,10 +807,13 @@ class Seeder:
         except SeedError as error:
             log(f"Could not fetch exchange rates, so the US listings are unvalued: {error}")
 
-    # --- income ------------------------------------------------------------ #
+    # --- clients ----------------------------------------------------------- #
 
     def income(self) -> None:
-        step("Income")
+        step("Clients")
+        # The screen is off until each person turns it on, and both demo users
+        # bill clients of their own.
+        self.owner.patch("/users/me", {"clients_enabled": True})
         owner_vault = Vault(OWNER_PIN)
         self.owner.put("/income/vault", owner_vault.upsert_payload())
         anchor = month_start(4)
@@ -878,6 +881,7 @@ class Seeder:
         log(f"PIN {OWNER_PIN}: {len(clients) + 1} clients (one archived), {sessions} sessions")
 
         if self.partner:
+            self.partner.patch("/users/me", {"clients_enabled": True})
             partner_vault = Vault(PARTNER_PIN)
             self.partner.put("/income/vault", partner_vault.upsert_payload())
             client = self.partner.post(
@@ -1023,9 +1027,9 @@ def main() -> None:
         sys.exit(f"\nSeeding stopped: {error}")
 
     print("\nDone. Sign in at http://localhost:5173")
-    print(f"  Owner:   {args.email} (Income PIN {OWNER_PIN})")
+    print(f"  Owner:   {args.email} (Clients PIN {OWNER_PIN})")
     if seeder.partner:
-        print(f"  Partner: {args.partner_email} / {PARTNER_PASSWORD} (Income PIN {PARTNER_PIN})")
+        print(f"  Partner: {args.partner_email} / {PARTNER_PASSWORD} (Clients PIN {PARTNER_PIN})")
     if seeder.read_write_secret:
         print(f"  Read/write API token for the MCP server: {seeder.read_write_secret}")
 
