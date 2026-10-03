@@ -17,6 +17,8 @@ manage the same accounts, categories, budgets and transactions.
   which only a token minted with write access may call. See
   [mcp-server/README.md](mcp-server/README.md) for how a client authenticates and
   what is deliberately left out.
+- `scripts/` — tools for the whole app. `seed.py` fills a local instance with
+  demo data. See [scripts/README.md](scripts/README.md).
 - `docker-compose.yaml` — runs the backend, the frontend, Postgres, the MCP server
   and a mail catcher together.
 - `Makefile` — short commands for common tasks.
@@ -215,6 +217,16 @@ counts nothing twice: a euro is either still cash or already a holding.
 
    Sign in with the `FIRST_SUPERUSER` credentials from your `.env`.
 
+4. Optionally, fill it with demo data for every feature:
+
+   ```bash
+   make seed
+   ```
+
+   It works on an empty database only, and prints the second member's
+   password, the Income PINs and an API token for the MCP server when it is
+   done. See [scripts/README.md](scripts/README.md) for what it creates.
+
 ## Common commands
 
 Run these from the repository root.
@@ -230,6 +242,7 @@ Run these from the repository root.
 | `make lint`             | Check types and lint the Python code                                |
 | `make test-unit`        | Run the unit tests and show coverage                                |
 | `make test-integration` | Run the integration tests against a real Postgres                   |
+| `make seed`             | Fill a fresh local stack with demo data for every feature           |
 | `make web`              | Run the web app on the host instead of in Docker                    |
 | `make web-build`        | Type check and build the web app                                    |
 | `make web-format`       | Format the frontend code                                            |
