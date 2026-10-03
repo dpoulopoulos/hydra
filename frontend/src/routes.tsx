@@ -42,6 +42,7 @@ const appRoutes: RouteObject[] = [
   // The screen's old address, for bookmarks made before it was renamed.
   { path: '/income', element: <Navigate to="/clients" replace /> },
   { path: '/budgets', lazy: () => import('@/pages/budgets') },
+  { path: '/goals', lazy: () => import('@/pages/goals') },
   { path: '/investments', lazy: () => import('@/pages/investments') },
   { path: '/recurring', lazy: () => import('@/pages/recurring') },
   { path: '/categories', lazy: () => import('@/pages/categories') },

@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   ChartColumnIncreasing,
+  Flag,
   HandCoins,
   LayoutDashboard,
   Repeat,
@@ -38,6 +39,7 @@ const money = [
 
 const planning = [
   { to: '/budgets', label: 'Budgets', icon: Target },
+  { to: '/goals', label: 'Goals', icon: Flag },
   { to: '/recurring', label: 'Recurring', icon: Repeat },
   { to: '/categories', label: 'Categories', icon: Tags },
 ]

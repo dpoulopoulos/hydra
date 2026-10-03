@@ -44,6 +44,12 @@ describe('the sidebar', () => {
     expect(screen.queryByRole('link', { name: /Clients/ })).not.toBeInTheDocument()
   })
 
+  it('lists Goals under planning', () => {
+    renderSidebar()
+
+    expect(screen.getByRole('link', { name: /Goals/ })).toHaveAttribute('href', '/goals')
+  })
+
   it('shows Clients to a user who turned it on', () => {
     clientsEnabled = true
     renderSidebar()
