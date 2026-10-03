@@ -35,20 +35,23 @@ manage the same accounts, categories, budgets and transactions.
 
 ## What it does
 
-| Feature      | Notes                                                                                                                                                                                                              |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Households   | Several people share one. A user belongs to exactly one. Owners manage members and invitations.                                                                                                                    |
-| Accounts     | Cash, current, savings, credit card. Balances are derived from the ledger, never stored.                                                                                                                           |
-| Transactions | Expenses, income, and transfers between your own accounts.                                                                                                                                                         |
-| Categories   | Two levels deep, seeded on the first run, renameable and archivable.                                                                                                                                               |
-| Budgets      | One limit per category per month. A limit on a parent covers everything under it. Nothing rolls over.                                                                                                              |
-| Recurring    | Rent, subscriptions, standing transfers, recorded as each falls due.                                                                                                                                               |
-| Reports      | Spending by category, spending over time, money in against money out, and the running total kept.                                                                                                                  |
-| Investments  | ETFs and shares, recorded as buys and sells. Prices come from EODHD on a free key; the portfolio is valued in the household's currency.                                                                            |
-| Income       | For work paid session by session. Clients, the hours they attend, what they still owe, and an estimate of what the coming month will bring. Client names are encrypted in the browser under each person's own PIN. |
+| Feature      | Notes                                                                                                                                                                                                                                        |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Households   | Several people share one. A user belongs to exactly one. Owners manage members and invitations.                                                                                                                                              |
+| Accounts     | Cash, current, savings, credit card. Balances are derived from the ledger, never stored.                                                                                                                                                     |
+| Transactions | Expenses, income, and transfers between your own accounts.                                                                                                                                                                                   |
+| Categories   | Two levels deep, seeded on the first run, renameable and archivable.                                                                                                                                                                         |
+| Budgets      | One limit per category per month. A limit on a parent covers everything under it. Nothing rolls over.                                                                                                                                        |
+| Recurring    | Rent, subscriptions, standing transfers, recorded as each falls due.                                                                                                                                                                         |
+| Reports      | Spending by category, spending over time, money in against money out, and the running total kept.                                                                                                                                            |
+| Investments  | ETFs and shares, recorded as buys and sells. Prices come from EODHD on a free key; the portfolio is valued in the household's currency.                                                                                                      |
+| Clients      | For work paid session by session. Clients, the hours they attend, what they still owe, and an estimate of what the coming month will bring. Client names are encrypted in the browser under each person's own PIN. Off until you turn it on. |
 
-The Income section is for anyone paid by the hour rather than by the month: a
-psychologist, a tutor, a coach.
+The Clients section is for anyone paid by the hour rather than by the month: a
+psychologist, a tutor, a coach. Someone on a salary has no use for it, so it is
+off until each person turns it on under Settings, Your profile. Turning it off
+only hides the screen: clients, sessions and the income they put in the ledger
+stay where they are.
 
 Most of such a practice is standing appointments, so a client carries how often
 they are seen: every week, every other Wednesday, four days a week on Monday,
@@ -224,7 +227,7 @@ counts nothing twice: a euro is either still cash or already a holding.
    ```
 
    It works on an empty database only, and prints the second member's
-   password, the Income PINs and an API token for the MCP server when it is
+   password, the Clients PINs and an API token for the MCP server when it is
    done. See [scripts/README.md](scripts/README.md) for what it creates.
 
 ## Common commands
