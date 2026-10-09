@@ -91,6 +91,9 @@ export default defineRailway((ctx) => {
       FIRST_SUPERUSER_PASSWORD: preserve(),
       RESEND_API_KEY: preserve(),
       EMAILS_FROM_EMAIL: preserve(),
+      // Prices for the investments section. Without it, searching for a
+      // share fails and no holding is valued.
+      EODHD_API_KEY: preserve(),
 
       // Bank sync, optional: with neither set it is off, and the app runs
       // without it. The key is the PEM's content, since Railway holds no
