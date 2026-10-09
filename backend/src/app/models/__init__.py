@@ -20,6 +20,17 @@ from .api_token import (
     ApiTokensPublic,
     ApiTokenStatus,
 )
+from .bank import (
+    BankAccount,
+    BankConnection,
+    BankConnectionStatus,
+    BankDirection,
+    BankReviewStatus,
+    BankSyncRun,
+    BankSyncStatus,
+    BankSyncTrigger,
+    BankTransaction,
+)
 from .budget import (
     Budget,
     BudgetBulkUpsert,
@@ -212,6 +223,15 @@ class Message(SQLModel):
 
 
 __all__ = [
+    "BankAccount",
+    "BankConnection",
+    "BankConnectionStatus",
+    "BankDirection",
+    "BankReviewStatus",
+    "BankSyncRun",
+    "BankSyncStatus",
+    "BankSyncTrigger",
+    "BankTransaction",
     "MAX_ACTIVE_TOKENS_PER_USER",
     "ApiToken",
     "ApiTokenBase",
