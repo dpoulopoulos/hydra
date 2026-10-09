@@ -71,6 +71,34 @@ class TransactionService:
             GoalNotFoundError: If the goal does not exist in the household.
             GoalTransferMismatchError: If the transaction cannot carry the goal.
         """
+        transaction = self.record_transaction(household=household, transaction_create=transaction_create)
+        self.session.commit()
+
+        return TransactionPublic.model_validate(transaction)
+
+    def record_transaction(self, household: HouseholdContext, transaction_create: TransactionCreate) -> Transaction:
+        """Check and save a transaction without committing it.
+
+        For a caller that records the transaction as part of a larger change,
+        which has to commit or roll back as one.
+
+        Args:
+            household: The household context.
+            transaction_create: The transaction to record.
+
+        Returns:
+            The saved, uncommitted transaction.
+
+        Raises:
+            AccountNotFoundError: If an account does not exist in the household.
+            AccountArchivedError: If an account is archived.
+            CategoryNotFoundError: If the category does not exist in the household.
+            SameAccountTransferError: If a transfer names the same account twice.
+            TransferShapeError: If the transaction does not match its kind.
+            TransactionCategoryKindError: If the category is the wrong kind.
+            GoalNotFoundError: If the goal does not exist in the household.
+            GoalTransferMismatchError: If the transaction cannot carry the goal.
+        """
         self.reference_resolver.resolve(
             household=household,
             kind=transaction_create.kind,
@@ -93,9 +121,7 @@ class TransactionService:
             update={"household_id": household.household_id, "created_by_user_id": household.user_id},
         )
         self.transaction_repository.save(transaction)
-        self.session.commit()
-
-        return TransactionPublic.model_validate(transaction)
+        return transaction
 
     def list_transactions(
         self,
