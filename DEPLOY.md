@@ -145,7 +145,7 @@ request still answers 404, because Railway will not route traffic until the `TXT
 
 ## Step 6 — set the secrets
 
-These five live only in Railway. `.railway/railway.ts` lists them as `preserve()`, which means "whatever is already
+These six live only in Railway. `.railway/railway.ts` lists them as `preserve()`, which means "whatever is already
 set", so no secret is ever written into git.
 
 ```bash
@@ -153,7 +153,8 @@ railway variable set --service backend \
   FIRST_SUPERUSER='you@example.com' \
   FIRST_SUPERUSER_PASSWORD='pick-something-long' \
   RESEND_API_KEY='re_...' \
-  EMAILS_FROM_EMAIL='noreply@your-verified-domain.com'
+  EMAILS_FROM_EMAIL='noreply@your-verified-domain.com' \
+  EODHD_API_KEY='...'
 
 # Read from stdin, so the key never lands in your shell history.
 openssl rand -hex 32 | railway variable set --service backend SECRET_KEY --stdin
@@ -166,6 +167,7 @@ openssl rand -hex 32 | railway variable set --service backend SECRET_KEY --stdin
 | `FIRST_SUPERUSER_PASSWORD` | Its password. The app refuses to start on an empty one. |
 | `RESEND_API_KEY` | An API key from Resend. |
 | `EMAILS_FROM_EMAIL` | An address on a domain Resend has verified for you. |
+| `EODHD_API_KEY` | A key from [eodhd.com](https://eodhd.com), free. Without it, searching for a share or an ETF fails and no holding is priced. The free plan allows 20 prices a day, shared by everywhere the key is used. |
 
 Check they are all there:
 
