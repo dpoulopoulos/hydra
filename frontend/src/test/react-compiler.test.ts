@@ -31,9 +31,8 @@ const root = path.resolve(import.meta.dirname, '..')
 const NOT_YET_COMPILED: Record<string, string> = {
   // Throwing from inside a try/catch.
   'components/copy-button.tsx': 'BuildHIR::lowerStatement ThrowStatement inside of try/catch',
-  // A conditional inside a try/catch, in both of these.
+  // A conditional inside a try/catch.
   'components/income/pin-dialog.tsx': 'value blocks within a try/catch statement',
-  'pages/auth/login.tsx': 'value blocks within a try/catch statement',
   // Vendored from shadcn/ui, so not ours to rewrite.
   'components/ui/calendar.tsx': 'tagged template where the cooked value differs from the raw one',
 }
