@@ -5,6 +5,7 @@ import secrets
 import uuid
 from collections.abc import Sequence
 
+from pydantic import TypeAdapter, ValidationError
 from sqlmodel import Session
 
 from app.exceptions import (
@@ -20,6 +21,7 @@ from app.exceptions import (
     BankProviderError,
 )
 from app.models import (
+    Account,
     AspspPublic,
     AspspsPublic,
     BankAccount,
@@ -37,6 +39,7 @@ from app.models import (
     HouseholdRole,
     Message,
 )
+from app.models.fields import Iban
 from app.repositories.account import AccountRepository
 from app.repositories.bank import BankAccountRepository, BankConnectionRepository
 from app.services.enable_banking import BankProvider, BankSession, Psu, SessionAccount
@@ -45,6 +48,27 @@ from app.services.enable_banking import BankProvider, BankSession, Psu, SessionA
 # month is rarely wanted, and a bank may refuse to serve much more than 90
 # days without a fresh login.
 DEFAULT_IMPORT_DAYS = 30
+
+_IBAN = TypeAdapter(Iban)
+
+
+def _fill_iban(account: Account, bank_account: BankAccount) -> None:
+    """Give an account without an IBAN the one its bank reports.
+
+    The bank knows the number better than anyone typing it in, so a linked
+    account that has none takes it. One the user entered is left alone, and
+    an IBAN the bank sends that fails its own check digits is not copied.
+
+    Args:
+        account: The Hydra account being linked.
+        bank_account: The bank account it is linked to.
+    """
+    if account.iban is not None or not bank_account.iban:
+        return
+    try:
+        account.iban = _IBAN.validate_python(bank_account.iban)
+    except ValidationError:
+        return
 
 
 def identity_key_of(account: SessionAccount) -> str:
@@ -280,6 +304,8 @@ class BankConnectionService:
     ) -> BankAccountPublic:
         """Link a bank account to a Hydra account, unlink it, or change how it imports.
 
+        Linking gives the Hydra account the bank's IBAN when it has none.
+
         Args:
             household: The household context.
             bank_account_id: The ID of the bank account.
@@ -320,6 +346,7 @@ class BankConnectionService:
                 if self.bank_account_repository.get_by_account(account.id, household.household_id) is not None:
                     raise BankAccountAlreadyMappedError from None
                 bank_account.account_id = account.id
+                _fill_iban(account, bank_account)
                 # A different account means a different history. What was
                 # imported into the last one says nothing about this one.
                 bank_account.last_booked_on = None

@@ -340,6 +340,45 @@ class TestUpdateBankAccount:
         assert bank_account.last_booked_on is None
         assert bank_account.import_from == datetime.date.today() - datetime.timedelta(days=30)
 
+    def test_linking_gives_an_account_without_an_iban_the_banks(
+        self, service: BankConnectionService, household_context: HouseholdContext
+    ) -> None:
+        bank_account = make_bank_account(iban="GR16 0110 1250 0000 0001 2300 695")
+        account = make_account(iban=None)
+        service.bank_account_repository.get_for_household.return_value = bank_account
+        service.account_repository.get_for_household.return_value = account
+
+        service.update_bank_account(household_context, bank_account.id, BankAccountUpdate(account_id=account.id))
+
+        assert account.iban == "GR1601101250000000012300695"
+
+    @pytest.mark.parametrize(
+        ("own", "banks"),
+        [
+            # One the user typed is theirs, even where the bank disagrees.
+            ("DE89370400440532013000", "GR1601101250000000012300695"),
+            # One that fails its own check digits is not worth copying.
+            (None, "GR1601101250000000012300696"),
+            (None, None),
+        ],
+    )
+    def test_linking_leaves_the_iban_alone_otherwise(
+        self,
+        service: BankConnectionService,
+        household_context: HouseholdContext,
+        own: str | None,
+        banks: str | None,
+    ) -> None:
+        bank_account = make_bank_account(iban=banks)
+        account = make_account(iban=own)
+        service.bank_account_repository.get_for_household.return_value = bank_account
+        service.account_repository.get_for_household.return_value = account
+
+        service.update_bank_account(household_context, bank_account.id, BankAccountUpdate(account_id=account.id))
+
+        assert account.iban == own
+        assert bank_account.account_id == account.id
+
     def test_default_import_date_is_not_before_the_opening_balance(
         self, service: BankConnectionService, household_context: HouseholdContext
     ) -> None:
