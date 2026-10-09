@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { accountsCreateAccount, accountsDeleteAccount, accountsGetAccount, accountsListAccounts, accountsUpdateAccount, apiTokensCreateApiToken, apiTokensListApiTokens, apiTokensRevokeApiToken, budgetsBulkUpsertBudgets, budgetsCopyBudgets, budgetsCreateBudget, budgetsDeleteBudget, budgetsGetBudget, budgetsListBudgets, budgetsUpdateBudget, categoriesCreateCategory, categoriesDeleteCategory, categoriesGetCategory, categoriesGetCategoryTree, categoriesListCategories, categoriesUpdateCategory, emailOutboxReadEmailOutboxStats, emailVerificationCancelPendingEmailChangeMe, emailVerificationGetPendingEmailChangeMe, emailVerificationResendPendingEmailChangeMe, emailVerificationResendVerificationEmail, emailVerificationSendVerificationEmailMe, emailVerificationVerifyEmail, goalsCreateGoal, goalsDeleteGoal, goalsGetGoal, goalsGetGoalHistory, goalsListGoals, goalsUpdateGoal, householdsAcceptHouseholdInvite, householdsCreateHouseholdInvite, householdsGetHouseholdMe, householdsLeaveHousehold, householdsListHouseholdInvites, householdsListHouseholdMembers, householdsPreviewHouseholdInvite, householdsRemoveHouseholdMember, householdsRevokeHouseholdInvite, householdsUpdateHouseholdMe, householdsUpdateHouseholdMember, incomeCreateClient, incomeCreateSession, incomeDeleteClient, incomeDeleteSession, incomeGetClient, incomeGetForecast, incomeGetSession, incomeGetSummary, incomeGetVault, incomeListClients, incomeListSessions, incomeResetVault, incomeUpdateClient, incomeUpdateSession, incomeUpsertVault, investmentsCreateInstrument, investmentsCreateTrade, investmentsDeleteInstrument, investmentsDeleteTrade, investmentsGetInstrument, investmentsGetPortfolio, investmentsGetTrade, investmentsListFxRates, investmentsListInstruments, investmentsListTrades, investmentsRefreshPrices, investmentsSearchSymbols, investmentsSetInstrumentPrice, investmentsUpdateInstrument, investmentsUpdateTrade, loginLoginAccessToken, type Options, passwordResetConfirmPasswordReset, passwordResetRequestPasswordReset, passwordResetVerifyPasswordResetToken, recurringRulesCreateRecurringRule, recurringRulesDeleteRecurringRule, recurringRulesGetRecurringRule, recurringRulesListRecurringRules, recurringRulesListUpcomingOccurrences, recurringRulesRunRecurringRules, recurringRulesUpdateRecurringRule, reportsBudgetProgress, reportsIncomeExpense, reportsMonthSummary, reportsSpendByCategory, reportsSpendOverTime, transactionsCreateTransaction, transactionsDeleteTransaction, transactionsGetTransaction, transactionsListTransactions, transactionsUpdateTransaction, usersCreateUser, usersDeleteUser, usersDeleteUserMe, usersGetUserById, usersGetUserMe, usersGetUsers, usersRegisterUser, usersUpdatePasswordMe, usersUpdateUser, usersUpdateUserMe } from '../sdk.gen';
-import type { AccountsCreateAccountData, AccountsCreateAccountError, AccountsCreateAccountResponse, AccountsDeleteAccountData, AccountsDeleteAccountError, AccountsDeleteAccountResponse, AccountsGetAccountData, AccountsGetAccountError, AccountsGetAccountResponse, AccountsListAccountsData, AccountsListAccountsError, AccountsListAccountsResponse, AccountsUpdateAccountData, AccountsUpdateAccountError, AccountsUpdateAccountResponse, ApiTokensCreateApiTokenData, ApiTokensCreateApiTokenError, ApiTokensCreateApiTokenResponse, ApiTokensListApiTokensData, ApiTokensListApiTokensError, ApiTokensListApiTokensResponse, ApiTokensRevokeApiTokenData, ApiTokensRevokeApiTokenError, ApiTokensRevokeApiTokenResponse, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsError, BudgetsBulkUpsertBudgetsResponse, BudgetsCopyBudgetsData, BudgetsCopyBudgetsError, BudgetsCopyBudgetsResponse, BudgetsCreateBudgetData, BudgetsCreateBudgetError, BudgetsCreateBudgetResponse, BudgetsDeleteBudgetData, BudgetsDeleteBudgetError, BudgetsDeleteBudgetResponse, BudgetsGetBudgetData, BudgetsGetBudgetError, BudgetsGetBudgetResponse, BudgetsListBudgetsData, BudgetsListBudgetsError, BudgetsListBudgetsResponse, BudgetsUpdateBudgetData, BudgetsUpdateBudgetError, BudgetsUpdateBudgetResponse, CategoriesCreateCategoryData, CategoriesCreateCategoryError, CategoriesCreateCategoryResponse, CategoriesDeleteCategoryData, CategoriesDeleteCategoryError, CategoriesDeleteCategoryResponse, CategoriesGetCategoryData, CategoriesGetCategoryError, CategoriesGetCategoryResponse, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeError, CategoriesGetCategoryTreeResponse, CategoriesListCategoriesData, CategoriesListCategoriesError, CategoriesListCategoriesResponse, CategoriesUpdateCategoryData, CategoriesUpdateCategoryError, CategoriesUpdateCategoryResponse, EmailOutboxReadEmailOutboxStatsData, EmailOutboxReadEmailOutboxStatsResponse, EmailVerificationCancelPendingEmailChangeMeData, EmailVerificationCancelPendingEmailChangeMeResponse, EmailVerificationGetPendingEmailChangeMeData, EmailVerificationGetPendingEmailChangeMeResponse, EmailVerificationResendPendingEmailChangeMeData, EmailVerificationResendPendingEmailChangeMeResponse, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailError, EmailVerificationResendVerificationEmailResponse, EmailVerificationSendVerificationEmailMeData, EmailVerificationSendVerificationEmailMeResponse, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailError, EmailVerificationVerifyEmailResponse, GoalsCreateGoalData, GoalsCreateGoalError, GoalsCreateGoalResponse, GoalsDeleteGoalData, GoalsDeleteGoalError, GoalsDeleteGoalResponse, GoalsGetGoalData, GoalsGetGoalError, GoalsGetGoalHistoryData, GoalsGetGoalHistoryError, GoalsGetGoalHistoryResponse, GoalsGetGoalResponse, GoalsListGoalsData, GoalsListGoalsResponse, GoalsUpdateGoalData, GoalsUpdateGoalError, GoalsUpdateGoalResponse, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteError, HouseholdsAcceptHouseholdInviteResponse, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteError, HouseholdsCreateHouseholdInviteResponse, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponse, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponse, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesError, HouseholdsListHouseholdInvitesResponse, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponse, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteError, HouseholdsPreviewHouseholdInviteResponse, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberError, HouseholdsRemoveHouseholdMemberResponse, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteError, HouseholdsRevokeHouseholdInviteResponse, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeError, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberError, HouseholdsUpdateHouseholdMemberResponse, HouseholdsUpdateHouseholdMeResponse, IncomeCreateClientData, IncomeCreateClientError, IncomeCreateClientResponse, IncomeCreateSessionData, IncomeCreateSessionError, IncomeCreateSessionResponse, IncomeDeleteClientData, IncomeDeleteClientError, IncomeDeleteClientResponse, IncomeDeleteSessionData, IncomeDeleteSessionError, IncomeDeleteSessionResponse, IncomeGetClientData, IncomeGetClientError, IncomeGetClientResponse, IncomeGetForecastData, IncomeGetForecastError, IncomeGetForecastResponse, IncomeGetSessionData, IncomeGetSessionError, IncomeGetSessionResponse, IncomeGetSummaryData, IncomeGetSummaryError, IncomeGetSummaryResponse, IncomeGetVaultData, IncomeGetVaultResponse, IncomeListClientsData, IncomeListClientsError, IncomeListClientsResponse, IncomeListSessionsData, IncomeListSessionsError, IncomeListSessionsResponse, IncomeResetVaultData, IncomeResetVaultError, IncomeResetVaultResponse, IncomeUpdateClientData, IncomeUpdateClientError, IncomeUpdateClientResponse, IncomeUpdateSessionData, IncomeUpdateSessionError, IncomeUpdateSessionResponse, IncomeUpsertVaultData, IncomeUpsertVaultError, IncomeUpsertVaultResponse, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentError, InvestmentsCreateInstrumentResponse, InvestmentsCreateTradeData, InvestmentsCreateTradeError, InvestmentsCreateTradeResponse, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentError, InvestmentsDeleteInstrumentResponse, InvestmentsDeleteTradeData, InvestmentsDeleteTradeError, InvestmentsDeleteTradeResponse, InvestmentsGetInstrumentData, InvestmentsGetInstrumentError, InvestmentsGetInstrumentResponse, InvestmentsGetPortfolioData, InvestmentsGetPortfolioError, InvestmentsGetPortfolioResponse, InvestmentsGetTradeData, InvestmentsGetTradeError, InvestmentsGetTradeResponse, InvestmentsListFxRatesData, InvestmentsListFxRatesResponse, InvestmentsListInstrumentsData, InvestmentsListInstrumentsError, InvestmentsListInstrumentsResponse, InvestmentsListTradesData, InvestmentsListTradesError, InvestmentsListTradesResponse, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponse, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsError, InvestmentsSearchSymbolsResponse, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceError, InvestmentsSetInstrumentPriceResponse, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentError, InvestmentsUpdateInstrumentResponse, InvestmentsUpdateTradeData, InvestmentsUpdateTradeError, InvestmentsUpdateTradeResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenError, LoginLoginAccessTokenResponse, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetError, PasswordResetConfirmPasswordResetResponse, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetError, PasswordResetRequestPasswordResetResponse, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenError, PasswordResetVerifyPasswordResetTokenResponse, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleError, RecurringRulesCreateRecurringRuleResponse, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleError, RecurringRulesDeleteRecurringRuleResponse, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleError, RecurringRulesGetRecurringRuleResponse, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesError, RecurringRulesListRecurringRulesResponse, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesError, RecurringRulesListUpcomingOccurrencesResponse, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesError, RecurringRulesRunRecurringRulesResponse, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleError, RecurringRulesUpdateRecurringRuleResponse, ReportsBudgetProgressData, ReportsBudgetProgressError, ReportsBudgetProgressResponse, ReportsIncomeExpenseData, ReportsIncomeExpenseError, ReportsIncomeExpenseResponse, ReportsMonthSummaryData, ReportsMonthSummaryError, ReportsMonthSummaryResponse, ReportsSpendByCategoryData, ReportsSpendByCategoryError, ReportsSpendByCategoryResponse, ReportsSpendOverTimeData, ReportsSpendOverTimeError, ReportsSpendOverTimeResponse, TransactionsCreateTransactionData, TransactionsCreateTransactionError, TransactionsCreateTransactionResponse, TransactionsDeleteTransactionData, TransactionsDeleteTransactionError, TransactionsDeleteTransactionResponse, TransactionsGetTransactionData, TransactionsGetTransactionError, TransactionsGetTransactionResponse, TransactionsListTransactionsData, TransactionsListTransactionsError, TransactionsListTransactionsResponse, TransactionsUpdateTransactionData, TransactionsUpdateTransactionError, TransactionsUpdateTransactionResponse, UsersCreateUserData, UsersCreateUserError, UsersCreateUserResponse, UsersDeleteUserData, UsersDeleteUserError, UsersDeleteUserMeData, UsersDeleteUserMeResponse, UsersDeleteUserResponse, UsersGetUserByIdData, UsersGetUserByIdError, UsersGetUserByIdResponse, UsersGetUserMeData, UsersGetUserMeResponse, UsersGetUsersData, UsersGetUsersError, UsersGetUsersResponse, UsersRegisterUserData, UsersRegisterUserError, UsersRegisterUserResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeError, UsersUpdatePasswordMeResponse, UsersUpdateUserData, UsersUpdateUserError, UsersUpdateUserMeData, UsersUpdateUserMeError, UsersUpdateUserMeResponse, UsersUpdateUserResponse } from '../types.gen';
+import { accountsCreateAccount, accountsDeleteAccount, accountsGetAccount, accountsListAccounts, accountsUpdateAccount, apiTokensCreateApiToken, apiTokensListApiTokens, apiTokensRevokeApiToken, bankAcceptBankTransaction, bankCompleteBankConnection, bankDisconnectBank, bankGetBankStatus, bankListAspsps, bankListBankConnections, bankListBankInbox, bankReopenBankTransaction, bankSkipBankTransaction, bankStartBankConnection, bankSyncBankConnection, bankUpdateBankAccount, budgetsBulkUpsertBudgets, budgetsCopyBudgets, budgetsCreateBudget, budgetsDeleteBudget, budgetsGetBudget, budgetsListBudgets, budgetsUpdateBudget, categoriesCreateCategory, categoriesDeleteCategory, categoriesGetCategory, categoriesGetCategoryTree, categoriesListCategories, categoriesUpdateCategory, emailOutboxReadEmailOutboxStats, emailVerificationCancelPendingEmailChangeMe, emailVerificationGetPendingEmailChangeMe, emailVerificationResendPendingEmailChangeMe, emailVerificationResendVerificationEmail, emailVerificationSendVerificationEmailMe, emailVerificationVerifyEmail, goalsCreateGoal, goalsDeleteGoal, goalsGetGoal, goalsGetGoalHistory, goalsListGoals, goalsUpdateGoal, householdsAcceptHouseholdInvite, householdsCreateHouseholdInvite, householdsGetHouseholdMe, householdsLeaveHousehold, householdsListHouseholdInvites, householdsListHouseholdMembers, householdsPreviewHouseholdInvite, householdsRemoveHouseholdMember, householdsRevokeHouseholdInvite, householdsUpdateHouseholdMe, householdsUpdateHouseholdMember, incomeCreateClient, incomeCreateSession, incomeDeleteClient, incomeDeleteSession, incomeGetClient, incomeGetForecast, incomeGetSession, incomeGetSummary, incomeGetVault, incomeListClients, incomeListSessions, incomeResetVault, incomeUpdateClient, incomeUpdateSession, incomeUpsertVault, investmentsCreateInstrument, investmentsCreateTrade, investmentsDeleteInstrument, investmentsDeleteTrade, investmentsGetInstrument, investmentsGetPortfolio, investmentsGetTrade, investmentsListFxRates, investmentsListInstruments, investmentsListTrades, investmentsRefreshPrices, investmentsSearchSymbols, investmentsSetInstrumentPrice, investmentsUpdateInstrument, investmentsUpdateTrade, loginLoginAccessToken, type Options, passwordResetConfirmPasswordReset, passwordResetRequestPasswordReset, passwordResetVerifyPasswordResetToken, recurringRulesCreateRecurringRule, recurringRulesDeleteRecurringRule, recurringRulesGetRecurringRule, recurringRulesListRecurringRules, recurringRulesListUpcomingOccurrences, recurringRulesRunRecurringRules, recurringRulesUpdateRecurringRule, reportsBudgetProgress, reportsIncomeExpense, reportsMonthSummary, reportsSpendByCategory, reportsSpendOverTime, transactionsCreateTransaction, transactionsDeleteTransaction, transactionsGetTransaction, transactionsListTransactions, transactionsUpdateTransaction, usersCreateUser, usersDeleteUser, usersDeleteUserMe, usersGetUserById, usersGetUserMe, usersGetUsers, usersRegisterUser, usersUpdatePasswordMe, usersUpdateUser, usersUpdateUserMe } from '../sdk.gen';
+import type { AccountsCreateAccountData, AccountsCreateAccountError, AccountsCreateAccountResponse, AccountsDeleteAccountData, AccountsDeleteAccountError, AccountsDeleteAccountResponse, AccountsGetAccountData, AccountsGetAccountError, AccountsGetAccountResponse, AccountsListAccountsData, AccountsListAccountsError, AccountsListAccountsResponse, AccountsUpdateAccountData, AccountsUpdateAccountError, AccountsUpdateAccountResponse, ApiTokensCreateApiTokenData, ApiTokensCreateApiTokenError, ApiTokensCreateApiTokenResponse, ApiTokensListApiTokensData, ApiTokensListApiTokensError, ApiTokensListApiTokensResponse, ApiTokensRevokeApiTokenData, ApiTokensRevokeApiTokenError, ApiTokensRevokeApiTokenResponse, BankAcceptBankTransactionData, BankAcceptBankTransactionError, BankAcceptBankTransactionResponse, BankCompleteBankConnectionData, BankCompleteBankConnectionError, BankCompleteBankConnectionResponse, BankDisconnectBankData, BankDisconnectBankError, BankDisconnectBankResponse, BankGetBankStatusData, BankGetBankStatusResponse, BankListAspspsData, BankListAspspsError, BankListAspspsResponse, BankListBankConnectionsData, BankListBankConnectionsResponse, BankListBankInboxData, BankListBankInboxError, BankListBankInboxResponse, BankReopenBankTransactionData, BankReopenBankTransactionError, BankReopenBankTransactionResponse, BankSkipBankTransactionData, BankSkipBankTransactionError, BankSkipBankTransactionResponse, BankStartBankConnectionData, BankStartBankConnectionError, BankStartBankConnectionResponse, BankSyncBankConnectionData, BankSyncBankConnectionError, BankSyncBankConnectionResponse, BankUpdateBankAccountData, BankUpdateBankAccountError, BankUpdateBankAccountResponse, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsError, BudgetsBulkUpsertBudgetsResponse, BudgetsCopyBudgetsData, BudgetsCopyBudgetsError, BudgetsCopyBudgetsResponse, BudgetsCreateBudgetData, BudgetsCreateBudgetError, BudgetsCreateBudgetResponse, BudgetsDeleteBudgetData, BudgetsDeleteBudgetError, BudgetsDeleteBudgetResponse, BudgetsGetBudgetData, BudgetsGetBudgetError, BudgetsGetBudgetResponse, BudgetsListBudgetsData, BudgetsListBudgetsError, BudgetsListBudgetsResponse, BudgetsUpdateBudgetData, BudgetsUpdateBudgetError, BudgetsUpdateBudgetResponse, CategoriesCreateCategoryData, CategoriesCreateCategoryError, CategoriesCreateCategoryResponse, CategoriesDeleteCategoryData, CategoriesDeleteCategoryError, CategoriesDeleteCategoryResponse, CategoriesGetCategoryData, CategoriesGetCategoryError, CategoriesGetCategoryResponse, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeError, CategoriesGetCategoryTreeResponse, CategoriesListCategoriesData, CategoriesListCategoriesError, CategoriesListCategoriesResponse, CategoriesUpdateCategoryData, CategoriesUpdateCategoryError, CategoriesUpdateCategoryResponse, EmailOutboxReadEmailOutboxStatsData, EmailOutboxReadEmailOutboxStatsResponse, EmailVerificationCancelPendingEmailChangeMeData, EmailVerificationCancelPendingEmailChangeMeResponse, EmailVerificationGetPendingEmailChangeMeData, EmailVerificationGetPendingEmailChangeMeResponse, EmailVerificationResendPendingEmailChangeMeData, EmailVerificationResendPendingEmailChangeMeResponse, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailError, EmailVerificationResendVerificationEmailResponse, EmailVerificationSendVerificationEmailMeData, EmailVerificationSendVerificationEmailMeResponse, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailError, EmailVerificationVerifyEmailResponse, GoalsCreateGoalData, GoalsCreateGoalError, GoalsCreateGoalResponse, GoalsDeleteGoalData, GoalsDeleteGoalError, GoalsDeleteGoalResponse, GoalsGetGoalData, GoalsGetGoalError, GoalsGetGoalHistoryData, GoalsGetGoalHistoryError, GoalsGetGoalHistoryResponse, GoalsGetGoalResponse, GoalsListGoalsData, GoalsListGoalsResponse, GoalsUpdateGoalData, GoalsUpdateGoalError, GoalsUpdateGoalResponse, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteError, HouseholdsAcceptHouseholdInviteResponse, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteError, HouseholdsCreateHouseholdInviteResponse, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponse, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponse, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesError, HouseholdsListHouseholdInvitesResponse, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponse, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteError, HouseholdsPreviewHouseholdInviteResponse, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberError, HouseholdsRemoveHouseholdMemberResponse, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteError, HouseholdsRevokeHouseholdInviteResponse, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeError, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberError, HouseholdsUpdateHouseholdMemberResponse, HouseholdsUpdateHouseholdMeResponse, IncomeCreateClientData, IncomeCreateClientError, IncomeCreateClientResponse, IncomeCreateSessionData, IncomeCreateSessionError, IncomeCreateSessionResponse, IncomeDeleteClientData, IncomeDeleteClientError, IncomeDeleteClientResponse, IncomeDeleteSessionData, IncomeDeleteSessionError, IncomeDeleteSessionResponse, IncomeGetClientData, IncomeGetClientError, IncomeGetClientResponse, IncomeGetForecastData, IncomeGetForecastError, IncomeGetForecastResponse, IncomeGetSessionData, IncomeGetSessionError, IncomeGetSessionResponse, IncomeGetSummaryData, IncomeGetSummaryError, IncomeGetSummaryResponse, IncomeGetVaultData, IncomeGetVaultResponse, IncomeListClientsData, IncomeListClientsError, IncomeListClientsResponse, IncomeListSessionsData, IncomeListSessionsError, IncomeListSessionsResponse, IncomeResetVaultData, IncomeResetVaultError, IncomeResetVaultResponse, IncomeUpdateClientData, IncomeUpdateClientError, IncomeUpdateClientResponse, IncomeUpdateSessionData, IncomeUpdateSessionError, IncomeUpdateSessionResponse, IncomeUpsertVaultData, IncomeUpsertVaultError, IncomeUpsertVaultResponse, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentError, InvestmentsCreateInstrumentResponse, InvestmentsCreateTradeData, InvestmentsCreateTradeError, InvestmentsCreateTradeResponse, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentError, InvestmentsDeleteInstrumentResponse, InvestmentsDeleteTradeData, InvestmentsDeleteTradeError, InvestmentsDeleteTradeResponse, InvestmentsGetInstrumentData, InvestmentsGetInstrumentError, InvestmentsGetInstrumentResponse, InvestmentsGetPortfolioData, InvestmentsGetPortfolioError, InvestmentsGetPortfolioResponse, InvestmentsGetTradeData, InvestmentsGetTradeError, InvestmentsGetTradeResponse, InvestmentsListFxRatesData, InvestmentsListFxRatesResponse, InvestmentsListInstrumentsData, InvestmentsListInstrumentsError, InvestmentsListInstrumentsResponse, InvestmentsListTradesData, InvestmentsListTradesError, InvestmentsListTradesResponse, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponse, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsError, InvestmentsSearchSymbolsResponse, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceError, InvestmentsSetInstrumentPriceResponse, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentError, InvestmentsUpdateInstrumentResponse, InvestmentsUpdateTradeData, InvestmentsUpdateTradeError, InvestmentsUpdateTradeResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenError, LoginLoginAccessTokenResponse, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetError, PasswordResetConfirmPasswordResetResponse, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetError, PasswordResetRequestPasswordResetResponse, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenError, PasswordResetVerifyPasswordResetTokenResponse, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleError, RecurringRulesCreateRecurringRuleResponse, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleError, RecurringRulesDeleteRecurringRuleResponse, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleError, RecurringRulesGetRecurringRuleResponse, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesError, RecurringRulesListRecurringRulesResponse, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesError, RecurringRulesListUpcomingOccurrencesResponse, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesError, RecurringRulesRunRecurringRulesResponse, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleError, RecurringRulesUpdateRecurringRuleResponse, ReportsBudgetProgressData, ReportsBudgetProgressError, ReportsBudgetProgressResponse, ReportsIncomeExpenseData, ReportsIncomeExpenseError, ReportsIncomeExpenseResponse, ReportsMonthSummaryData, ReportsMonthSummaryError, ReportsMonthSummaryResponse, ReportsSpendByCategoryData, ReportsSpendByCategoryError, ReportsSpendByCategoryResponse, ReportsSpendOverTimeData, ReportsSpendOverTimeError, ReportsSpendOverTimeResponse, TransactionsCreateTransactionData, TransactionsCreateTransactionError, TransactionsCreateTransactionResponse, TransactionsDeleteTransactionData, TransactionsDeleteTransactionError, TransactionsDeleteTransactionResponse, TransactionsGetTransactionData, TransactionsGetTransactionError, TransactionsGetTransactionResponse, TransactionsListTransactionsData, TransactionsListTransactionsError, TransactionsListTransactionsResponse, TransactionsUpdateTransactionData, TransactionsUpdateTransactionError, TransactionsUpdateTransactionResponse, UsersCreateUserData, UsersCreateUserError, UsersCreateUserResponse, UsersDeleteUserData, UsersDeleteUserError, UsersDeleteUserMeData, UsersDeleteUserMeResponse, UsersDeleteUserResponse, UsersGetUserByIdData, UsersGetUserByIdError, UsersGetUserByIdResponse, UsersGetUserMeData, UsersGetUserMeResponse, UsersGetUsersData, UsersGetUsersError, UsersGetUsersResponse, UsersRegisterUserData, UsersRegisterUserError, UsersRegisterUserResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeError, UsersUpdatePasswordMeResponse, UsersUpdateUserData, UsersUpdateUserError, UsersUpdateUserMeData, UsersUpdateUserMeError, UsersUpdateUserMeResponse, UsersUpdateUserResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -1825,6 +1825,382 @@ export const goalsGetGoalHistoryOptions = (options: Options<GoalsGetGoalHistoryD
     },
     queryKey: goalsGetGoalHistoryQueryKey(options)
 });
+
+export const bankGetBankStatusQueryKey = (options?: Options<BankGetBankStatusData>) => createQueryKey('bankGetBankStatus', options);
+
+/**
+ * Get Bank Status
+ *
+ * Say whether bank sync is configured on this server.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * _household: The current household context, for authentication.
+ *
+ * Returns:
+ * Whether bank sync is on.
+ */
+export const bankGetBankStatusOptions = (options?: Options<BankGetBankStatusData>) => queryOptions<BankGetBankStatusResponse, DefaultError, BankGetBankStatusResponse, ReturnType<typeof bankGetBankStatusQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await bankGetBankStatus({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: bankGetBankStatusQueryKey(options)
+});
+
+export const bankListAspspsQueryKey = (options: Options<BankListAspspsData>) => createQueryKey('bankListAspsps', options);
+
+/**
+ * List Aspsps
+ *
+ * List the banks that can be connected in a country.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * _household: The current household context, for authentication.
+ * country: The ISO 3166 two-letter country code.
+ *
+ * Returns:
+ * The banks.
+ *
+ * Raises:
+ * HTTPException: If bank sync is off (503) or the provider failed (502).
+ */
+export const bankListAspspsOptions = (options: Options<BankListAspspsData>) => queryOptions<BankListAspspsResponse, BankListAspspsError, BankListAspspsResponse, ReturnType<typeof bankListAspspsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await bankListAspsps({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: bankListAspspsQueryKey(options)
+});
+
+export const bankListBankConnectionsQueryKey = (options?: Options<BankListBankConnectionsData>) => createQueryKey('bankListBankConnections', options);
+
+/**
+ * List Bank Connections
+ *
+ * List the household's bank connections, with their accounts.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * household: The current household context.
+ *
+ * Returns:
+ * The active and expired connections.
+ */
+export const bankListBankConnectionsOptions = (options?: Options<BankListBankConnectionsData>) => queryOptions<BankListBankConnectionsResponse, DefaultError, BankListBankConnectionsResponse, ReturnType<typeof bankListBankConnectionsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await bankListBankConnections({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: bankListBankConnectionsQueryKey(options)
+});
+
+/**
+ * Start Bank Connection
+ *
+ * Start connecting a bank.
+ *
+ * A browser session only: the login happens at the bank, in a browser.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * household: The current household context.
+ * _session_user: The signed-in user, from a browser session.
+ * psu: The account holder at the browser.
+ * start_in: The bank to connect.
+ *
+ * Returns:
+ * Where to send the browser to log in.
+ *
+ * Raises:
+ * HTTPException: If the bank cannot be connected (400), bank sync is off
+ * (503), or the provider failed (502).
+ */
+export const bankStartBankConnectionMutation = (options?: Partial<Options<BankStartBankConnectionData>>): UseMutationOptions<BankStartBankConnectionResponse, BankStartBankConnectionError, Options<BankStartBankConnectionData>> => {
+    const mutationOptions: UseMutationOptions<BankStartBankConnectionResponse, BankStartBankConnectionError, Options<BankStartBankConnectionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await bankStartBankConnection({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Complete Bank Connection
+ *
+ * Finish connecting a bank, with what the bank put in the redirect.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * household: The current household context.
+ * _session_user: The signed-in user, from a browser session.
+ * complete_in: The code and state from the redirect.
+ *
+ * Returns:
+ * The connection, with the accounts the login reached.
+ *
+ * Raises:
+ * HTTPException: If the login cannot be completed (400), bank sync is off
+ * (503), or the provider failed (502).
+ */
+export const bankCompleteBankConnectionMutation = (options?: Partial<Options<BankCompleteBankConnectionData>>): UseMutationOptions<BankCompleteBankConnectionResponse, BankCompleteBankConnectionError, Options<BankCompleteBankConnectionData>> => {
+    const mutationOptions: UseMutationOptions<BankCompleteBankConnectionResponse, BankCompleteBankConnectionError, Options<BankCompleteBankConnectionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await bankCompleteBankConnection({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Disconnect Bank
+ *
+ * Disconnect a bank.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * household: The current household context.
+ * _session_user: The signed-in user, from a browser session.
+ * connection_id: The ID of the connection.
+ *
+ * Returns:
+ * A confirmation message.
+ *
+ * Raises:
+ * HTTPException: If the connection does not exist (404), or the user
+ * neither connected it nor owns the household (403).
+ */
+export const bankDisconnectBankMutation = (options?: Partial<Options<BankDisconnectBankData>>): UseMutationOptions<BankDisconnectBankResponse, BankDisconnectBankError, Options<BankDisconnectBankData>> => {
+    const mutationOptions: UseMutationOptions<BankDisconnectBankResponse, BankDisconnectBankError, Options<BankDisconnectBankData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await bankDisconnectBank({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Sync Bank Connection
+ *
+ * Pull a connection's booked transactions into the inbox now.
+ *
+ * A browser session only. The bank is told the account holder is present,
+ * which keeps the pull out of its small daily budget for background pulls;
+ * that would be untrue of a call made with an API token.
+ *
+ * A failure at the bank is reported on the run rather than as an error, so
+ * rows fetched from the other accounts are still kept.
+ *
+ * Args:
+ * bank_sync_service: The bank sync service dependency.
+ * household: The current household context.
+ * _session_user: The signed-in user, from a browser session.
+ * psu: The account holder at the browser.
+ * connection_id: The ID of the connection.
+ *
+ * Returns:
+ * What the sync did.
+ *
+ * Raises:
+ * HTTPException: If the connection does not exist (404), or is not active (409).
+ */
+export const bankSyncBankConnectionMutation = (options?: Partial<Options<BankSyncBankConnectionData>>): UseMutationOptions<BankSyncBankConnectionResponse, BankSyncBankConnectionError, Options<BankSyncBankConnectionData>> => {
+    const mutationOptions: UseMutationOptions<BankSyncBankConnectionResponse, BankSyncBankConnectionError, Options<BankSyncBankConnectionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await bankSyncBankConnection({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Update Bank Account
+ *
+ * Link a bank account to an account, unlink it, or change how it imports.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * household: The current household context.
+ * bank_account_id: The ID of the bank account.
+ * update_in: What to change. An `account_id` sent as null unlinks.
+ *
+ * Returns:
+ * The bank account.
+ *
+ * Raises:
+ * HTTPException: If the bank account or account does not exist (404),
+ * another bank account feeds the account (409), or the currencies or
+ * the start date do not fit (400).
+ */
+export const bankUpdateBankAccountMutation = (options?: Partial<Options<BankUpdateBankAccountData>>): UseMutationOptions<BankUpdateBankAccountResponse, BankUpdateBankAccountError, Options<BankUpdateBankAccountData>> => {
+    const mutationOptions: UseMutationOptions<BankUpdateBankAccountResponse, BankUpdateBankAccountError, Options<BankUpdateBankAccountData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await bankUpdateBankAccount({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const bankListBankInboxQueryKey = (options?: Options<BankListBankInboxData>) => createQueryKey('bankListBankInbox', options);
+
+/**
+ * List Bank Inbox
+ *
+ * List what bank sync brought in, waiting or already reviewed.
+ *
+ * Args:
+ * bank_inbox_service: The bank inbox service dependency.
+ * household: The current household context.
+ * filters: Which review status, which bank account, and which page.
+ *
+ * Returns:
+ * A page of rows, newest first, and how many match in all.
+ */
+export const bankListBankInboxOptions = (options?: Options<BankListBankInboxData>) => queryOptions<BankListBankInboxResponse, BankListBankInboxError, BankListBankInboxResponse, ReturnType<typeof bankListBankInboxQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await bankListBankInbox({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: bankListBankInboxQueryKey(options)
+});
+
+/**
+ * Accept Bank Transaction
+ *
+ * Record an inbox row in the ledger.
+ *
+ * Args:
+ * bank_inbox_service: The bank inbox service dependency.
+ * household: The current household context.
+ * bank_transaction_id: The ID of the bank transaction.
+ * accept_in: Whether it is spending, income or a transfer, and how to file it.
+ *
+ * Returns:
+ * The accepted row, linked to its ledger transaction.
+ *
+ * Raises:
+ * HTTPException: If the row does not exist (404), was already reviewed
+ * (409), or cannot be recorded that way (400).
+ */
+export const bankAcceptBankTransactionMutation = (options?: Partial<Options<BankAcceptBankTransactionData>>): UseMutationOptions<BankAcceptBankTransactionResponse, BankAcceptBankTransactionError, Options<BankAcceptBankTransactionData>> => {
+    const mutationOptions: UseMutationOptions<BankAcceptBankTransactionResponse, BankAcceptBankTransactionError, Options<BankAcceptBankTransactionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await bankAcceptBankTransaction({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Skip Bank Transaction
+ *
+ * Leave an inbox row out of the ledger.
+ *
+ * Args:
+ * bank_inbox_service: The bank inbox service dependency.
+ * household: The current household context.
+ * bank_transaction_id: The ID of the bank transaction.
+ *
+ * Returns:
+ * The skipped row.
+ *
+ * Raises:
+ * HTTPException: If the row does not exist (404) or was already reviewed (409).
+ */
+export const bankSkipBankTransactionMutation = (options?: Partial<Options<BankSkipBankTransactionData>>): UseMutationOptions<BankSkipBankTransactionResponse, BankSkipBankTransactionError, Options<BankSkipBankTransactionData>> => {
+    const mutationOptions: UseMutationOptions<BankSkipBankTransactionResponse, BankSkipBankTransactionError, Options<BankSkipBankTransactionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await bankSkipBankTransaction({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Reopen Bank Transaction
+ *
+ * Put a skipped row back in the inbox.
+ *
+ * Args:
+ * bank_inbox_service: The bank inbox service dependency.
+ * household: The current household context.
+ * bank_transaction_id: The ID of the bank transaction.
+ *
+ * Returns:
+ * The row, waiting again.
+ *
+ * Raises:
+ * HTTPException: If the row does not exist (404) or was not skipped (409).
+ */
+export const bankReopenBankTransactionMutation = (options?: Partial<Options<BankReopenBankTransactionData>>): UseMutationOptions<BankReopenBankTransactionResponse, BankReopenBankTransactionError, Options<BankReopenBankTransactionData>> => {
+    const mutationOptions: UseMutationOptions<BankReopenBankTransactionResponse, BankReopenBankTransactionError, Options<BankReopenBankTransactionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await bankReopenBankTransaction({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export const recurringRulesListRecurringRulesQueryKey = (options?: Options<RecurringRulesListRecurringRulesData>) => createQueryKey('recurringRulesListRecurringRules', options);
 

@@ -2801,6 +2801,604 @@
         }
       }
     },
+    "/api/v1/bank/status": {
+      "get": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "Get Bank Status",
+        "description": "Say whether bank sync is configured on this server.\n\nArgs:\n    bank_connection_service: The bank connection service dependency.\n    _household: The current household context, for authentication.\n\nReturns:\n    Whether bank sync is on.",
+        "operationId": "bank-get_bank_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/bank/aspsps": {
+      "get": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "List Aspsps",
+        "description": "List the banks that can be connected in a country.\n\nArgs:\n    bank_connection_service: The bank connection service dependency.\n    _household: The current household context, for authentication.\n    country: The ISO 3166 two-letter country code.\n\nReturns:\n    The banks.\n\nRaises:\n    HTTPException: If bank sync is off (503) or the provider failed (502).",
+        "operationId": "bank-list_aspsps",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "country",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2,
+              "title": "Country"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AspspsPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bank/connections": {
+      "get": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "List Bank Connections",
+        "description": "List the household's bank connections, with their accounts.\n\nArgs:\n    bank_connection_service: The bank connection service dependency.\n    household: The current household context.\n\nReturns:\n    The active and expired connections.",
+        "operationId": "bank-list_bank_connections",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankConnectionsPublic"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "Start Bank Connection",
+        "description": "Start connecting a bank.\n\nA browser session only: the login happens at the bank, in a browser.\n\nArgs:\n    bank_connection_service: The bank connection service dependency.\n    household: The current household context.\n    _session_user: The signed-in user, from a browser session.\n    psu: The account holder at the browser.\n    start_in: The bank to connect.\n\nReturns:\n    Where to send the browser to log in.\n\nRaises:\n    HTTPException: If the bank cannot be connected (400), bank sync is off\n        (503), or the provider failed (502).",
+        "operationId": "bank-start_bank_connection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankConnectionStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankAuthorizationStarted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/bank/connections/complete": {
+      "post": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "Complete Bank Connection",
+        "description": "Finish connecting a bank, with what the bank put in the redirect.\n\nArgs:\n    bank_connection_service: The bank connection service dependency.\n    household: The current household context.\n    _session_user: The signed-in user, from a browser session.\n    complete_in: The code and state from the redirect.\n\nReturns:\n    The connection, with the accounts the login reached.\n\nRaises:\n    HTTPException: If the login cannot be completed (400), bank sync is off\n        (503), or the provider failed (502).",
+        "operationId": "bank-complete_bank_connection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankConnectionComplete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankConnectionPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/bank/connections/{connection_id}": {
+      "delete": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "Disconnect Bank",
+        "description": "Disconnect a bank.\n\nArgs:\n    bank_connection_service: The bank connection service dependency.\n    household: The current household context.\n    _session_user: The signed-in user, from a browser session.\n    connection_id: The ID of the connection.\n\nReturns:\n    A confirmation message.\n\nRaises:\n    HTTPException: If the connection does not exist (404), or the user\n        neither connected it nor owns the household (403).",
+        "operationId": "bank-disconnect_bank",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Connection Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bank/connections/{connection_id}/sync": {
+      "post": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "Sync Bank Connection",
+        "description": "Pull a connection's booked transactions into the inbox now.\n\nA browser session only. The bank is told the account holder is present,\nwhich keeps the pull out of its small daily budget for background pulls;\nthat would be untrue of a call made with an API token.\n\nA failure at the bank is reported on the run rather than as an error, so\nrows fetched from the other accounts are still kept.\n\nArgs:\n    bank_sync_service: The bank sync service dependency.\n    household: The current household context.\n    _session_user: The signed-in user, from a browser session.\n    psu: The account holder at the browser.\n    connection_id: The ID of the connection.\n\nReturns:\n    What the sync did.\n\nRaises:\n    HTTPException: If the connection does not exist (404), or is not active (409).",
+        "operationId": "bank-sync_bank_connection",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Connection Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankSyncRunPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bank/accounts/{bank_account_id}": {
+      "patch": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "Update Bank Account",
+        "description": "Link a bank account to an account, unlink it, or change how it imports.\n\nArgs:\n    bank_connection_service: The bank connection service dependency.\n    household: The current household context.\n    bank_account_id: The ID of the bank account.\n    update_in: What to change. An `account_id` sent as null unlinks.\n\nReturns:\n    The bank account.\n\nRaises:\n    HTTPException: If the bank account or account does not exist (404),\n        another bank account feeds the account (409), or the currencies or\n        the start date do not fit (400).",
+        "operationId": "bank-update_bank_account",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "bank_account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bank Account Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankAccountUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankAccountPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bank/inbox": {
+      "get": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "List Bank Inbox",
+        "description": "List what bank sync brought in, waiting or already reviewed.\n\nArgs:\n    bank_inbox_service: The bank inbox service dependency.\n    household: The current household context.\n    filters: Which review status, which bank account, and which page.\n\nReturns:\n    A page of rows, newest first, and how many match in all.",
+        "operationId": "bank-list_bank_inbox",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/BankReviewStatus",
+              "default": "pending"
+            }
+          },
+          {
+            "name": "bank_account_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bank Account Id"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankTransactionsPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bank/inbox/{bank_transaction_id}/accept": {
+      "post": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "Accept Bank Transaction",
+        "description": "Record an inbox row in the ledger.\n\nArgs:\n    bank_inbox_service: The bank inbox service dependency.\n    household: The current household context.\n    bank_transaction_id: The ID of the bank transaction.\n    accept_in: Whether it is spending, income or a transfer, and how to file it.\n\nReturns:\n    The accepted row, linked to its ledger transaction.\n\nRaises:\n    HTTPException: If the row does not exist (404), was already reviewed\n        (409), or cannot be recorded that way (400).",
+        "operationId": "bank-accept_bank_transaction",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "bank_transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bank Transaction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankTransactionAccept"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankTransactionPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bank/inbox/{bank_transaction_id}/skip": {
+      "post": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "Skip Bank Transaction",
+        "description": "Leave an inbox row out of the ledger.\n\nArgs:\n    bank_inbox_service: The bank inbox service dependency.\n    household: The current household context.\n    bank_transaction_id: The ID of the bank transaction.\n\nReturns:\n    The skipped row.\n\nRaises:\n    HTTPException: If the row does not exist (404) or was already reviewed (409).",
+        "operationId": "bank-skip_bank_transaction",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "bank_transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bank Transaction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankTransactionPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bank/inbox/{bank_transaction_id}/reopen": {
+      "post": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "Reopen Bank Transaction",
+        "description": "Put a skipped row back in the inbox.\n\nArgs:\n    bank_inbox_service: The bank inbox service dependency.\n    household: The current household context.\n    bank_transaction_id: The ID of the bank transaction.\n\nReturns:\n    The row, waiting again.\n\nRaises:\n    HTTPException: If the row does not exist (404) or was not skipped (409).",
+        "operationId": "bank-reopen_bank_transaction",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "bank_transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bank Transaction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankTransactionPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/recurring-rules/": {
       "post": {
         "tags": [
@@ -5994,6 +6592,743 @@
           "count"
         ],
         "title": "ApiTokensPublic"
+      },
+      "AspspPublic": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "country": {
+            "type": "string",
+            "title": "Country"
+          },
+          "logo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "country"
+        ],
+        "title": "AspspPublic"
+      },
+      "AspspsPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AspspPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "AspspsPublic"
+      },
+      "BankAccountPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "connection_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Connection Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "iban": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iban"
+          },
+          "currency_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency Code"
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "import_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import From"
+          },
+          "sync_enabled": {
+            "type": "boolean",
+            "title": "Sync Enabled"
+          },
+          "last_booked_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Booked On"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "connection_id",
+          "sync_enabled"
+        ],
+        "title": "BankAccountPublic"
+      },
+      "BankAccountUpdate": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "import_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import From"
+          },
+          "sync_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sync Enabled"
+          }
+        },
+        "type": "object",
+        "title": "BankAccountUpdate"
+      },
+      "BankAuthorizationStarted": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "BankAuthorizationStarted"
+      },
+      "BankConnectionComplete": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "state": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "state"
+        ],
+        "title": "BankConnectionComplete"
+      },
+      "BankConnectionPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "aspsp_name": {
+            "type": "string",
+            "title": "Aspsp Name"
+          },
+          "aspsp_country": {
+            "type": "string",
+            "title": "Aspsp Country"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BankConnectionStatus"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          },
+          "authorized_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorized At"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "last_sync_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync Error"
+          },
+          "created_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By User Id"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/BankAccountPublic"
+            },
+            "type": "array",
+            "title": "Accounts"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "aspsp_name",
+          "aspsp_country",
+          "status",
+          "accounts",
+          "created_at"
+        ],
+        "title": "BankConnectionPublic"
+      },
+      "BankConnectionStart": {
+        "properties": {
+          "aspsp_name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Aspsp Name"
+          },
+          "aspsp_country": {
+            "type": "string",
+            "maxLength": 2,
+            "minLength": 2,
+            "title": "Aspsp Country"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aspsp_name",
+          "aspsp_country"
+        ],
+        "title": "BankConnectionStart"
+      },
+      "BankConnectionStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "active",
+          "expired",
+          "revoked",
+          "failed"
+        ],
+        "title": "BankConnectionStatus"
+      },
+      "BankConnectionsPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/BankConnectionPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "BankConnectionsPublic"
+      },
+      "BankDirection": {
+        "type": "string",
+        "enum": [
+          "credit",
+          "debit"
+        ],
+        "title": "BankDirection"
+      },
+      "BankReviewStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "accepted",
+          "skipped"
+        ],
+        "title": "BankReviewStatus"
+      },
+      "BankStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "BankStatus"
+      },
+      "BankSyncRunPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "connection_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Connection Id"
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/BankSyncTrigger"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BankSyncStatus"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "fetched_count": {
+            "type": "integer",
+            "title": "Fetched Count"
+          },
+          "new_count": {
+            "type": "integer",
+            "title": "New Count"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "connection_id",
+          "trigger",
+          "status",
+          "started_at",
+          "fetched_count",
+          "new_count"
+        ],
+        "title": "BankSyncRunPublic"
+      },
+      "BankSyncStatus": {
+        "type": "string",
+        "enum": [
+          "running",
+          "succeeded",
+          "failed"
+        ],
+        "title": "BankSyncStatus"
+      },
+      "BankSyncTrigger": {
+        "type": "string",
+        "enum": [
+          "manual",
+          "auto"
+        ],
+        "title": "BankSyncTrigger"
+      },
+      "BankTransactionAccept": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "counter_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Account Id"
+          },
+          "goal_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Id"
+          },
+          "merchant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "BankTransactionAccept",
+        "description": "How to record a bank transaction in the ledger.\n\nThe amount, the date and the bank account's side are the bank's and are\nnot chosen here."
+      },
+      "BankTransactionPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "bank_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Bank Account Id"
+          },
+          "bank_account_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Account Name"
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/BankDirection"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "currency_code": {
+            "type": "string",
+            "title": "Currency Code"
+          },
+          "occurred_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Occurred On"
+          },
+          "value_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Date"
+          },
+          "transaction_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Date"
+          },
+          "counterparty_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Name"
+          },
+          "counterparty_iban": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Iban"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "review_status": {
+            "$ref": "#/components/schemas/BankReviewStatus"
+          },
+          "ledger_transaction_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ledger Transaction Id"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "bank_account_id",
+          "direction",
+          "amount_minor",
+          "currency_code",
+          "occurred_on",
+          "review_status",
+          "created_at"
+        ],
+        "title": "BankTransactionPublic"
+      },
+      "BankTransactionsPublic": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/BankTransactionPublic"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "BankTransactionsPublic"
       },
       "Body_login-login_access_token": {
         "properties": {
