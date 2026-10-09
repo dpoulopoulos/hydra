@@ -12,7 +12,14 @@ from .api_token_exceptions import (
     InvalidApiTokenError,
 )
 from .bank_exceptions import (
+    AspspNotFoundError,
+    BankAccountAlreadyMappedError,
+    BankAccountMappingError,
+    BankAccountNotFoundError,
     BankAuthorizationError,
+    BankConnectionInactiveError,
+    BankConnectionNotFoundError,
+    BankConnectionNotPermittedError,
     BankProviderError,
     BankRateLimitedError,
     BankSessionExpiredError,
@@ -114,6 +121,13 @@ from .user_exceptions import (
 )
 
 __all__ = [
+    "AspspNotFoundError",
+    "BankAccountAlreadyMappedError",
+    "BankAccountMappingError",
+    "BankAccountNotFoundError",
+    "BankConnectionInactiveError",
+    "BankConnectionNotFoundError",
+    "BankConnectionNotPermittedError",
     "BankAuthorizationError",
     "BankProviderError",
     "BankRateLimitedError",

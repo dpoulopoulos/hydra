@@ -13,6 +13,7 @@ from starlette.types import ExceptionHandler
 from app.api.main import api_router
 from app.api.routes.accounts import account_exception_mappings
 from app.api.routes.api_tokens import api_token_exception_mappings
+from app.api.routes.bank import bank_exception_mappings
 from app.api.routes.budgets import budget_exception_mappings
 from app.api.routes.categories import category_exception_mappings
 from app.api.routes.email_verification import email_verification_exception_mappings
@@ -129,6 +130,7 @@ exception_mappings = [
     recurring_rule_exception_mappings(),
     income_exception_mappings(),
     investment_exception_mappings(),
+    bank_exception_mappings(),
 ]
 
 for mapping in exception_mappings:

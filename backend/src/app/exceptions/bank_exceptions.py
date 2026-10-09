@@ -1,4 +1,4 @@
-from .base_exceptions import ServiceError, ValidationError
+from .base_exceptions import NotFoundError, ServiceError, ValidationError
 
 
 class BankSyncNotConfiguredError(ServiceError):
@@ -67,3 +67,92 @@ class BankAuthorizationError(ValidationError):
             exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
         """
         super().__init__(f"The bank login could not be completed: {message}", exc)
+
+
+class AspspNotFoundError(ValidationError):
+    """Signal that the bank asked for is not one Enable Banking can reach."""
+
+    def __init__(self, name: str, country: str, exc: Exception | None = None):
+        """Initialize an AspspNotFoundError.
+
+        Args:
+            name: The bank's name, as given.
+            country: The bank's country, as given.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__(f"No bank called '{name}' can be connected in {country}.", exc)
+
+
+class BankConnectionNotFoundError(NotFoundError):
+    """Signal that a bank connection does not exist in the household."""
+
+    def __init__(self, message: str | None = None, exc: Exception | None = None):
+        """Initialize a BankConnectionNotFoundError.
+
+        Args:
+            message: An optional error message.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__("Bank connection", message, exc)
+
+
+class BankAccountNotFoundError(NotFoundError):
+    """Signal that a bank account does not exist in the household."""
+
+    def __init__(self, message: str | None = None, exc: Exception | None = None):
+        """Initialize a BankAccountNotFoundError.
+
+        Args:
+            message: An optional error message.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__("Bank account", message, exc)
+
+
+class BankConnectionNotPermittedError(ServiceError):
+    """Signal that only whoever connected a bank, or an owner, may disconnect it."""
+
+    def __init__(self, exc: Exception | None = None):
+        """Initialize a BankConnectionNotPermittedError.
+
+        Args:
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__("Only whoever connected this bank, or a household owner, can disconnect it.", exc)
+
+
+class BankConnectionInactiveError(ValidationError):
+    """Signal that a connection cannot be used because its login is not active."""
+
+    def __init__(self, exc: Exception | None = None):
+        """Initialize a BankConnectionInactiveError.
+
+        Args:
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__("This bank connection is not active. Connect the bank again.", exc)
+
+
+class BankAccountMappingError(ValidationError):
+    """Signal that a bank account cannot feed the Hydra account, or from that date."""
+
+    def __init__(self, message: str, exc: Exception | None = None):
+        """Initialize a BankAccountMappingError.
+
+        Args:
+            message: Why the mapping was refused.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__(message, exc)
+
+
+class BankAccountAlreadyMappedError(ServiceError):
+    """Signal that the Hydra account is already fed by another bank account."""
+
+    def __init__(self, exc: Exception | None = None):
+        """Initialize a BankAccountAlreadyMappedError.
+
+        Args:
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__("Another bank account already feeds this account. Unlink that one first.", exc)
