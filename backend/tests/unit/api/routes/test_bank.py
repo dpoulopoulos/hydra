@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.api.deps import (
     get_bank_connection_service,
+    get_bank_sync_service,
     get_current_user,
     get_db,
     get_household_context,
@@ -19,6 +20,7 @@ from app.exceptions import (
     BankAccountAlreadyMappedError,
     BankAccountMappingError,
     BankAuthorizationError,
+    BankConnectionInactiveError,
     BankConnectionNotFoundError,
     BankConnectionNotPermittedError,
     BankProviderError,
@@ -36,6 +38,9 @@ from app.models import (
     BankConnectionsPublic,
     BankConnectionStatus,
     BankStatus,
+    BankSyncRunPublic,
+    BankSyncStatus,
+    BankSyncTrigger,
     HouseholdContext,
     Message,
     User,
@@ -302,3 +307,62 @@ class TestApiTokensCannotConnectBanks:
         wire_with_api_token.start.assert_not_called()
         wire_with_api_token.complete.assert_not_called()
         wire_with_api_token.disconnect.assert_not_called()
+
+
+class TestSync:
+    """Tests for POST /bank/connections/{id}/sync."""
+
+    @pytest.fixture
+    def sync_service(self, wire: MagicMock) -> MagicMock:
+        service = MagicMock()
+        app.dependency_overrides[get_bank_sync_service] = lambda: service
+        return service
+
+    def test_syncs_as_a_present_account_holder(
+        self, client: TestClient, sync_service: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        sync_service.sync.return_value = BankSyncRunPublic(
+            id=uuid.uuid4(),
+            connection_id=CONNECTION_ID,
+            trigger=BankSyncTrigger.MANUAL,
+            status=BankSyncStatus.SUCCEEDED,
+            started_at=datetime.now(UTC),
+            fetched_count=4,
+            new_count=2,
+        )
+
+        response = client.post(f"/api/v1/bank/connections/{CONNECTION_ID}/sync", headers=auth_headers)
+
+        assert response.status_code == 200
+        assert response.json()["new_count"] == 2
+        kwargs = sync_service.sync.call_args.kwargs
+        assert kwargs["trigger"] == BankSyncTrigger.MANUAL
+        assert isinstance(kwargs["psu"], Psu)
+
+    @pytest.mark.parametrize(
+        ("error", "status_code"), [(BankConnectionNotFoundError(), 404), (BankConnectionInactiveError(), 409)]
+    )
+    def test_errors(
+        self,
+        client: TestClient,
+        sync_service: MagicMock,
+        auth_headers: dict[str, str],
+        error: Exception,
+        status_code: int,
+    ) -> None:
+        sync_service.sync.side_effect = error
+
+        response = client.post(f"/api/v1/bank/connections/{CONNECTION_ID}/sync", headers=auth_headers)
+
+        assert response.status_code == status_code
+
+    def test_needs_a_session(self, client: TestClient, sync_service: MagicMock, auth_headers: dict[str, str]) -> None:
+        def refuse() -> User:
+            raise ApiTokenNotPermittedError
+
+        app.dependency_overrides[get_session_user] = refuse
+
+        response = client.post(f"/api/v1/bank/connections/{CONNECTION_ID}/sync", headers=auth_headers)
+
+        assert response.status_code == 403
+        sync_service.sync.assert_not_called()
