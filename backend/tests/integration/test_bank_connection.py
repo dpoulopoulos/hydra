@@ -46,7 +46,12 @@ def service(db_session: Session, provider: MagicMock) -> BankConnectionService:
 
 
 def connect(
-    service: BankConnectionService, provider: MagicMock, household: HouseholdContext, session_id: str, uid: str
+    service: BankConnectionService,
+    provider: MagicMock,
+    household: HouseholdContext,
+    session_id: str,
+    uid: str,
+    iban: str = "GR16",
 ) -> str:
     """Start and complete a login, returning the state it used."""
     service.start(household, BankConnectionStart(aspsp_name="Mock ASPSP", aspsp_country="GR"), None)
@@ -54,7 +59,7 @@ def connect(
     provider.create_session.return_value = BankSession(
         session_id=session_id,
         valid_until=datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=180),
-        accounts=[SessionAccount(uid=uid, identification_hash="hash-1", iban="GR16", name="Main", currency="EUR")],
+        accounts=[SessionAccount(uid=uid, identification_hash="hash-1", iban=iban, name="Main", currency="EUR")],
     )
     service.complete(household, BankConnectionComplete(code="code", state=state))
     return state
@@ -77,6 +82,22 @@ def test_connect_then_link_then_list(
 
     relisted = service.list_connections(household_a)
     assert relisted.data[0].accounts[0].account_id == account.id
+
+
+def test_linking_stores_the_banks_iban_on_the_account(
+    db_session: Session, service: BankConnectionService, provider: MagicMock, household_a: HouseholdContext
+) -> None:
+    """Test that an account with no IBAN keeps the bank's once linked."""
+    account = make_account(db_session, household_a.household_id)
+    connect(service, provider, household_a, "sess-1", "uid-1", iban="GR1601101250000000012300695")
+    bank_account = service.list_connections(household_a).data[0].accounts[0]
+
+    service.update_bank_account(household_a, bank_account.id, BankAccountUpdate(account_id=account.id))
+
+    db_session.expire_all()
+    stored = AccountRepository(db_session).get_for_household(account.id, household_a.household_id)
+    assert stored is not None
+    assert stored.iban == "GR1601101250000000012300695"
 
 
 def test_completing_twice_spends_the_code_once(
