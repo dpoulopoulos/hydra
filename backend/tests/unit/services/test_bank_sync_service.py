@@ -400,3 +400,62 @@ class TestSync:
 
         assert result.status == BankSyncStatus.FAILED
         assert result.error is not None and "Bank is down" in result.error
+
+
+class TestSyncDueAndPrune:
+    """Tests for the automatic sync round and the clean-up."""
+
+    def test_expired_login_is_marked_without_calling_the_bank(
+        self, service: BankSyncService, provider: MagicMock
+    ) -> None:
+        connection = make_connection()
+        connection.valid_until = datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=1)
+        service.connection_repository.get_for_household.return_value = connection
+
+        with pytest.raises(BankConnectionInactiveError):
+            service.sync(HOUSEHOLD_ID, connection.id, BankSyncTrigger.AUTO, None)
+
+        assert connection.status == BankConnectionStatus.EXPIRED
+        assert connection.next_auto_sync_at is None
+        provider.transactions.assert_not_called()
+
+    def test_sync_due_claims_commits_then_syncs_each_due_connection(
+        self, service: BankSyncService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        first, second = make_connection(), make_connection()
+        service.connection_repository.claim_due.side_effect = [first, second, None]
+        calls: list[str] = []
+        service.session.commit.side_effect = lambda: calls.append("commit")
+        sync = MagicMock(side_effect=lambda *args, **kwargs: calls.append("sync"))
+        monkeypatch.setattr(service, "sync", sync)
+        now = datetime.datetime.now(datetime.UTC)
+
+        synced = service.sync_due(now, datetime.timedelta(hours=24), limit=5)
+
+        assert synced == 2
+        assert calls == ["commit", "sync", "commit", "sync"]
+        assert sync.call_args_list[0].args == (HOUSEHOLD_ID, first.id, BankSyncTrigger.AUTO)
+        assert sync.call_args_list[0].kwargs == {"psu": None}
+
+    def test_sync_due_stops_at_the_limit_and_skips_inactive_ones(
+        self, service: BankSyncService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        service.connection_repository.claim_due.side_effect = lambda now, interval: make_connection()
+        monkeypatch.setattr(service, "sync", MagicMock(side_effect=[BankConnectionInactiveError(), None, None]))
+
+        synced = service.sync_due(datetime.datetime.now(datetime.UTC), datetime.timedelta(hours=24), limit=3)
+
+        assert synced == 2
+        assert service.connection_repository.claim_due.call_count == 3
+
+    def test_prune_removes_abandoned_logins_and_clears_old_rows(self, service: BankSyncService) -> None:
+        service.connection_repository.delete_abandoned.return_value = 2
+        service.bank_transaction_repository.clear_raw.return_value = 7
+        now = datetime.datetime(2026, 10, 9, 12, tzinfo=datetime.UTC)
+
+        pruned = service.prune(now, datetime.timedelta(minutes=60), datetime.timedelta(days=90))
+
+        assert pruned == 9
+        service.connection_repository.delete_abandoned.assert_called_once_with(now - datetime.timedelta(minutes=60))
+        service.bank_transaction_repository.clear_raw.assert_called_once_with(now - datetime.timedelta(days=90))
+        service.session.commit.assert_called_once()
