@@ -160,6 +160,14 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
             name="fk_transaction_goal_household",
             ondelete="SET NULL (goal_id)",
         ),
+        # The batch a bank import came in with. Deleting the batch keeps the
+        # transactions it made: they happened.
+        ForeignKeyConstraint(
+            ["import_batch_id", "household_id"],
+            ["banksyncrun.id", "banksyncrun.household_id"],
+            name="fk_transaction_import_batch_household",
+            ondelete="SET NULL (import_batch_id)",
+        ),
         Index("ix_transaction_household_occurred", "household_id", "occurred_on"),
         # The highest value index here: it serves income against expense, the
         # savings trend, and every report that has to exclude transfers.
@@ -195,6 +203,15 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
             unique=True,
             postgresql_where=text("recurring_rule_id IS NOT NULL"),
         ),
+        # An imported row is recorded once per account, even if two requests
+        # race to accept it.
+        Index(
+            "uq_transaction_account_external_id",
+            "account_id",
+            "external_id",
+            unique=True,
+            postgresql_where=text("external_id IS NOT NULL"),
+        ),
         # At most one transaction per session, enforced where two requests
         # racing to record the same payment cannot get round it.
         Index(
@@ -224,8 +241,7 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
     # as ordinary income rather than as money silently vanishing.
     income_session_id: uuid.UUID | None = Field(default=None, foreign_key="incomesession.id", ondelete="SET NULL")
     is_generated: bool = Field(default=False)
-    # Unused in this version. Two nullable columns now mean adding CSV or bank
-    # import later is purely additive: one partial unique index for dedupe and
-    # an import batch table, with no rewrite of the ledger.
+    # Set on a row accepted from the bank inbox: "eb:" and the inbox row's id.
     external_id: str | None = Field(default=None, max_length=255)
+    # The bank sync run the row was imported by.
     import_batch_id: uuid.UUID | None = Field(default=None)
