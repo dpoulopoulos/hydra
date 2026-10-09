@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { AccountsCreateAccountData, AccountsCreateAccountErrors, AccountsCreateAccountResponses, AccountsDeleteAccountData, AccountsDeleteAccountErrors, AccountsDeleteAccountResponses, AccountsGetAccountData, AccountsGetAccountErrors, AccountsGetAccountResponses, AccountsListAccountsData, AccountsListAccountsErrors, AccountsListAccountsResponses, AccountsUpdateAccountData, AccountsUpdateAccountErrors, AccountsUpdateAccountResponses, ApiTokensCreateApiTokenData, ApiTokensCreateApiTokenErrors, ApiTokensCreateApiTokenResponses, ApiTokensListApiTokensData, ApiTokensListApiTokensErrors, ApiTokensListApiTokensResponses, ApiTokensRevokeApiTokenData, ApiTokensRevokeApiTokenErrors, ApiTokensRevokeApiTokenResponses, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsErrors, BudgetsBulkUpsertBudgetsResponses, BudgetsCopyBudgetsData, BudgetsCopyBudgetsErrors, BudgetsCopyBudgetsResponses, BudgetsCreateBudgetData, BudgetsCreateBudgetErrors, BudgetsCreateBudgetResponses, BudgetsDeleteBudgetData, BudgetsDeleteBudgetErrors, BudgetsDeleteBudgetResponses, BudgetsGetBudgetData, BudgetsGetBudgetErrors, BudgetsGetBudgetResponses, BudgetsListBudgetsData, BudgetsListBudgetsErrors, BudgetsListBudgetsResponses, BudgetsUpdateBudgetData, BudgetsUpdateBudgetErrors, BudgetsUpdateBudgetResponses, CategoriesCreateCategoryData, CategoriesCreateCategoryErrors, CategoriesCreateCategoryResponses, CategoriesDeleteCategoryData, CategoriesDeleteCategoryErrors, CategoriesDeleteCategoryResponses, CategoriesGetCategoryData, CategoriesGetCategoryErrors, CategoriesGetCategoryResponses, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeErrors, CategoriesGetCategoryTreeResponses, CategoriesListCategoriesData, CategoriesListCategoriesErrors, CategoriesListCategoriesResponses, CategoriesUpdateCategoryData, CategoriesUpdateCategoryErrors, CategoriesUpdateCategoryResponses, EmailOutboxReadEmailOutboxStatsData, EmailOutboxReadEmailOutboxStatsResponses, EmailVerificationCancelPendingEmailChangeMeData, EmailVerificationCancelPendingEmailChangeMeResponses, EmailVerificationGetPendingEmailChangeMeData, EmailVerificationGetPendingEmailChangeMeResponses, EmailVerificationResendPendingEmailChangeMeData, EmailVerificationResendPendingEmailChangeMeResponses, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailErrors, EmailVerificationResendVerificationEmailResponses, EmailVerificationSendVerificationEmailMeData, EmailVerificationSendVerificationEmailMeResponses, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailErrors, EmailVerificationVerifyEmailResponses, GoalsCreateGoalData, GoalsCreateGoalErrors, GoalsCreateGoalResponses, GoalsDeleteGoalData, GoalsDeleteGoalErrors, GoalsDeleteGoalResponses, GoalsGetGoalData, GoalsGetGoalErrors, GoalsGetGoalHistoryData, GoalsGetGoalHistoryErrors, GoalsGetGoalHistoryResponses, GoalsGetGoalResponses, GoalsListGoalsData, GoalsListGoalsResponses, GoalsUpdateGoalData, GoalsUpdateGoalErrors, GoalsUpdateGoalResponses, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteErrors, HouseholdsAcceptHouseholdInviteResponses, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteErrors, HouseholdsCreateHouseholdInviteResponses, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponses, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponses, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesErrors, HouseholdsListHouseholdInvitesResponses, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponses, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteErrors, HouseholdsPreviewHouseholdInviteResponses, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberErrors, HouseholdsRemoveHouseholdMemberResponses, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteErrors, HouseholdsRevokeHouseholdInviteResponses, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeErrors, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberErrors, HouseholdsUpdateHouseholdMemberResponses, HouseholdsUpdateHouseholdMeResponses, IncomeCreateClientData, IncomeCreateClientErrors, IncomeCreateClientResponses, IncomeCreateSessionData, IncomeCreateSessionErrors, IncomeCreateSessionResponses, IncomeDeleteClientData, IncomeDeleteClientErrors, IncomeDeleteClientResponses, IncomeDeleteSessionData, IncomeDeleteSessionErrors, IncomeDeleteSessionResponses, IncomeGetClientData, IncomeGetClientErrors, IncomeGetClientResponses, IncomeGetForecastData, IncomeGetForecastErrors, IncomeGetForecastResponses, IncomeGetSessionData, IncomeGetSessionErrors, IncomeGetSessionResponses, IncomeGetSummaryData, IncomeGetSummaryErrors, IncomeGetSummaryResponses, IncomeGetVaultData, IncomeGetVaultResponses, IncomeListClientsData, IncomeListClientsErrors, IncomeListClientsResponses, IncomeListSessionsData, IncomeListSessionsErrors, IncomeListSessionsResponses, IncomeResetVaultData, IncomeResetVaultErrors, IncomeResetVaultResponses, IncomeUpdateClientData, IncomeUpdateClientErrors, IncomeUpdateClientResponses, IncomeUpdateSessionData, IncomeUpdateSessionErrors, IncomeUpdateSessionResponses, IncomeUpsertVaultData, IncomeUpsertVaultErrors, IncomeUpsertVaultResponses, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentErrors, InvestmentsCreateInstrumentResponses, InvestmentsCreateTradeData, InvestmentsCreateTradeErrors, InvestmentsCreateTradeResponses, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentErrors, InvestmentsDeleteInstrumentResponses, InvestmentsDeleteTradeData, InvestmentsDeleteTradeErrors, InvestmentsDeleteTradeResponses, InvestmentsGetInstrumentData, InvestmentsGetInstrumentErrors, InvestmentsGetInstrumentResponses, InvestmentsGetPortfolioData, InvestmentsGetPortfolioErrors, InvestmentsGetPortfolioResponses, InvestmentsGetTradeData, InvestmentsGetTradeErrors, InvestmentsGetTradeResponses, InvestmentsListFxRatesData, InvestmentsListFxRatesResponses, InvestmentsListInstrumentsData, InvestmentsListInstrumentsErrors, InvestmentsListInstrumentsResponses, InvestmentsListTradesData, InvestmentsListTradesErrors, InvestmentsListTradesResponses, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponses, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsErrors, InvestmentsSearchSymbolsResponses, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceErrors, InvestmentsSetInstrumentPriceResponses, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentErrors, InvestmentsUpdateInstrumentResponses, InvestmentsUpdateTradeData, InvestmentsUpdateTradeErrors, InvestmentsUpdateTradeResponses, LoginLoginAccessTokenData, LoginLoginAccessTokenErrors, LoginLoginAccessTokenResponses, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetErrors, PasswordResetConfirmPasswordResetResponses, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetErrors, PasswordResetRequestPasswordResetResponses, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenErrors, PasswordResetVerifyPasswordResetTokenResponses, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleErrors, RecurringRulesCreateRecurringRuleResponses, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleErrors, RecurringRulesDeleteRecurringRuleResponses, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleErrors, RecurringRulesGetRecurringRuleResponses, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesErrors, RecurringRulesListRecurringRulesResponses, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesErrors, RecurringRulesListUpcomingOccurrencesResponses, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesErrors, RecurringRulesRunRecurringRulesResponses, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleErrors, RecurringRulesUpdateRecurringRuleResponses, ReportsBudgetProgressData, ReportsBudgetProgressErrors, ReportsBudgetProgressResponses, ReportsIncomeExpenseData, ReportsIncomeExpenseErrors, ReportsIncomeExpenseResponses, ReportsMonthSummaryData, ReportsMonthSummaryErrors, ReportsMonthSummaryResponses, ReportsSpendByCategoryData, ReportsSpendByCategoryErrors, ReportsSpendByCategoryResponses, ReportsSpendOverTimeData, ReportsSpendOverTimeErrors, ReportsSpendOverTimeResponses, TransactionsCreateTransactionData, TransactionsCreateTransactionErrors, TransactionsCreateTransactionResponses, TransactionsDeleteTransactionData, TransactionsDeleteTransactionErrors, TransactionsDeleteTransactionResponses, TransactionsGetTransactionData, TransactionsGetTransactionErrors, TransactionsGetTransactionResponses, TransactionsListTransactionsData, TransactionsListTransactionsErrors, TransactionsListTransactionsResponses, TransactionsUpdateTransactionData, TransactionsUpdateTransactionErrors, TransactionsUpdateTransactionResponses, UsersCreateUserData, UsersCreateUserErrors, UsersCreateUserResponses, UsersDeleteUserData, UsersDeleteUserErrors, UsersDeleteUserMeData, UsersDeleteUserMeResponses, UsersDeleteUserResponses, UsersGetUserByIdData, UsersGetUserByIdErrors, UsersGetUserByIdResponses, UsersGetUserMeData, UsersGetUserMeResponses, UsersGetUsersData, UsersGetUsersErrors, UsersGetUsersResponses, UsersRegisterUserData, UsersRegisterUserErrors, UsersRegisterUserResponses, UsersUpdatePasswordMeData, UsersUpdatePasswordMeErrors, UsersUpdatePasswordMeResponses, UsersUpdateUserData, UsersUpdateUserErrors, UsersUpdateUserMeData, UsersUpdateUserMeErrors, UsersUpdateUserMeResponses, UsersUpdateUserResponses } from './types.gen';
+import type { AccountsCreateAccountData, AccountsCreateAccountErrors, AccountsCreateAccountResponses, AccountsDeleteAccountData, AccountsDeleteAccountErrors, AccountsDeleteAccountResponses, AccountsGetAccountData, AccountsGetAccountErrors, AccountsGetAccountResponses, AccountsListAccountsData, AccountsListAccountsErrors, AccountsListAccountsResponses, AccountsUpdateAccountData, AccountsUpdateAccountErrors, AccountsUpdateAccountResponses, ApiTokensCreateApiTokenData, ApiTokensCreateApiTokenErrors, ApiTokensCreateApiTokenResponses, ApiTokensListApiTokensData, ApiTokensListApiTokensErrors, ApiTokensListApiTokensResponses, ApiTokensRevokeApiTokenData, ApiTokensRevokeApiTokenErrors, ApiTokensRevokeApiTokenResponses, BankAcceptBankTransactionData, BankAcceptBankTransactionErrors, BankAcceptBankTransactionResponses, BankCompleteBankConnectionData, BankCompleteBankConnectionErrors, BankCompleteBankConnectionResponses, BankDisconnectBankData, BankDisconnectBankErrors, BankDisconnectBankResponses, BankGetBankStatusData, BankGetBankStatusResponses, BankListAspspsData, BankListAspspsErrors, BankListAspspsResponses, BankListBankConnectionsData, BankListBankConnectionsResponses, BankListBankInboxData, BankListBankInboxErrors, BankListBankInboxResponses, BankReopenBankTransactionData, BankReopenBankTransactionErrors, BankReopenBankTransactionResponses, BankSkipBankTransactionData, BankSkipBankTransactionErrors, BankSkipBankTransactionResponses, BankStartBankConnectionData, BankStartBankConnectionErrors, BankStartBankConnectionResponses, BankSyncBankConnectionData, BankSyncBankConnectionErrors, BankSyncBankConnectionResponses, BankUpdateBankAccountData, BankUpdateBankAccountErrors, BankUpdateBankAccountResponses, BudgetsBulkUpsertBudgetsData, BudgetsBulkUpsertBudgetsErrors, BudgetsBulkUpsertBudgetsResponses, BudgetsCopyBudgetsData, BudgetsCopyBudgetsErrors, BudgetsCopyBudgetsResponses, BudgetsCreateBudgetData, BudgetsCreateBudgetErrors, BudgetsCreateBudgetResponses, BudgetsDeleteBudgetData, BudgetsDeleteBudgetErrors, BudgetsDeleteBudgetResponses, BudgetsGetBudgetData, BudgetsGetBudgetErrors, BudgetsGetBudgetResponses, BudgetsListBudgetsData, BudgetsListBudgetsErrors, BudgetsListBudgetsResponses, BudgetsUpdateBudgetData, BudgetsUpdateBudgetErrors, BudgetsUpdateBudgetResponses, CategoriesCreateCategoryData, CategoriesCreateCategoryErrors, CategoriesCreateCategoryResponses, CategoriesDeleteCategoryData, CategoriesDeleteCategoryErrors, CategoriesDeleteCategoryResponses, CategoriesGetCategoryData, CategoriesGetCategoryErrors, CategoriesGetCategoryResponses, CategoriesGetCategoryTreeData, CategoriesGetCategoryTreeErrors, CategoriesGetCategoryTreeResponses, CategoriesListCategoriesData, CategoriesListCategoriesErrors, CategoriesListCategoriesResponses, CategoriesUpdateCategoryData, CategoriesUpdateCategoryErrors, CategoriesUpdateCategoryResponses, EmailOutboxReadEmailOutboxStatsData, EmailOutboxReadEmailOutboxStatsResponses, EmailVerificationCancelPendingEmailChangeMeData, EmailVerificationCancelPendingEmailChangeMeResponses, EmailVerificationGetPendingEmailChangeMeData, EmailVerificationGetPendingEmailChangeMeResponses, EmailVerificationResendPendingEmailChangeMeData, EmailVerificationResendPendingEmailChangeMeResponses, EmailVerificationResendVerificationEmailData, EmailVerificationResendVerificationEmailErrors, EmailVerificationResendVerificationEmailResponses, EmailVerificationSendVerificationEmailMeData, EmailVerificationSendVerificationEmailMeResponses, EmailVerificationVerifyEmailData, EmailVerificationVerifyEmailErrors, EmailVerificationVerifyEmailResponses, GoalsCreateGoalData, GoalsCreateGoalErrors, GoalsCreateGoalResponses, GoalsDeleteGoalData, GoalsDeleteGoalErrors, GoalsDeleteGoalResponses, GoalsGetGoalData, GoalsGetGoalErrors, GoalsGetGoalHistoryData, GoalsGetGoalHistoryErrors, GoalsGetGoalHistoryResponses, GoalsGetGoalResponses, GoalsListGoalsData, GoalsListGoalsResponses, GoalsUpdateGoalData, GoalsUpdateGoalErrors, GoalsUpdateGoalResponses, HouseholdsAcceptHouseholdInviteData, HouseholdsAcceptHouseholdInviteErrors, HouseholdsAcceptHouseholdInviteResponses, HouseholdsCreateHouseholdInviteData, HouseholdsCreateHouseholdInviteErrors, HouseholdsCreateHouseholdInviteResponses, HouseholdsGetHouseholdMeData, HouseholdsGetHouseholdMeResponses, HouseholdsLeaveHouseholdData, HouseholdsLeaveHouseholdResponses, HouseholdsListHouseholdInvitesData, HouseholdsListHouseholdInvitesErrors, HouseholdsListHouseholdInvitesResponses, HouseholdsListHouseholdMembersData, HouseholdsListHouseholdMembersResponses, HouseholdsPreviewHouseholdInviteData, HouseholdsPreviewHouseholdInviteErrors, HouseholdsPreviewHouseholdInviteResponses, HouseholdsRemoveHouseholdMemberData, HouseholdsRemoveHouseholdMemberErrors, HouseholdsRemoveHouseholdMemberResponses, HouseholdsRevokeHouseholdInviteData, HouseholdsRevokeHouseholdInviteErrors, HouseholdsRevokeHouseholdInviteResponses, HouseholdsUpdateHouseholdMeData, HouseholdsUpdateHouseholdMeErrors, HouseholdsUpdateHouseholdMemberData, HouseholdsUpdateHouseholdMemberErrors, HouseholdsUpdateHouseholdMemberResponses, HouseholdsUpdateHouseholdMeResponses, IncomeCreateClientData, IncomeCreateClientErrors, IncomeCreateClientResponses, IncomeCreateSessionData, IncomeCreateSessionErrors, IncomeCreateSessionResponses, IncomeDeleteClientData, IncomeDeleteClientErrors, IncomeDeleteClientResponses, IncomeDeleteSessionData, IncomeDeleteSessionErrors, IncomeDeleteSessionResponses, IncomeGetClientData, IncomeGetClientErrors, IncomeGetClientResponses, IncomeGetForecastData, IncomeGetForecastErrors, IncomeGetForecastResponses, IncomeGetSessionData, IncomeGetSessionErrors, IncomeGetSessionResponses, IncomeGetSummaryData, IncomeGetSummaryErrors, IncomeGetSummaryResponses, IncomeGetVaultData, IncomeGetVaultResponses, IncomeListClientsData, IncomeListClientsErrors, IncomeListClientsResponses, IncomeListSessionsData, IncomeListSessionsErrors, IncomeListSessionsResponses, IncomeResetVaultData, IncomeResetVaultErrors, IncomeResetVaultResponses, IncomeUpdateClientData, IncomeUpdateClientErrors, IncomeUpdateClientResponses, IncomeUpdateSessionData, IncomeUpdateSessionErrors, IncomeUpdateSessionResponses, IncomeUpsertVaultData, IncomeUpsertVaultErrors, IncomeUpsertVaultResponses, InvestmentsCreateInstrumentData, InvestmentsCreateInstrumentErrors, InvestmentsCreateInstrumentResponses, InvestmentsCreateTradeData, InvestmentsCreateTradeErrors, InvestmentsCreateTradeResponses, InvestmentsDeleteInstrumentData, InvestmentsDeleteInstrumentErrors, InvestmentsDeleteInstrumentResponses, InvestmentsDeleteTradeData, InvestmentsDeleteTradeErrors, InvestmentsDeleteTradeResponses, InvestmentsGetInstrumentData, InvestmentsGetInstrumentErrors, InvestmentsGetInstrumentResponses, InvestmentsGetPortfolioData, InvestmentsGetPortfolioErrors, InvestmentsGetPortfolioResponses, InvestmentsGetTradeData, InvestmentsGetTradeErrors, InvestmentsGetTradeResponses, InvestmentsListFxRatesData, InvestmentsListFxRatesResponses, InvestmentsListInstrumentsData, InvestmentsListInstrumentsErrors, InvestmentsListInstrumentsResponses, InvestmentsListTradesData, InvestmentsListTradesErrors, InvestmentsListTradesResponses, InvestmentsRefreshPricesData, InvestmentsRefreshPricesResponses, InvestmentsSearchSymbolsData, InvestmentsSearchSymbolsErrors, InvestmentsSearchSymbolsResponses, InvestmentsSetInstrumentPriceData, InvestmentsSetInstrumentPriceErrors, InvestmentsSetInstrumentPriceResponses, InvestmentsUpdateInstrumentData, InvestmentsUpdateInstrumentErrors, InvestmentsUpdateInstrumentResponses, InvestmentsUpdateTradeData, InvestmentsUpdateTradeErrors, InvestmentsUpdateTradeResponses, LoginLoginAccessTokenData, LoginLoginAccessTokenErrors, LoginLoginAccessTokenResponses, PasswordResetConfirmPasswordResetData, PasswordResetConfirmPasswordResetErrors, PasswordResetConfirmPasswordResetResponses, PasswordResetRequestPasswordResetData, PasswordResetRequestPasswordResetErrors, PasswordResetRequestPasswordResetResponses, PasswordResetVerifyPasswordResetTokenData, PasswordResetVerifyPasswordResetTokenErrors, PasswordResetVerifyPasswordResetTokenResponses, RecurringRulesCreateRecurringRuleData, RecurringRulesCreateRecurringRuleErrors, RecurringRulesCreateRecurringRuleResponses, RecurringRulesDeleteRecurringRuleData, RecurringRulesDeleteRecurringRuleErrors, RecurringRulesDeleteRecurringRuleResponses, RecurringRulesGetRecurringRuleData, RecurringRulesGetRecurringRuleErrors, RecurringRulesGetRecurringRuleResponses, RecurringRulesListRecurringRulesData, RecurringRulesListRecurringRulesErrors, RecurringRulesListRecurringRulesResponses, RecurringRulesListUpcomingOccurrencesData, RecurringRulesListUpcomingOccurrencesErrors, RecurringRulesListUpcomingOccurrencesResponses, RecurringRulesRunRecurringRulesData, RecurringRulesRunRecurringRulesErrors, RecurringRulesRunRecurringRulesResponses, RecurringRulesUpdateRecurringRuleData, RecurringRulesUpdateRecurringRuleErrors, RecurringRulesUpdateRecurringRuleResponses, ReportsBudgetProgressData, ReportsBudgetProgressErrors, ReportsBudgetProgressResponses, ReportsIncomeExpenseData, ReportsIncomeExpenseErrors, ReportsIncomeExpenseResponses, ReportsMonthSummaryData, ReportsMonthSummaryErrors, ReportsMonthSummaryResponses, ReportsSpendByCategoryData, ReportsSpendByCategoryErrors, ReportsSpendByCategoryResponses, ReportsSpendOverTimeData, ReportsSpendOverTimeErrors, ReportsSpendOverTimeResponses, TransactionsCreateTransactionData, TransactionsCreateTransactionErrors, TransactionsCreateTransactionResponses, TransactionsDeleteTransactionData, TransactionsDeleteTransactionErrors, TransactionsDeleteTransactionResponses, TransactionsGetTransactionData, TransactionsGetTransactionErrors, TransactionsGetTransactionResponses, TransactionsListTransactionsData, TransactionsListTransactionsErrors, TransactionsListTransactionsResponses, TransactionsUpdateTransactionData, TransactionsUpdateTransactionErrors, TransactionsUpdateTransactionResponses, UsersCreateUserData, UsersCreateUserErrors, UsersCreateUserResponses, UsersDeleteUserData, UsersDeleteUserErrors, UsersDeleteUserMeData, UsersDeleteUserMeResponses, UsersDeleteUserResponses, UsersGetUserByIdData, UsersGetUserByIdErrors, UsersGetUserByIdResponses, UsersGetUserMeData, UsersGetUserMeResponses, UsersGetUsersData, UsersGetUsersErrors, UsersGetUsersResponses, UsersRegisterUserData, UsersRegisterUserErrors, UsersRegisterUserResponses, UsersUpdatePasswordMeData, UsersUpdatePasswordMeErrors, UsersUpdatePasswordMeResponses, UsersUpdateUserData, UsersUpdateUserErrors, UsersUpdateUserMeData, UsersUpdateUserMeErrors, UsersUpdateUserMeResponses, UsersUpdateUserResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -1441,6 +1441,298 @@ export const goalsUpdateGoal = <ThrowOnError extends boolean = false>(options: O
 export const goalsGetGoalHistory = <ThrowOnError extends boolean = false>(options: Options<GoalsGetGoalHistoryData, ThrowOnError>): RequestResult<GoalsGetGoalHistoryResponses, GoalsGetGoalHistoryErrors, ThrowOnError> => (options.client ?? client).get<GoalsGetGoalHistoryResponses, GoalsGetGoalHistoryErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/goals/{goal_id}/history',
+    ...options
+});
+
+/**
+ * Get Bank Status
+ *
+ * Say whether bank sync is configured on this server.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * _household: The current household context, for authentication.
+ *
+ * Returns:
+ * Whether bank sync is on.
+ */
+export const bankGetBankStatus = <ThrowOnError extends boolean = false>(options?: Options<BankGetBankStatusData, ThrowOnError>): RequestResult<BankGetBankStatusResponses, unknown, ThrowOnError> => (options?.client ?? client).get<BankGetBankStatusResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/status',
+    ...options
+});
+
+/**
+ * List Aspsps
+ *
+ * List the banks that can be connected in a country.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * _household: The current household context, for authentication.
+ * country: The ISO 3166 two-letter country code.
+ *
+ * Returns:
+ * The banks.
+ *
+ * Raises:
+ * HTTPException: If bank sync is off (503) or the provider failed (502).
+ */
+export const bankListAspsps = <ThrowOnError extends boolean = false>(options: Options<BankListAspspsData, ThrowOnError>): RequestResult<BankListAspspsResponses, BankListAspspsErrors, ThrowOnError> => (options.client ?? client).get<BankListAspspsResponses, BankListAspspsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/aspsps',
+    ...options
+});
+
+/**
+ * List Bank Connections
+ *
+ * List the household's bank connections, with their accounts.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * household: The current household context.
+ *
+ * Returns:
+ * The active and expired connections.
+ */
+export const bankListBankConnections = <ThrowOnError extends boolean = false>(options?: Options<BankListBankConnectionsData, ThrowOnError>): RequestResult<BankListBankConnectionsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<BankListBankConnectionsResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/connections',
+    ...options
+});
+
+/**
+ * Start Bank Connection
+ *
+ * Start connecting a bank.
+ *
+ * A browser session only: the login happens at the bank, in a browser.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * household: The current household context.
+ * _session_user: The signed-in user, from a browser session.
+ * psu: The account holder at the browser.
+ * start_in: The bank to connect.
+ *
+ * Returns:
+ * Where to send the browser to log in.
+ *
+ * Raises:
+ * HTTPException: If the bank cannot be connected (400), bank sync is off
+ * (503), or the provider failed (502).
+ */
+export const bankStartBankConnection = <ThrowOnError extends boolean = false>(options: Options<BankStartBankConnectionData, ThrowOnError>): RequestResult<BankStartBankConnectionResponses, BankStartBankConnectionErrors, ThrowOnError> => (options.client ?? client).post<BankStartBankConnectionResponses, BankStartBankConnectionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/connections',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Complete Bank Connection
+ *
+ * Finish connecting a bank, with what the bank put in the redirect.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * household: The current household context.
+ * _session_user: The signed-in user, from a browser session.
+ * complete_in: The code and state from the redirect.
+ *
+ * Returns:
+ * The connection, with the accounts the login reached.
+ *
+ * Raises:
+ * HTTPException: If the login cannot be completed (400), bank sync is off
+ * (503), or the provider failed (502).
+ */
+export const bankCompleteBankConnection = <ThrowOnError extends boolean = false>(options: Options<BankCompleteBankConnectionData, ThrowOnError>): RequestResult<BankCompleteBankConnectionResponses, BankCompleteBankConnectionErrors, ThrowOnError> => (options.client ?? client).post<BankCompleteBankConnectionResponses, BankCompleteBankConnectionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/connections/complete',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Disconnect Bank
+ *
+ * Disconnect a bank.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * household: The current household context.
+ * _session_user: The signed-in user, from a browser session.
+ * connection_id: The ID of the connection.
+ *
+ * Returns:
+ * A confirmation message.
+ *
+ * Raises:
+ * HTTPException: If the connection does not exist (404), or the user
+ * neither connected it nor owns the household (403).
+ */
+export const bankDisconnectBank = <ThrowOnError extends boolean = false>(options: Options<BankDisconnectBankData, ThrowOnError>): RequestResult<BankDisconnectBankResponses, BankDisconnectBankErrors, ThrowOnError> => (options.client ?? client).delete<BankDisconnectBankResponses, BankDisconnectBankErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/connections/{connection_id}',
+    ...options
+});
+
+/**
+ * Sync Bank Connection
+ *
+ * Pull a connection's booked transactions into the inbox now.
+ *
+ * A browser session only. The bank is told the account holder is present,
+ * which keeps the pull out of its small daily budget for background pulls;
+ * that would be untrue of a call made with an API token.
+ *
+ * A failure at the bank is reported on the run rather than as an error, so
+ * rows fetched from the other accounts are still kept.
+ *
+ * Args:
+ * bank_sync_service: The bank sync service dependency.
+ * household: The current household context.
+ * _session_user: The signed-in user, from a browser session.
+ * psu: The account holder at the browser.
+ * connection_id: The ID of the connection.
+ *
+ * Returns:
+ * What the sync did.
+ *
+ * Raises:
+ * HTTPException: If the connection does not exist (404), or is not active (409).
+ */
+export const bankSyncBankConnection = <ThrowOnError extends boolean = false>(options: Options<BankSyncBankConnectionData, ThrowOnError>): RequestResult<BankSyncBankConnectionResponses, BankSyncBankConnectionErrors, ThrowOnError> => (options.client ?? client).post<BankSyncBankConnectionResponses, BankSyncBankConnectionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/connections/{connection_id}/sync',
+    ...options
+});
+
+/**
+ * Update Bank Account
+ *
+ * Link a bank account to an account, unlink it, or change how it imports.
+ *
+ * Args:
+ * bank_connection_service: The bank connection service dependency.
+ * household: The current household context.
+ * bank_account_id: The ID of the bank account.
+ * update_in: What to change. An `account_id` sent as null unlinks.
+ *
+ * Returns:
+ * The bank account.
+ *
+ * Raises:
+ * HTTPException: If the bank account or account does not exist (404),
+ * another bank account feeds the account (409), or the currencies or
+ * the start date do not fit (400).
+ */
+export const bankUpdateBankAccount = <ThrowOnError extends boolean = false>(options: Options<BankUpdateBankAccountData, ThrowOnError>): RequestResult<BankUpdateBankAccountResponses, BankUpdateBankAccountErrors, ThrowOnError> => (options.client ?? client).patch<BankUpdateBankAccountResponses, BankUpdateBankAccountErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/accounts/{bank_account_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Bank Inbox
+ *
+ * List what bank sync brought in, waiting or already reviewed.
+ *
+ * Args:
+ * bank_inbox_service: The bank inbox service dependency.
+ * household: The current household context.
+ * filters: Which review status, which bank account, and which page.
+ *
+ * Returns:
+ * A page of rows, newest first, and how many match in all.
+ */
+export const bankListBankInbox = <ThrowOnError extends boolean = false>(options?: Options<BankListBankInboxData, ThrowOnError>): RequestResult<BankListBankInboxResponses, BankListBankInboxErrors, ThrowOnError> => (options?.client ?? client).get<BankListBankInboxResponses, BankListBankInboxErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/inbox',
+    ...options
+});
+
+/**
+ * Accept Bank Transaction
+ *
+ * Record an inbox row in the ledger.
+ *
+ * Args:
+ * bank_inbox_service: The bank inbox service dependency.
+ * household: The current household context.
+ * bank_transaction_id: The ID of the bank transaction.
+ * accept_in: Whether it is spending, income or a transfer, and how to file it.
+ *
+ * Returns:
+ * The accepted row, linked to its ledger transaction.
+ *
+ * Raises:
+ * HTTPException: If the row does not exist (404), was already reviewed
+ * (409), or cannot be recorded that way (400).
+ */
+export const bankAcceptBankTransaction = <ThrowOnError extends boolean = false>(options: Options<BankAcceptBankTransactionData, ThrowOnError>): RequestResult<BankAcceptBankTransactionResponses, BankAcceptBankTransactionErrors, ThrowOnError> => (options.client ?? client).post<BankAcceptBankTransactionResponses, BankAcceptBankTransactionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/inbox/{bank_transaction_id}/accept',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Skip Bank Transaction
+ *
+ * Leave an inbox row out of the ledger.
+ *
+ * Args:
+ * bank_inbox_service: The bank inbox service dependency.
+ * household: The current household context.
+ * bank_transaction_id: The ID of the bank transaction.
+ *
+ * Returns:
+ * The skipped row.
+ *
+ * Raises:
+ * HTTPException: If the row does not exist (404) or was already reviewed (409).
+ */
+export const bankSkipBankTransaction = <ThrowOnError extends boolean = false>(options: Options<BankSkipBankTransactionData, ThrowOnError>): RequestResult<BankSkipBankTransactionResponses, BankSkipBankTransactionErrors, ThrowOnError> => (options.client ?? client).post<BankSkipBankTransactionResponses, BankSkipBankTransactionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/inbox/{bank_transaction_id}/skip',
+    ...options
+});
+
+/**
+ * Reopen Bank Transaction
+ *
+ * Put a skipped row back in the inbox.
+ *
+ * Args:
+ * bank_inbox_service: The bank inbox service dependency.
+ * household: The current household context.
+ * bank_transaction_id: The ID of the bank transaction.
+ *
+ * Returns:
+ * The row, waiting again.
+ *
+ * Raises:
+ * HTTPException: If the row does not exist (404) or was not skipped (409).
+ */
+export const bankReopenBankTransaction = <ThrowOnError extends boolean = false>(options: Options<BankReopenBankTransactionData, ThrowOnError>): RequestResult<BankReopenBankTransactionResponses, BankReopenBankTransactionErrors, ThrowOnError> => (options.client ?? client).post<BankReopenBankTransactionResponses, BankReopenBankTransactionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/bank/inbox/{bank_transaction_id}/reopen',
     ...options
 });
 

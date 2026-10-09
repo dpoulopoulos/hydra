@@ -265,6 +265,421 @@ export type ApiTokensPublic = {
 };
 
 /**
+ * AspspPublic
+ */
+export type AspspPublic = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Country
+     */
+    country: string;
+    /**
+     * Logo
+     */
+    logo?: string | null;
+};
+
+/**
+ * AspspsPublic
+ */
+export type AspspsPublic = {
+    /**
+     * Data
+     */
+    data: Array<AspspPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * BankAccountPublic
+ */
+export type BankAccountPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Connection Id
+     */
+    connection_id: string;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Iban
+     */
+    iban?: string | null;
+    /**
+     * Currency Code
+     */
+    currency_code?: string | null;
+    /**
+     * Account Id
+     */
+    account_id?: string | null;
+    /**
+     * Import From
+     */
+    import_from?: string | null;
+    /**
+     * Sync Enabled
+     */
+    sync_enabled: boolean;
+    /**
+     * Last Booked On
+     */
+    last_booked_on?: string | null;
+};
+
+/**
+ * BankAccountUpdate
+ */
+export type BankAccountUpdate = {
+    /**
+     * Account Id
+     */
+    account_id?: string | null;
+    /**
+     * Import From
+     */
+    import_from?: string | null;
+    /**
+     * Sync Enabled
+     */
+    sync_enabled?: boolean | null;
+};
+
+/**
+ * BankAuthorizationStarted
+ */
+export type BankAuthorizationStarted = {
+    /**
+     * Url
+     */
+    url: string;
+};
+
+/**
+ * BankConnectionComplete
+ */
+export type BankConnectionComplete = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * State
+     */
+    state: string;
+};
+
+/**
+ * BankConnectionPublic
+ */
+export type BankConnectionPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Aspsp Name
+     */
+    aspsp_name: string;
+    /**
+     * Aspsp Country
+     */
+    aspsp_country: string;
+    status: BankConnectionStatus;
+    /**
+     * Valid Until
+     */
+    valid_until?: string | null;
+    /**
+     * Authorized At
+     */
+    authorized_at?: string | null;
+    /**
+     * Last Synced At
+     */
+    last_synced_at?: string | null;
+    /**
+     * Last Sync Error
+     */
+    last_sync_error?: string | null;
+    /**
+     * Created By User Id
+     */
+    created_by_user_id?: string | null;
+    /**
+     * Accounts
+     */
+    accounts: Array<BankAccountPublic>;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * BankConnectionStart
+ */
+export type BankConnectionStart = {
+    /**
+     * Aspsp Name
+     */
+    aspsp_name: string;
+    /**
+     * Aspsp Country
+     */
+    aspsp_country: string;
+};
+
+/**
+ * BankConnectionStatus
+ */
+export const BankConnectionStatus = {
+    PENDING: 'pending',
+    ACTIVE: 'active',
+    EXPIRED: 'expired',
+    REVOKED: 'revoked',
+    FAILED: 'failed'
+} as const;
+
+/**
+ * BankConnectionStatus
+ */
+export type BankConnectionStatus = typeof BankConnectionStatus[keyof typeof BankConnectionStatus];
+
+/**
+ * BankConnectionsPublic
+ */
+export type BankConnectionsPublic = {
+    /**
+     * Data
+     */
+    data: Array<BankConnectionPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * BankDirection
+ */
+export const BankDirection = { CREDIT: 'credit', DEBIT: 'debit' } as const;
+
+/**
+ * BankDirection
+ */
+export type BankDirection = typeof BankDirection[keyof typeof BankDirection];
+
+/**
+ * BankReviewStatus
+ */
+export const BankReviewStatus = {
+    PENDING: 'pending',
+    ACCEPTED: 'accepted',
+    SKIPPED: 'skipped'
+} as const;
+
+/**
+ * BankReviewStatus
+ */
+export type BankReviewStatus = typeof BankReviewStatus[keyof typeof BankReviewStatus];
+
+/**
+ * BankStatus
+ */
+export type BankStatus = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+};
+
+/**
+ * BankSyncRunPublic
+ */
+export type BankSyncRunPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Connection Id
+     */
+    connection_id: string;
+    trigger: BankSyncTrigger;
+    status: BankSyncStatus;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Finished At
+     */
+    finished_at?: string | null;
+    /**
+     * Fetched Count
+     */
+    fetched_count: number;
+    /**
+     * New Count
+     */
+    new_count: number;
+    /**
+     * Error
+     */
+    error?: string | null;
+};
+
+/**
+ * BankSyncStatus
+ */
+export const BankSyncStatus = {
+    RUNNING: 'running',
+    SUCCEEDED: 'succeeded',
+    FAILED: 'failed'
+} as const;
+
+/**
+ * BankSyncStatus
+ */
+export type BankSyncStatus = typeof BankSyncStatus[keyof typeof BankSyncStatus];
+
+/**
+ * BankSyncTrigger
+ */
+export const BankSyncTrigger = { MANUAL: 'manual', AUTO: 'auto' } as const;
+
+/**
+ * BankSyncTrigger
+ */
+export type BankSyncTrigger = typeof BankSyncTrigger[keyof typeof BankSyncTrigger];
+
+/**
+ * BankTransactionAccept
+ *
+ * How to record a bank transaction in the ledger.
+ *
+ * The amount, the date and the bank account's side are the bank's and are
+ * not chosen here.
+ */
+export type BankTransactionAccept = {
+    kind: TransactionKind;
+    /**
+     * Category Id
+     */
+    category_id?: string | null;
+    /**
+     * Counter Account Id
+     */
+    counter_account_id?: string | null;
+    /**
+     * Goal Id
+     */
+    goal_id?: string | null;
+    /**
+     * Merchant
+     */
+    merchant?: string | null;
+    /**
+     * Note
+     */
+    note?: string | null;
+};
+
+/**
+ * BankTransactionPublic
+ */
+export type BankTransactionPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Bank Account Id
+     */
+    bank_account_id: string;
+    /**
+     * Bank Account Name
+     */
+    bank_account_name?: string | null;
+    /**
+     * Account Id
+     */
+    account_id?: string | null;
+    direction: BankDirection;
+    /**
+     * Amount Minor
+     */
+    amount_minor: number;
+    /**
+     * Currency Code
+     */
+    currency_code: string;
+    /**
+     * Occurred On
+     */
+    occurred_on: string;
+    /**
+     * Value Date
+     */
+    value_date?: string | null;
+    /**
+     * Transaction Date
+     */
+    transaction_date?: string | null;
+    /**
+     * Counterparty Name
+     */
+    counterparty_name?: string | null;
+    /**
+     * Counterparty Iban
+     */
+    counterparty_iban?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    review_status: BankReviewStatus;
+    /**
+     * Ledger Transaction Id
+     */
+    ledger_transaction_id?: string | null;
+    /**
+     * Reviewed At
+     */
+    reviewed_at?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * BankTransactionsPublic
+ */
+export type BankTransactionsPublic = {
+    /**
+     * Data
+     */
+    data: Array<BankTransactionPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * Body_login-login_access_token
  */
 export type BodyLoginLoginAccessToken = {
@@ -5078,6 +5493,337 @@ export type GoalsGetGoalHistoryResponses = {
 };
 
 export type GoalsGetGoalHistoryResponse = GoalsGetGoalHistoryResponses[keyof GoalsGetGoalHistoryResponses];
+
+export type BankGetBankStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/bank/status';
+};
+
+export type BankGetBankStatusResponses = {
+    /**
+     * Successful Response
+     */
+    200: BankStatus;
+};
+
+export type BankGetBankStatusResponse = BankGetBankStatusResponses[keyof BankGetBankStatusResponses];
+
+export type BankListAspspsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Country
+         */
+        country: string;
+    };
+    url: '/api/v1/bank/aspsps';
+};
+
+export type BankListAspspsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BankListAspspsError = BankListAspspsErrors[keyof BankListAspspsErrors];
+
+export type BankListAspspsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AspspsPublic;
+};
+
+export type BankListAspspsResponse = BankListAspspsResponses[keyof BankListAspspsResponses];
+
+export type BankListBankConnectionsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/bank/connections';
+};
+
+export type BankListBankConnectionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: BankConnectionsPublic;
+};
+
+export type BankListBankConnectionsResponse = BankListBankConnectionsResponses[keyof BankListBankConnectionsResponses];
+
+export type BankStartBankConnectionData = {
+    body: BankConnectionStart;
+    path?: never;
+    query?: never;
+    url: '/api/v1/bank/connections';
+};
+
+export type BankStartBankConnectionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BankStartBankConnectionError = BankStartBankConnectionErrors[keyof BankStartBankConnectionErrors];
+
+export type BankStartBankConnectionResponses = {
+    /**
+     * Successful Response
+     */
+    200: BankAuthorizationStarted;
+};
+
+export type BankStartBankConnectionResponse = BankStartBankConnectionResponses[keyof BankStartBankConnectionResponses];
+
+export type BankCompleteBankConnectionData = {
+    body: BankConnectionComplete;
+    path?: never;
+    query?: never;
+    url: '/api/v1/bank/connections/complete';
+};
+
+export type BankCompleteBankConnectionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BankCompleteBankConnectionError = BankCompleteBankConnectionErrors[keyof BankCompleteBankConnectionErrors];
+
+export type BankCompleteBankConnectionResponses = {
+    /**
+     * Successful Response
+     */
+    200: BankConnectionPublic;
+};
+
+export type BankCompleteBankConnectionResponse = BankCompleteBankConnectionResponses[keyof BankCompleteBankConnectionResponses];
+
+export type BankDisconnectBankData = {
+    body?: never;
+    path: {
+        /**
+         * Connection Id
+         */
+        connection_id: string;
+    };
+    query?: never;
+    url: '/api/v1/bank/connections/{connection_id}';
+};
+
+export type BankDisconnectBankErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BankDisconnectBankError = BankDisconnectBankErrors[keyof BankDisconnectBankErrors];
+
+export type BankDisconnectBankResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type BankDisconnectBankResponse = BankDisconnectBankResponses[keyof BankDisconnectBankResponses];
+
+export type BankSyncBankConnectionData = {
+    body?: never;
+    path: {
+        /**
+         * Connection Id
+         */
+        connection_id: string;
+    };
+    query?: never;
+    url: '/api/v1/bank/connections/{connection_id}/sync';
+};
+
+export type BankSyncBankConnectionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BankSyncBankConnectionError = BankSyncBankConnectionErrors[keyof BankSyncBankConnectionErrors];
+
+export type BankSyncBankConnectionResponses = {
+    /**
+     * Successful Response
+     */
+    200: BankSyncRunPublic;
+};
+
+export type BankSyncBankConnectionResponse = BankSyncBankConnectionResponses[keyof BankSyncBankConnectionResponses];
+
+export type BankUpdateBankAccountData = {
+    body: BankAccountUpdate;
+    path: {
+        /**
+         * Bank Account Id
+         */
+        bank_account_id: string;
+    };
+    query?: never;
+    url: '/api/v1/bank/accounts/{bank_account_id}';
+};
+
+export type BankUpdateBankAccountErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BankUpdateBankAccountError = BankUpdateBankAccountErrors[keyof BankUpdateBankAccountErrors];
+
+export type BankUpdateBankAccountResponses = {
+    /**
+     * Successful Response
+     */
+    200: BankAccountPublic;
+};
+
+export type BankUpdateBankAccountResponse = BankUpdateBankAccountResponses[keyof BankUpdateBankAccountResponses];
+
+export type BankListBankInboxData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: BankReviewStatus;
+        /**
+         * Bank Account Id
+         */
+        bank_account_id?: string | null;
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/bank/inbox';
+};
+
+export type BankListBankInboxErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BankListBankInboxError = BankListBankInboxErrors[keyof BankListBankInboxErrors];
+
+export type BankListBankInboxResponses = {
+    /**
+     * Successful Response
+     */
+    200: BankTransactionsPublic;
+};
+
+export type BankListBankInboxResponse = BankListBankInboxResponses[keyof BankListBankInboxResponses];
+
+export type BankAcceptBankTransactionData = {
+    body: BankTransactionAccept;
+    path: {
+        /**
+         * Bank Transaction Id
+         */
+        bank_transaction_id: string;
+    };
+    query?: never;
+    url: '/api/v1/bank/inbox/{bank_transaction_id}/accept';
+};
+
+export type BankAcceptBankTransactionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BankAcceptBankTransactionError = BankAcceptBankTransactionErrors[keyof BankAcceptBankTransactionErrors];
+
+export type BankAcceptBankTransactionResponses = {
+    /**
+     * Successful Response
+     */
+    200: BankTransactionPublic;
+};
+
+export type BankAcceptBankTransactionResponse = BankAcceptBankTransactionResponses[keyof BankAcceptBankTransactionResponses];
+
+export type BankSkipBankTransactionData = {
+    body?: never;
+    path: {
+        /**
+         * Bank Transaction Id
+         */
+        bank_transaction_id: string;
+    };
+    query?: never;
+    url: '/api/v1/bank/inbox/{bank_transaction_id}/skip';
+};
+
+export type BankSkipBankTransactionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BankSkipBankTransactionError = BankSkipBankTransactionErrors[keyof BankSkipBankTransactionErrors];
+
+export type BankSkipBankTransactionResponses = {
+    /**
+     * Successful Response
+     */
+    200: BankTransactionPublic;
+};
+
+export type BankSkipBankTransactionResponse = BankSkipBankTransactionResponses[keyof BankSkipBankTransactionResponses];
+
+export type BankReopenBankTransactionData = {
+    body?: never;
+    path: {
+        /**
+         * Bank Transaction Id
+         */
+        bank_transaction_id: string;
+    };
+    query?: never;
+    url: '/api/v1/bank/inbox/{bank_transaction_id}/reopen';
+};
+
+export type BankReopenBankTransactionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BankReopenBankTransactionError = BankReopenBankTransactionErrors[keyof BankReopenBankTransactionErrors];
+
+export type BankReopenBankTransactionResponses = {
+    /**
+     * Successful Response
+     */
+    200: BankTransactionPublic;
+};
+
+export type BankReopenBankTransactionResponse = BankReopenBankTransactionResponses[keyof BankReopenBankTransactionResponses];
 
 export type RecurringRulesListRecurringRulesData = {
     body?: never;
