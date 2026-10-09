@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Query, status
 
-from app.api.deps import BankConnectionServiceDep, CurrentHousehold, PsuDep, SessionUser
+from app.api.deps import BankConnectionServiceDep, BankSyncServiceDep, CurrentHousehold, PsuDep, SessionUser
 from app.exceptions import (
     AspspNotFoundError,
     BankAccountAlreadyMappedError,
@@ -28,6 +28,8 @@ from app.models import (
     BankConnectionsPublic,
     BankConnectionStart,
     BankStatus,
+    BankSyncRunPublic,
+    BankSyncTrigger,
     Message,
 )
 
@@ -191,6 +193,45 @@ def disconnect_bank(
             neither connected it nor owns the household (403).
     """
     return bank_connection_service.disconnect(household=household, connection_id=connection_id)
+
+
+@router.post("/connections/{connection_id}/sync", response_model=BankSyncRunPublic)
+def sync_bank_connection(
+    *,
+    bank_sync_service: BankSyncServiceDep,
+    household: CurrentHousehold,
+    _session_user: SessionUser,
+    psu: PsuDep,
+    connection_id: uuid.UUID,
+) -> BankSyncRunPublic:
+    """Pull a connection's booked transactions into the inbox now.
+
+    A browser session only. The bank is told the account holder is present,
+    which keeps the pull out of its small daily budget for background pulls;
+    that would be untrue of a call made with an API token.
+
+    A failure at the bank is reported on the run rather than as an error, so
+    rows fetched from the other accounts are still kept.
+
+    Args:
+        bank_sync_service: The bank sync service dependency.
+        household: The current household context.
+        _session_user: The signed-in user, from a browser session.
+        psu: The account holder at the browser.
+        connection_id: The ID of the connection.
+
+    Returns:
+        What the sync did.
+
+    Raises:
+        HTTPException: If the connection does not exist (404), or is not active (409).
+    """
+    return bank_sync_service.sync(
+        household_id=household.household_id,
+        connection_id=connection_id,
+        trigger=BankSyncTrigger.MANUAL,
+        psu=psu,
+    )
 
 
 @router.patch("/accounts/{bank_account_id}", response_model=BankAccountPublic)

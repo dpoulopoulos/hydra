@@ -291,3 +291,15 @@ class BankConnectionPublic(SQLModel):
 class BankConnectionsPublic(SQLModel):
     data: list[BankConnectionPublic]
     count: int
+
+
+class BankSyncRunPublic(SQLModel):
+    id: uuid.UUID
+    connection_id: uuid.UUID
+    trigger: BankSyncTrigger
+    status: BankSyncStatus
+    started_at: datetime.datetime
+    finished_at: datetime.datetime | None = None
+    fetched_count: int
+    new_count: int
+    error: str | None = None

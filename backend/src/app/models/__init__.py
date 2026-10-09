@@ -37,6 +37,7 @@ from .bank import (
     BankReviewStatus,
     BankStatus,
     BankSyncRun,
+    BankSyncRunPublic,
     BankSyncStatus,
     BankSyncTrigger,
     BankTransaction,
@@ -233,6 +234,7 @@ class Message(SQLModel):
 
 
 __all__ = [
+    "BankSyncRunPublic",
     "AspspPublic",
     "AspspsPublic",
     "BankAccountPublic",

@@ -1,10 +1,12 @@
 import uuid
 from collections.abc import Sequence
+from typing import Any
 
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlmodel import Session, col, select
 
-from app.models import BankAccount, BankConnection, BankConnectionStatus
-from app.repositories.base import HouseholdScopedRepository
+from app.models import Account, BankAccount, BankConnection, BankConnectionStatus, BankSyncRun, BankTransaction
+from app.repositories.base import HouseholdScopedRepository, table_of
 
 # What the settings page lists. A pending login has not come back from the
 # bank yet, a failed one never will, and a revoked one was disconnected.
@@ -124,3 +126,78 @@ class BankAccountRepository(HouseholdScopedRepository[BankAccount]):
             .order_by(col(BankAccount.name), col(BankAccount.created_at))
         )
         return self.session.exec(statement).all()
+
+    def list_syncable(self, connection_id: uuid.UUID, household_id: uuid.UUID) -> Sequence[tuple[BankAccount, Account]]:
+        """List the bank accounts of a connection that a sync should fetch, with their Hydra accounts.
+
+        An account that is not linked, is switched off, or feeds an archived
+        account is left out: fetching it would spend a pull from the bank's
+        daily budget on rows with nowhere to go.
+
+        Args:
+            connection_id: The ID of the connection.
+            household_id: The ID of the household.
+
+        Returns:
+            Pairs of bank account and the Hydra account it feeds.
+        """
+        statement = (
+            select(BankAccount, Account)
+            .join(Account, col(BankAccount.account_id) == col(Account.id))
+            .where(
+                BankAccount.household_id == household_id,
+                BankAccount.connection_id == connection_id,
+                col(BankAccount.sync_enabled).is_(True),
+                col(Account.archived_at).is_(None),
+            )
+            .order_by(col(BankAccount.name))
+        )
+        return self.session.exec(statement).all()
+
+
+class BankSyncRunRepository(HouseholdScopedRepository[BankSyncRun]):
+    """Repository for BankSyncRun database operations."""
+
+    def __init__(self, session: Session) -> None:
+        """Initialize the bank sync run repository.
+
+        Args:
+            session: The database session.
+        """
+        super().__init__(session, BankSyncRun)
+
+
+class BankTransactionRepository(HouseholdScopedRepository[BankTransaction]):
+    """Repository for BankTransaction database operations."""
+
+    def __init__(self, session: Session) -> None:
+        """Initialize the bank transaction repository.
+
+        Args:
+            session: The database session.
+        """
+        super().__init__(session, BankTransaction)
+
+    def insert_new(self, rows: Sequence[dict[str, Any]]) -> int:
+        """Insert the rows not already held, recognised by bank account and dedupe key.
+
+        Every sync fetches days it has fetched before, so most rows of most
+        syncs are already here. Skipping them in the insert, rather than looking
+        them up first, also makes two syncs racing each other harmless.
+
+        Args:
+            rows: The column values of each row, with an id.
+
+        Returns:
+            How many rows were new.
+        """
+        if not rows:
+            return 0
+        table = table_of(BankTransaction)
+        statement = (
+            pg_insert(table)
+            .values(list(rows))
+            .on_conflict_do_nothing(constraint="uq_banktransaction_account_dedupe")
+            .returning(table.c.id)
+        )
+        return len(self.session.execute(statement).all())

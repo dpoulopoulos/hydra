@@ -30,6 +30,8 @@ from app.repositories import (
     ApiTokenRepository,
     BankAccountRepository,
     BankConnectionRepository,
+    BankSyncRunRepository,
+    BankTransactionRepository,
     BudgetRepository,
     CategoryRepository,
     EmailOutboxRepository,
@@ -71,6 +73,7 @@ from app.services import (
     TransactionService,
     UserService,
 )
+from app.services.bank_sync import BankSyncService
 from app.services.enable_banking import BankProvider, EnableBankingClient, NullBankProvider, Psu
 from app.services.prices import (
     EodhdProvider,
@@ -1206,6 +1209,37 @@ def get_bank_connection_service(
 
 
 BankConnectionServiceDep = Annotated[BankConnectionService, Depends(get_bank_connection_service)]
+
+
+def get_bank_sync_service(
+    session: SessionDep,
+    provider: BankProviderDep,
+    connection_repository: BankConnectionRepositoryDep,
+    bank_account_repository: BankAccountRepositoryDep,
+) -> BankSyncService:
+    """Get a bank sync service instance.
+
+    Args:
+        session: The database session.
+        provider: The configured source of bank data.
+        connection_repository: The bank connection repository instance.
+        bank_account_repository: The bank account repository instance.
+
+    Returns:
+        A bank sync service instance.
+    """
+    return BankSyncService(
+        session=session,
+        provider=provider,
+        connection_repository=connection_repository,
+        bank_account_repository=bank_account_repository,
+        sync_run_repository=BankSyncRunRepository(session),
+        bank_transaction_repository=BankTransactionRepository(session),
+        overlap_days=settings.BANK_SYNC_OVERLAP_DAYS,
+    )
+
+
+BankSyncServiceDep = Annotated[BankSyncService, Depends(get_bank_sync_service)]
 
 
 def get_psu(request: Request, source_address: SourceAddressDep) -> Psu | None:

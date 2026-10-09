@@ -1,6 +1,11 @@
 from app.repositories.account import AccountRepository
 from app.repositories.api_token import ApiTokenRepository
-from app.repositories.bank import BankAccountRepository, BankConnectionRepository
+from app.repositories.bank import (
+    BankAccountRepository,
+    BankConnectionRepository,
+    BankSyncRunRepository,
+    BankTransactionRepository,
+)
 from app.repositories.base import BaseRepository, HouseholdScopedRepository
 from app.repositories.budget import BudgetRepository
 from app.repositories.category import CategoryRepository
@@ -32,6 +37,8 @@ from app.repositories.user import UserRepository
 __all__ = [
     "BankAccountRepository",
     "BankConnectionRepository",
+    "BankSyncRunRepository",
+    "BankTransactionRepository",
     "ApiTokenRepository",
     "IncomeClientRepository",
     "IncomeSessionRepository",
