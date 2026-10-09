@@ -52,6 +52,9 @@ const appRoutes: RouteObject[] = [
   { path: '/settings/profile', lazy: () => import('@/pages/settings/profile') },
   { path: '/settings/api-tokens', lazy: () => import('@/pages/settings/api-tokens') },
   { path: '/settings/bank', lazy: () => import('@/pages/settings/bank') },
+  // Where the bank sends the browser back after its login. Inside the gate,
+  // which keeps the query string through a sign-in if the session ran out.
+  { path: '/settings/bank/callback', lazy: () => import('@/pages/settings/bank-callback') },
   { path: '/settings/users', lazy: () => import('@/pages/settings/users') },
 ]
 
