@@ -264,6 +264,26 @@ class TestCreateSession:
         assert session.accounts[1].iban is None
         assert session.accounts[1].currency is None
 
+    def test_an_account_is_named_by_what_it_is_not_who_holds_it(self, key_pair: tuple[str, rsa.RSAPublicKey]) -> None:
+        """Test that the description wins over the holder's name, and the name is the last resort."""
+        client = make_client(
+            key_pair[0],
+            lambda r: answer(
+                {
+                    "session_id": "s",
+                    "accounts": [
+                        {"uid": "1", "name": "Ida Jensen", "details": "Danske Konto        "},
+                        {"uid": "2", "name": "Ida Jensen", "details": " ", "product": "Savings"},
+                        {"uid": "3", "name": "Ida Jensen"},
+                    ],
+                }
+            ),
+        )
+
+        names = [a.name for a in client.create_session("c").accounts]
+
+        assert names == ["Danske Konto", "Savings", "Ida Jensen"]
+
     def test_a_naive_expiry_is_read_as_utc(self, key_pair: tuple[str, rsa.RSAPublicKey]) -> None:
         """Test that an expiry without a zone is not compared against aware times as naive."""
         client = make_client(

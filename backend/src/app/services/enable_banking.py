@@ -520,7 +520,7 @@ class EnableBankingClient:
                     uid=str(item["uid"]),
                     identification_hash=_str_or_none(item.get("identification_hash")),
                     iban=_str_or_none(iban),
-                    name=_str_or_none(item.get("name")),
+                    name=_account_name(item),
                     currency=_str_or_none(item.get("currency")),
                 )
             )
@@ -595,6 +595,26 @@ def _raise_for_error(response: httpx.Response) -> NoReturn:
     if response.status_code in (httpx.codes.UNAUTHORIZED, httpx.codes.FORBIDDEN) and code is None:
         raise BankProviderError("it refused the application. Check ENABLE_BANKING_APP_ID and the key.")
     raise BankProviderError(message or f"it answered {response.status_code}.", code)
+
+
+def _account_name(item: dict[str, Any]) -> str | None:
+    """Pick what to call an account.
+
+    Banks put the account holder's name in `name` and what the account is in
+    `details` or `product`, so two accounts of one person would otherwise
+    both be called after them.
+
+    Args:
+        item: The account as a session listed it.
+
+    Returns:
+        The account's description, else its product, else the name it was given.
+    """
+    for key in ("details", "product", "name"):
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()[:255]
+    return None
 
 
 def _list(payload: Any, key: str) -> list[Any]:
