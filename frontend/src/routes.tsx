@@ -51,6 +51,7 @@ const appRoutes: RouteObject[] = [
   { path: '/settings/household', lazy: () => import('@/pages/settings/household') },
   { path: '/settings/profile', lazy: () => import('@/pages/settings/profile') },
   { path: '/settings/api-tokens', lazy: () => import('@/pages/settings/api-tokens') },
+  { path: '/settings/bank', lazy: () => import('@/pages/settings/bank') },
   { path: '/settings/users', lazy: () => import('@/pages/settings/users') },
 ]
 
