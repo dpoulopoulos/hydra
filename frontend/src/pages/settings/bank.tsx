@@ -388,6 +388,11 @@ function ConnectionCard({
                 ))}
               </TableBody>
             </Table>
+            <p className="text-muted-foreground mt-3 text-sm">
+              Nothing booked before the import date comes in. It cannot be earlier than the opening
+              date of the account it goes into, whose opening balance already counts what came
+              before.
+            </p>
           </div>
         )}
       </CardContent>
@@ -439,7 +444,15 @@ function BankAccountRow({
       if (error || !data) throw error ?? new Error('Could not save the change.')
       return data
     },
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['bank', 'connections'] }),
+    onSuccess: (_, body) => {
+      void queryClient.invalidateQueries({ queryKey: ['bank', 'connections'] })
+      if (!body.account_id) return
+      // Linking can give the account the bank's IBAN.
+      void queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      // Linking fetches nothing by itself, and an empty inbox with no word
+      // of why looks like a sync that failed.
+      toast.success('Linked. Click Sync now to bring in its transactions.')
+    },
     onError: (error) => toast.error(errorMessage(error)),
   })
 
