@@ -4,7 +4,7 @@ from typing import Annotated, Any
 from mcp.server import MCPServer
 from pydantic import Field
 
-from ..money import money, signed_money
+from ..money import exponent_of, money, signed_money
 from ._common import READ_ONLY, current_token, hydra
 
 # Quantities and prices are stored as millionths, the way money is stored as
@@ -76,7 +76,7 @@ def _position(position: dict[str, Any], currency: str) -> dict[str, Any]:
         "name": position.get("name"),
         "quantity": _from_micro(position["quantity_micro"]),
         "currency": position["currency_code"],
-        "last_price": _from_micro(position.get("last_price_micro")),
+        "last_price": _price(position.get("last_price_micro"), position["currency_code"]),
         "last_price_at": position.get("last_price_at"),
         # A hand-entered price is only as fresh as whoever typed it.
         "price_is_manual": position.get("last_price_is_manual", False),
@@ -89,10 +89,10 @@ def _position(position: dict[str, Any], currency: str) -> dict[str, Any]:
 
 
 def _from_micro(value: int | None) -> str | None:
-    """Render a quantity or price held as millionths.
+    """Render a quantity held as millionths.
 
     Args:
-        value: The stored integer, or None when there is no price.
+        value: The stored integer, or None.
 
     Returns:
         The number as text, with trailing zeroes trimmed, or None.
@@ -101,4 +101,21 @@ def _from_micro(value: int | None) -> str | None:
         return None
 
     exact = (Decimal(value) / MICRO).normalize()
+    return f"{exact:f}"
+
+
+def _price(value: int | None, currency_code: str) -> str | None:
+    """Render a unit price, which is held as millionths of a minor unit.
+
+    Args:
+        value: The stored integer, or None when there is no price.
+        currency_code: The instrument's currency.
+
+    Returns:
+        The price in major units, with trailing zeroes trimmed, or None.
+    """
+    if value is None:
+        return None
+
+    exact = (Decimal(value) / MICRO).scaleb(-exponent_of(currency_code)).normalize()
     return f"{exact:f}"
