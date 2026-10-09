@@ -260,6 +260,38 @@ household, whoever they were.
 Last, prove the email works: sign out, use **Forgot password**, and check that the message arrives. That exercises
 Resend, the from-address, and the links, which are the three things most likely to be misconfigured.
 
+## Step 10 — connect banks (optional)
+
+Skip this if you do not want bank sync. Without it, **Settings → Banks** says bank sync is off, the sidebar has no
+inbox, and nothing else changes.
+
+Bank sync goes through [Enable Banking](https://enablebanking.com), which reaches European banks over the PSD2 APIs
+they must offer. hydra only reads: it can never move money. Its free "restricted" mode reads only accounts you have
+linked to the app yourself, which is what a household needs.
+
+1. In the [control panel](https://enablebanking.com/cp/applications), register an application in the **Production**
+   environment. Set its redirect URL to `https://YOUR-DOMAIN/settings/bank/callback`, exactly: the backend builds
+   the same URL from `FRONTEND_HOST`, and the bank refuses one that does not match. Let the browser generate the key,
+   and keep the `.pem` file it downloads somewhere safe.
+2. Activate the application by linking your own accounts, as the control panel asks.
+3. Give the backend the application ID and the key. The key is the file's *content*, since Railway holds no files.
+   Read it from the file, so it never lands in your shell history or on screen:
+
+   ```bash
+   railway variable set --service backend ENABLE_BANKING_APP_ID='your-application-id'
+   railway variable set --service backend ENABLE_BANKING_PRIVATE_KEY --stdin < path/to/key.pem
+   ```
+
+   `.railway/railway.ts` lists both as `preserve()`, like the secrets in step 6. Set both or neither: with one alone,
+   or a key that does not parse, the backend refuses to start.
+4. Check that `TRUSTED_PROXY_HOPS` is set (`railway config plan` lists it if not). A sync started from the browser
+   tells the bank the account holder's address, and the bank does not count it against the four or so syncs a day it
+   allows without them. Without the setting, the backend sees the proxy's address instead of yours.
+
+Then open **Settings → Banks**, connect your bank, link each of its accounts to a hydra account, and press
+**Sync now**. New transactions wait in the **Inbox** for you to accept or skip. Each connection also syncs once a
+day on its own, and asks you to log in again after about six months.
+
 ---
 
 ## Day to day
