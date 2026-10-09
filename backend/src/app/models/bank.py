@@ -139,6 +139,10 @@ class BankAccount(PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, SQLModel, tab
     # of the opening balance.
     import_from: datetime.date | None = Field(default=None, sa_type=Date)
     sync_enabled: bool = Field(default=True)
+    # Whether this bank labels money in and out the wrong way round, as some
+    # do for a card: from their side, a purchase adds to what is owed. Every
+    # row of the account is stored with its direction turned around.
+    flip_direction: bool = Field(default=False)
     # The latest booking date imported, which is where the next sync starts,
     # less an overlap.
     last_booked_on: datetime.date | None = Field(default=None, sa_type=Date)
@@ -262,6 +266,7 @@ class BankAccountUpdate(SQLModel):
     account_id: uuid.UUID | None = Field(default=None)
     import_from: datetime.date | None = Field(default=None)
     sync_enabled: bool | None = Field(default=None)
+    flip_direction: bool | None = Field(default=None)
 
 
 class BankAccountPublic(SQLModel):
@@ -273,6 +278,7 @@ class BankAccountPublic(SQLModel):
     account_id: uuid.UUID | None = None
     import_from: datetime.date | None = None
     sync_enabled: bool
+    flip_direction: bool
     last_booked_on: datetime.date | None = None
 
 

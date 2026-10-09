@@ -14,7 +14,12 @@ from app.models import (
     BankConnectionStatus,
     HouseholdContext,
 )
-from app.repositories import AccountRepository, BankAccountRepository, BankConnectionRepository
+from app.repositories import (
+    AccountRepository,
+    BankAccountRepository,
+    BankConnectionRepository,
+    BankTransactionRepository,
+)
 from app.services import BankConnectionService
 from app.services.enable_banking import Aspsp, Authorization, BankSession, SessionAccount
 from tests.integration.conftest import make_account
@@ -38,6 +43,7 @@ def service(db_session: Session, provider: MagicMock) -> BankConnectionService:
         connection_repository=BankConnectionRepository(db_session),
         bank_account_repository=BankAccountRepository(db_session),
         account_repository=AccountRepository(db_session),
+        bank_transaction_repository=BankTransactionRepository(db_session),
         redirect_url="http://localhost:5173/settings/bank/callback",
         consent_days=180,
         pending_ttl_minutes=60,

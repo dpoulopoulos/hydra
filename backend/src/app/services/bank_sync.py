@@ -459,7 +459,9 @@ def _row_values(run: BankSyncRun, bank_account: BankAccount, row: MappedRow, ded
         "bank_account_id": bank_account.id,
         "sync_run_id": run.id,
         "dedupe_key": dedupe_key,
-        "direction": row.direction,
+        # The key above was made from the bank's own direction, so flipping
+        # an account later still recognises every row it already holds.
+        "direction": _flipped(row.direction) if bank_account.flip_direction else row.direction,
         "amount_minor": row.amount_minor,
         "currency_code": row.currency_code,
         "occurred_on": row.occurred_on,
@@ -472,6 +474,10 @@ def _row_values(run: BankSyncRun, bank_account: BankAccount, row: MappedRow, ded
         "raw": row.raw,
         "review_status": BankReviewStatus.PENDING,
     }
+
+
+def _flipped(direction: BankDirection) -> BankDirection:
+    return BankDirection.DEBIT if direction == BankDirection.CREDIT else BankDirection.CREDIT
 
 
 def _text(value: Any, max_length: int) -> str | None:

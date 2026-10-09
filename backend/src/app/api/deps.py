@@ -1203,6 +1203,7 @@ def get_bank_connection_service(
         connection_repository=connection_repository,
         bank_account_repository=bank_account_repository,
         account_repository=account_repository,
+        bank_transaction_repository=BankTransactionRepository(session),
         redirect_url=settings.bank_redirect_url,
         consent_days=settings.BANK_CONSENT_DAYS,
         pending_ttl_minutes=settings.BANK_PENDING_CONNECTION_TTL_MINUTES,

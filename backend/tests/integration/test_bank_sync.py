@@ -11,12 +11,13 @@ from app.models import (
     BankAccount,
     BankConnection,
     BankConnectionStatus,
+    BankDirection,
     BankReviewStatus,
     BankSyncTrigger,
     BankTransaction,
     HouseholdContext,
 )
-from app.repositories import BankConnectionRepository
+from app.repositories import BankConnectionRepository, BankTransactionRepository
 from app.services.bank_sync import BankSyncService
 from tests.integration.conftest import make_account
 
@@ -89,6 +90,32 @@ def test_overlapping_syncs_add_each_row_once(db_session: Session, household_a: H
     assert all(row.raw is not None for row in rows)
     db_session.refresh(bank_account)
     assert bank_account.last_booked_on == TODAY
+
+
+def test_a_flipped_account_turns_rows_around_and_still_recognises_them(
+    db_session: Session, household_a: HouseholdContext
+) -> None:
+    """Test that flipping turns around stored and new rows, and a refetch adds no copies."""
+    connection, bank_account = seed(db_session, household_a)
+    provider = MagicMock()
+    service = BankSyncService.for_session(db_session, provider, overlap_days=10)
+    # A card that labels a purchase as money in. One row has no reference, so
+    # it is known only by its fingerprint.
+    purchases = [booked(None, 3, credit_debit_indicator="CRDT"), booked("r-1", 2, credit_debit_indicator="CRDT")]
+    provider.transactions.return_value = iter(purchases)
+    service.sync(household_a.household_id, connection.id, BankSyncTrigger.MANUAL, None)
+
+    bank_account.flip_direction = True
+    flipped = BankTransactionRepository(db_session).flip_directions(bank_account.id, household_a.household_id)
+    provider.transactions.return_value = iter([*purchases, booked("r-2", 0, credit_debit_indicator="CRDT")])
+    again = service.sync(household_a.household_id, connection.id, BankSyncTrigger.MANUAL, None)
+
+    assert flipped == 2
+    assert again.new_count == 1
+    db_session.expire_all()
+    rows = inbox(db_session, household_a)
+    assert len(rows) == 3
+    assert all(row.direction == BankDirection.DEBIT for row in rows)
 
 
 def test_the_second_sync_starts_from_the_last_booked_day_less_the_overlap(

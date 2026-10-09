@@ -41,7 +41,7 @@ from app.models import (
 )
 from app.models.fields import Iban
 from app.repositories.account import AccountRepository
-from app.repositories.bank import BankAccountRepository, BankConnectionRepository
+from app.repositories.bank import BankAccountRepository, BankConnectionRepository, BankTransactionRepository
 from app.services.enable_banking import BankProvider, BankSession, Psu, SessionAccount
 
 # How far back a newly linked account imports by default. Further back than a
@@ -131,6 +131,7 @@ class BankConnectionService:
         connection_repository: BankConnectionRepository,
         bank_account_repository: BankAccountRepository,
         account_repository: AccountRepository,
+        bank_transaction_repository: BankTransactionRepository,
         redirect_url: str,
         consent_days: int,
         pending_ttl_minutes: int,
@@ -144,6 +145,7 @@ class BankConnectionService:
             connection_repository: The bank connection repository instance.
             bank_account_repository: The bank account repository instance.
             account_repository: The account repository instance.
+            bank_transaction_repository: The bank transaction repository instance.
             redirect_url: Where the bank sends the browser back to.
             consent_days: How long a login is asked to last.
             pending_ttl_minutes: How long the trip to the bank may take.
@@ -154,6 +156,7 @@ class BankConnectionService:
         self.connection_repository = connection_repository
         self.bank_account_repository = bank_account_repository
         self.account_repository = account_repository
+        self.bank_transaction_repository = bank_transaction_repository
         self.redirect_url = redirect_url
         self.consent_days = consent_days
         self.pending_ttl = datetime.timedelta(minutes=pending_ttl_minutes)
@@ -305,6 +308,9 @@ class BankConnectionService:
         """Link a bank account to a Hydra account, unlink it, or change how it imports.
 
         Linking gives the Hydra account the bank's IBAN when it has none.
+        Flipping the direction turns around every row already imported from
+        the account, in the inbox and out of it. A ledger row an accepted one
+        became stays as it was recorded.
 
         Args:
             household: The household context.
@@ -362,6 +368,14 @@ class BankConnectionService:
 
         if "sync_enabled" in fields and update.sync_enabled is not None:
             bank_account.sync_enabled = update.sync_enabled
+
+        if (
+            "flip_direction" in fields
+            and update.flip_direction is not None
+            and update.flip_direction != bank_account.flip_direction
+        ):
+            bank_account.flip_direction = update.flip_direction
+            self.bank_transaction_repository.flip_directions(bank_account.id, household.household_id)
 
         self.bank_account_repository.save(bank_account)
         self.session.commit()

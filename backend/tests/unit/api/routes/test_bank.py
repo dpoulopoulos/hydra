@@ -60,7 +60,9 @@ BANK_ACCOUNT_ID = uuid.UUID("99999999-9999-9999-9999-999999999999")
 
 
 def make_bank_account() -> BankAccountPublic:
-    return BankAccountPublic(id=BANK_ACCOUNT_ID, connection_id=CONNECTION_ID, name="Main", sync_enabled=True)
+    return BankAccountPublic(
+        id=BANK_ACCOUNT_ID, connection_id=CONNECTION_ID, name="Main", sync_enabled=True, flip_direction=False
+    )
 
 
 def make_connection() -> BankConnectionPublic:

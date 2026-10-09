@@ -56,6 +56,7 @@ def service(mock_db_session: MagicMock, provider: MagicMock) -> BankConnectionSe
         connection_repository=MagicMock(),
         bank_account_repository=MagicMock(),
         account_repository=MagicMock(),
+        bank_transaction_repository=MagicMock(),
         redirect_url="http://localhost:5173/settings/bank/callback",
         consent_days=180,
         pending_ttl_minutes=60,
@@ -412,6 +413,30 @@ class TestUpdateBankAccount:
 
         assert bank_account.account_id == linked
         assert bank_account.sync_enabled is False
+
+    def test_flipping_turns_around_what_was_imported(
+        self, service: BankConnectionService, household_context: HouseholdContext
+    ) -> None:
+        bank_account = make_bank_account()
+        service.bank_account_repository.get_for_household.return_value = bank_account
+
+        result = service.update_bank_account(household_context, bank_account.id, BankAccountUpdate(flip_direction=True))
+
+        assert result.flip_direction is True
+        service.bank_transaction_repository.flip_directions.assert_called_once_with(
+            bank_account.id, household_context.household_id
+        )
+
+    def test_flipping_to_the_same_setting_turns_nothing_around(
+        self, service: BankConnectionService, household_context: HouseholdContext
+    ) -> None:
+        bank_account = make_bank_account(flip_direction=True)
+        service.bank_account_repository.get_for_household.return_value = bank_account
+
+        service.update_bank_account(household_context, bank_account.id, BankAccountUpdate(flip_direction=True))
+        service.update_bank_account(household_context, bank_account.id, BankAccountUpdate(sync_enabled=False))
+
+        service.bank_transaction_repository.flip_directions.assert_not_called()
 
     def test_an_explicit_import_date_is_checked_and_kept(
         self, service: BankConnectionService, household_context: HouseholdContext

@@ -3,6 +3,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
+from sqlalchemy import case, cast, literal
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlmodel import Session, col, delete, func, select, update
 
@@ -11,6 +12,7 @@ from app.models import (
     BankAccount,
     BankConnection,
     BankConnectionStatus,
+    BankDirection,
     BankInboxFilters,
     BankSyncRun,
     BankTransaction,
@@ -310,6 +312,37 @@ class BankTransactionRepository(HouseholdScopedRepository[BankTransaction]):
             filters.limit,
         )
         return self.session.exec(statement).all(), int(count)
+
+    def flip_directions(self, bank_account_id: uuid.UUID, household_id: uuid.UUID) -> int:
+        """Turn around the direction of every row of a bank account.
+
+        Args:
+            bank_account_id: The ID of the bank account.
+            household_id: The ID of the household.
+
+        Returns:
+            The number of rows turned around.
+        """
+        direction = table_of(BankTransaction).c.direction
+        statement = (
+            update(BankTransaction)
+            .where(
+                col(BankTransaction.bank_account_id) == bank_account_id,
+                col(BankTransaction.household_id) == household_id,
+            )
+            .values(
+                # Typed, so each value is written as the column stores it, and
+                # cast, since the database reads a CASE of parameters as text.
+                direction=cast(
+                    case(
+                        (direction == BankDirection.CREDIT, literal(BankDirection.DEBIT, direction.type)),
+                        else_=literal(BankDirection.CREDIT, direction.type),
+                    ),
+                    direction.type,
+                )
+            )
+        )
+        return int(self.session.execute(statement).rowcount)  # type: ignore[attr-defined]
 
     def clear_raw(self, created_before: datetime.datetime) -> int:
         """Clear what the bank sent for rows stored before a moment, in any household.
