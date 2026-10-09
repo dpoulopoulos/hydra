@@ -1,9 +1,10 @@
+import datetime
 import uuid
 from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlmodel import Session, col, func, select
+from sqlmodel import Session, col, delete, func, select, update
 
 from app.models import (
     Account,
@@ -71,6 +72,56 @@ class BankConnectionRepository(HouseholdScopedRepository[BankConnection]):
             .order_by(col(BankConnection.created_at).desc())
         )
         return self.session.exec(statement).all()
+
+    def claim_due(self, now: datetime.datetime, interval: datetime.timedelta) -> BankConnection | None:
+        """Claim one connection whose automatic sync is due, in any household.
+
+        The claim moves its next sync a whole interval on before any bank is
+        called, so the caller commits it first: a sync that then crashes waits
+        for its next turn rather than hammering the bank, and two replicas
+        never claim the same connection.
+
+        Args:
+            now: The current moment.
+            interval: How long until the connection is due again.
+
+        Returns:
+            The claimed connection, or None if nothing is due.
+        """
+        statement = (
+            select(BankConnection)
+            .where(
+                BankConnection.status == BankConnectionStatus.ACTIVE,
+                col(BankConnection.next_auto_sync_at) <= now,
+            )
+            .order_by(col(BankConnection.next_auto_sync_at))
+            .limit(1)
+            .with_for_update(skip_locked=True)
+        )
+        connection = self.session.exec(statement).first()
+        if connection is None:
+            return None
+        connection.next_auto_sync_at = now + interval
+        self.session.add(connection)
+        self.session.flush()
+        return connection
+
+    def delete_abandoned(self, created_before: datetime.datetime) -> int:
+        """Remove logins that never came back from the bank, or failed, in any household.
+
+        Such a row has no accounts under it, and keeps only its state token.
+
+        Args:
+            created_before: Rows started before this moment go.
+
+        Returns:
+            The number of rows removed.
+        """
+        statement = delete(BankConnection).where(
+            col(BankConnection.status).in_((BankConnectionStatus.PENDING, BankConnectionStatus.FAILED)),
+            col(BankConnection.created_at) < created_before,
+        )
+        return int(self.session.execute(statement).rowcount)  # type: ignore[attr-defined]
 
 
 class BankAccountRepository(HouseholdScopedRepository[BankAccount]):
@@ -259,3 +310,22 @@ class BankTransactionRepository(HouseholdScopedRepository[BankTransaction]):
             filters.limit,
         )
         return self.session.exec(statement).all(), int(count)
+
+    def clear_raw(self, created_before: datetime.datetime) -> int:
+        """Clear what the bank sent for rows stored before a moment, in any household.
+
+        The dedupe key and the columns the inbox shows stay; the names,
+        account numbers and text of the whole bank row go.
+
+        Args:
+            created_before: Rows stored before this moment are cleared.
+
+        Returns:
+            The number of rows cleared.
+        """
+        statement = (
+            update(BankTransaction)
+            .where(col(BankTransaction.raw).is_not(None), col(BankTransaction.created_at) < created_before)
+            .values(raw=None)
+        )
+        return int(self.session.execute(statement).rowcount)  # type: ignore[attr-defined]

@@ -326,6 +326,15 @@ class BankSyncService:
             raise BankConnectionInactiveError from None
 
         now = datetime.datetime.now(datetime.UTC)
+        if connection.valid_until is not None and connection.valid_until <= now:
+            # Past the end of the login, the bank would only refuse. Saying so
+            # without asking spends none of its daily budget.
+            connection.status = BankConnectionStatus.EXPIRED
+            connection.next_auto_sync_at = None
+            self.connection_repository.save(connection)
+            self.session.commit()
+            raise BankConnectionInactiveError from None
+
         run = BankSyncRun(
             household_id=household_id,
             connection_id=connection.id,
@@ -359,6 +368,49 @@ class BankSyncService:
         self.connection_repository.save(connection)
         self.session.commit()
         return BankSyncRunPublic.model_validate(run, from_attributes=True)
+
+    def sync_due(self, now: datetime.datetime, interval: datetime.timedelta, limit: int) -> int:
+        """Run the automatic sync of each connection that came due, in any household.
+
+        Args:
+            now: The current moment.
+            interval: How long until a synced connection is due again.
+            limit: The most connections to sync in this round. The rest wait
+                for the next round.
+
+        Returns:
+            The number of connections synced.
+        """
+        synced = 0
+        for _ in range(limit):
+            connection = self.connection_repository.claim_due(now, interval)
+            if connection is None:
+                break
+            household_id, connection_id = connection.household_id, connection.id
+            # Committed before the bank is called. See claim_due.
+            self.session.commit()
+            try:
+                self.sync(household_id, connection_id, BankSyncTrigger.AUTO, psu=None)
+            except BankConnectionInactiveError:
+                continue
+            synced += 1
+        return synced
+
+    def prune(self, now: datetime.datetime, pending_ttl: datetime.timedelta, raw_retention: datetime.timedelta) -> int:
+        """Remove abandoned logins and clear old bank data, in every household.
+
+        Args:
+            now: The current moment.
+            pending_ttl: How long a started login may take before it is abandoned.
+            raw_retention: How long what the bank sent for a row is kept.
+
+        Returns:
+            The number of rows removed or cleared.
+        """
+        removed = self.connection_repository.delete_abandoned(now - pending_ttl)
+        cleared = self.bank_transaction_repository.clear_raw(now - raw_retention)
+        self.session.commit()
+        return removed + cleared
 
     def _sync_account(
         self, run: BankSyncRun, bank_account: BankAccount, account: Account, today: datetime.date, psu: Psu | None

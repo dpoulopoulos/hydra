@@ -1,4 +1,5 @@
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import cast
 
@@ -27,6 +28,7 @@ from app.api.routes.recurring_rules import recurring_rule_exception_mappings
 from app.api.routes.reports import report_exception_mappings
 from app.api.routes.transactions import transaction_exception_mappings
 from app.api.routes.users import user_exception_mappings
+from app.core.bank_sync_scheduler import bank_sync_lifespan
 from app.core.config import settings
 from app.core.email_dispatcher import email_dispatcher_lifespan
 from app.exceptions import ServiceError
@@ -75,13 +77,28 @@ def create_error_handler(
     return handler
 
 
+@asynccontextmanager
+async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    """Run the background jobs that live as long as the application.
+
+    Queued mail is retried and settled mail pruned, and connected banks are
+    synced once a day.
+
+    Args:
+        application: The application being started.
+
+    Yields:
+        Nothing; the application runs inside the context.
+    """
+    async with email_dispatcher_lifespan(application), bank_sync_lifespan(application):
+        yield
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     generate_unique_id_function=custom_generate_unique_id,
-    # Queued mail is retried, and settled mail pruned, by tasks that live as
-    # long as the application.
-    lifespan=email_dispatcher_lifespan,
+    lifespan=lifespan,
 )
 
 # Set all CORS enabled origins

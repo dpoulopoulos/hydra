@@ -16,6 +16,7 @@ from app.models import (
     BankTransaction,
     HouseholdContext,
 )
+from app.repositories import BankConnectionRepository
 from app.services.bank_sync import BankSyncService
 from tests.integration.conftest import make_account
 
@@ -124,3 +125,78 @@ def test_households_do_not_see_each_others_rows(
     assert result_b.new_count == 1
     assert len(inbox(db_session, household_a)) == 1
     assert len(inbox(db_session, household_b)) == 1
+
+
+def test_claiming_moves_the_next_sync_on_and_skips_what_is_not_due(
+    db_session: Session, household_a: HouseholdContext
+) -> None:
+    """Test that a due connection is claimed once, and an idle or inactive one is not."""
+    now = datetime.datetime.now(datetime.UTC)
+    due, _ = seed(db_session, household_a)
+    due.next_auto_sync_at = now - datetime.timedelta(minutes=5)
+    later = BankConnection(
+        household_id=household_a.household_id,
+        aspsp_name="Mock ASPSP",
+        aspsp_country="GR",
+        status=BankConnectionStatus.ACTIVE,
+        next_auto_sync_at=now + datetime.timedelta(hours=1),
+    )
+    expired = BankConnection(
+        household_id=household_a.household_id,
+        aspsp_name="Mock ASPSP",
+        aspsp_country="GR",
+        status=BankConnectionStatus.EXPIRED,
+        next_auto_sync_at=now - datetime.timedelta(hours=1),
+    )
+    db_session.add_all([due, later, expired])
+    db_session.flush()
+    repository = BankConnectionRepository(db_session)
+
+    claimed = repository.claim_due(now, datetime.timedelta(hours=24))
+    again = repository.claim_due(now, datetime.timedelta(hours=24))
+
+    assert claimed is not None and claimed.id == due.id
+    assert claimed.next_auto_sync_at == now + datetime.timedelta(hours=24)
+    assert again is None
+
+
+def test_prune_drops_abandoned_logins_and_clears_old_bank_data(
+    db_session: Session, household_a: HouseholdContext
+) -> None:
+    """Test that only old pending or failed logins go, and only old rows lose their raw data."""
+    connection, _ = seed(db_session, household_a)
+    provider = MagicMock()
+    service = BankSyncService.for_session(db_session, provider, overlap_days=10)
+    provider.transactions.return_value = iter([booked("old", 2), booked("new", 1)])
+    service.sync(household_a.household_id, connection.id, BankSyncTrigger.MANUAL, None)
+    old_row, new_row = sorted(inbox(db_session, household_a), key=lambda r: r.dedupe_key, reverse=True)
+    now = datetime.datetime.now(datetime.UTC)
+    old_row.created_at = now - datetime.timedelta(days=100)
+    abandoned = BankConnection(
+        household_id=household_a.household_id,
+        aspsp_name="Mock ASPSP",
+        aspsp_country="GR",
+        status=BankConnectionStatus.PENDING,
+        state="abandoned",
+        created_at=now - datetime.timedelta(hours=3),
+    )
+    fresh = BankConnection(
+        household_id=household_a.household_id,
+        aspsp_name="Mock ASPSP",
+        aspsp_country="GR",
+        status=BankConnectionStatus.PENDING,
+        state="fresh",
+    )
+    db_session.add_all([old_row, abandoned, fresh])
+    db_session.flush()
+
+    pruned = service.prune(now, datetime.timedelta(minutes=60), datetime.timedelta(days=90))
+
+    assert pruned == 2
+    db_session.expire_all()
+    assert db_session.get(BankConnection, abandoned.id) is None
+    assert db_session.get(BankConnection, fresh.id) is not None
+    assert db_session.get(BankConnection, connection.id) is not None
+    assert db_session.get(BankTransaction, old_row.id).raw is None  # type: ignore[union-attr]
+    assert db_session.get(BankTransaction, old_row.id).dedupe_key == "ref:old"  # type: ignore[union-attr]
+    assert db_session.get(BankTransaction, new_row.id).raw is not None  # type: ignore[union-attr]
