@@ -1,6 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { bankGetBankStatus, bankListBankConnections } from '@/api'
+import {
+  bankGetBankStatus,
+  bankListBankConnections,
+  bankListBankInbox,
+  BankReviewStatus,
+} from '@/api'
 
 /**
  * Whether this server can connect a bank at all.
@@ -31,5 +36,25 @@ export function useBankConnections(options?: { enabled?: boolean }) {
       if (error || !data) throw error ?? new Error('Could not load your banks.')
       return data
     },
+  })
+}
+
+/**
+ * How many bank rows wait for review, for the badge in the sidebar.
+ *
+ * One row is asked for, since only the count is wanted.
+ */
+export function usePendingBankCount(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['bank', 'inbox', 'count'],
+    enabled: options?.enabled ?? true,
+    queryFn: async () => {
+      const { data, error } = await bankListBankInbox({
+        query: { status: BankReviewStatus.PENDING, limit: 1 },
+      })
+      if (error || !data) throw error ?? new Error('Could not count the inbox.')
+      return data.count
+    },
+    staleTime: 60_000,
   })
 }

@@ -3,6 +3,7 @@ import {
   ChartColumnIncreasing,
   Flag,
   HandCoins,
+  Inbox,
   LayoutDashboard,
   Repeat,
   Settings,
@@ -22,15 +23,19 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
+import { useBankStatus, usePendingBankCount } from '@/hooks/use-bank'
 import { useHousehold } from '@/hooks/use-household'
 
 const money = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  // Only where the server can connect a bank: see `bankOnly` below.
+  { to: '/inbox', label: 'Inbox', icon: Inbox, bankOnly: true },
   { to: '/accounts', label: 'Accounts', icon: Wallet },
   // Only for a user who turned it on: see `clientsOnly` below.
   { to: '/clients', label: 'Clients', icon: HandCoins, clientsOnly: true },
@@ -49,10 +54,15 @@ const insight = [{ to: '/reports', label: 'Reports', icon: ChartColumnIncreasing
 export function AppSidebar() {
   const { data: household } = useHousehold()
   const { user } = useAuth()
+  const bankEnabled = useBankStatus().data?.enabled ?? false
+  const { data: pending = 0 } = usePendingBankCount({ enabled: bankEnabled })
 
   // Clients is for people paid by the session. It only shows for a user who
-  // turned it on, so someone on a salary never meets it.
-  const moneyItems = money.filter((item) => !item.clientsOnly || user?.clients_enabled)
+  // turned it on, so someone on a salary never meets it. The inbox only fills
+  // from a bank, so a server that cannot connect one does not show it.
+  const moneyItems = money.filter(
+    (item) => (!item.clientsOnly || user?.clients_enabled) && (!item.bankOnly || bankEnabled),
+  )
 
   return (
     <Sidebar collapsible="icon">
@@ -96,6 +106,14 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                       )}
                     </NavLink>
+                    {item.to === '/inbox' && pending > 0 ? (
+                      // Placed by hand: the badge finds its height through the
+                      // button as a sibling, and here the link wraps the button.
+                      <SidebarMenuBadge className="top-1.5">
+                        {pending > 99 ? '99+' : pending}
+                        <span className="sr-only"> to review</span>
+                      </SidebarMenuBadge>
+                    ) : null}
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>

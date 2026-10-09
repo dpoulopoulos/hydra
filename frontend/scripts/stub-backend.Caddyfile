@@ -97,6 +97,16 @@
 		respond `{"data": [], "count": 0}` 200
 	}
 
+	# Bank sync, which the sidebar asks about on every screen. On, with rows
+	# waiting, so the walk draws the inbox link and its count as well.
+	handle /api/v1/bank/status {
+		respond `{"enabled": true}` 200
+	}
+
+	handle /api/v1/bank/inbox {
+		respond `{"data": [], "count": 2}` 200
+	}
+
 	# The reports. Every one of them carries figures rather than an empty set:
 	# a chart with nothing to draw draws nothing, and the marks are the point
 	# of visiting the screen.
