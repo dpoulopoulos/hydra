@@ -17,6 +17,20 @@ const schema = z.object({
 
 type Values = z.infer<typeof schema>
 
+/**
+ * Wherever they were headed before the gate sent them here.
+ *
+ * The whole address, not only the path: a bank sends its login back with the
+ * code in the query string, and a session that ran out meanwhile must not
+ * cost the connection.
+ */
+function returnPath(state: unknown): string {
+  const from = (state as { from?: { pathname: string; search?: string; hash?: string } } | null)
+    ?.from
+  if (!from) return '/'
+  return `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`
+}
+
 export function Component() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
@@ -33,9 +47,7 @@ export function Component() {
     setFormError(null)
     try {
       await signIn(values.email, values.password)
-      // Back to wherever they were headed before the gate sent them here.
-      const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname
-      navigate(from ?? '/', { replace: true })
+      navigate(returnPath(location.state), { replace: true })
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Could not sign in. Try again.')
     }
