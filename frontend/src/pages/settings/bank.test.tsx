@@ -74,6 +74,7 @@ function connection(overrides: Partial<BankConnectionPublic> = {}): BankConnecti
         account_id: null,
         import_from: null,
         sync_enabled: true,
+        flip_direction: false,
       },
     ],
     ...overrides,
@@ -198,6 +199,27 @@ describe('the bank settings', () => {
     const toggle = await screen.findByRole('switch', { name: 'Sync Everyday account' })
     expect(toggle).toBeDisabled()
     expect(toggle).not.toBeChecked()
+  })
+
+  it('flips money in and out for a bank account', async () => {
+    program()
+    vi.mocked(api.bankUpdateBankAccount).mockResolvedValue({ data: {} } as never)
+    const user = userEvent.setup()
+
+    renderPage()
+
+    await user.click(
+      await screen.findByRole('switch', { name: 'Flip money in and out for Everyday account' }),
+    )
+
+    await waitFor(() =>
+      expect(api.bankUpdateBankAccount).toHaveBeenCalledWith({
+        path: { bank_account_id: 'b1' },
+        body: { flip_direction: true },
+      }),
+    )
+    // Not a link, so the page does not say it is one.
+    expect(toast.success).not.toHaveBeenCalled()
   })
 
   it('says how many rows a sync brought in', async () => {

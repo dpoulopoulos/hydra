@@ -369,13 +369,14 @@ function ConnectionCard({
           <p className="text-muted-foreground text-sm">The login reached no accounts.</p>
         ) : (
           <div className="overflow-x-auto">
-            <Table className="min-w-[48rem]">
+            <Table className="min-w-[52rem]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Bank account</TableHead>
                   <TableHead className="w-60">Goes into</TableHead>
                   <TableHead className="w-44">Import from</TableHead>
                   <TableHead className="w-20">Sync</TableHead>
+                  <TableHead className="w-20">Flip</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -392,6 +393,11 @@ function ConnectionCard({
               Nothing booked before the import date comes in. It cannot be earlier than the opening
               date of the account it goes into, whose opening balance already counts what came
               before.
+            </p>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Some banks show money in and out the wrong way round, often for a card: a purchase
+              comes in as income. Turn on Flip for that account. Its rows in the inbox turn around
+              too, but what you already accepted stays as recorded.
             </p>
           </div>
         )}
@@ -446,6 +452,10 @@ function BankAccountRow({
     },
     onSuccess: (_, body) => {
       void queryClient.invalidateQueries({ queryKey: ['bank', 'connections'] })
+      // Flipping turns around the rows already in the inbox.
+      if (body.flip_direction !== undefined) {
+        void queryClient.invalidateQueries({ queryKey: ['bank', 'inbox'] })
+      }
       if (!body.account_id) return
       // Linking can give the account the bank's IBAN.
       void queryClient.invalidateQueries({ queryKey: ['accounts'] })
@@ -518,6 +528,14 @@ function BankAccountRow({
           onCheckedChange={(checked) => update.mutate({ sync_enabled: checked })}
           disabled={update.isPending || !bankAccount.account_id}
           aria-label={`Sync ${label}`}
+        />
+      </TableCell>
+      <TableCell>
+        <Switch
+          checked={bankAccount.flip_direction}
+          onCheckedChange={(checked) => update.mutate({ flip_direction: checked })}
+          disabled={update.isPending}
+          aria-label={`Flip money in and out for ${label}`}
         />
       </TableCell>
     </TableRow>
