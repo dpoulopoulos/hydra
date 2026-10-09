@@ -31,6 +31,10 @@ refused.
 is not an amount, and it is refused rather than rounded.
 - A total is the exception, and is genuinely signed. `net` and `net_worth` are \
 negative when more went out than came in.
+- A trade follows the same rule. Its quantity is positive and its `side` says \
+which way the units moved. Give `record_trade` the total from the broker's \
+statement and let it work out the price; check `list_trades` first, because a \
+trade recorded twice doubles the holding.
 
 Dates are ISO, and a month is written as 2026-09. Where a month is optional, \
 leaving it out means the current one.

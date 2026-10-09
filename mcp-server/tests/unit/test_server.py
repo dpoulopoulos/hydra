@@ -21,6 +21,7 @@ READS = {
     "list_recurring_rules",
     "get_upcoming_recurring",
     "get_portfolio",
+    "list_trades",
 }
 
 WRITES = {
@@ -33,11 +34,13 @@ WRITES = {
     "create_goal",
     "update_goal",
     "delete_goal",
+    "record_trade",
+    "delete_trade",
 }
 
 # The subset of the writes that change or remove something already recorded,
 # rather than only adding to it.
-DESTRUCTIVE = {"update_transaction", "delete_transaction", "delete_goal"}
+DESTRUCTIVE = {"update_transaction", "delete_transaction", "delete_goal", "delete_trade"}
 
 
 @pytest.fixture(scope="module")

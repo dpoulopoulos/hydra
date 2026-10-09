@@ -6,7 +6,7 @@ savings goals, reports, standing payments and investments. It runs beside the
 backend, speaks MCP to the agent and REST to hydra, and holds no credential of
 its own.
 
-Most of the tools only read, and say so through `read_only_hint`. Nine of them
+Most of the tools only read, and say so through `read_only_hint`. Eleven of them
 write, and hydra decides whether they may: a token minted with the `read`
 scope is refused on anything that is not a `GET`, whatever this server thinks.
 That check lives in the backend rather than here, so it holds for every client
