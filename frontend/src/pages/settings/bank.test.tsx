@@ -179,6 +179,14 @@ describe('the bank settings', () => {
         body: { account_id: 'a1' },
       }),
     )
+    // Linking fetches nothing, so the page says what does.
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Linked. Click Sync now to bring in its transactions.',
+      ),
+    )
+    // The account may have taken the bank's IBAN, so it is asked for again.
+    await waitFor(() => expect(api.accountsListAccounts).toHaveBeenCalledTimes(2))
   })
 
   it('offers the sync switch only once a bank account is linked', async () => {
