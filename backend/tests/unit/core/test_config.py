@@ -1,6 +1,8 @@
 import warnings
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 from app.core.config import Settings, parse_cors
 
@@ -348,3 +350,109 @@ class TestParseCors:
             parse_cors(invalid_input)
 
         assert str(exc_info.value) == "12345"
+
+
+@pytest.fixture(scope="module")
+def pem_key() -> str:
+    """An RSA private key in PEM form, made for these tests only."""
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    return key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+    ).decode()
+
+
+class TestEnableBankingSettings:
+    """Test the Enable Banking settings."""
+
+    def test_bank_sync_off_when_neither_is_set(self, base_settings_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that bank sync is off, without a warning, when nothing is configured."""
+        monkeypatch.setenv("ENABLE_BANKING_APP_ID", "")
+        monkeypatch.setenv("ENABLE_BANKING_PRIVATE_KEY", "")
+        monkeypatch.setenv("ENVIRONMENT", "production")
+
+        settings = Settings()  # type: ignore
+
+        assert settings.bank_sync_enabled is False
+
+    def test_bank_sync_on_with_a_valid_pair(
+        self, base_settings_env: None, monkeypatch: pytest.MonkeyPatch, pem_key: str
+    ) -> None:
+        """Test that an id and a key that parses switch bank sync on."""
+        monkeypatch.setenv("ENABLE_BANKING_APP_ID", "app-id")
+        monkeypatch.setenv("ENABLE_BANKING_PRIVATE_KEY", pem_key)
+
+        settings = Settings()  # type: ignore
+
+        assert settings.bank_sync_enabled is True
+
+    def test_escaped_newlines_are_read_as_line_breaks(
+        self, base_settings_env: None, monkeypatch: pytest.MonkeyPatch, pem_key: str
+    ) -> None:
+        """Test that a key written on one line with literal \\n parses."""
+        monkeypatch.setenv("ENABLE_BANKING_APP_ID", "app-id")
+        monkeypatch.setenv("ENABLE_BANKING_PRIVATE_KEY", pem_key.replace("\n", "\\n"))
+
+        settings = Settings()  # type: ignore
+
+        assert settings.ENABLE_BANKING_PRIVATE_KEY == pem_key.strip()
+        assert settings.bank_sync_enabled is True
+
+    @pytest.mark.parametrize("missing", ["ENABLE_BANKING_APP_ID", "ENABLE_BANKING_PRIVATE_KEY"])
+    def test_half_configured_warns_in_local(
+        self, base_settings_env: None, monkeypatch: pytest.MonkeyPatch, pem_key: str, missing: str
+    ) -> None:
+        """Test that one value without the other warns locally and leaves bank sync off."""
+        monkeypatch.setenv("ENABLE_BANKING_APP_ID", "app-id")
+        monkeypatch.setenv("ENABLE_BANKING_PRIVATE_KEY", pem_key)
+        monkeypatch.setenv(missing, "")
+
+        with pytest.warns(UserWarning, match="Only one of"):
+            settings = Settings()  # type: ignore
+
+        assert settings.bank_sync_enabled is False
+
+    def test_half_configured_refused_in_production(
+        self, base_settings_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that an id without a key stops a deployment from booting."""
+        monkeypatch.setenv("ENABLE_BANKING_APP_ID", "app-id")
+        monkeypatch.setenv("ENABLE_BANKING_PRIVATE_KEY", "")
+        monkeypatch.setenv("ENVIRONMENT", "production")
+
+        with pytest.raises(ValueError, match="Only one of"):
+            Settings()  # type: ignore
+
+    def test_unparsable_key_is_refused_without_quoting_it(
+        self, base_settings_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that a key that does not parse stops a deployment, and the error does not leak it."""
+        monkeypatch.setenv("ENABLE_BANKING_APP_ID", "app-id")
+        monkeypatch.setenv("ENABLE_BANKING_PRIVATE_KEY", "not-a-key-but-secret")
+        monkeypatch.setenv("ENVIRONMENT", "production")
+
+        with pytest.raises(ValueError, match="not an unencrypted PEM private key") as exc_info:
+            Settings()  # type: ignore
+
+        assert "not-a-key-but-secret" not in str(exc_info.value)
+
+    def test_unparsable_key_switches_bank_sync_off_in_local(
+        self, base_settings_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that a key that does not parse warns locally and leaves bank sync off."""
+        monkeypatch.setenv("ENABLE_BANKING_APP_ID", "app-id")
+        monkeypatch.setenv("ENABLE_BANKING_PRIVATE_KEY", "not-a-key")
+
+        with pytest.warns(UserWarning, match="not an unencrypted PEM private key"):
+            settings = Settings()  # type: ignore
+
+        assert settings.bank_sync_enabled is False
+
+    def test_redirect_url_follows_the_frontend_host(
+        self, base_settings_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that the redirect URL is the callback page on the frontend host."""
+        monkeypatch.setenv("FRONTEND_HOST", "https://hydra.example.com/")
+
+        settings = Settings()  # type: ignore
+
+        assert settings.bank_redirect_url == "https://hydra.example.com/settings/bank/callback"
