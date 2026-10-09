@@ -11,6 +11,13 @@ from .api_token_exceptions import (
     ApiTokenReadOnlyError,
     InvalidApiTokenError,
 )
+from .bank_exceptions import (
+    BankAuthorizationError,
+    BankProviderError,
+    BankRateLimitedError,
+    BankSessionExpiredError,
+    BankSyncNotConfiguredError,
+)
 from .base_exceptions import ServiceError
 from .budget_exceptions import (
     BudgetCategoryKindError,
@@ -107,6 +114,11 @@ from .user_exceptions import (
 )
 
 __all__ = [
+    "BankAuthorizationError",
+    "BankProviderError",
+    "BankRateLimitedError",
+    "BankSessionExpiredError",
+    "BankSyncNotConfiguredError",
     "ApiTokenLimitError",
     "ApiTokenNotFoundError",
     "ApiTokenNotPermittedError",
