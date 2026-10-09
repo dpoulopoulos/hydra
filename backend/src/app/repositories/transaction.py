@@ -2,9 +2,9 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from sqlmodel import Session, col, func, or_, select
+from sqlmodel import Session, col, func, or_, select, update
 
-from app.models import Category, Transaction, TransactionFilters, TransactionSort
+from app.models import BankReviewStatus, BankTransaction, Category, Transaction, TransactionFilters, TransactionSort
 from app.repositories.base import HouseholdScopedRepository
 
 
@@ -70,6 +70,31 @@ class TransactionRepository(HouseholdScopedRepository[Transaction]):
             Transaction.income_session_id == session_id,
         )
         return self.session.exec(statement).first()
+
+    def release_bank_rows(self, transaction_id: uuid.UUID, household_id: uuid.UUID) -> None:
+        """Send the bank rows a transaction was accepted from back to the inbox.
+
+        Called before the transaction is deleted, so a row deleted from the
+        ledger by mistake can be accepted again.
+
+        Args:
+            transaction_id: The ID of the transaction.
+            household_id: The ID of the household.
+        """
+        statement = (
+            update(BankTransaction)
+            .where(
+                col(BankTransaction.household_id) == household_id,
+                col(BankTransaction.ledger_transaction_id) == transaction_id,
+            )
+            .values(
+                review_status=BankReviewStatus.PENDING,
+                ledger_transaction_id=None,
+                reviewed_by_user_id=None,
+                reviewed_at=None,
+            )
+        )
+        self.session.execute(statement)
 
     def count_for_account(self, account_id: uuid.UUID, household_id: uuid.UUID) -> int:
         """Count the transactions that reference an account, on either side.

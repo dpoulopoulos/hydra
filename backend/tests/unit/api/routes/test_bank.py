@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import Generator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.api.deps import (
     get_bank_connection_service,
+    get_bank_inbox_service,
     get_bank_sync_service,
     get_current_user,
     get_db,
@@ -27,6 +28,9 @@ from app.exceptions import (
     BankRateLimitedError,
     BankSessionExpiredError,
     BankSyncNotConfiguredError,
+    BankTransactionKindError,
+    BankTransactionNotFoundError,
+    BankTransactionReviewedError,
 )
 from app.main import app
 from app.models import (
@@ -37,10 +41,14 @@ from app.models import (
     BankConnectionPublic,
     BankConnectionsPublic,
     BankConnectionStatus,
+    BankDirection,
+    BankReviewStatus,
     BankStatus,
     BankSyncRunPublic,
     BankSyncStatus,
     BankSyncTrigger,
+    BankTransactionPublic,
+    BankTransactionsPublic,
     HouseholdContext,
     Message,
     User,
@@ -366,3 +374,88 @@ class TestSync:
 
         assert response.status_code == 403
         sync_service.sync.assert_not_called()
+
+
+class TestInbox:
+    """Tests for the /bank/inbox routes."""
+
+    @pytest.fixture
+    def inbox_service(self, wire: MagicMock) -> MagicMock:
+        service = MagicMock()
+        app.dependency_overrides[get_bank_inbox_service] = lambda: service
+        return service
+
+    def make_row(self, status: BankReviewStatus = BankReviewStatus.PENDING) -> BankTransactionPublic:
+        return BankTransactionPublic(
+            id=uuid.uuid4(),
+            bank_account_id=BANK_ACCOUNT_ID,
+            direction=BankDirection.DEBIT,
+            amount_minor=1250,
+            currency_code="EUR",
+            occurred_on=date(2026, 10, 1),
+            review_status=status,
+            created_at=datetime.now(UTC),
+        )
+
+    def test_lists_with_filters(
+        self, client: TestClient, inbox_service: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        inbox_service.list_inbox.return_value = BankTransactionsPublic(data=[self.make_row()], count=1)
+
+        response = client.get("/api/v1/bank/inbox?status=skipped&limit=10", headers=auth_headers)
+
+        assert response.status_code == 200
+        filters = inbox_service.list_inbox.call_args.kwargs["filters"]
+        assert filters.status == BankReviewStatus.SKIPPED
+        assert filters.limit == 10
+
+    def test_an_unknown_filter_is_a_422(
+        self, client: TestClient, inbox_service: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        response = client.get("/api/v1/bank/inbox?stauts=pending", headers=auth_headers)
+
+        assert response.status_code == 422
+
+    def test_accepts(self, client: TestClient, inbox_service: MagicMock, auth_headers: dict[str, str]) -> None:
+        inbox_service.accept.return_value = self.make_row(BankReviewStatus.ACCEPTED)
+        row_id = uuid.uuid4()
+
+        response = client.post(f"/api/v1/bank/inbox/{row_id}/accept", headers=auth_headers, json={"kind": "expense"})
+
+        assert response.status_code == 200
+        assert response.json()["review_status"] == "accepted"
+        assert inbox_service.accept.call_args.kwargs["bank_transaction_id"] == row_id
+
+    @pytest.mark.parametrize("action", ["skip", "reopen"])
+    def test_skip_and_reopen(
+        self, client: TestClient, inbox_service: MagicMock, auth_headers: dict[str, str], action: str
+    ) -> None:
+        getattr(inbox_service, action).return_value = self.make_row()
+
+        response = client.post(f"/api/v1/bank/inbox/{uuid.uuid4()}/{action}", headers=auth_headers)
+
+        assert response.status_code == 200
+
+    @pytest.mark.parametrize(
+        ("error", "status_code"),
+        [
+            (BankTransactionNotFoundError(), 404),
+            (BankTransactionReviewedError("already accepted"), 409),
+            (BankTransactionKindError("wrong kind"), 400),
+        ],
+    )
+    def test_accept_errors(
+        self,
+        client: TestClient,
+        inbox_service: MagicMock,
+        auth_headers: dict[str, str],
+        error: Exception,
+        status_code: int,
+    ) -> None:
+        inbox_service.accept.side_effect = error
+
+        response = client.post(
+            f"/api/v1/bank/inbox/{uuid.uuid4()}/accept", headers=auth_headers, json={"kind": "expense"}
+        )
+
+        assert response.status_code == status_code

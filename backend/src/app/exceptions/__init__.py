@@ -24,6 +24,9 @@ from .bank_exceptions import (
     BankRateLimitedError,
     BankSessionExpiredError,
     BankSyncNotConfiguredError,
+    BankTransactionKindError,
+    BankTransactionNotFoundError,
+    BankTransactionReviewedError,
 )
 from .base_exceptions import ServiceError
 from .budget_exceptions import (
@@ -121,6 +124,9 @@ from .user_exceptions import (
 )
 
 __all__ = [
+    "BankTransactionKindError",
+    "BankTransactionNotFoundError",
+    "BankTransactionReviewedError",
     "AspspNotFoundError",
     "BankAccountAlreadyMappedError",
     "BankAccountMappingError",
