@@ -1,5 +1,6 @@
 from .account import AccountService
 from .api_token import ApiTokenService
+from .bank_connection import BankConnectionService
 from .budget import BudgetService
 from .category import CategoryService
 from .email_outbox import EmailOutboxService
@@ -19,6 +20,7 @@ from .user import UserService
 __all__ = [
     "AccountService",
     "ApiTokenService",
+    "BankConnectionService",
     "BudgetService",
     "CategoryService",
     "EmailOutboxService",

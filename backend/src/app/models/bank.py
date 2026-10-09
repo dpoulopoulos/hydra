@@ -221,3 +221,73 @@ class BankTransaction(PrimaryKeyMixin, CreatedAtMixin, SQLModel, table=True):
     ledger_transaction_id: uuid.UUID | None = Field(default=None, foreign_key="transaction.id", ondelete="SET NULL")
     reviewed_by_user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", ondelete="SET NULL")
     reviewed_at: datetime.datetime | None = Field(default=None, sa_type=UtcDateTime)
+
+
+class BankStatus(SQLModel):
+    # Whether bank sync is configured on this server.
+    enabled: bool
+
+
+class AspspPublic(SQLModel):
+    name: str
+    country: str
+    logo: str | None = None
+
+
+class AspspsPublic(SQLModel):
+    data: list[AspspPublic]
+    count: int
+
+
+class BankConnectionStart(SQLModel):
+    aspsp_name: str = Field(min_length=1, max_length=255)
+    aspsp_country: str = Field(min_length=2, max_length=2)
+
+
+class BankAuthorizationStarted(SQLModel):
+    # Where to send the browser to log in at the bank.
+    url: str
+
+
+class BankConnectionComplete(SQLModel):
+    # What the bank put in the redirect back to the app.
+    code: str = Field(min_length=1, max_length=2048)
+    state: str = Field(min_length=1, max_length=64)
+
+
+class BankAccountUpdate(SQLModel):
+    # Null unlinks the bank account; leaving the field out keeps the link.
+    account_id: uuid.UUID | None = Field(default=None)
+    import_from: datetime.date | None = Field(default=None)
+    sync_enabled: bool | None = Field(default=None)
+
+
+class BankAccountPublic(SQLModel):
+    id: uuid.UUID
+    connection_id: uuid.UUID
+    name: str | None = None
+    iban: str | None = None
+    currency_code: str | None = None
+    account_id: uuid.UUID | None = None
+    import_from: datetime.date | None = None
+    sync_enabled: bool
+    last_booked_on: datetime.date | None = None
+
+
+class BankConnectionPublic(SQLModel):
+    id: uuid.UUID
+    aspsp_name: str
+    aspsp_country: str
+    status: BankConnectionStatus
+    valid_until: datetime.datetime | None = None
+    authorized_at: datetime.datetime | None = None
+    last_synced_at: datetime.datetime | None = None
+    last_sync_error: str | None = None
+    created_by_user_id: uuid.UUID | None = None
+    accounts: list[BankAccountPublic]
+    created_at: datetime.datetime
+
+
+class BankConnectionsPublic(SQLModel):
+    data: list[BankConnectionPublic]
+    count: int

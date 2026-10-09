@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.routes import (
     accounts,
     api_tokens,
+    bank,
     budgets,
     categories,
     email_outbox,
@@ -28,6 +29,7 @@ api_router.include_router(accounts.router)
 api_router.include_router(transactions.router)
 api_router.include_router(budgets.router)
 api_router.include_router(goals.router)
+api_router.include_router(bank.router)
 api_router.include_router(recurring_rules.router)
 api_router.include_router(income.router)
 api_router.include_router(investments.router)

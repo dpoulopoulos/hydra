@@ -28,6 +28,8 @@ from app.models import (
 from app.repositories import (
     AccountRepository,
     ApiTokenRepository,
+    BankAccountRepository,
+    BankConnectionRepository,
     BudgetRepository,
     CategoryRepository,
     EmailOutboxRepository,
@@ -52,6 +54,7 @@ from app.repositories import (
 from app.services import (
     AccountService,
     ApiTokenService,
+    BankConnectionService,
     BudgetService,
     CategoryService,
     EmailOutboxService,
@@ -68,6 +71,7 @@ from app.services import (
     TransactionService,
     UserService,
 )
+from app.services.enable_banking import BankProvider, EnableBankingClient, NullBankProvider, Psu
 from app.services.prices import (
     EodhdProvider,
     FrankfurterFxProvider,
@@ -1116,3 +1120,112 @@ def get_income_service(
 
 
 IncomeServiceDep = Annotated[IncomeService, Depends(get_income_service)]
+
+
+def get_bank_provider() -> BankProvider:
+    """Get the configured source of bank data.
+
+    Returns:
+        The Enable Banking client, or one that refuses every call when bank
+        sync is switched off.
+    """
+    if not settings.bank_sync_enabled:
+        return NullBankProvider()
+
+    return EnableBankingClient(
+        app_id=settings.ENABLE_BANKING_APP_ID,
+        private_key=settings.ENABLE_BANKING_PRIVATE_KEY,
+        base_url=settings.ENABLE_BANKING_BASE_URL,
+        timeout_seconds=settings.ENABLE_BANKING_TIMEOUT_SECONDS,
+    )
+
+
+BankProviderDep = Annotated[BankProvider, Depends(get_bank_provider)]
+
+
+def get_bank_connection_repository(session: SessionDep) -> BankConnectionRepository:
+    """Get a bank connection repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A bank connection repository instance.
+    """
+    return BankConnectionRepository(session=session)
+
+
+BankConnectionRepositoryDep = Annotated[BankConnectionRepository, Depends(get_bank_connection_repository)]
+
+
+def get_bank_account_repository(session: SessionDep) -> BankAccountRepository:
+    """Get a bank account repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A bank account repository instance.
+    """
+    return BankAccountRepository(session=session)
+
+
+BankAccountRepositoryDep = Annotated[BankAccountRepository, Depends(get_bank_account_repository)]
+
+
+def get_bank_connection_service(
+    session: SessionDep,
+    provider: BankProviderDep,
+    connection_repository: BankConnectionRepositoryDep,
+    bank_account_repository: BankAccountRepositoryDep,
+    account_repository: AccountRepositoryDep,
+) -> BankConnectionService:
+    """Get a bank connection service instance.
+
+    Args:
+        session: The database session.
+        provider: The configured source of bank data.
+        connection_repository: The bank connection repository instance.
+        bank_account_repository: The bank account repository instance.
+        account_repository: The account repository instance.
+
+    Returns:
+        A bank connection service instance.
+    """
+    return BankConnectionService(
+        session=session,
+        provider=provider,
+        connection_repository=connection_repository,
+        bank_account_repository=bank_account_repository,
+        account_repository=account_repository,
+        redirect_url=settings.bank_redirect_url,
+        consent_days=settings.BANK_CONSENT_DAYS,
+        pending_ttl_minutes=settings.BANK_PENDING_CONNECTION_TTL_MINUTES,
+        auto_sync_interval_hours=settings.BANK_SYNC_AUTO_INTERVAL_HOURS,
+    )
+
+
+BankConnectionServiceDep = Annotated[BankConnectionService, Depends(get_bank_connection_service)]
+
+
+def get_psu(request: Request, source_address: SourceAddressDep) -> Psu | None:
+    """Describe the account holder at the browser, for a bank call made while they are present.
+
+    A bank allows about four pulls a day that nobody is present for, and does
+    not count the ones somebody is. It is told which kind a call is by the
+    caller's address and browser, so they are passed on when the request has
+    them.
+
+    Args:
+        request: The incoming request.
+        source_address: The address the request came from.
+
+    Returns:
+        The account holder, or None when the request carries no address.
+    """
+    if not source_address:
+        return None
+    return Psu(ip_address=source_address, user_agent=request.headers.get("user-agent", ""))
+
+
+PsuDep = Annotated[Psu | None, Depends(get_psu)]

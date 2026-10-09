@@ -21,11 +21,21 @@ from .api_token import (
     ApiTokenStatus,
 )
 from .bank import (
+    AspspPublic,
+    AspspsPublic,
     BankAccount,
+    BankAccountPublic,
+    BankAccountUpdate,
+    BankAuthorizationStarted,
     BankConnection,
+    BankConnectionComplete,
+    BankConnectionPublic,
+    BankConnectionsPublic,
+    BankConnectionStart,
     BankConnectionStatus,
     BankDirection,
     BankReviewStatus,
+    BankStatus,
     BankSyncRun,
     BankSyncStatus,
     BankSyncTrigger,
@@ -223,6 +233,16 @@ class Message(SQLModel):
 
 
 __all__ = [
+    "AspspPublic",
+    "AspspsPublic",
+    "BankAccountPublic",
+    "BankAccountUpdate",
+    "BankAuthorizationStarted",
+    "BankConnectionComplete",
+    "BankConnectionPublic",
+    "BankConnectionsPublic",
+    "BankConnectionStart",
+    "BankStatus",
     "BankAccount",
     "BankConnection",
     "BankConnectionStatus",

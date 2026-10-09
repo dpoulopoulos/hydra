@@ -8,11 +8,13 @@ from pydantic import ValidationError
 
 from app.api.deps import (
     get_api_token_service,
+    get_bank_provider,
     get_current_active_superuser,
     get_current_user,
     get_household_context,
     get_household_owner,
     get_password_reset_service,
+    get_psu,
     get_session_user,
     get_source_address,
     get_user_service,
@@ -30,6 +32,7 @@ from app.exceptions.password_exceptions import InvalidCredentialsError
 from app.models import ApiToken, ApiTokenScope, HouseholdContext, HouseholdRole, User
 from app.repositories import ApiTokenRepository, PasswordResetRepository, UserRepository
 from app.services import ApiTokenService, PasswordResetService, UserService
+from app.services.enable_banking import EnableBankingClient, NullBankProvider, Psu
 
 
 def get_request(method: str = "GET") -> MagicMock:
@@ -475,3 +478,48 @@ class TestGetSourceAddress:
 
         # Assert: Verify nothing is invented
         assert source is None
+
+
+class TestGetBankProvider:
+    """Tests for the source of bank data."""
+
+    def test_bank_sync_off_gives_the_null_provider(self) -> None:
+        """Without an app id and a key, every bank call is refused."""
+        with (
+            patch.object(settings, "ENABLE_BANKING_APP_ID", ""),
+            patch.object(settings, "ENABLE_BANKING_PRIVATE_KEY", ""),
+        ):
+            provider = get_bank_provider()
+
+        assert isinstance(provider, NullBankProvider)
+
+    def test_bank_sync_on_gives_the_enable_banking_client(self) -> None:
+        """With an app id and a key, the client is built from the settings."""
+        with (
+            patch.object(settings, "ENABLE_BANKING_APP_ID", "app-id"),
+            patch.object(settings, "ENABLE_BANKING_PRIVATE_KEY", "pem"),
+        ):
+            provider = get_bank_provider()
+
+        assert isinstance(provider, EnableBankingClient)
+        assert provider.app_id == "app-id"
+
+
+class TestGetPsu:
+    """Tests for the account holder a bank call is made for."""
+
+    def test_passes_the_address_and_the_browser(self) -> None:
+        """The bank is told who is present by the caller's address and user agent."""
+        request = MagicMock()
+        request.headers = {"user-agent": "Firefox"}
+
+        psu = get_psu(request, "203.0.113.7")
+
+        assert psu == Psu(ip_address="203.0.113.7", user_agent="Firefox")
+
+    def test_no_address_means_no_psu(self) -> None:
+        """Without an address, the call is not claimed to be made for someone present."""
+        request = MagicMock()
+        request.headers = {}
+
+        assert get_psu(request, None) is None
