@@ -91,6 +91,12 @@ export default defineRailway((ctx) => {
       FIRST_SUPERUSER_PASSWORD: preserve(),
       RESEND_API_KEY: preserve(),
       EMAILS_FROM_EMAIL: preserve(),
+
+      // Bank sync, optional: with neither set it is off, and the app runs
+      // without it. The key is the PEM's content, since Railway holds no
+      // files. See DEPLOY.md.
+      ENABLE_BANKING_APP_ID: preserve(),
+      ENABLE_BANKING_PRIVATE_KEY: preserve(),
     },
   })
 
