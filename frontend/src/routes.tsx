@@ -37,6 +37,7 @@ const openRoutes: RouteObject[] = [
 const appRoutes: RouteObject[] = [
   { index: true, lazy: () => import('@/pages/dashboard') },
   { path: '/transactions', lazy: () => import('@/pages/transactions') },
+  { path: '/inbox', lazy: () => import('@/pages/inbox') },
   { path: '/accounts', lazy: () => import('@/pages/accounts') },
   { path: '/clients', lazy: () => import('@/pages/clients') },
   // The screen's old address, for bookmarks made before it was renamed.
