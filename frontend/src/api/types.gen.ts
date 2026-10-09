@@ -333,6 +333,10 @@ export type BankAccountPublic = {
      */
     sync_enabled: boolean;
     /**
+     * Flip Direction
+     */
+    flip_direction: boolean;
+    /**
      * Last Booked On
      */
     last_booked_on?: string | null;
@@ -354,6 +358,10 @@ export type BankAccountUpdate = {
      * Sync Enabled
      */
     sync_enabled?: boolean | null;
+    /**
+     * Flip Direction
+     */
+    flip_direction?: boolean | null;
 };
 
 /**

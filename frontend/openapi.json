@@ -6716,6 +6716,10 @@
             "type": "boolean",
             "title": "Sync Enabled"
           },
+          "flip_direction": {
+            "type": "boolean",
+            "title": "Flip Direction"
+          },
           "last_booked_on": {
             "anyOf": [
               {
@@ -6733,7 +6737,8 @@
         "required": [
           "id",
           "connection_id",
-          "sync_enabled"
+          "sync_enabled",
+          "flip_direction"
         ],
         "title": "BankAccountPublic"
       },
@@ -6773,6 +6778,17 @@
               }
             ],
             "title": "Sync Enabled"
+          },
+          "flip_direction": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flip Direction"
           }
         },
         "type": "object",
