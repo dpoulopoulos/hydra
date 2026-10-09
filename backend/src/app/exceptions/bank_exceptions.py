@@ -156,3 +156,42 @@ class BankAccountAlreadyMappedError(ServiceError):
             exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
         """
         super().__init__("Another bank account already feeds this account. Unlink that one first.", exc)
+
+
+class BankTransactionNotFoundError(NotFoundError):
+    """Signal that a bank transaction does not exist in the household."""
+
+    def __init__(self, message: str | None = None, exc: Exception | None = None):
+        """Initialize a BankTransactionNotFoundError.
+
+        Args:
+            message: An optional error message.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__("Bank transaction", message, exc)
+
+
+class BankTransactionReviewedError(ServiceError):
+    """Signal that a bank transaction is not in the state the action needs."""
+
+    def __init__(self, message: str, exc: Exception | None = None):
+        """Initialize a BankTransactionReviewedError.
+
+        Args:
+            message: What state the transaction is in, and what to do instead.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__(message, exc)
+
+
+class BankTransactionKindError(ValidationError):
+    """Signal that a bank transaction cannot be recorded as the kind chosen."""
+
+    def __init__(self, message: str, exc: Exception | None = None):
+        """Initialize a BankTransactionKindError.
+
+        Args:
+            message: Which kinds the transaction can be recorded as.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__(message, exc)

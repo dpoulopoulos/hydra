@@ -1,6 +1,7 @@
 from .account import AccountService
 from .api_token import ApiTokenService
 from .bank_connection import BankConnectionService
+from .bank_inbox import BankInboxService
 from .budget import BudgetService
 from .category import CategoryService
 from .email_outbox import EmailOutboxService
@@ -21,6 +22,7 @@ __all__ = [
     "AccountService",
     "ApiTokenService",
     "BankConnectionService",
+    "BankInboxService",
     "BudgetService",
     "CategoryService",
     "EmailOutboxService",

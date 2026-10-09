@@ -3,12 +3,14 @@ import uuid
 from enum import StrEnum
 from typing import Any
 
+from pydantic import ConfigDict
 from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, Index, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 from .fields import IBAN_MAX_LENGTH, MAX_AMOUNT_MINOR, within_cap_sql
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
+from .transaction import TransactionKind
 
 
 class BankConnectionStatus(StrEnum):
@@ -303,3 +305,59 @@ class BankSyncRunPublic(SQLModel):
     fetched_count: int
     new_count: int
     error: str | None = None
+
+
+class BankInboxFilters(SQLModel):
+    """Query parameters for listing the inbox."""
+
+    # A mistyped filter must be a 422 rather than be ignored.
+    model_config = ConfigDict(extra="forbid")  # type: ignore[assignment]
+
+    status: BankReviewStatus = BankReviewStatus.PENDING
+    bank_account_id: uuid.UUID | None = None
+    skip: int = Field(default=0, ge=0)
+    limit: int = Field(default=50, ge=1, le=200)
+
+
+class BankTransactionPublic(SQLModel):
+    id: uuid.UUID
+    bank_account_id: uuid.UUID
+    bank_account_name: str | None = None
+    # The Hydra account the bank account feeds, if it is still linked.
+    account_id: uuid.UUID | None = None
+    direction: BankDirection
+    amount_minor: int
+    currency_code: str
+    occurred_on: datetime.date
+    value_date: datetime.date | None = None
+    transaction_date: datetime.date | None = None
+    counterparty_name: str | None = None
+    counterparty_iban: str | None = None
+    description: str | None = None
+    review_status: BankReviewStatus
+    ledger_transaction_id: uuid.UUID | None = None
+    reviewed_at: datetime.datetime | None = None
+    created_at: datetime.datetime
+
+
+class BankTransactionsPublic(SQLModel):
+    data: list[BankTransactionPublic]
+    count: int
+
+
+class BankTransactionAccept(SQLModel):
+    """How to record a bank transaction in the ledger.
+
+    The amount, the date and the bank account's side are the bank's and are
+    not chosen here.
+    """
+
+    kind: TransactionKind
+    category_id: uuid.UUID | None = None
+    # For a transfer: the other account. Money out of the bank account goes to
+    # it; money in comes from it.
+    counter_account_id: uuid.UUID | None = None
+    goal_id: uuid.UUID | None = None
+    # What the ledger row is called. Defaults to the counterparty.
+    merchant: str | None = Field(default=None, max_length=255)
+    note: str | None = Field(default=None, max_length=1024)

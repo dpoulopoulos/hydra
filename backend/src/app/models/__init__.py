@@ -34,6 +34,7 @@ from .bank import (
     BankConnectionStart,
     BankConnectionStatus,
     BankDirection,
+    BankInboxFilters,
     BankReviewStatus,
     BankStatus,
     BankSyncRun,
@@ -41,6 +42,9 @@ from .bank import (
     BankSyncStatus,
     BankSyncTrigger,
     BankTransaction,
+    BankTransactionAccept,
+    BankTransactionPublic,
+    BankTransactionsPublic,
 )
 from .budget import (
     Budget,
@@ -234,6 +238,10 @@ class Message(SQLModel):
 
 
 __all__ = [
+    "BankInboxFilters",
+    "BankTransactionAccept",
+    "BankTransactionPublic",
+    "BankTransactionsPublic",
     "BankSyncRunPublic",
     "AspspPublic",
     "AspspsPublic",

@@ -17,6 +17,7 @@ from app.exceptions import (
 )
 from app.exceptions.password_exceptions import InvalidCredentialsError
 from app.models import (
+    BankInboxFilters,
     HouseholdContext,
     HouseholdRole,
     IncomeClientFilters,
@@ -57,6 +58,7 @@ from app.services import (
     AccountService,
     ApiTokenService,
     BankConnectionService,
+    BankInboxService,
     BudgetService,
     CategoryService,
     EmailOutboxService,
@@ -1240,6 +1242,33 @@ def get_bank_sync_service(
 
 
 BankSyncServiceDep = Annotated[BankSyncService, Depends(get_bank_sync_service)]
+
+
+def get_bank_inbox_service(
+    session: SessionDep,
+    bank_account_repository: BankAccountRepositoryDep,
+    transaction_service: TransactionServiceDep,
+) -> BankInboxService:
+    """Get a bank inbox service instance.
+
+    Args:
+        session: The database session.
+        bank_account_repository: The bank account repository instance.
+        transaction_service: The transaction service instance.
+
+    Returns:
+        A bank inbox service instance.
+    """
+    return BankInboxService(
+        session=session,
+        bank_transaction_repository=BankTransactionRepository(session),
+        bank_account_repository=bank_account_repository,
+        transaction_service=transaction_service,
+    )
+
+
+BankInboxServiceDep = Annotated[BankInboxService, Depends(get_bank_inbox_service)]
+BankInboxFiltersDep = Annotated[BankInboxFilters, Query()]
 
 
 def get_psu(request: Request, source_address: SourceAddressDep) -> Psu | None:

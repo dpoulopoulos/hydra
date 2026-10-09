@@ -76,7 +76,14 @@ class TransactionService:
 
         return TransactionPublic.model_validate(transaction)
 
-    def record_transaction(self, household: HouseholdContext, transaction_create: TransactionCreate) -> Transaction:
+    def record_transaction(
+        self,
+        household: HouseholdContext,
+        transaction_create: TransactionCreate,
+        *,
+        external_id: str | None = None,
+        import_batch_id: uuid.UUID | None = None,
+    ) -> Transaction:
         """Check and save a transaction without committing it.
 
         For a caller that records the transaction as part of a larger change,
@@ -85,6 +92,8 @@ class TransactionService:
         Args:
             household: The household context.
             transaction_create: The transaction to record.
+            external_id: What identifies an imported row where it came from.
+            import_batch_id: The bank sync run an imported row came in with.
 
         Returns:
             The saved, uncommitted transaction.
@@ -118,7 +127,12 @@ class TransactionService:
 
         transaction = Transaction.model_validate(
             transaction_create,
-            update={"household_id": household.household_id, "created_by_user_id": household.user_id},
+            update={
+                "household_id": household.household_id,
+                "created_by_user_id": household.user_id,
+                "external_id": external_id,
+                "import_batch_id": import_batch_id,
+            },
         )
         self.transaction_repository.save(transaction)
         return transaction
@@ -315,6 +329,9 @@ class TransactionService:
         """
         transaction = self._require_transaction(household=household, transaction_id=transaction_id)
         self._check_not_from_session(transaction)
+        # A row accepted from the bank inbox goes back to it, so a deletion by
+        # mistake can be undone by accepting the row again.
+        self.transaction_repository.release_bank_rows(transaction.id, household.household_id)
         self.transaction_repository.delete(transaction)
         self.session.commit()
 

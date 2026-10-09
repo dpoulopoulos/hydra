@@ -640,6 +640,19 @@ class TestDeleteTransaction:
         assert isinstance(result, Message)
         mock_transaction_service.session.delete.assert_called_once_with(transaction)
 
+    def test_deleting_sends_its_bank_rows_back_to_the_inbox(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        """A row accepted from the bank inbox by mistake can be accepted again once deleted."""
+        transaction = make_transaction()
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.return_value = transaction
+
+        mock_transaction_service.delete_transaction(household=household_context, transaction_id=transaction.id)
+
+        statement = str(mock_transaction_service.session.execute.call_args.args[0])
+        assert statement.startswith("UPDATE banktransaction SET review_status")
+
     def test_a_transaction_from_another_household_is_not_found(
         self, mock_transaction_service: TransactionService, household_context: HouseholdContext
     ) -> None:

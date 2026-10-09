@@ -2,7 +2,15 @@ import uuid
 
 from fastapi import APIRouter, Query, status
 
-from app.api.deps import BankConnectionServiceDep, BankSyncServiceDep, CurrentHousehold, PsuDep, SessionUser
+from app.api.deps import (
+    BankConnectionServiceDep,
+    BankInboxFiltersDep,
+    BankInboxServiceDep,
+    BankSyncServiceDep,
+    CurrentHousehold,
+    PsuDep,
+    SessionUser,
+)
 from app.exceptions import (
     AspspNotFoundError,
     BankAccountAlreadyMappedError,
@@ -16,6 +24,9 @@ from app.exceptions import (
     BankRateLimitedError,
     BankSessionExpiredError,
     BankSyncNotConfiguredError,
+    BankTransactionKindError,
+    BankTransactionNotFoundError,
+    BankTransactionReviewedError,
     ServiceError,
 )
 from app.models import (
@@ -30,6 +41,9 @@ from app.models import (
     BankStatus,
     BankSyncRunPublic,
     BankSyncTrigger,
+    BankTransactionAccept,
+    BankTransactionPublic,
+    BankTransactionsPublic,
     Message,
 )
 
@@ -57,6 +71,9 @@ def bank_exception_mappings() -> dict[type[ServiceError], int]:
         BankConnectionInactiveError: status.HTTP_409_CONFLICT,
         BankAccountMappingError: status.HTTP_400_BAD_REQUEST,
         BankAccountAlreadyMappedError: status.HTTP_409_CONFLICT,
+        BankTransactionNotFoundError: status.HTTP_404_NOT_FOUND,
+        BankTransactionReviewedError: status.HTTP_409_CONFLICT,
+        BankTransactionKindError: status.HTTP_400_BAD_REQUEST,
     }
 
 
@@ -261,3 +278,86 @@ def update_bank_account(
     return bank_connection_service.update_bank_account(
         household=household, bank_account_id=bank_account_id, update=update_in
     )
+
+
+@router.get("/inbox", response_model=BankTransactionsPublic)
+def list_bank_inbox(
+    *, bank_inbox_service: BankInboxServiceDep, household: CurrentHousehold, filters: BankInboxFiltersDep
+) -> BankTransactionsPublic:
+    """List what bank sync brought in, waiting or already reviewed.
+
+    Args:
+        bank_inbox_service: The bank inbox service dependency.
+        household: The current household context.
+        filters: Which review status, which bank account, and which page.
+
+    Returns:
+        A page of rows, newest first, and how many match in all.
+    """
+    return bank_inbox_service.list_inbox(household=household, filters=filters)
+
+
+@router.post("/inbox/{bank_transaction_id}/accept", response_model=BankTransactionPublic)
+def accept_bank_transaction(
+    *,
+    bank_inbox_service: BankInboxServiceDep,
+    household: CurrentHousehold,
+    bank_transaction_id: uuid.UUID,
+    accept_in: BankTransactionAccept,
+) -> BankTransactionPublic:
+    """Record an inbox row in the ledger.
+
+    Args:
+        bank_inbox_service: The bank inbox service dependency.
+        household: The current household context.
+        bank_transaction_id: The ID of the bank transaction.
+        accept_in: Whether it is spending, income or a transfer, and how to file it.
+
+    Returns:
+        The accepted row, linked to its ledger transaction.
+
+    Raises:
+        HTTPException: If the row does not exist (404), was already reviewed
+            (409), or cannot be recorded that way (400).
+    """
+    return bank_inbox_service.accept(household=household, bank_transaction_id=bank_transaction_id, accept=accept_in)
+
+
+@router.post("/inbox/{bank_transaction_id}/skip", response_model=BankTransactionPublic)
+def skip_bank_transaction(
+    *, bank_inbox_service: BankInboxServiceDep, household: CurrentHousehold, bank_transaction_id: uuid.UUID
+) -> BankTransactionPublic:
+    """Leave an inbox row out of the ledger.
+
+    Args:
+        bank_inbox_service: The bank inbox service dependency.
+        household: The current household context.
+        bank_transaction_id: The ID of the bank transaction.
+
+    Returns:
+        The skipped row.
+
+    Raises:
+        HTTPException: If the row does not exist (404) or was already reviewed (409).
+    """
+    return bank_inbox_service.skip(household=household, bank_transaction_id=bank_transaction_id)
+
+
+@router.post("/inbox/{bank_transaction_id}/reopen", response_model=BankTransactionPublic)
+def reopen_bank_transaction(
+    *, bank_inbox_service: BankInboxServiceDep, household: CurrentHousehold, bank_transaction_id: uuid.UUID
+) -> BankTransactionPublic:
+    """Put a skipped row back in the inbox.
+
+    Args:
+        bank_inbox_service: The bank inbox service dependency.
+        household: The current household context.
+        bank_transaction_id: The ID of the bank transaction.
+
+    Returns:
+        The row, waiting again.
+
+    Raises:
+        HTTPException: If the row does not exist (404) or was not skipped (409).
+    """
+    return bank_inbox_service.reopen(household=household, bank_transaction_id=bank_transaction_id)

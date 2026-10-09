@@ -3,9 +3,17 @@ from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, func, select
 
-from app.models import Account, BankAccount, BankConnection, BankConnectionStatus, BankSyncRun, BankTransaction
+from app.models import (
+    Account,
+    BankAccount,
+    BankConnection,
+    BankConnectionStatus,
+    BankInboxFilters,
+    BankSyncRun,
+    BankTransaction,
+)
 from app.repositories.base import HouseholdScopedRepository, table_of
 
 # What the settings page lists. A pending login has not come back from the
@@ -201,3 +209,53 @@ class BankTransactionRepository(HouseholdScopedRepository[BankTransaction]):
             .returning(table.c.id)
         )
         return len(self.session.execute(statement).all())
+
+    def lock_for_household(self, bank_transaction_id: uuid.UUID, household_id: uuid.UUID) -> BankTransaction | None:
+        """Get a bank transaction of a household, and lock it until the transaction ends.
+
+        Locked so two people accepting the same row at once record it once.
+
+        Args:
+            bank_transaction_id: The ID of the bank transaction.
+            household_id: The ID of the household.
+
+        Returns:
+            The bank transaction, or None if it does not exist in the household.
+        """
+        statement = (
+            select(BankTransaction)
+            .where(BankTransaction.id == bank_transaction_id, BankTransaction.household_id == household_id)
+            .with_for_update()
+        )
+        return self.session.exec(statement).first()
+
+    def list_inbox(
+        self, household_id: uuid.UUID, filters: BankInboxFilters
+    ) -> tuple[Sequence[tuple[BankTransaction, BankAccount]], int]:
+        """List a page of the inbox, with each row's bank account.
+
+        Args:
+            household_id: The ID of the household.
+            filters: Which review status, which bank account, and which page.
+
+        Returns:
+            The page of rows, newest first, and how many rows match in all.
+        """
+        conditions = [
+            BankTransaction.household_id == household_id,
+            BankTransaction.review_status == filters.status,
+        ]
+        if filters.bank_account_id is not None:
+            conditions.append(BankTransaction.bank_account_id == filters.bank_account_id)
+
+        count = self.session.exec(select(func.count()).select_from(BankTransaction).where(*conditions)).one()
+        statement = self._paginate(
+            select(BankTransaction, BankAccount)
+            .join(BankAccount, col(BankTransaction.bank_account_id) == col(BankAccount.id))
+            .where(*conditions)
+            .order_by(col(BankTransaction.occurred_on).desc(), col(BankTransaction.created_at).desc())
+            .order_by(col(BankTransaction.id)),
+            filters.skip,
+            filters.limit,
+        )
+        return self.session.exec(statement).all(), int(count)
