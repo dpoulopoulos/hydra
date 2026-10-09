@@ -3,7 +3,17 @@ import warnings
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import AnyUrl, BeforeValidator, EmailStr, Field, PostgresDsn, computed_field, model_validator
+from cryptography.hazmat.primitives import serialization
+from pydantic import (
+    AnyUrl,
+    BeforeValidator,
+    EmailStr,
+    Field,
+    PostgresDsn,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +40,9 @@ class Settings(BaseSettings):
         env_file=Path(__file__).parents[4] / ".env",
         env_ignore_empty=False,
         extra="ignore",
+        # A validation error otherwise prints the input it rejected, and for a
+        # model-wide check that input is every setting, secrets included.
+        hide_input_in_errors=True,
     )
 
     def _report_insecure_secret(self, message: str) -> None:
@@ -302,6 +315,87 @@ class Settings(BaseSettings):
     # single reverse proxy is one; a platform edge in front of that proxy is
     # two.
     TRUSTED_PROXY_HOPS: int = Field(default=0, ge=0)
+
+    # Bank sync, through Enable Banking: an aggregator that reaches European
+    # banks over the PSD2 APIs they are required to offer. An application is
+    # registered in its control panel, which hands out an id and an RSA private
+    # key; every call is signed with that key. Leave both empty to switch bank
+    # sync off.
+    ENABLE_BANKING_APP_ID: str = ""
+    # The PEM itself, not a path to it: a host that sets secrets as variables
+    # has no file to point at. A literal "\n" is read as a line break, so the
+    # key can sit on one line of .env.
+    ENABLE_BANKING_PRIVATE_KEY: str = ""
+    ENABLE_BANKING_BASE_URL: str = "https://api.enablebanking.com"
+    # Long on purpose. The call is relayed to a bank, and banks are slow.
+    ENABLE_BANKING_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
+
+    # How long a bank login is asked to last. Most banks cap it at 180 days,
+    # and a smaller cap from the bank wins.
+    BANK_CONSENT_DAYS: int = Field(default=180, ge=1)
+    # How long the trip to the bank and back may take before a started
+    # connection is given up on and pruned.
+    BANK_PENDING_CONNECTION_TTL_MINUTES: int = Field(default=60, ge=1)
+    # Every sync fetches this many days before the last booked row again. A
+    # bank can book a row with an earlier date than one already seen, and a
+    # row pending at the last sync is booked by the next one; the overlap is
+    # what catches both. Rows already held are recognised and not added twice.
+    BANK_SYNC_OVERLAP_DAYS: int = Field(default=10, ge=0)
+    # Banks allow about four pulls a day that the account holder is not
+    # present for, so the automatic sync runs once a day per connection.
+    BANK_SYNC_AUTO_INTERVAL_HOURS: int = Field(default=24, ge=6)
+    # How often the background syncer looks for connections that came due.
+    BANK_SYNC_POLL_SECONDS: int = Field(default=600, ge=1)
+    # What the bank sent for a row - names, IBANs, the full text - is kept for
+    # this long and then cleared. What recognises the row on the next sync is
+    # kept for good.
+    BANK_RAW_RETENTION_DAYS: int = Field(default=90, ge=1)
+
+    @field_validator("ENABLE_BANKING_PRIVATE_KEY", mode="after")
+    @classmethod
+    def _unescape_newlines(cls, value: str) -> str:
+        return value.replace("\\n", "\n").strip()
+
+    @model_validator(mode="after")
+    def _check_enable_banking(self) -> Self:
+        """Check that bank sync is configured whole, or not at all.
+
+        A key that does not parse is cleared, so bank sync reads as off rather than failing on its
+        first call.
+
+        Returns:
+            The settings, once the pair has been checked.
+        """
+        if not self.ENABLE_BANKING_APP_ID and not self.ENABLE_BANKING_PRIVATE_KEY:
+            return self
+        if not self.ENABLE_BANKING_APP_ID or not self.ENABLE_BANKING_PRIVATE_KEY:
+            self._report_insecure_secret(
+                "Only one of ENABLE_BANKING_APP_ID and ENABLE_BANKING_PRIVATE_KEY is set, so bank sync is off. "
+                "Set both, or neither."
+            )
+            self.ENABLE_BANKING_PRIVATE_KEY = ""
+            return self
+        try:
+            serialization.load_pem_private_key(self.ENABLE_BANKING_PRIVATE_KEY.encode(), password=None)
+        except (ValueError, TypeError):
+            # The message must not quote the key: it ends up in logs.
+            self._report_insecure_secret(
+                "ENABLE_BANKING_PRIVATE_KEY is not an unencrypted PEM private key, so bank sync is off."
+            )
+            self.ENABLE_BANKING_PRIVATE_KEY = ""
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def bank_sync_enabled(self) -> bool:
+        return bool(self.ENABLE_BANKING_APP_ID and self.ENABLE_BANKING_PRIVATE_KEY)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def bank_redirect_url(self) -> str:
+        # Where the bank sends the browser back to. It has to be registered
+        # with Enable Banking exactly as written here.
+        return f"{self.FRONTEND_HOST.rstrip('/')}/settings/bank/callback"
 
     EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 24  # 1 day
     EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 48  # 2 days
