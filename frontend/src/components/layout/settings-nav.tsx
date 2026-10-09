@@ -11,6 +11,7 @@ export function SettingsNav() {
     { to: '/settings/household', label: 'Household' },
     { to: '/settings/profile', label: 'Your profile' },
     { to: '/settings/api-tokens', label: 'API tokens' },
+    { to: '/settings/bank', label: 'Banks' },
     ...(user?.is_superuser ? [{ to: '/settings/users', label: 'All users' }] : []),
   ]
 
