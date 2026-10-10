@@ -32,6 +32,7 @@ from app.models import (
     HouseholdInvitePreview,
     HouseholdInvitePublic,
     HouseholdInvitesPublic,
+    HouseholdInvitesReceived,
     HouseholdInviteStatus,
     HouseholdMemberPublic,
     HouseholdMembersPublic,
@@ -313,6 +314,52 @@ def accept_household_invite(
             holds data (409).
     """
     return household_service.accept_invite(user=current_user, token=accept_in.token)
+
+
+# Declared before "/invites/{token}" so "received" is not read as a token.
+@router.get("/invites/received", response_model=HouseholdInvitesReceived)
+def list_received_household_invites(
+    *, household_service: HouseholdServiceDep, current_user: CurrentUser
+) -> HouseholdInvitesReceived:
+    """List the invitations waiting for you to accept them.
+
+    An invitation is listed once your address is verified, which is when it
+    becomes yours to accept. Signing up through its link is not enough on its
+    own.
+
+    Args:
+        household_service: The household service dependency.
+        current_user: The current authenticated user.
+
+    Returns:
+        The pending invitations for your account, newest first.
+    """
+    return household_service.list_received_invites(user=current_user)
+
+
+@router.post("/invites/{invite_id}/accept", response_model=HouseholdPublic, dependencies=[Depends(get_session_user)])
+def accept_received_household_invite(
+    *, household_service: HouseholdServiceDep, current_user: CurrentUser, invite_id: uuid.UUID
+) -> HouseholdPublic:
+    """Accept an invitation from your list and join the household.
+
+    The same as accepting with the token from the email, for an invitation
+    listed by `GET /households/invites/received`.
+
+    Args:
+        household_service: The household service dependency.
+        current_user: The current authenticated user.
+        invite_id: The ID of the invitation.
+
+    Returns:
+        The household you joined.
+
+    Raises:
+        HTTPException: If no invitation with that ID is waiting for you (404),
+            it has expired or was already used (400), or your current household
+            holds data (409).
+    """
+    return household_service.accept_received_invite(user=current_user, invite_id=invite_id)
 
 
 @router.get("/invites/{token}", response_model=HouseholdInvitePreview)

@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from collections.abc import Sequence
 
@@ -317,6 +318,31 @@ class HouseholdInviteRepository(HouseholdScopedRepository[HouseholdInvite]):
         statement = select(HouseholdInvite).where(
             func.lower(col(HouseholdInvite.email)) == email.lower(),
             HouseholdInvite.status == HouseholdInviteStatus.PENDING,
+        )
+        return self.session.exec(statement).all()
+
+    def list_pending_for_user(self, user_id: uuid.UUID, now: datetime.datetime) -> Sequence[HouseholdInvite]:
+        """List the outstanding invites attributed to an account, newest first.
+
+        Not scoped to a household, for the same reason as `list_pending_for_email`. Only invites
+        attributed to the account are listed: one that names nobody yet cannot be accepted by
+        anyone, so offering it would only lead to a refusal.
+
+        Args:
+            user_id: The ID of the account the invites were attributed to.
+            now: The current time. An invite past its expiry is left out.
+
+        Returns:
+            The pending, unexpired invites attributed to that account.
+        """
+        statement = (
+            select(HouseholdInvite)
+            .where(
+                HouseholdInvite.invited_user_id == user_id,
+                HouseholdInvite.status == HouseholdInviteStatus.PENDING,
+                col(HouseholdInvite.expires_at) > now,
+            )
+            .order_by(col(HouseholdInvite.created_at).desc())
         )
         return self.session.exec(statement).all()
 

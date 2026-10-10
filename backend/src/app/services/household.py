@@ -29,7 +29,9 @@ from app.models import (
     HouseholdInviteCreate,
     HouseholdInvitePreview,
     HouseholdInvitePublic,
+    HouseholdInviteReceived,
     HouseholdInvitesPublic,
+    HouseholdInvitesReceived,
     HouseholdInviteStatus,
     HouseholdMember,
     HouseholdMemberPublic,
@@ -882,6 +884,76 @@ class HouseholdService:
             HouseholdNotEmptyError: If the caller's current household holds data.
         """
         return self._join(user=user, invite=self._require_pending_invite(token))
+
+    def list_received_invites(self, user: User) -> HouseholdInvitesReceived:
+        """List the invitations waiting for an account, for the app to offer.
+
+        Signing up through an invitation does not take it: the address is only
+        proved later, by the verification link, and the invitation becomes the
+        account's to accept then. This is what lets the app offer it at that
+        point, instead of sending the recipient back to the email for its link.
+
+        Args:
+            user: The signed-in account.
+
+        Returns:
+            The pending, unexpired invitations attributed to the account, newest first.
+        """
+        data = []
+
+        for invite in self.household_invite_repository.list_pending_for_user(user_id=user.id, now=datetime.now(UTC)):
+            entity = self.household_repository.get_by_id(invite.household_id)
+
+            if not entity:
+                continue
+
+            inviter = (
+                self.household_member_repository.get_user(invite.invited_by_user_id)
+                if invite.invited_by_user_id
+                else None
+            )
+            data.append(
+                HouseholdInviteReceived(
+                    id=invite.id,
+                    household_name=entity.name,
+                    invited_by=inviter.email if inviter else invite.email,
+                    role=invite.role,
+                    expires_at=invite.expires_at,
+                )
+            )
+
+        return HouseholdInvitesReceived(data=data, count=len(data))
+
+    def accept_received_invite(self, user: User, invite_id: uuid.UUID) -> HouseholdPublic:
+        """Join a household using an invitation attributed to the caller.
+
+        The same as `accept_invite`, for an invitation the app listed rather
+        than one whose link was followed. An invitation attributed to somebody
+        else is reported as missing, so its ID tells the caller nothing.
+
+        Args:
+            user: The user accepting the invite.
+            invite_id: The ID of the invite.
+
+        Returns:
+            The household they joined.
+
+        Raises:
+            HouseholdInviteNotFoundError: If no invite with that ID is attributed to the caller.
+            HouseholdInviteUsedError: If the invite was already accepted or withdrawn.
+            HouseholdInviteExpiredError: If the invite is past its expiry.
+            HouseholdNotFoundError: If the household the invite points at is gone.
+            HouseholdMemberExistsError: If the caller already belongs to that household.
+            HouseholdNotEmptyError: If the caller's current household holds data.
+        """
+        invite = self.household_invite_repository.get_by_id(invite_id)
+
+        if not invite or invite.invited_user_id != user.id:
+            raise HouseholdInviteNotFoundError from None
+
+        self._require_pending(invite)
+
+        return self._join(user=user, invite=invite)
 
     def _join(self, user: User, invite: HouseholdInvite) -> HouseholdPublic:
         """Move a user into the household of a pending invite, and mark it accepted.

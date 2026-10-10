@@ -176,6 +176,25 @@ class HouseholdInvitePreview(SQLModel):
     expires_at: datetime.datetime
 
 
+class HouseholdInviteReceived(SQLModel):
+    """An invitation waiting for the signed-in account, as the app offers it.
+
+    Carries no token. The account it was attributed to accepts it by its ID, so
+    the bearer secret in the email never has to travel back out of the API.
+    """
+
+    id: uuid.UUID
+    household_name: str
+    invited_by: EmailStr
+    role: HouseholdRole
+    expires_at: datetime.datetime
+
+
+class HouseholdInvitesReceived(SQLModel):
+    data: list[HouseholdInviteReceived]
+    count: int
+
+
 class HouseholdInvite(HouseholdInviteBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=True):
     token: str = Field(unique=True, index=True)
     household_id: uuid.UUID = Field(foreign_key="household.id", ondelete="CASCADE", index=True)

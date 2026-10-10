@@ -31,7 +31,9 @@ from app.models import (
     HouseholdContext,
     HouseholdInvitePreview,
     HouseholdInvitePublic,
+    HouseholdInviteReceived,
     HouseholdInvitesPublic,
+    HouseholdInvitesReceived,
     HouseholdInviteStatus,
     HouseholdMemberPublic,
     HouseholdMembersPublic,
@@ -727,3 +729,80 @@ class TestAcceptHouseholdInvite:
 
         assert response.status_code == 409
         assert "accounts or transactions" in response.json()["detail"]
+
+
+class TestListReceivedHouseholdInvites:
+    """Tests for GET /households/invites/received."""
+
+    def test_lists_the_invites_waiting_for_the_user(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str], test_user: User
+    ) -> None:
+        wire.list_received_invites.return_value = HouseholdInvitesReceived(
+            data=[
+                HouseholdInviteReceived(
+                    id=INVITE_ID,
+                    household_name="Test household",
+                    invited_by="owner@example.com",
+                    role=HouseholdRole.MEMBER,
+                    expires_at=datetime.now(UTC) + timedelta(days=7),
+                )
+            ],
+            count=1,
+        )
+
+        response = client.get("/api/v1/households/invites/received", headers=auth_headers)
+
+        assert response.status_code == 200
+        assert response.json()["data"][0]["household_name"] == "Test household"
+        # The bearer secret stays in the email.
+        assert "token" not in response.json()["data"][0]
+        wire.list_received_invites.assert_called_once_with(user=test_user)
+
+    def test_received_is_not_parsed_as_a_token(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        """The literal "received" path must win over the {token} path."""
+        wire.list_received_invites.return_value = HouseholdInvitesReceived(data=[], count=0)
+
+        response = client.get("/api/v1/households/invites/received", headers=auth_headers)
+
+        assert response.status_code == 200
+        wire.preview_invite.assert_not_called()
+
+
+class TestAcceptReceivedHouseholdInvite:
+    """Tests for POST /households/invites/{invite_id}/accept."""
+
+    def test_joins_the_household(
+        self,
+        client: TestClient,
+        wire: MagicMock,
+        auth_headers: dict[str, str],
+        household_public: HouseholdPublic,
+        test_user: User,
+    ) -> None:
+        wire.accept_received_invite.return_value = household_public
+
+        response = client.post(f"/api/v1/households/invites/{INVITE_ID}/accept", headers=auth_headers)
+
+        assert response.status_code == 200
+        assert response.json()["name"] == "Test household"
+        wire.accept_received_invite.assert_called_once_with(user=test_user, invite_id=INVITE_ID)
+
+    def test_an_invite_for_someone_else_is_not_found(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        wire.accept_received_invite.side_effect = HouseholdInviteNotFoundError
+
+        response = client.post(f"/api/v1/households/invites/{INVITE_ID}/accept", headers=auth_headers)
+
+        assert response.status_code == 404
+
+    def test_a_household_with_data_is_a_conflict(
+        self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        wire.accept_received_invite.side_effect = HouseholdNotEmptyError
+
+        response = client.post(f"/api/v1/households/invites/{INVITE_ID}/accept", headers=auth_headers)
+
+        assert response.status_code == 409
