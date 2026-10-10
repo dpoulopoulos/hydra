@@ -881,8 +881,25 @@ class HouseholdService:
             HouseholdMemberExistsError: If the caller already belongs to that household.
             HouseholdNotEmptyError: If the caller's current household holds data.
         """
-        invite = self._require_pending_invite(token)
+        return self._join(user=user, invite=self._require_pending_invite(token))
 
+    def _join(self, user: User, invite: HouseholdInvite) -> HouseholdPublic:
+        """Move a user into the household of a pending invite, and mark it accepted.
+
+        Args:
+            user: The user accepting the invite.
+            invite: The pending invite.
+
+        Returns:
+            The household they joined.
+
+        Raises:
+            HouseholdInviteEmailMismatchError: If the invite was issued to another account.
+            HouseholdInviteUnclaimedError: If the invited address has not been proved to belong to anyone.
+            HouseholdNotFoundError: If the household the invite points at is gone.
+            HouseholdMemberExistsError: If the caller already belongs to that household.
+            HouseholdNotEmptyError: If the caller's current household holds data.
+        """
         # Compared by identity, not by address. An address is a profile field
         # its owner can change to anything unclaimed, and the invited address
         # is readable from the public preview, so comparing the two would let
@@ -979,6 +996,20 @@ class HouseholdService:
         if not invite:
             raise HouseholdInviteNotFoundError from None
 
+        self._require_pending(invite)
+
+        return invite
+
+    def _require_pending(self, invite: HouseholdInvite) -> None:
+        """Check that an invite can still be acted on.
+
+        Args:
+            invite: The invite.
+
+        Raises:
+            HouseholdInviteUsedError: If the invite was already accepted or withdrawn.
+            HouseholdInviteExpiredError: If the invite is past its expiry.
+        """
         if invite.status is not HouseholdInviteStatus.PENDING:
             raise HouseholdInviteUsedError from None
 
@@ -988,5 +1019,3 @@ class HouseholdService:
             # transaction, which may be signing a user up.
             self.household_invite_repository.save(invite)
             raise HouseholdInviteExpiredError from None
-
-        return invite
