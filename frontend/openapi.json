@@ -1045,6 +1045,82 @@
         ]
       }
     },
+    "/api/v1/households/invites/received": {
+      "get": {
+        "tags": [
+          "households"
+        ],
+        "summary": "List Received Household Invites",
+        "description": "List the invitations waiting for you to accept them.\n\nAn invitation is listed once your address is verified, which is when it\nbecomes yours to accept. Signing up through its link is not enough on its\nown.\n\nArgs:\n    household_service: The household service dependency.\n    current_user: The current authenticated user.\n\nReturns:\n    The pending invitations for your account, newest first.",
+        "operationId": "households-list_received_household_invites",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdInvitesReceived"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/households/invites/{invite_id}/accept": {
+      "post": {
+        "tags": [
+          "households"
+        ],
+        "summary": "Accept Received Household Invite",
+        "description": "Accept an invitation from your list and join the household.\n\nThe same as accepting with the token from the email, for an invitation\nlisted by `GET /households/invites/received`.\n\nArgs:\n    household_service: The household service dependency.\n    current_user: The current authenticated user.\n    invite_id: The ID of the invitation.\n\nReturns:\n    The household you joined.\n\nRaises:\n    HTTPException: If no invitation with that ID is waiting for you (404),\n        it has expired or was already used (400), or your current household\n        holds data (409).",
+        "operationId": "households-accept_received_household_invite",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invite_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invite Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/households/invites/{token}": {
       "get": {
         "tags": [
@@ -8973,6 +9049,42 @@
         ],
         "title": "HouseholdInvitePublic"
       },
+      "HouseholdInviteReceived": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "household_name": {
+            "type": "string",
+            "title": "Household Name"
+          },
+          "invited_by": {
+            "type": "string",
+            "format": "email",
+            "title": "Invited By"
+          },
+          "role": {
+            "$ref": "#/components/schemas/HouseholdRole"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "household_name",
+          "invited_by",
+          "role",
+          "expires_at"
+        ],
+        "title": "HouseholdInviteReceived",
+        "description": "An invitation waiting for the signed-in account, as the app offers it.\n\nCarries no token. The account it was attributed to accepts it by its ID, so\nthe bearer secret in the email never has to travel back out of the API."
+      },
       "HouseholdInviteStatus": {
         "type": "string",
         "enum": [
@@ -9003,6 +9115,27 @@
           "count"
         ],
         "title": "HouseholdInvitesPublic"
+      },
+      "HouseholdInvitesReceived": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/HouseholdInviteReceived"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "count"
+        ],
+        "title": "HouseholdInvitesReceived"
       },
       "HouseholdMemberPublic": {
         "properties": {

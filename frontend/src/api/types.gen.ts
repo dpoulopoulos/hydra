@@ -1686,6 +1686,34 @@ export type HouseholdInvitePublic = {
 };
 
 /**
+ * HouseholdInviteReceived
+ *
+ * An invitation waiting for the signed-in account, as the app offers it.
+ *
+ * Carries no token. The account it was attributed to accepts it by its ID, so
+ * the bearer secret in the email never has to travel back out of the API.
+ */
+export type HouseholdInviteReceived = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Household Name
+     */
+    household_name: string;
+    /**
+     * Invited By
+     */
+    invited_by: string;
+    role: HouseholdRole;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+};
+
+/**
  * HouseholdInviteStatus
  */
 export const HouseholdInviteStatus = {
@@ -1708,6 +1736,20 @@ export type HouseholdInvitesPublic = {
      * Data
      */
     data: Array<HouseholdInvitePublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * HouseholdInvitesReceived
+ */
+export type HouseholdInvitesReceived = {
+    /**
+     * Data
+     */
+    data: Array<HouseholdInviteReceived>;
     /**
      * Count
      */
@@ -4572,6 +4614,52 @@ export type HouseholdsAcceptHouseholdInviteResponses = {
 };
 
 export type HouseholdsAcceptHouseholdInviteResponse = HouseholdsAcceptHouseholdInviteResponses[keyof HouseholdsAcceptHouseholdInviteResponses];
+
+export type HouseholdsListReceivedHouseholdInvitesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/households/invites/received';
+};
+
+export type HouseholdsListReceivedHouseholdInvitesResponses = {
+    /**
+     * Successful Response
+     */
+    200: HouseholdInvitesReceived;
+};
+
+export type HouseholdsListReceivedHouseholdInvitesResponse = HouseholdsListReceivedHouseholdInvitesResponses[keyof HouseholdsListReceivedHouseholdInvitesResponses];
+
+export type HouseholdsAcceptReceivedHouseholdInviteData = {
+    body?: never;
+    path: {
+        /**
+         * Invite Id
+         */
+        invite_id: string;
+    };
+    query?: never;
+    url: '/api/v1/households/invites/{invite_id}/accept';
+};
+
+export type HouseholdsAcceptReceivedHouseholdInviteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type HouseholdsAcceptReceivedHouseholdInviteError = HouseholdsAcceptReceivedHouseholdInviteErrors[keyof HouseholdsAcceptReceivedHouseholdInviteErrors];
+
+export type HouseholdsAcceptReceivedHouseholdInviteResponses = {
+    /**
+     * Successful Response
+     */
+    200: HouseholdPublic;
+};
+
+export type HouseholdsAcceptReceivedHouseholdInviteResponse = HouseholdsAcceptReceivedHouseholdInviteResponses[keyof HouseholdsAcceptReceivedHouseholdInviteResponses];
 
 export type HouseholdsPreviewHouseholdInviteData = {
     body?: never;
