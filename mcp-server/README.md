@@ -2,11 +2,12 @@
 
 An [MCP](https://modelcontextprotocol.io) server that hands an AI agent a set of
 tools over one hydra household: accounts and balances, transactions, budgets,
-savings goals, reports, standing payments and investments. It runs beside the
+savings goals, reports, standing payments, investments, and the clients and
+sessions of a practice paid by the hour. It runs beside the
 backend, speaks MCP to the agent and REST to hydra, and holds no credential of
 its own.
 
-Most of the tools only read, and say so through `read_only_hint`. Eleven of them
+Most of the tools only read, and say so through `read_only_hint`. Seventeen of them
 write, and hydra decides whether they may: a token minted with the `read`
 scope is refused on anything that is not a `GET`, whatever this server thinks.
 That check lives in the backend rather than here, so it holds for every client
@@ -41,7 +42,8 @@ every client that connected would read that household, whoever they were.
 
 ```bash
 claude mcp add --transport http hydra http://localhost:8002/mcp \
-  --header "Authorization: Bearer hyd_..."
+  --header "Authorization: Bearer hyd_..." \
+  --header "Hydra-Clients-Pin: 123456"
 ```
 
 Or, in Claude Desktop's `claude_desktop_config.json`:
@@ -52,11 +54,48 @@ Or, in Claude Desktop's `claude_desktop_config.json`:
     "hydra": {
       "type": "http",
       "url": "http://localhost:8002/mcp",
-      "headers": { "Authorization": "Bearer hyd_..." }
+      "headers": {
+        "Authorization": "Bearer hyd_...",
+        "Hydra-Clients-Pin": "123456"
+      }
     }
   }
 }
 ```
+
+The PIN header is optional, and only the client tools read it. See below.
+
+## Client names
+
+The clients page encrypts every client name, and every client note, in the
+browser under its owner's PIN, and hydra stores ciphertext it cannot read.
+`vault.py` does what the page does, so an agent can work with "Maria" rather
+than with base64: it fetches the person's vault, stretches the PIN with
+Argon2id into the key that unwraps their data key, and opens or writes names
+with AES-GCM in exactly the page's format. A name written here reads in the
+page, and one written there reads here.
+
+This changes one promise, and it is worth being plain about. Without the MCP
+server the PIN never leaves the browser. With the `Hydra-Clients-Pin` header,
+it reaches this process on every request. It is never logged or stored; only
+the data key it unlocks is kept in memory, for `CLIENTS_KEY_CACHE_SECONDS`,
+under a hash rather than the PIN. Anyone who can read this process's memory, or
+the MCP client's config file, can read that person's client names. Leave the
+header out if that is not a trade worth making.
+
+Without the header the client tools still work, on figures: names come back as
+null, and a client is named by id. Adding a client or renaming one needs the
+PIN, because a name has to be locked before it is sent. A wrong PIN is refused
+to the host as an `MCPError`, since no change of arguments fixes it.
+
+A name is only ever readable by the person who added the client. Another
+member's clients are listed with a null name, as on the page, and the tools
+refuse to change them before asking hydra, whose 403 would otherwise read as a
+refused token.
+
+Two clients may share a name, because the encryption that hides names also
+stops hydra refusing a duplicate. A name that matches two clients is asked
+about rather than settled by whichever came last.
 
 ## Names, not identifiers
 
@@ -125,9 +164,9 @@ uv run python -m hydra_mcp.server
 
 ## What is deliberately not exposed
 
-- **Everything under `/income`.** Client names are encrypted in the browser
-  under each person's own PIN and are ciphertext to the server. An agent would
-  receive base64 and report it as a name.
+- **Setting up, changing or resetting the clients PIN.** Resetting it erases
+  every client name for good, and choosing a PIN is for a person, not an
+  agent. Both stay on the clients page.
 - **Household members and invitations.** Adding or removing a member grants or
   revokes access to an entire financial history. That is a decision for a
   person at a keyboard, not a tool call an agent can be talked into by a

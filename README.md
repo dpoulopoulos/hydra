@@ -152,7 +152,9 @@ reads low with nothing to explain it.
 Client names are the one piece of data here the server cannot read. They are
 encrypted in the browser under a key wrapped by a PIN that never leaves the
 device, so a copy of the database is a list of fees and dates with nobody
-attached to it.
+attached to it. The one exception is one you opt into: giving the MCP server
+your PIN, so an agent can read and write names too. See
+[mcp-server/README.md](mcp-server/README.md#client-names) for what that costs.
 
 The PIN belongs to a person, not to the household, and that is the one place
 this feature breaks the "everything below the household is shared" rule. A

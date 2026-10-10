@@ -248,6 +248,10 @@ claude mcp add --transport http hydra https://YOUR-MCP-DOMAIN/mcp \
 claude mcp list
 ```
 
+To let the agent read and write client names as well, add the PIN you use on the Clients page as a second header,
+`--header "Hydra-Clients-Pin: ..."`. Without it the client tools still work, with every name left out. With it, the
+PIN reaches the MCP service on every request, which the browser alone never allows; it is not logged or stored.
+
 Two things worth understanding before you leave this running.
 
 The endpoint is on the public internet, and a hydra API token is the only thing between it and a household's
