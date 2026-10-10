@@ -6,7 +6,9 @@ import pytest
 from app.core.config import settings
 from app.utils.email_utils import (
     EmailData,
+    _hours_in_words,
     generate_email_verification_email,
+    generate_household_invite_email,
     generate_household_ownership_email,
     generate_new_account_email,
     generate_password_reset_email,
@@ -548,6 +550,52 @@ class TestSendEmailViaResend:
         # Assert: Verify no message was built for a mail server
         mock_post.assert_called_once()
         mock_message_class.assert_not_called()
+
+
+class TestGenerateHouseholdInviteEmail:
+    """Test the invitation sent to someone asked to share a household."""
+
+    def test_generate_household_invite_email_returns_email_data(self) -> None:
+        """The invitation names who asked and which household, and links to the join page."""
+        # Arrange: Set up test data
+        email = "partner@example.com"
+        token = "invite-token"
+
+        # Act: Generate the invitation
+        result = generate_household_invite_email(
+            email=email, token=token, household_name="The Smith household", inviter_name="Ada Smith"
+        )
+
+        # Assert: Verify email data is correct
+        assert isinstance(result, EmailData)
+        assert result.subject == f"You have been invited to The Smith household - {settings.PROJECT_NAME}"
+        assert "Ada Smith" in result.html_content
+        assert "The Smith household" in result.html_content
+        assert f"{settings.FRONTEND_HOST}/join-household?token={token}" in result.html_content
+        assert settings.assets_base_url in result.html_content
+
+    def test_generate_household_invite_email_says_how_long_it_lasts(self) -> None:
+        """The time limit comes from the setting rather than being written into the text."""
+        # Act: Generate the invitation under a three-day limit
+        with patch.object(settings, "HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS", 72):
+            result = generate_household_invite_email(
+                email="partner@example.com", token="t", household_name="Home", inviter_name="Ada"
+            )
+
+        # Assert: Verify the limit is given in days
+        assert "3 days" in result.html_content
+
+
+class TestHoursInWords:
+    """Tests for _hours_in_words."""
+
+    @pytest.mark.parametrize(
+        ("hours", "words"),
+        [(1, "1 hour"), (12, "12 hours"), (24, "24 hours"), (36, "36 hours"), (48, "2 days"), (168, "7 days")],
+    )
+    def test_says_a_time_limit_the_way_a_person_would(self, hours: int, words: str) -> None:
+        """Whole days from two upward read as days; anything else stays in hours."""
+        assert _hours_in_words(hours) == words
 
 
 class TestMaskEmail:

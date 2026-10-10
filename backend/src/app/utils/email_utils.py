@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 from emails.message import Message
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader
 
 from app.core.config import settings
 from app.logging import get_logger
@@ -25,14 +25,45 @@ class EmailData:
     subject: str
 
 
+# Every message extends one layout, so the templates are loaded by name rather
+# than read one file at a time.
+#
+# Escaping is on: names, household names and usernames all come from whoever
+# typed them, and every one of them lands in the middle of an HTML document.
+# None of the templates pass markup through a variable, so there is nothing
+# here that wants the raw value.
+_templates = Environment(
+    loader=FileSystemLoader(Path(__file__).parent.parent / "templates" / "email"),
+    autoescape=True,
+)
+
+
 def _render_email_template(*, template_name: str, context: dict[str, Any]) -> str:
-    # Escaping is on: names, household names and usernames all come from
-    # whoever typed them, and every one of them lands in the middle of an HTML
-    # document. None of the templates pass markup through a variable, so there
-    # is nothing here that wants the raw value.
-    template_str = (Path(__file__).parent.parent / "templates" / "email" / template_name).read_text()
-    template: Template = Template(template_str, autoescape=True)
-    return template.render(context)
+    # What the layout around every message needs: the logo, the name beside it
+    # and where it links to.
+    shared = {
+        "project_name": settings.PROJECT_NAME,
+        "frontend_host": settings.FRONTEND_HOST,
+        "assets_base_url": settings.assets_base_url,
+    }
+    return _templates.get_template(template_name).render({**shared, **context})
+
+
+def _hours_in_words(hours: int) -> str:
+    """Say how long a link lasts the way a person would.
+
+    A week reads better as 7 days than as 168 hours, but a single day stays
+    24 hours, which is how people tend to say it.
+
+    Args:
+        hours: How long the link lasts.
+
+    Returns:
+        The time limit in words, such as "24 hours" or "7 days".
+    """
+    if hours >= 48 and hours % 24 == 0:
+        return f"{hours // 24} days"
+    return "1 hour" if hours == 1 else f"{hours} hours"
 
 
 # Fixed width, so the mask says nothing about how long the local part is.
@@ -75,10 +106,8 @@ def generate_new_account_email(username: str) -> EmailData:
     html_content = _render_email_template(
         template_name="new_account.html",
         context={
-            "project_name": settings.PROJECT_NAME,
             "username": username,
             "link": settings.FRONTEND_HOST,
-            "assets_base_url": settings.assets_base_url,
         },
     )
     return EmailData(html_content=html_content, subject=subject)
@@ -98,11 +127,10 @@ def generate_password_reset_email(email: str, token: str) -> EmailData:
     html_content = _render_email_template(
         template_name="password_reset.html",
         context={
-            "project_name": settings.PROJECT_NAME,
             "email": email,
             "token": token,
             "link": f"{settings.FRONTEND_HOST}/reset-password?token={token}",
-            "assets_base_url": settings.assets_base_url,
+            "expires_in": _hours_in_words(settings.EMAIL_PASSWORD_RESET_TOKEN_EXPIRE_HOURS),
         },
     )
     return EmailData(html_content=html_content, subject=subject)
@@ -128,12 +156,11 @@ def generate_email_verification_email(email: str, token: str, invite_unusable: b
     html_content = _render_email_template(
         template_name="email_verification.html",
         context={
-            "project_name": settings.PROJECT_NAME,
             "email": email,
             "token": token,
             "invite_unusable": invite_unusable,
             "link": f"{settings.FRONTEND_HOST}/verify-email?token={token}",
-            "assets_base_url": settings.assets_base_url,
+            "expires_in": _hours_in_words(settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS),
         },
     )
     return EmailData(html_content=html_content, subject=subject)
@@ -160,12 +187,10 @@ def generate_signup_attempt_email(email: str, invited: bool = False) -> EmailDat
     html_content = _render_email_template(
         template_name="signup_attempt.html",
         context={
-            "project_name": settings.PROJECT_NAME,
             "email": email,
             "invited": invited,
             "login_link": f"{settings.FRONTEND_HOST}/login",
             "reset_link": f"{settings.FRONTEND_HOST}/forgot-password",
-            "assets_base_url": settings.assets_base_url,
         },
     )
     return EmailData(html_content=html_content, subject=subject)
@@ -282,14 +307,12 @@ def generate_household_invite_email(email: str, token: str, household_name: str,
     html_content = _render_email_template(
         template_name="household_invite.html",
         context={
-            "project_name": settings.PROJECT_NAME,
             "email": email,
             "token": token,
             "household_name": household_name,
             "inviter_name": inviter_name,
-            "expire_hours": settings.HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS,
+            "expires_in": _hours_in_words(settings.HOUSEHOLD_INVITE_TOKEN_EXPIRE_HOURS),
             "link": f"{settings.FRONTEND_HOST}/join-household?token={token}",
-            "assets_base_url": settings.assets_base_url,
         },
     )
     return EmailData(html_content=html_content, subject=subject)
@@ -320,12 +343,10 @@ def generate_household_ownership_email(
     html_content = _render_email_template(
         template_name="household_ownership.html",
         context={
-            "project_name": settings.PROJECT_NAME,
             "email": email,
             "household_name": household_name,
             "former_owner_name": former_owner_name,
             "link": f"{settings.FRONTEND_HOST}/settings/household",
-            "assets_base_url": settings.assets_base_url,
         },
     )
     return EmailData(html_content=html_content, subject=subject)
