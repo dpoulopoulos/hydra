@@ -36,6 +36,14 @@ which way the units moved. Give `record_trade` the total from the broker's \
 statement and let it work out the price; check `list_trades` first, because a \
 trade recorded twice doubles the holding.
 
+Clients are the people seen by the session, and each session is a separate \
+fact about what happened (scheduled, attended, missed, cancelled) and whether \
+it was paid (pending, paid, waived). Only a paid session is income; an \
+attended, unpaid one is owed. Client names are encrypted under each person's \
+own PIN. When a name comes back as null, either the connection carries no PIN \
+or the client belongs to another member of the household; say so rather than \
+guess a name, and refer to that client by id.
+
 Dates are ISO, and a month is written as 2026-09. Where a month is optional, \
 leaving it out means the current one.
 """

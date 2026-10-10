@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # How long a checked token is trusted without asking hydra again. Short,
     # because this is what decides how quickly a revoked token stops working.
     TOKEN_CACHE_SECONDS: float = 30.0
+    # How long a client-names key, once unlocked with a PIN, is kept rather
+    # than derived again. Revoking a token is not delayed by it: the vault is
+    # still fetched with the caller's token on every call.
+    CLIENTS_KEY_CACHE_SECONDS: float = 300.0
 
     @property
     def api_root(self) -> str:
