@@ -396,16 +396,16 @@ export function Component() {
         <CardHeader>
           <CardTitle>Features</CardTitle>
           <CardDescription>
-            Turn on the screens you need. These choices are yours alone.
+            Turn on the screens you need. Only you see these choices, and turning one off keeps your
+            data.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex max-w-md items-start justify-between gap-4">
+          <div className="flex max-w-md items-center justify-between gap-6 rounded-lg border p-4">
             <div className="space-y-1">
               <Label htmlFor="clients-enabled">Clients</Label>
               <p className="text-muted-foreground text-sm">
-                For freelancers who bill by the session: track clients, what they owe and what next
-                month is likely to bring. Turning it off hides the screen; your data stays.
+                Track who you bill by the session and what they owe.
               </p>
             </div>
             <Switch
