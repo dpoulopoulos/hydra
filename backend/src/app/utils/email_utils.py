@@ -102,7 +102,7 @@ def generate_new_account_email(username: str) -> EmailData:
     Returns:
         EmailData object with HTML content and subject.
     """
-    subject = f"Welcome to {settings.PROJECT_NAME}!"
+    subject = f"Welcome to {settings.PROJECT_NAME}"
     html_content = _render_email_template(
         template_name="new_account.html",
         context={
@@ -123,7 +123,7 @@ def generate_password_reset_email(email: str, token: str) -> EmailData:
     Returns:
         EmailData object with HTML content and subject.
     """
-    subject = f"Password Reset - {settings.PROJECT_NAME}"
+    subject = f"Reset your {settings.PROJECT_NAME} password"
     html_content = _render_email_template(
         template_name="password_reset.html",
         context={
@@ -152,7 +152,7 @@ def generate_email_verification_email(email: str, token: str, invite_unusable: b
     Returns:
         EmailData object with HTML content and subject.
     """
-    subject = f"Verify Your Email - {settings.PROJECT_NAME}"
+    subject = f"Confirm your email for {settings.PROJECT_NAME}"
     html_content = _render_email_template(
         template_name="email_verification.html",
         context={
@@ -183,7 +183,7 @@ def generate_signup_attempt_email(email: str, invited: bool = False) -> EmailDat
     Returns:
         EmailData object with HTML content and subject.
     """
-    subject = f"Your Account - {settings.PROJECT_NAME}"
+    subject = f"You already have a {settings.PROJECT_NAME} account"
     html_content = _render_email_template(
         template_name="signup_attempt.html",
         context={
@@ -303,7 +303,7 @@ def generate_household_invite_email(email: str, token: str, household_name: str,
     """
     # The household name is whatever the owner chose, and often already ends
     # in "household", so the subject must not add the word itself.
-    subject = f"You have been invited to {household_name} - {settings.PROJECT_NAME}"
+    subject = f"Join {household_name} on {settings.PROJECT_NAME}"
     html_content = _render_email_template(
         template_name="household_invite.html",
         context={
@@ -339,7 +339,7 @@ def generate_household_ownership_email(
     """
     # The household name is whatever its owner chose, and often already ends
     # in "household", so the subject must not add the word itself.
-    subject = f"You are now an owner of {household_name} - {settings.PROJECT_NAME}"
+    subject = f"You now own {household_name} on {settings.PROJECT_NAME}"
     html_content = _render_email_template(
         template_name="household_ownership.html",
         context={

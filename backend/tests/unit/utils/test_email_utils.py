@@ -31,7 +31,7 @@ class TestGenerateNewAccountEmail:
 
         # Assert: Verify email data is correct
         assert isinstance(result, EmailData)
-        assert result.subject == f"Welcome to {settings.PROJECT_NAME}!"
+        assert result.subject == f"Welcome to {settings.PROJECT_NAME}"
         assert username in result.html_content
         assert settings.FRONTEND_HOST in result.html_content
         assert settings.PROJECT_NAME in result.html_content
@@ -62,7 +62,7 @@ class TestGeneratePasswordResetEmail:
 
         # Assert: Verify email data is correct
         assert isinstance(result, EmailData)
-        assert result.subject == f"Password Reset - {settings.PROJECT_NAME}"
+        assert result.subject == f"Reset your {settings.PROJECT_NAME} password"
         assert email in result.html_content
         assert token in result.html_content
         assert f"{settings.FRONTEND_HOST}/reset-password?token={token}" in result.html_content
@@ -95,7 +95,7 @@ class TestGenerateEmailVerificationEmail:
 
         # Assert: Verify email data is correct
         assert isinstance(result, EmailData)
-        assert result.subject == f"Verify Your Email - {settings.PROJECT_NAME}"
+        assert result.subject == f"Confirm your email for {settings.PROJECT_NAME}"
         assert email in result.html_content
         assert token in result.html_content
         assert f"{settings.FRONTEND_HOST}/verify-email?token={token}" in result.html_content
@@ -127,7 +127,7 @@ class TestGenerateSignupAttemptEmail:
 
         # Assert: Verify email data is correct
         assert isinstance(result, EmailData)
-        assert result.subject == f"Your Account - {settings.PROJECT_NAME}"
+        assert result.subject == f"You already have a {settings.PROJECT_NAME} account"
         assert email in result.html_content
         assert f"{settings.FRONTEND_HOST}/login" in result.html_content
         assert f"{settings.FRONTEND_HOST}/forgot-password" in result.html_content
@@ -170,7 +170,7 @@ class TestGenerateEmailVerificationEmailWithUnusableInvite:
 
         # Assert: Verify it still verifies the address and mentions the invitation as well
         assert isinstance(result, EmailData)
-        assert result.subject == f"Verify Your Email - {settings.PROJECT_NAME}"
+        assert result.subject == f"Confirm your email for {settings.PROJECT_NAME}"
         assert "verification-token" in result.html_content
         assert "invitation" in result.html_content
 
@@ -213,7 +213,7 @@ class TestGenerateHouseholdOwnershipEmail:
 
         # Assert: Verify email data is correct
         assert isinstance(result, EmailData)
-        assert result.subject == f"You are now an owner of {household_name} - {settings.PROJECT_NAME}"
+        assert result.subject == f"You now own {household_name} on {settings.PROJECT_NAME}"
         assert household_name in result.html_content
         assert f"{settings.FRONTEND_HOST}/settings/household" in result.html_content
         assert settings.PROJECT_NAME in result.html_content
@@ -568,7 +568,7 @@ class TestGenerateHouseholdInviteEmail:
 
         # Assert: Verify email data is correct
         assert isinstance(result, EmailData)
-        assert result.subject == f"You have been invited to The Smith household - {settings.PROJECT_NAME}"
+        assert result.subject == f"Join The Smith household on {settings.PROJECT_NAME}"
         assert "Ada Smith" in result.html_content
         assert "The Smith household" in result.html_content
         assert f"{settings.FRONTEND_HOST}/join-household?token={token}" in result.html_content
