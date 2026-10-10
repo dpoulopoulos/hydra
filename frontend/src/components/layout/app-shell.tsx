@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router'
 
 import { AppSidebar } from '@/components/layout/app-sidebar'
+import { InviteBanner } from '@/components/layout/invite-banner'
 import { UserMenu } from '@/components/layout/user-menu'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Separator } from '@/components/ui/separator'
@@ -26,6 +27,7 @@ export function AppShell() {
               <UserMenu />
             </header>
             <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+              <InviteBanner />
               <Outlet />
             </div>
           </SidebarInset>

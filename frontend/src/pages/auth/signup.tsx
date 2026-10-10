@@ -89,13 +89,14 @@ export function Component() {
           <AlertDescription>
             {/* The invitation is not taken at sign-up: registering with an
                 address does not prove the mailbox is yours. Verifying it does,
-                and that is when the invitation becomes theirs to accept.
+                and that is when the invitation becomes theirs to accept, which the
+                app then offers on sign-in.
 
                 Neither wording says whether the address is registered: the
                 message is the same either way, and it is the email, not this
                 page, that tells the holder which one they got. */}
             {invite
-              ? `Open the link in that email to activate your account. Then open the invitation again to join ${invite.household_name}. If that address already has an account, the message links you to sign in instead.`
+              ? `Open the link in that email to activate your account. Then sign in, and the app offers to join ${invite.household_name}. If that address already has an account, the message links you to sign in instead.`
               : 'Open the link in that email to activate your account. If that address already has an account, the message links you to sign in instead. You can close this page.'}
           </AlertDescription>
         </Alert>
