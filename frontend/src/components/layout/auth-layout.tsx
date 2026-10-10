@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 
+import { Logo } from '@/components/layout/logo'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 /**
@@ -33,9 +34,7 @@ export function AuthLayout({
       />
 
       <Link to="/" className="relative flex items-center gap-2 font-semibold">
-        <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-lg">
-          h
-        </span>
+        <Logo />
         hydra
       </Link>
 

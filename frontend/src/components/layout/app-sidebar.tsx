@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { NavLink } from 'react-router'
 
+import { Logo } from '@/components/layout/logo'
 import {
   Sidebar,
   SidebarContent,
@@ -71,9 +72,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <NavLink to="/">
-                <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg font-semibold">
-                  h
-                </div>
+                <Logo />
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate font-semibold">hydra</span>
                   <span className="text-muted-foreground truncate text-xs">
