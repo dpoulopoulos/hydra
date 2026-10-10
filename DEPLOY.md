@@ -202,7 +202,7 @@ Use the domain from step 5.
 
 ```bash
 D=https://YOUR-DOMAIN
-for p in / /budgets /assets/logo.svg /api/v1/openapi.json; do
+for p in / /budgets /assets/logo.png /api/v1/openapi.json; do
   printf '%-24s %s\n' "$p" "$(curl -s -o /dev/null -w '%{http_code}' $D$p)"
 done
 ```
