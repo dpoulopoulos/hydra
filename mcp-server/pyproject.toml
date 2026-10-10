@@ -10,6 +10,10 @@ dependencies = [
     "mcp[cli]>=2.0.0,<3.0.0",
     "httpx>=0.28.1,<1.0.0",
     "pydantic-settings>=2.15.0,<3.0.0",
+    # What the browser uses to lock client names, so this server can open and
+    # write them under the same PIN: Argon2id stretches it, AES-GCM does the rest.
+    "argon2-cffi>=25.1.0,<26.0.0",
+    "cryptography>=50.0.1,<51.0.0",
 ]
 
 [build-system]
