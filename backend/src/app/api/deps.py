@@ -849,6 +849,7 @@ def get_recurring_rule_service(
     recurring_rule_repository: RecurringRuleRepositoryDep,
     transaction_repository: TransactionRepositoryDep,
     reference_resolver: LedgerReferenceResolverDep,
+    household_repository: HouseholdRepositoryDep,
 ) -> RecurringRuleService:
     """Get a recurring rule service instance.
 
@@ -857,6 +858,7 @@ def get_recurring_rule_service(
         recurring_rule_repository: The recurring rule repository instance.
         transaction_repository: The transaction repository instance.
         reference_resolver: The ledger reference resolver instance.
+        household_repository: The household repository instance.
 
     Returns:
         A recurring rule service instance.
@@ -866,6 +868,7 @@ def get_recurring_rule_service(
         recurring_rule_repository=recurring_rule_repository,
         transaction_repository=transaction_repository,
         reference_resolver=reference_resolver,
+        household_repository=household_repository,
     )
 
 

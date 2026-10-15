@@ -510,6 +510,7 @@ def recurring_rule_service(
     recurring_rule_repository: RecurringRuleRepository,
     transaction_repository: TransactionRepository,
     reference_resolver: LedgerReferenceResolver,
+    household_repository: HouseholdRepository,
 ) -> RecurringRuleService:
     """Build a recurring rule service on the real session.
 
@@ -518,6 +519,7 @@ def recurring_rule_service(
         recurring_rule_repository: The recurring rule repository.
         transaction_repository: The transaction repository.
         reference_resolver: The ledger reference resolver.
+        household_repository: The household repository.
 
     Returns:
         A recurring rule service.
@@ -527,6 +529,7 @@ def recurring_rule_service(
         recurring_rule_repository=recurring_rule_repository,
         transaction_repository=transaction_repository,
         reference_resolver=reference_resolver,
+        household_repository=household_repository,
     )
 
 

@@ -1920,6 +1920,10 @@ export type HouseholdPublic = {
      */
     locale?: string | null;
     /**
+     * Records Recurring
+     */
+    records_recurring?: boolean;
+    /**
      * Id
      */
     id: string;
@@ -1963,6 +1967,10 @@ export type HouseholdUpdate = {
      * Locale
      */
     locale?: string | null;
+    /**
+     * Records Recurring
+     */
+    records_recurring?: boolean;
 };
 
 /**

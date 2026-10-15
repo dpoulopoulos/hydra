@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
-from typing import Protocol
+from datetime import UTC, date, datetime, timedelta
+from typing import TYPE_CHECKING, Protocol
 
 from sqlmodel import Session
 
@@ -52,6 +52,9 @@ from app.repositories.household import (
 from app.repositories.user import UserRepository
 from app.services.email_outbox import EmailOutboxService
 from app.utils import generate_household_invite_email, generate_household_ownership_email, mask_email
+
+if TYPE_CHECKING:
+    from app.services.recurring_rule import RecurringRuleService
 
 # Every way an invitation offered at signup can turn out to be unusable. Kept next to
 # `HouseholdService.check_signup_invite`, which is the only thing that raises them, so a refusal
@@ -218,12 +221,21 @@ class HouseholdService:
             member_count=self.household_repository.count_members(household.household_id),
         )
 
-    def update_household(self, household: HouseholdContext, household_update: HouseholdUpdate) -> HouseholdPublic:
-        """Rename the household.
+    def update_household(
+        self,
+        household: HouseholdContext,
+        household_update: HouseholdUpdate,
+        recurring_rule_service: "RecurringRuleService | None" = None,
+    ) -> HouseholdPublic:
+        """Rename the household, or change how it is run.
 
         Args:
             household: The household context.
             household_update: The fields to update.
+            recurring_rule_service: Optional recurring rule service. When given
+                and recording is being turned on, every rule is first moved
+                past the days that went by while it was off, so turning it on
+                records from today rather than writing those days in.
 
         Returns:
             The updated household.
@@ -232,7 +244,14 @@ class HouseholdService:
             HouseholdNotFoundError: If the household no longer exists.
         """
         entity = self._require_household(household)
-        entity.sqlmodel_update(household_update.model_dump(exclude_unset=True))
+        fields = household_update.model_dump(exclude_unset=True)
+
+        # The pass that ran while it was off only reached the last page load.
+        # Up to yesterday, so a payment due today is still recorded.
+        if recurring_rule_service and fields.get("records_recurring") and not entity.records_recurring:
+            recurring_rule_service.pass_over_due(household=household, until=date.today() - timedelta(days=1))
+
+        entity.sqlmodel_update(fields)
         self.household_repository.save(entity)
         self.session.commit()
 

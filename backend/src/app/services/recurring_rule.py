@@ -1,4 +1,5 @@
 import datetime
+import sys
 import uuid
 
 from sqlalchemy.exc import IntegrityError
@@ -27,6 +28,7 @@ from app.models import (
     UpcomingOccurrence,
     UpcomingOccurrencesPublic,
 )
+from app.repositories.household import HouseholdRepository
 from app.repositories.recurring_rule import RecurringRuleRepository
 from app.repositories.transaction import TransactionRepository
 from app.services.ledger import LedgerReferenceResolver
@@ -72,6 +74,7 @@ class RecurringRuleService:
         recurring_rule_repository: RecurringRuleRepository,
         transaction_repository: TransactionRepository,
         reference_resolver: LedgerReferenceResolver,
+        household_repository: HouseholdRepository,
     ) -> None:
         """Initialize the recurring rule service.
 
@@ -80,11 +83,14 @@ class RecurringRuleService:
             recurring_rule_repository: The recurring rule repository instance.
             transaction_repository: The transaction repository instance.
             reference_resolver: The resolver for the accounts and category a rule points at.
+            household_repository: The household repository instance, used to
+                read whether the household wants its rules recorded.
         """
         self.session = session
         self.recurring_rule_repository = recurring_rule_repository
         self.transaction_repository = transaction_repository
         self.reference_resolver = reference_resolver
+        self.household_repository = household_repository
 
     def create_rule(self, household: HouseholdContext, rule_create: RecurringRuleCreate) -> RecurringRulePublic:
         """Create a recurring rule, such as rent or a subscription.
@@ -370,6 +376,9 @@ class RecurringRuleService:
         counted as skipped and its cursor is left alone, so putting the account
         back picks the rule up where it stopped.
 
+        A household that only tracks its rules gets nothing written: each rule
+        is moved past its dates instead. See `pass_over_due`.
+
         Args:
             household: The household context.
             until: The last day to create up to, inclusive. Defaults to today.
@@ -379,6 +388,11 @@ class RecurringRuleService:
             passed over, and how many rules moved on.
         """
         horizon = until or datetime.date.today()
+        entity = self.household_repository.get_by_id(household.household_id)
+
+        if entity is not None and not entity.records_recurring:
+            return self.pass_over_due(household=household, until=horizon)
+
         rules = self.recurring_rule_repository.lock_due(household_id=household.household_id, until=horizon)
 
         created = 0
@@ -430,6 +444,65 @@ class RecurringRuleService:
         self.session.commit()
 
         return RecurringRunResult(created_count=created, skipped_count=skipped, rules_advanced=advanced)
+
+    def pass_over_due(self, household: HouseholdContext, until: datetime.date) -> RecurringRunResult:
+        """Move every rule past the dates it has fallen due for, recording nothing.
+
+        What a household that only tracks its rules gets in place of a
+        materialization pass. The cursor still moves, so the next date each
+        rule shows is a real one rather than one stuck in the past, and so
+        turning recording back on starts from that day instead of writing every
+        payment the household chose not to have written.
+
+        An archived account does not hold a rule back here, since there is
+        nothing to write into it. Nor does the cap on one pass: writing nothing
+        costs nothing, and a cursor left behind would be filled in by the first
+        pass that does record.
+
+        Args:
+            household: The household context.
+            until: The last day to pass over, inclusive.
+
+        Returns:
+            Nothing created, how many occurrences were passed over, and how
+            many rules moved on.
+        """
+        rules = self.recurring_rule_repository.lock_due(household_id=household.household_id, until=until)
+
+        skipped = 0
+        advanced = 0
+
+        for rule in rules:
+            if rule.next_occurrence_on is None:
+                continue
+
+            dates = occurrences_until(
+                cursor=rule.next_occurrence_on,
+                until=until,
+                frequency=rule.frequency,
+                interval=rule.interval,
+                anchor_day=rule.day_of_month,
+                end_date=rule.end_date,
+                limit=sys.maxsize,
+            )
+
+            if dates:
+                skipped += len(dates)
+                # Read as "dealt with" rather than "written": an edit to the
+                # schedule moves the cursor on from here, and must not move it
+                # back over dates the household already decided about.
+                rule.last_generated_on = dates[-1]
+                rule.next_occurrence_on = self._next_after(rule=rule, last=dates[-1])
+            else:
+                rule.next_occurrence_on = None
+
+            self.recurring_rule_repository.add(rule)
+            advanced += 1
+
+        self.recurring_rule_repository.flush()
+        self.session.commit()
+
+        return RecurringRunResult(created_count=0, skipped_count=skipped, rules_advanced=advanced)
 
     def _write_occurrence(self, household: HouseholdContext, rule: RecurringRule, occurs_on: datetime.date) -> bool:
         """Write one occurrence of a rule, unless it is already there.

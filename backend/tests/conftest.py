@@ -750,6 +750,7 @@ def mock_recurring_rule_service(
     mock_recurring_rule_repository: RecurringRuleRepository,
     mock_transaction_repository: TransactionRepository,
     mock_reference_resolver: LedgerReferenceResolver,
+    mock_household_repository: HouseholdRepository,
 ) -> RecurringRuleService:
     """Create a RecurringRuleService instance with a mocked session.
 
@@ -758,6 +759,7 @@ def mock_recurring_rule_service(
         mock_recurring_rule_repository: The recurring rule repository instance.
         mock_transaction_repository: The transaction repository instance.
         mock_reference_resolver: The ledger reference resolver instance.
+        mock_household_repository: The household repository instance.
 
     Returns:
         A RecurringRuleService instance with a mocked session.
@@ -767,6 +769,7 @@ def mock_recurring_rule_service(
         recurring_rule_repository=mock_recurring_rule_repository,
         transaction_repository=mock_transaction_repository,
         reference_resolver=mock_reference_resolver,
+        household_repository=mock_household_repository,
     )
 
 

@@ -58,6 +58,12 @@ class HouseholdBase(SQLModel):
     # `HouseholdUpdate`, so a tag stored before that check existed still reads
     # back rather than turning a household into a 500.
     locale: str | None = Field(default=None, max_length=MAX_LOCALE_LENGTH)
+    # Whether a recurring rule records a transaction each time it falls due, or
+    # only shows what is coming. A household whose bank feeds the ledger turns
+    # it off, since the bank brings the same payment in and the rule would
+    # count it twice. Off, the rules still move on past each date, so turning
+    # it back on records from then on rather than filling in the gap.
+    records_recurring: bool = Field(default=True)
 
 
 class HouseholdCreate(HouseholdBase):
@@ -72,6 +78,10 @@ class HouseholdUpdate(SQLModel):
     # leaves the field alone is not sending it, which `exclude_unset` keeps out
     # of the update.
     locale: Locale | None = Field(default=None)
+    # Unlike the locale, null is not a value here, so it is refused rather
+    # than read as "leave alone". The default is never stored: a field that
+    # was not sent is kept out of the update by `exclude_unset`.
+    records_recurring: bool = Field(default=True)
 
 
 class HouseholdPublic(HouseholdBase):

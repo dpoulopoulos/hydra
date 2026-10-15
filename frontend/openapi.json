@@ -625,7 +625,7 @@
           "households"
         ],
         "summary": "Update Household Me",
-        "description": "Rename the household of the current user.\n\nArgs:\n    household_service: The household service dependency.\n    household: The current household context, which must be owned by the user.\n    household_in: The fields to update.\n\nReturns:\n    The updated household.\n\nRaises:\n    HTTPException: If the user is not an owner of the household (403), or the\n        household no longer exists (404).",
+        "description": "Rename the household of the current user, or change how it is run.\n\nArgs:\n    household_service: The household service dependency.\n    recurring_rule_service: The recurring rule service dependency, used to\n        move the rules past the days that went by while they were only\n        tracked, when recording is turned back on.\n    household: The current household context, which must be owned by the user.\n    household_in: The fields to update.\n\nReturns:\n    The updated household.\n\nRaises:\n    HTTPException: If the user is not an owner of the household (403), or the\n        household no longer exists (404).",
         "operationId": "households-update_household_me",
         "requestBody": {
           "content": {
@@ -9481,6 +9481,11 @@
             ],
             "title": "Locale"
           },
+          "records_recurring": {
+            "type": "boolean",
+            "title": "Records Recurring",
+            "default": true
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -9564,6 +9569,11 @@
               }
             ],
             "title": "Locale"
+          },
+          "records_recurring": {
+            "type": "boolean",
+            "title": "Records Recurring",
+            "default": true
           }
         },
         "type": "object",

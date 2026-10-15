@@ -529,10 +529,13 @@ export const householdsGetHouseholdMeOptions = (options?: Options<HouseholdsGetH
 /**
  * Update Household Me
  *
- * Rename the household of the current user.
+ * Rename the household of the current user, or change how it is run.
  *
  * Args:
  * household_service: The household service dependency.
+ * recurring_rule_service: The recurring rule service dependency, used to
+ * move the rules past the days that went by while they were only
+ * tracked, when recording is turned back on.
  * household: The current household context, which must be owned by the user.
  * household_in: The fields to update.
  *

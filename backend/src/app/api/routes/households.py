@@ -8,6 +8,7 @@ from app.api.deps import (
     CurrentUser,
     HouseholdServiceDep,
     OwnerHousehold,
+    RecurringRuleServiceDep,
     get_session_user,
 )
 from app.exceptions import (
@@ -87,12 +88,19 @@ def get_household_me(*, household_service: HouseholdServiceDep, household: Curre
 
 @router.patch("/me", response_model=HouseholdPublic)
 def update_household_me(
-    *, household_service: HouseholdServiceDep, household: OwnerHousehold, household_in: HouseholdUpdate
+    *,
+    household_service: HouseholdServiceDep,
+    recurring_rule_service: RecurringRuleServiceDep,
+    household: OwnerHousehold,
+    household_in: HouseholdUpdate,
 ) -> HouseholdPublic:
-    """Rename the household of the current user.
+    """Rename the household of the current user, or change how it is run.
 
     Args:
         household_service: The household service dependency.
+        recurring_rule_service: The recurring rule service dependency, used to
+            move the rules past the days that went by while they were only
+            tracked, when recording is turned back on.
         household: The current household context, which must be owned by the user.
         household_in: The fields to update.
 
@@ -103,7 +111,9 @@ def update_household_me(
         HTTPException: If the user is not an owner of the household (403), or the
             household no longer exists (404).
     """
-    return household_service.update_household(household=household, household_update=household_in)
+    return household_service.update_household(
+        household=household, household_update=household_in, recurring_rule_service=recurring_rule_service
+    )
 
 
 @router.get("/me/members", response_model=HouseholdMembersPublic)

@@ -14,6 +14,7 @@ import uuid
 from sqlmodel import Session, func, select
 
 from app.models import (
+    Household,
     HouseholdContext,
     RecurrenceFrequency,
     RecurringRuleCreate,
@@ -210,3 +211,31 @@ class TestMaterializeAcrossHouseholds:
         assert result.created_count == 0
         assert result.rules_advanced == 0
         assert count_generated(db_session, foreign_rule.id) == 0
+
+
+class TestTrackingOnly:
+    """Tests for a household that only tracks its rules."""
+
+    def test_records_nothing_and_moves_the_rule_on(
+        self,
+        db_session: Session,
+        recurring_rule_service: RecurringRuleService,
+        recurring_rule_repository: RecurringRuleRepository,
+        household_a: HouseholdContext,
+    ) -> None:
+        """The column the pass reads is the one the migration added."""
+        entity = db_session.get(Household, household_a.household_id)
+        assert entity is not None
+        entity.records_recurring = False
+        db_session.add(entity)
+        db_session.commit()
+        account = make_account(db_session, household_id=household_a.household_id)
+        rule = make_monthly_rule(recurring_rule_service, household_a, account.id)
+
+        result = recurring_rule_service.materialize_due(household=household_a, until=UNTIL)
+
+        stored = recurring_rule_repository.get_for_household(entity_id=rule.id, household_id=household_a.household_id)
+        assert stored is not None
+        assert result.created_count == 0
+        assert count_generated(db_session, rule.id) == 0
+        assert stored.next_occurrence_on == datetime.date(2024, 4, 1)

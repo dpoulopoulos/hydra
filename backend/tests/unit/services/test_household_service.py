@@ -1,10 +1,11 @@
 import logging
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
 from app.core.config import settings
 from app.exceptions import (
@@ -242,6 +243,56 @@ class TestUpdateHousehold:
         result = mock_household_service.update_household(household=context, household_update=HouseholdUpdate())
 
         assert result.name == "Test household"
+
+    def test_turning_recording_on_passes_over_the_days_it_was_off(
+        self, mock_household_service: HouseholdService, context: HouseholdContext, household: Household
+    ) -> None:
+        """Up to yesterday, so a payment due today is still recorded."""
+        household.records_recurring = False
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.one.return_value = 1
+        recurring_rule_service = MagicMock()
+
+        result = mock_household_service.update_household(
+            household=context,
+            household_update=HouseholdUpdate(records_recurring=True),
+            recurring_rule_service=recurring_rule_service,
+        )
+
+        assert result.records_recurring is True
+        recurring_rule_service.pass_over_due.assert_called_once_with(
+            household=context, until=date.today() - timedelta(days=1)
+        )
+
+    @pytest.mark.parametrize(("before", "after"), [(True, True), (True, False), (False, False)])
+    def test_leaves_the_rules_alone_unless_recording_is_turned_on(
+        self,
+        mock_household_service: HouseholdService,
+        context: HouseholdContext,
+        household: Household,
+        before: bool,
+        after: bool,
+    ) -> None:
+        household.records_recurring = before
+        mock_household_service.session.get = MagicMock(return_value=household)
+        mock_household_service.session.exec = MagicMock()
+        mock_household_service.session.exec.return_value.one.return_value = 1
+        recurring_rule_service = MagicMock()
+
+        result = mock_household_service.update_household(
+            household=context,
+            household_update=HouseholdUpdate(records_recurring=after),
+            recurring_rule_service=recurring_rule_service,
+        )
+
+        assert result.records_recurring is after
+        recurring_rule_service.pass_over_due.assert_not_called()
+
+    def test_refuses_null_for_recording(self) -> None:
+        """Null would reach a column that cannot hold it."""
+        with pytest.raises(ValidationError):
+            HouseholdUpdate.model_validate({"records_recurring": None})
 
 
 class TestListMembers:
