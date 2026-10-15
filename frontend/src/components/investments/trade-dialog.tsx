@@ -45,7 +45,7 @@ import { useLocale } from '@/lib/locale-context'
  * That makes the currency a property of the chosen instrument, so the schema
  * is built once the instrument is known rather than defined at module level.
  */
-function buildSchema(currency: string, householdCurrency: string, locale: string | undefined) {
+function buildSchema(currency: string, cashCurrency: string, locale: string | undefined) {
   return z.object({
     instrument_id: z.string().min(1, 'Pick an instrument.'),
     side: z.enum(TradeSide),
@@ -58,12 +58,12 @@ function buildSchema(currency: string, householdCurrency: string, locale: string
     // trade spends cash already sitting there; moving money from a bank to a
     // broker happens on its own day and is an ordinary transfer.
     brokerage_account_id: z.string().optional(),
-    // In the household's currency, not the instrument's, because that is what
-    // the account is denominated in. Blank means "work it out for me", so an
-    // empty string passes through as undefined rather than failing the parse.
+    // In the brokerage account's currency, not the instrument's, because that
+    // is what the account holds. Blank means "work it out for me", so an empty
+    // string passes through as undefined rather than failing the parse.
     cash_amount: z.union([
       z.literal('').transform(() => undefined),
-      amountSchema(householdCurrency, { allowZero: true, locale }),
+      amountSchema(cashCurrency, { allowZero: true, locale }),
     ]),
     note: z.string().trim().max(1024).optional(),
   })
@@ -117,14 +117,17 @@ export function TradeDialog({
   })
   const selected = instruments.data?.data.find((one) => one.id === selectedId)
   const currency = selected?.currency_code ?? 'EUR'
-  // The accounts are in the household's currency, never the listing's, so
-  // the cash figure is entered and shown in that one.
   const householdCurrency = household.data?.currency_code ?? 'EUR'
   // A trade spends or receives cash that is already with a broker, so only
   // brokerage accounts are offered.
   const brokerageAccounts = (accounts.data?.data ?? []).filter(
     (one) => one.type === AccountType.BROKERAGE,
   )
+  // The cash moves in the brokerage account, so it is entered and shown in
+  // that account's currency, never the listing's.
+  const cashCurrency =
+    brokerageAccounts.find((one) => one.id === brokerageAccountId)?.currency_code ??
+    householdCurrency
   // Which way the money goes, so the label says what is happening rather than
   // making the reader work it out from the direction field above.
   const isBuy = side === TradeSide.BUY
@@ -186,9 +189,7 @@ export function TradeDialog({
           // Re-parsed against the chosen instrument's currency, so a price in
           // a zero-decimal currency is not quietly given cents.
           onSubmit={form.handleSubmit(() => {
-            const parsed = buildSchema(currency, householdCurrency, locale).safeParse(
-              form.getValues(),
-            )
+            const parsed = buildSchema(currency, cashCurrency, locale).safeParse(form.getValues())
             if (parsed.success) {
               save.mutate(parsed.data)
               return
@@ -328,9 +329,11 @@ export function TradeDialog({
               id="cash_amount"
               label="Cash moved"
               hint={
-                selected && selected.currency_code !== householdCurrency
-                  ? `In ${householdCurrency}. Blank converts at the stored rate, which is not your bank's.`
-                  : 'Blank works it out from the trade.'
+                !selected || selected.currency_code === cashCurrency
+                  ? 'Blank works it out from the trade.'
+                  : cashCurrency === householdCurrency
+                    ? `In ${cashCurrency}. Blank converts at the stored rate, which is not your bank's.`
+                    : `In ${cashCurrency}. Enter it: no ${selected.currency_code} to ${cashCurrency} rate is kept.`
               }
               error={form.formState.errors.cash_amount?.message}
             >
@@ -338,7 +341,7 @@ export function TradeDialog({
                 <MoneyInput
                   {...props}
                   {...form.register('cash_amount')}
-                  currency={householdCurrency}
+                  currency={cashCurrency}
                   placeholder="Auto"
                   disabled={!brokerageAccountId}
                 />
