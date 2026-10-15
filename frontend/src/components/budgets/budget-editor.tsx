@@ -125,8 +125,41 @@ export function BudgetEditor({
   /** What a field shows: the edit if there is one, otherwise the saved limit. */
   const valueFor = (categoryId: string) => edits[categoryId] ?? saved[categoryId] ?? ''
 
-  const limits = { ...saved, ...edits }
   const parents = tree?.data ?? []
+
+  /**
+   * What a parent shows once any of its subcategories has a limit: their
+   * limits added up.
+   *
+   * The parent cannot hold a limit of its own then, since it would count the
+   * same spending twice, so its field turns into the sum rather than a second
+   * figure to keep in step. An amount still being typed adds nothing until it
+   * reads as one.
+   */
+  const rolledUp = (() => {
+    const sums = new Map<string, string>()
+
+    for (const parent of parents) {
+      const values = (parent.children ?? []).map(
+        (child) => edits[child.id] ?? saved[child.id] ?? '',
+      )
+      if (values.every((value) => value.trim() === '')) continue
+
+      const total = values.reduce((sum, value) => {
+        const amount = amountSchema(currency, { allowZero: true, locale }).safeParse(value)
+        return amount.success ? sum + amount.data : sum
+      }, 0)
+      sums.set(parent.id, formatMajorInput(total, currency, locale))
+    }
+
+    return sums
+  })()
+
+  // A parent showing its subcategories' sum is not budgeted itself, so its
+  // field stays out of the set the month is replaced with.
+  const limits = Object.fromEntries(
+    Object.entries({ ...saved, ...edits }).filter(([categoryId]) => !rolledUp.has(categoryId)),
+  )
 
   /**
    * Close the dialog and forget what was typed.
@@ -201,8 +234,8 @@ export function BudgetEditor({
           <DialogHeader>
             <DialogTitle>Budgets for {formatMonth(month)}</DialogTitle>
             <DialogDescription>
-              A limit on a parent covers everything under it, so budget the parent or its
-              subcategories, not both. Leave a field empty to stop budgeting it.
+              A limit on a parent covers everything under it. Give its subcategories limits instead,
+              and the parent shows them added up. Leave a field empty to stop budgeting it.
             </DialogDescription>
           </DialogHeader>
 
@@ -227,9 +260,10 @@ export function BudgetEditor({
                       categoryId={parent.id}
                       name={parent.name}
                       currency={currency}
-                      value={valueFor(parent.id)}
+                      value={rolledUp.get(parent.id) ?? valueFor(parent.id)}
                       error={fieldErrors[parent.id]}
                       onChange={(value) => setLimit(parent.id, value)}
+                      sum={rolledUp.has(parent.id)}
                     />
                     {(parent.children ?? []).map((child) => (
                       <LimitRow
@@ -308,6 +342,7 @@ function LimitRow({
   value,
   error,
   nested = false,
+  sum = false,
   onChange,
 }: {
   categoryId: string
@@ -318,6 +353,8 @@ function LimitRow({
   error?: string
   /** Whether this is a subcategory, shown under its parent. */
   nested?: boolean
+  /** Whether the value is the subcategories' limits added up, so not typed here. */
+  sum?: boolean
   onChange: (value: string) => void
 }) {
   const id = `limit-${categoryId}`
@@ -331,12 +368,19 @@ function LimitRow({
           className={cn('flex-1', nested ? 'text-muted-foreground font-normal' : 'font-medium')}
         >
           {name}
+          {sum ? (
+            <span className="text-muted-foreground ml-2 text-xs font-normal">
+              subcategories added up
+            </span>
+          ) : null}
         </Label>
         <MoneyInput
           id={id}
           currency={currency}
-          className="w-40"
+          className={cn('w-40', sum && 'bg-muted')}
           value={value}
+          readOnly={sum}
+          tabIndex={sum ? -1 : undefined}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : undefined}
           onChange={(event) => onChange(event.target.value)}

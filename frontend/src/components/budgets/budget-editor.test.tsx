@@ -35,8 +35,11 @@ const MONTH = '2026-03'
 const GROCERIES = '11111111-1111-1111-1111-111111111111'
 const TRANSPORT = '22222222-2222-2222-2222-222222222222'
 
-function category(id: string, name: string) {
-  return { id, name, household_id: 'h', created_at: '2026-01-01T00:00:00Z', children: [] }
+const FOOD = '33333333-3333-3333-3333-333333333333'
+const DINING = '44444444-4444-4444-4444-444444444444'
+
+function category(id: string, name: string, children: unknown[] = []) {
+  return { id, name, household_id: 'h', created_at: '2026-01-01T00:00:00Z', children }
 }
 
 function budget(categoryId: string, limitMinor: number): BudgetPublic {
@@ -79,7 +82,7 @@ function renderEditor() {
 }
 
 /** The field for a category, once the dialog has painted the saved figures. */
-function limitField(name: string) {
+function limitField(name: string | RegExp) {
   return screen.getByLabelText(name)
 }
 
@@ -332,5 +335,73 @@ describe('cancelling', () => {
     await user.click(screen.getByRole('button', { name: 'Reopen' }))
 
     expect(await screen.findByLabelText('Groceries')).toHaveValue('300')
+  })
+})
+
+describe('a parent over budgeted subcategories', () => {
+  /** The entries the last save sent to the bulk endpoint. */
+  function sentEntries() {
+    const call = vi.mocked(api.budgetsBulkUpsertBudgets).mock.calls.at(-1)
+    return (call?.[0] as { body: { entries: unknown[] } }).body.entries
+  }
+
+  beforeEach(() => {
+    vi.mocked(api.categoriesGetCategoryTree).mockResolvedValue({
+      data: {
+        data: [
+          category(FOOD, 'Food', [
+            category(GROCERIES, 'Groceries'),
+            category(DINING, 'Dining out'),
+          ]),
+        ],
+        count: 1,
+      },
+    } as never)
+  })
+
+  it('shows the subcategories added up, and keeps it out of the month', async () => {
+    budgetsAre([budget(GROCERIES, 30000)])
+    const user = userEvent.setup()
+    renderEditor()
+
+    expect(await screen.findByLabelText(/^Food/)).toHaveValue('300')
+    expect(limitField(/^Food/)).toHaveAttribute('readonly')
+
+    await user.type(limitField('Dining out'), '50')
+    expect(limitField(/^Food/)).toHaveValue('350')
+
+    await user.click(screen.getByRole('button', { name: 'Save budgets' }))
+    await vi.waitFor(() => expect(api.budgetsBulkUpsertBudgets).toHaveBeenCalled())
+    expect(sentEntries()).toEqual([
+      { category_id: GROCERIES, limit_minor: 30000 },
+      { category_id: DINING, limit_minor: 5000 },
+    ])
+  })
+
+  it('gives the parent its own field back once no subcategory has a limit', async () => {
+    budgetsAre([budget(GROCERIES, 30000)])
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.clear(await screen.findByLabelText('Groceries'))
+
+    expect(limitField('Food')).toHaveValue('')
+    expect(limitField('Food')).not.toHaveAttribute('readonly')
+  })
+
+  it("names the parent's own limit as removed once a subcategory takes over", async () => {
+    budgetsAre([budget(FOOD, 40000)])
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.type(await screen.findByLabelText('Groceries'), '100')
+    expect(limitField(/^Food/)).toHaveValue('100')
+
+    await user.click(screen.getByRole('button', { name: 'Save budgets' }))
+    expect(await screen.findByText('Stop budgeting Food?')).toBeInTheDocument()
+
+    await confirmRemoval(user)
+    await vi.waitFor(() => expect(api.budgetsBulkUpsertBudgets).toHaveBeenCalled())
+    expect(sentEntries()).toEqual([{ category_id: GROCERIES, limit_minor: 10000 }])
   })
 })
