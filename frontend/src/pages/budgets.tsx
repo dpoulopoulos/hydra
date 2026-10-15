@@ -1,6 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, MoreHorizontal, Pencil, Plus, Target, Trash2 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import {
+  ChevronDown,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Copy,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Target,
+  Trash2,
+} from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 
 import {
@@ -35,11 +45,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useCategoryTree } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
-import { groupBudgetRows } from '@/lib/budgets'
+import { groupBudgetRows, type BudgetFigures } from '@/lib/budgets'
 import { currentMonth } from '@/lib/month'
+import { cn } from '@/lib/utils'
 
 export function Component() {
   const currency = useCurrency()
@@ -48,6 +60,9 @@ export function Component() {
   const [copying, setCopying] = useState(false)
   const [single, setSingle] = useState<{ row: BudgetProgressRow | null } | null>(null)
   const [removing, setRemoving] = useState<BudgetProgressRow | null>(null)
+  // The parents folded shut. Kept by category, so a parent stays shut when
+  // the month changes.
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
   const queryClient = useQueryClient()
 
   const progress = useQuery({
@@ -65,6 +80,17 @@ export function Component() {
     () => groupBudgetRows(progress.data?.rows ?? [], tree.data?.data ?? []),
     [progress.data, tree.data],
   )
+  const parentIds = groups.flatMap((group) => (group.kind === 'parent' ? [group.categoryId] : []))
+  const allCollapsed = parentIds.length > 0 && parentIds.every((id) => collapsed.has(id))
+
+  function toggle(categoryId: string, open: boolean) {
+    setCollapsed((previous) => {
+      const next = new Set(previous)
+      if (open) next.delete(categoryId)
+      else next.add(categoryId)
+      return next
+    })
+  }
 
   const remove = useMutation({
     mutationFn: async (row: BudgetProgressRow) => {
@@ -163,6 +189,22 @@ export function Component() {
             <CardHeader>
               <CardTitle>Where it stands</CardTitle>
               <CardDescription>Most of the limit used, first.</CardDescription>
+              {parentIds.length > 0 ? (
+                <CardAction>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(parentIds))}
+                  >
+                    {allCollapsed ? (
+                      <ChevronsUpDown className="size-4" />
+                    ) : (
+                      <ChevronsDownUp className="size-4" />
+                    )}
+                    {allCollapsed ? 'Expand all' : 'Collapse all'}
+                  </Button>
+                </CardAction>
+              ) : null}
             </CardHeader>
             <CardContent className="space-y-5">
               {groups.map((group) =>
@@ -175,32 +217,23 @@ export function Component() {
                     onRemove={setRemoving}
                   />
                 ) : (
-                  <div key={group.categoryId} className="space-y-4">
-                    {/* No menu: the parent has no limit of its own to change,
-                        only its subcategories' limits added up. The spacer
-                        keeps its bar as wide as theirs. */}
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1">
-                        <BudgetBar
-                          row={group.total}
-                          currency={currency}
-                          note="its subcategories added up"
-                        />
-                      </div>
-                      <div aria-hidden className="size-8 shrink-0" />
-                    </div>
-                    <div className="border-muted space-y-4 border-l-2 pl-4">
-                      {group.rows.map((row) => (
-                        <BudgetRow
-                          key={row.budget_id}
-                          row={row}
-                          currency={currency}
-                          onChange={(row) => setSingle({ row })}
-                          onRemove={setRemoving}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                  <ParentGroup
+                    key={group.categoryId}
+                    total={group.total}
+                    open={!collapsed.has(group.categoryId)}
+                    onOpenChange={(open) => toggle(group.categoryId, open)}
+                    currency={currency}
+                  >
+                    {group.rows.map((row) => (
+                      <BudgetRow
+                        key={row.budget_id}
+                        row={row}
+                        currency={currency}
+                        onChange={(row) => setSingle({ row })}
+                        onRemove={setRemoving}
+                      />
+                    ))}
+                  </ParentGroup>
                 ),
               )}
             </CardContent>
@@ -244,6 +277,49 @@ export function Component() {
         onConfirm={() => removing && remove.mutate(removing)}
       />
     </>
+  )
+}
+
+/**
+ * A parent's bar, with its subcategories' bars under it.
+ *
+ * No menu: the parent has no limit of its own to change, only its
+ * subcategories' limits added up. The button that folds them away sits where
+ * the menu would, so its bar is as wide as theirs.
+ */
+function ParentGroup({
+  total,
+  open,
+  onOpenChange,
+  currency,
+  children,
+}: {
+  total: BudgetFigures
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  currency: string
+  children: ReactNode
+}) {
+  return (
+    <Collapsible open={open} onOpenChange={onOpenChange} className="space-y-4">
+      <div className="flex items-start gap-2">
+        <div className="flex-1">
+          <BudgetBar row={total} currency={currency} note="its subcategories added up" />
+        </div>
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`${open ? 'Hide' : 'Show'} the subcategories of ${total.category_name}`}
+          >
+            <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />
+          </Button>
+        </CollapsibleTrigger>
+      </div>
+      <CollapsibleContent className="border-muted space-y-4 border-l-2 pl-4">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
