@@ -1,4 +1,4 @@
-"""Accepting from the bank inbox into the ledger, against a real database."""
+"""Adding to the inbox and accepting from it into the ledger, against a real database."""
 
 import datetime
 import uuid
@@ -8,6 +8,7 @@ from sqlmodel import Session
 
 from app.exceptions import (
     AccountArchivedError,
+    AccountNotFoundError,
     BankTransactionNotFoundError,
     BankTransactionReviewedError,
     TransactionCategoryKindError,
@@ -18,6 +19,8 @@ from app.models import (
     BankConnection,
     BankConnectionStatus,
     BankDirection,
+    BankInboxAdd,
+    BankInboxEntry,
     BankInboxFilters,
     BankReviewStatus,
     BankSyncRun,
@@ -218,3 +221,108 @@ def test_another_household_cannot_see_or_accept_the_row(
     assert inbox_service.list_inbox(household_b, BankInboxFilters()).count == 0
     with pytest.raises(BankTransactionNotFoundError):
         inbox_service.accept(household_b, row.id, BankTransactionAccept(kind=TransactionKind.EXPENSE))
+
+
+def coffee(reference: str | None = None, direction: BankDirection = BankDirection.DEBIT) -> BankInboxEntry:
+    return BankInboxEntry(
+        direction=direction,
+        amount_minor=350,
+        occurred_on=datetime.date(2026, 10, 2),
+        counterparty_name="Coffee Island",
+        reference=reference,
+    )
+
+
+def test_adding_puts_rows_in_the_inbox_on_the_account(
+    db_session: Session, household_a: HouseholdContext, inbox_service: BankInboxService
+) -> None:
+    """Test that added rows wait in the inbox, on the account they were added to, in its currency."""
+    account = make_account(db_session, household_a.household_id)
+
+    added = inbox_service.add(household_a, BankInboxAdd(account_id=account.id, entries=[coffee(), coffee()]))
+
+    assert (added.received, added.added) == (2, 2)
+    pending = inbox_service.list_inbox(household_a, BankInboxFilters())
+    assert pending.count == 2
+    assert {(r.account_id, r.bank_account_id, r.bank_account_name) for r in pending.data} == {(account.id, None, None)}
+    assert {r.currency_code for r in pending.data} == {account.currency_code}
+
+
+def test_adding_the_same_entries_again_adds_nothing(
+    db_session: Session, household_a: HouseholdContext, inbox_service: BankInboxService
+) -> None:
+    """Test that rows are recognised by reference, or by what they say and their place among identical ones."""
+    account = make_account(db_session, household_a.household_id)
+    entries = [coffee(), coffee(), coffee(reference="TR-1")]
+    inbox_service.add(household_a, BankInboxAdd(account_id=account.id, entries=entries))
+
+    again = inbox_service.add(household_a, BankInboxAdd(account_id=account.id, entries=[*entries, coffee()]))
+
+    # The third identical coffee is new; the rest were there.
+    assert (again.received, again.added) == (4, 1)
+    assert inbox_service.list_inbox(household_a, BankInboxFilters()).count == 4
+
+
+def test_an_added_row_is_accepted_onto_its_account(
+    db_session: Session,
+    household_a: HouseholdContext,
+    inbox_service: BankInboxService,
+    transaction_service: TransactionService,
+) -> None:
+    """Test that accepting an added row records it on its account, and deleting it sends it back."""
+    account = make_account(db_session, household_a.household_id)
+    inbox_service.add(household_a, BankInboxAdd(account_id=account.id, entries=[coffee()]))
+    row = inbox_service.list_inbox(household_a, BankInboxFilters()).data[0]
+
+    accepted = inbox_service.accept(household_a, row.id, BankTransactionAccept(kind=TransactionKind.EXPENSE))
+
+    ledger = db_session.get(Transaction, accepted.ledger_transaction_id)
+    assert ledger is not None
+    assert ledger.account_id == account.id
+    assert ledger.external_id == f"inbox:{row.id}"
+    assert ledger.import_batch_id is None
+    assert ledger.merchant == "Coffee Island"
+    assert AccountRepository(db_session).balance_of(account.id, household_a.household_id) == -350
+
+    assert accepted.ledger_transaction_id is not None
+    transaction_service.delete_transaction(household_a, accepted.ledger_transaction_id)
+    assert [r.id for r in inbox_service.list_inbox(household_a, BankInboxFilters()).data] == [row.id]
+
+
+def test_a_money_in_transfer_from_an_added_row_lands_on_its_account(
+    db_session: Session, household_a: HouseholdContext, inbox_service: BankInboxService
+) -> None:
+    """Test that money in on an added row is a transfer from the other account into this one."""
+    account = make_account(db_session, household_a.household_id)
+    other = make_account(db_session, household_a.household_id, name="Savings")
+    inbox_service.add(
+        household_a, BankInboxAdd(account_id=account.id, entries=[coffee(direction=BankDirection.CREDIT)])
+    )
+    row = inbox_service.list_inbox(household_a, BankInboxFilters()).data[0]
+
+    accepted = inbox_service.accept(
+        household_a, row.id, BankTransactionAccept(kind=TransactionKind.TRANSFER, counter_account_id=other.id)
+    )
+
+    ledger = db_session.get(Transaction, accepted.ledger_transaction_id)
+    assert ledger is not None
+    assert (ledger.account_id, ledger.counter_account_id) == (other.id, account.id)
+
+
+def test_adding_needs_an_open_account_of_the_household(
+    db_session: Session,
+    household_a: HouseholdContext,
+    household_b: HouseholdContext,
+    inbox_service: BankInboxService,
+) -> None:
+    """Test that rows cannot be added to another household's account, or to an archived one."""
+    account = make_account(db_session, household_a.household_id)
+
+    with pytest.raises(AccountNotFoundError):
+        inbox_service.add(household_b, BankInboxAdd(account_id=account.id, entries=[coffee()]))
+
+    account.archived_at = datetime.datetime.now(datetime.UTC)
+    db_session.add(account)
+    db_session.flush()
+    with pytest.raises(AccountArchivedError):
+        inbox_service.add(household_a, BankInboxAdd(account_id=account.id, entries=[coffee()]))

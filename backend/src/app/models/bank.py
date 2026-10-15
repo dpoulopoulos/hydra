@@ -174,17 +174,33 @@ class BankSyncRun(PrimaryKeyMixin, SQLModel, table=True):
 
 
 class BankTransaction(PrimaryKeyMixin, CreatedAtMixin, SQLModel, table=True):
-    """A booked transaction from a bank, waiting in or settled out of the inbox."""
+    """A transaction waiting in or settled out of the inbox.
+
+    Most come from a bank, through a bank account. The rest were added to the
+    inbox directly, for example read off a statement, and name the Hydra
+    account they belong to instead.
+    """
 
     __table_args__ = (
         # What makes a re-fetched row a no-op. Every sync overlaps the last.
         UniqueConstraint("bank_account_id", "dedupe_key", name="uq_banktransaction_account_dedupe"),
+        # The same for a row added directly: adding a statement twice adds
+        # its rows once.
+        UniqueConstraint("account_id", "dedupe_key", name="uq_banktransaction_hydra_account_dedupe"),
+        # A row comes through a bank account or names its account, never both.
+        CheckConstraint("(bank_account_id IS NULL) <> (account_id IS NULL)", name="ck_banktransaction_one_source"),
         CheckConstraint("amount_minor > 0", name="ck_banktransaction_amount_positive"),
         CheckConstraint(within_cap_sql("amount_minor", MAX_AMOUNT_MINOR), name="ck_banktransaction_amount_within_cap"),
         ForeignKeyConstraint(
             ["bank_account_id", "household_id"],
             ["bankaccount.id", "bankaccount.household_id"],
             name="fk_banktransaction_bankaccount_household",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["account_id", "household_id"],
+            ["account.id", "account.household_id"],
+            name="fk_banktransaction_account_household",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
@@ -203,10 +219,15 @@ class BankTransaction(PrimaryKeyMixin, CreatedAtMixin, SQLModel, table=True):
     )
 
     household_id: uuid.UUID = Field(foreign_key="household.id", ondelete="CASCADE", index=True)
-    bank_account_id: uuid.UUID = Field(nullable=False)
+    # The bank account it came through. Null for a row added directly.
+    bank_account_id: uuid.UUID | None = Field(default=None)
+    # The Hydra account a row added directly belongs to. Null for a bank's
+    # row, whose account is whichever one its bank account feeds.
+    account_id: uuid.UUID | None = Field(default=None)
     sync_run_id: uuid.UUID | None = Field(default=None)
     # The bank's own reference when it gives one, a fingerprint of the row
-    # otherwise. Kept for good, after `raw` is cleared.
+    # otherwise. For a row added directly, the reference it was added with,
+    # or a fingerprint. Kept for good, after `raw` is cleared.
     dedupe_key: str = Field(max_length=255)
     direction: BankDirection
     # A positive magnitude, as in the ledger. `direction` carries the meaning.
@@ -327,9 +348,11 @@ class BankInboxFilters(SQLModel):
 
 class BankTransactionPublic(SQLModel):
     id: uuid.UUID
-    bank_account_id: uuid.UUID
+    # Null for a row added directly rather than synced from a bank.
+    bank_account_id: uuid.UUID | None = None
     bank_account_name: str | None = None
-    # The Hydra account the bank account feeds, if it is still linked.
+    # The Hydra account the row goes to: the one it was added to, or the one
+    # its bank account feeds, if it is still linked.
     account_id: uuid.UUID | None = None
     direction: BankDirection
     amount_minor: int
@@ -349,6 +372,37 @@ class BankTransactionPublic(SQLModel):
 class BankTransactionsPublic(SQLModel):
     data: list[BankTransactionPublic]
     count: int
+
+
+class BankInboxEntry(SQLModel):
+    """One transaction to add to the inbox, as a statement shows it."""
+
+    direction: BankDirection
+    # A positive magnitude, in the account's currency. `direction` carries the meaning.
+    amount_minor: int = Field(gt=0, le=MAX_AMOUNT_MINOR)
+    occurred_on: datetime.date
+    counterparty_name: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=1024)
+    # The statement's own key for the row, when it has one. Room is left for
+    # the number a repeat gets.
+    reference: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class BankInboxAdd(SQLModel):
+    """Transactions to add to the inbox, all on one account."""
+
+    account_id: uuid.UUID
+    # In the order the statement lists them. Two identical rows without a
+    # reference are told apart by their place, so the order must be the same
+    # when the statement is added again.
+    entries: list[BankInboxEntry] = Field(min_length=1, max_length=500)
+
+
+class BankInboxAdded(SQLModel):
+    # How many entries were sent, and how many of them were new. The rest were
+    # in the inbox already, from an earlier add.
+    received: int
+    added: int
 
 
 class BankTransactionAccept(SQLModel):

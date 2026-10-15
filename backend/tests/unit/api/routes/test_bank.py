@@ -16,6 +16,8 @@ from app.api.deps import (
     get_session_user,
 )
 from app.exceptions import (
+    AccountArchivedError,
+    AccountNotFoundError,
     ApiTokenNotPermittedError,
     AspspNotFoundError,
     BankAccountAlreadyMappedError,
@@ -42,6 +44,7 @@ from app.models import (
     BankConnectionsPublic,
     BankConnectionStatus,
     BankDirection,
+    BankInboxAdded,
     BankReviewStatus,
     BankStatus,
     BankSyncRunPublic,
@@ -427,6 +430,69 @@ class TestInbox:
         assert response.status_code == 200
         assert response.json()["review_status"] == "accepted"
         assert inbox_service.accept.call_args.kwargs["bank_transaction_id"] == row_id
+
+    def test_adds(self, client: TestClient, inbox_service: MagicMock, auth_headers: dict[str, str]) -> None:
+        inbox_service.add.return_value = BankInboxAdded(received=1, added=1)
+        account_id = uuid.uuid4()
+        entry = {"direction": "debit", "amount_minor": 350, "occurred_on": "2026-10-02", "reference": "TR-1"}
+
+        response = client.post(
+            "/api/v1/bank/inbox", headers=auth_headers, json={"account_id": str(account_id), "entries": [entry]}
+        )
+
+        assert response.status_code == 201
+        assert response.json() == {"received": 1, "added": 1}
+        add = inbox_service.add.call_args.kwargs["add"]
+        assert add.account_id == account_id
+        assert add.entries[0].reference == "TR-1"
+
+    @pytest.mark.parametrize(
+        "entry",
+        [
+            {"direction": "debit", "amount_minor": -350, "occurred_on": "2026-10-02"},
+            {"direction": "debit", "amount_minor": 0, "occurred_on": "2026-10-02"},
+            {"direction": "out", "amount_minor": 350, "occurred_on": "2026-10-02"},
+        ],
+    )
+    def test_add_refuses_a_malformed_entry(
+        self, client: TestClient, inbox_service: MagicMock, auth_headers: dict[str, str], entry: dict[str, object]
+    ) -> None:
+        response = client.post(
+            "/api/v1/bank/inbox", headers=auth_headers, json={"account_id": str(uuid.uuid4()), "entries": [entry]}
+        )
+
+        assert response.status_code == 422
+        inbox_service.add.assert_not_called()
+
+    def test_add_needs_an_entry(
+        self, client: TestClient, inbox_service: MagicMock, auth_headers: dict[str, str]
+    ) -> None:
+        response = client.post(
+            "/api/v1/bank/inbox", headers=auth_headers, json={"account_id": str(uuid.uuid4()), "entries": []}
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        ("error", "status_code"),
+        [(AccountNotFoundError(), 404), (AccountArchivedError(name="Checking"), 400)],
+    )
+    def test_add_errors(
+        self,
+        client: TestClient,
+        inbox_service: MagicMock,
+        auth_headers: dict[str, str],
+        error: Exception,
+        status_code: int,
+    ) -> None:
+        inbox_service.add.side_effect = error
+        entry = {"direction": "debit", "amount_minor": 350, "occurred_on": "2026-10-02"}
+
+        response = client.post(
+            "/api/v1/bank/inbox", headers=auth_headers, json={"account_id": str(uuid.uuid4()), "entries": [entry]}
+        )
+
+        assert response.status_code == status_code
 
     @pytest.mark.parametrize("action", ["skip", "reopen"])
     def test_skip_and_reopen(

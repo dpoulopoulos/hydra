@@ -498,6 +498,65 @@ export const BankDirection = { CREDIT: 'credit', DEBIT: 'debit' } as const;
 export type BankDirection = typeof BankDirection[keyof typeof BankDirection];
 
 /**
+ * BankInboxAdd
+ *
+ * Transactions to add to the inbox, all on one account.
+ */
+export type BankInboxAdd = {
+    /**
+     * Account Id
+     */
+    account_id: string;
+    /**
+     * Entries
+     */
+    entries: Array<BankInboxEntry>;
+};
+
+/**
+ * BankInboxAdded
+ */
+export type BankInboxAdded = {
+    /**
+     * Received
+     */
+    received: number;
+    /**
+     * Added
+     */
+    added: number;
+};
+
+/**
+ * BankInboxEntry
+ *
+ * One transaction to add to the inbox, as a statement shows it.
+ */
+export type BankInboxEntry = {
+    direction: BankDirection;
+    /**
+     * Amount Minor
+     */
+    amount_minor: number;
+    /**
+     * Occurred On
+     */
+    occurred_on: string;
+    /**
+     * Counterparty Name
+     */
+    counterparty_name?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Reference
+     */
+    reference?: string | null;
+};
+
+/**
  * BankReviewStatus
  */
 export const BankReviewStatus = {
@@ -628,7 +687,7 @@ export type BankTransactionPublic = {
     /**
      * Bank Account Id
      */
-    bank_account_id: string;
+    bank_account_id?: string | null;
     /**
      * Bank Account Name
      */
@@ -5878,6 +5937,31 @@ export type BankListBankInboxResponses = {
 };
 
 export type BankListBankInboxResponse = BankListBankInboxResponses[keyof BankListBankInboxResponses];
+
+export type BankAddToBankInboxData = {
+    body: BankInboxAdd;
+    path?: never;
+    query?: never;
+    url: '/api/v1/bank/inbox';
+};
+
+export type BankAddToBankInboxErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BankAddToBankInboxError = BankAddToBankInboxErrors[keyof BankAddToBankInboxErrors];
+
+export type BankAddToBankInboxResponses = {
+    /**
+     * Successful Response
+     */
+    201: BankInboxAdded;
+};
+
+export type BankAddToBankInboxResponse = BankAddToBankInboxResponses[keyof BankAddToBankInboxResponses];
 
 export type BankAcceptBankTransactionData = {
     body: BankTransactionAccept;

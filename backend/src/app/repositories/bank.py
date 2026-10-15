@@ -252,14 +252,28 @@ class BankTransactionRepository(HouseholdScopedRepository[BankTransaction]):
         Returns:
             How many rows were new.
         """
+        return self._insert_missing(rows, "uq_banktransaction_account_dedupe")
+
+    def insert_added(self, rows: Sequence[dict[str, Any]]) -> int:
+        """Insert the rows added directly that are not already held.
+
+        They are recognised by their account and dedupe key, so adding the
+        same statement twice adds its rows once.
+
+        Args:
+            rows: The column values of each row, with an id.
+
+        Returns:
+            How many rows were new.
+        """
+        return self._insert_missing(rows, "uq_banktransaction_hydra_account_dedupe")
+
+    def _insert_missing(self, rows: Sequence[dict[str, Any]], constraint: str) -> int:
         if not rows:
             return 0
         table = table_of(BankTransaction)
         statement = (
-            pg_insert(table)
-            .values(list(rows))
-            .on_conflict_do_nothing(constraint="uq_banktransaction_account_dedupe")
-            .returning(table.c.id)
+            pg_insert(table).values(list(rows)).on_conflict_do_nothing(constraint=constraint).returning(table.c.id)
         )
         return len(self.session.execute(statement).all())
 
@@ -284,7 +298,7 @@ class BankTransactionRepository(HouseholdScopedRepository[BankTransaction]):
 
     def list_inbox(
         self, household_id: uuid.UUID, filters: BankInboxFilters
-    ) -> tuple[Sequence[tuple[BankTransaction, BankAccount]], int]:
+    ) -> tuple[Sequence[tuple[BankTransaction, BankAccount | None]], int]:
         """List a page of the inbox, with each row's bank account.
 
         Args:
@@ -292,7 +306,8 @@ class BankTransactionRepository(HouseholdScopedRepository[BankTransaction]):
             filters: Which review status, which bank account, and which page.
 
         Returns:
-            The page of rows, newest first, and how many rows match in all.
+            The page of rows, newest first, and how many rows match in all. A
+            row added directly has no bank account.
         """
         conditions = [
             BankTransaction.household_id == household_id,
@@ -304,7 +319,7 @@ class BankTransactionRepository(HouseholdScopedRepository[BankTransaction]):
         count = self.session.exec(select(func.count()).select_from(BankTransaction).where(*conditions)).one()
         statement = self._paginate(
             select(BankTransaction, BankAccount)
-            .join(BankAccount, col(BankTransaction.bank_account_id) == col(BankAccount.id))
+            .outerjoin(BankAccount, col(BankTransaction.bank_account_id) == col(BankAccount.id))
             .where(*conditions)
             .order_by(col(BankTransaction.occurred_on).desc(), col(BankTransaction.created_at).desc())
             .order_by(col(BankTransaction.id)),

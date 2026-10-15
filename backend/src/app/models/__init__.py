@@ -35,6 +35,9 @@ from .bank import (
     BankConnectionStart,
     BankConnectionStatus,
     BankDirection,
+    BankInboxAdd,
+    BankInboxAdded,
+    BankInboxEntry,
     BankInboxFilters,
     BankReviewStatus,
     BankStatus,
@@ -241,6 +244,9 @@ class Message(SQLModel):
 
 
 __all__ = [
+    "BankInboxAdd",
+    "BankInboxAdded",
+    "BankInboxEntry",
     "BankInboxFilters",
     "BankTransactionAccept",
     "BankTransactionPublic",

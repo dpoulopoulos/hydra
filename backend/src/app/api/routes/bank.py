@@ -38,6 +38,8 @@ from app.models import (
     BankConnectionPublic,
     BankConnectionsPublic,
     BankConnectionStart,
+    BankInboxAdd,
+    BankInboxAdded,
     BankStatus,
     BankSyncRunPublic,
     BankSyncTrigger,
@@ -284,7 +286,7 @@ def update_bank_account(
 def list_bank_inbox(
     *, bank_inbox_service: BankInboxServiceDep, household: CurrentHousehold, filters: BankInboxFiltersDep
 ) -> BankTransactionsPublic:
-    """List what bank sync brought in, waiting or already reviewed.
+    """List what bank sync brought in or was added by hand, waiting or already reviewed.
 
     Args:
         bank_inbox_service: The bank inbox service dependency.
@@ -295,6 +297,29 @@ def list_bank_inbox(
         A page of rows, newest first, and how many match in all.
     """
     return bank_inbox_service.list_inbox(household=household, filters=filters)
+
+
+@router.post("/inbox", response_model=BankInboxAdded, status_code=status.HTTP_201_CREATED)
+def add_to_bank_inbox(
+    *, bank_inbox_service: BankInboxServiceDep, household: CurrentHousehold, add_in: BankInboxAdd
+) -> BankInboxAdded:
+    """Add transactions to the inbox, for someone to review before they reach the ledger.
+
+    This is for what no bank sends, such as the lines of a statement. A
+    transaction already in the inbox from an earlier add is not added again.
+
+    Args:
+        bank_inbox_service: The bank inbox service dependency.
+        household: The current household context.
+        add_in: The account, and the transactions on it.
+
+    Returns:
+        How many transactions were sent, and how many were new.
+
+    Raises:
+        HTTPException: If the account does not exist (404) or is archived (400).
+    """
+    return bank_inbox_service.add(household=household, add=add_in)
 
 
 @router.post("/inbox/{bank_transaction_id}/accept", response_model=BankTransactionPublic)

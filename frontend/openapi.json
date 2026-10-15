@@ -3236,7 +3236,7 @@
           "bank"
         ],
         "summary": "List Bank Inbox",
-        "description": "List what bank sync brought in, waiting or already reviewed.\n\nArgs:\n    bank_inbox_service: The bank inbox service dependency.\n    household: The current household context.\n    filters: Which review status, which bank account, and which page.\n\nReturns:\n    A page of rows, newest first, and how many match in all.",
+        "description": "List what bank sync brought in or was added by hand, waiting or already reviewed.\n\nArgs:\n    bank_inbox_service: The bank inbox service dependency.\n    household: The current household context.\n    filters: Which review status, which bank account, and which page.\n\nReturns:\n    A page of rows, newest first, and how many match in all.",
         "operationId": "bank-list_bank_inbox",
         "security": [
           {
@@ -3301,6 +3301,51 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BankTransactionsPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "bank"
+        ],
+        "summary": "Add To Bank Inbox",
+        "description": "Add transactions to the inbox, for someone to review before they reach the ledger.\n\nThis is for what no bank sends, such as the lines of a statement. A\ntransaction already in the inbox from an earlier add is not added again.\n\nArgs:\n    bank_inbox_service: The bank inbox service dependency.\n    household: The current household context.\n    add_in: The account, and the transactions on it.\n\nReturns:\n    How many transactions were sent, and how many were new.\n\nRaises:\n    HTTPException: If the account does not exist (404) or is archived (400).",
+        "operationId": "bank-add_to_bank_inbox",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankInboxAdd"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankInboxAdded"
                 }
               }
             }
@@ -7092,6 +7137,112 @@
         ],
         "title": "BankDirection"
       },
+      "BankInboxAdd": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/BankInboxEntry"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "entries"
+        ],
+        "title": "BankInboxAdd",
+        "description": "Transactions to add to the inbox, all on one account."
+      },
+      "BankInboxAdded": {
+        "properties": {
+          "received": {
+            "type": "integer",
+            "title": "Received"
+          },
+          "added": {
+            "type": "integer",
+            "title": "Added"
+          }
+        },
+        "type": "object",
+        "required": [
+          "received",
+          "added"
+        ],
+        "title": "BankInboxAdded"
+      },
+      "BankInboxEntry": {
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/BankDirection"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "maximum": 4.611686018427388e+18,
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "occurred_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Occurred On"
+          },
+          "counterparty_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          }
+        },
+        "type": "object",
+        "required": [
+          "direction",
+          "amount_minor",
+          "occurred_on"
+        ],
+        "title": "BankInboxEntry",
+        "description": "One transaction to add to the inbox, as a statement shows it."
+      },
       "BankReviewStatus": {
         "type": "string",
         "enum": [
@@ -7292,8 +7443,15 @@
             "title": "Id"
           },
           "bank_account_id": {
-            "type": "string",
-            "format": "uuid",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Bank Account Id"
           },
           "bank_account_name": {
@@ -7428,7 +7586,6 @@
         "type": "object",
         "required": [
           "id",
-          "bank_account_id",
           "direction",
           "amount_minor",
           "currency_code",

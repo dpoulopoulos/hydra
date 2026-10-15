@@ -258,7 +258,8 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
     # as ordinary income rather than as money silently vanishing.
     income_session_id: uuid.UUID | None = Field(default=None, foreign_key="incomesession.id", ondelete="SET NULL")
     is_generated: bool = Field(default=False)
-    # Set on a row accepted from the bank inbox: "eb:" and the inbox row's id.
+    # Set on a row accepted from the inbox: "eb:" and the inbox row's id for a
+    # bank's row, "inbox:" and its id for a row added directly.
     external_id: str | None = Field(default=None, max_length=255)
     # The bank sync run the row was imported by.
     import_batch_id: uuid.UUID | None = Field(default=None)

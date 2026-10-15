@@ -1,4 +1,4 @@
-"""Reviewing what bank sync brought in, before it reaches the ledger."""
+"""Reviewing what bank sync brought in, or what was added by hand, before it reaches the ledger."""
 
 import datetime
 import uuid
@@ -14,6 +14,8 @@ from app.exceptions import (
 from app.models import (
     BankAccount,
     BankDirection,
+    BankInboxAdd,
+    BankInboxAdded,
     BankInboxFilters,
     BankReviewStatus,
     BankTransaction,
@@ -25,6 +27,7 @@ from app.models import (
     TransactionKind,
 )
 from app.repositories.bank import BankAccountRepository, BankTransactionRepository
+from app.services.bank_sync import MappedRow, dedupe_keys
 from app.services.transaction import TransactionService
 
 # What each direction of money can be recorded as. Money out of the bank
@@ -36,20 +39,23 @@ _KINDS = {
 }
 
 
-def to_public(row: BankTransaction, bank_account: BankAccount) -> BankTransactionPublic:
+def to_public(row: BankTransaction, bank_account: BankAccount | None) -> BankTransactionPublic:
     """Build the response for an inbox row.
 
     Args:
         row: The bank transaction.
-        bank_account: The bank account it came from.
+        bank_account: The bank account it came from, or None for a row added directly.
 
     Returns:
-        The row, with the bank account's name and the account it feeds.
+        The row, with the bank account's name and the account it goes to.
     """
     return BankTransactionPublic.model_validate(
         row,
         from_attributes=True,
-        update={"bank_account_name": bank_account.name, "account_id": bank_account.account_id},
+        update={
+            "bank_account_name": bank_account.name if bank_account else None,
+            "account_id": _account_of(row, bank_account),
+        },
     )
 
 
@@ -57,9 +63,9 @@ class BankInboxService:
     """Provide services for the bank inbox.
 
     Accepting a row records it in the ledger and marks it accepted in one
-    commit. The amount, the date and which account it is on are the bank's;
-    what is chosen is whether it is spending, income or a transfer, and how it
-    is filed.
+    commit. The amount, the date and which account it is on are the bank's, or
+    the statement's for a row added directly; what is chosen is whether it is
+    spending, income or a transfer, and how it is filed.
     """
 
     def __init__(
@@ -95,6 +101,65 @@ class BankInboxService:
         rows, count = self.bank_transaction_repository.list_inbox(household.household_id, filters)
         return BankTransactionsPublic(data=[to_public(row, account) for row, account in rows], count=count)
 
+    def add(self, household: HouseholdContext, add: BankInboxAdd) -> BankInboxAdded:
+        """Add transactions to the inbox, for someone to review.
+
+        Each is recognised the way a synced row is: by its reference when it
+        has one, by what it says and its place among identical ones otherwise.
+        So adding the same statement again adds nothing new.
+
+        Args:
+            household: The household context.
+            add: The account, and the transactions on it.
+
+        Returns:
+            How many transactions were sent, and how many were new.
+
+        Raises:
+            AccountNotFoundError: If the account does not exist in the household.
+            AccountArchivedError: If the account is archived.
+        """
+        resolver = self.transaction_service.reference_resolver
+        account = resolver.resolve_account(household=household, account_id=add.account_id)
+
+        mapped = [
+            MappedRow(
+                direction=entry.direction,
+                amount_minor=entry.amount_minor,
+                currency_code=account.currency_code,
+                occurred_on=entry.occurred_on,
+                booking_date=entry.occurred_on,
+                value_date=None,
+                transaction_date=None,
+                counterparty_name=entry.counterparty_name,
+                counterparty_iban=None,
+                description=entry.description,
+                reference=entry.reference,
+                raw={},
+            )
+            for entry in add.entries
+        ]
+        rows = [
+            {
+                "id": uuid.uuid4(),
+                "household_id": household.household_id,
+                "account_id": account.id,
+                "dedupe_key": key,
+                "direction": row.direction,
+                "amount_minor": row.amount_minor,
+                "currency_code": row.currency_code,
+                "occurred_on": row.occurred_on,
+                "booking_date": row.booking_date,
+                "counterparty_name": row.counterparty_name,
+                "description": row.description,
+                "review_status": BankReviewStatus.PENDING,
+            }
+            for row, key in zip(mapped, dedupe_keys(mapped), strict=True)
+        ]
+        added = self.bank_transaction_repository.insert_added(rows)
+        self.session.commit()
+        return BankInboxAdded(received=len(rows), added=added)
+
     def accept(
         self, household: HouseholdContext, bank_transaction_id: uuid.UUID, accept: BankTransactionAccept
     ) -> BankTransactionPublic:
@@ -116,7 +181,8 @@ class BankInboxService:
                 transfer to or from another currency does not say how much moved there.
         """
         row, bank_account = self._require_pending(household, bank_transaction_id)
-        if bank_account.account_id is None:
+        row_account_id = _account_of(row, bank_account)
+        if row_account_id is None:
             raise BankAccountMappingError(
                 "The bank account this came from is not linked to an account any more. Link it first."
             ) from None
@@ -124,7 +190,7 @@ class BankInboxService:
             allowed = " or ".join(kind.value for kind in _KINDS[row.direction])
             raise BankTransactionKindError(f"Money {_direction_word(row)} can be recorded as {allowed}.") from None
 
-        account_id = bank_account.account_id
+        account_id = row_account_id
         counter_account_id = None
         amount_minor = row.amount_minor
         counter_amount_minor = None
@@ -133,13 +199,13 @@ class BankInboxService:
             if accept.counter_account_id is None:
                 raise BankTransactionKindError("A transfer needs the other account.") from None
             other_amount_minor = self._other_side(
-                household, bank_account.account_id, accept.counter_account_id, accept.counter_amount_minor
+                household, row_account_id, accept.counter_account_id, accept.counter_amount_minor
             )
             if row.direction == BankDirection.DEBIT:
                 counter_account_id = accept.counter_account_id
                 counter_amount_minor = other_amount_minor
             else:
-                account_id, counter_account_id = accept.counter_account_id, bank_account.account_id
+                account_id, counter_account_id = accept.counter_account_id, row_account_id
                 if other_amount_minor is not None:
                     amount_minor, counter_amount_minor = other_amount_minor, row.amount_minor
 
@@ -157,7 +223,7 @@ class BankInboxService:
                 counter_account_id=counter_account_id,
                 goal_id=accept.goal_id,
             ),
-            external_id=f"eb:{row.id}",
+            external_id=f"eb:{row.id}" if row.bank_account_id is not None else f"inbox:{row.id}",
             import_batch_id=row.sync_run_id,
         )
 
@@ -255,7 +321,7 @@ class BankInboxService:
 
     def _require(
         self, household: HouseholdContext, bank_transaction_id: uuid.UUID
-    ) -> tuple[BankTransaction, BankAccount]:
+    ) -> tuple[BankTransaction, BankAccount | None]:
         """Load and lock an inbox row of the household, with its bank account.
 
         Args:
@@ -263,7 +329,7 @@ class BankInboxService:
             bank_transaction_id: The ID of the bank transaction.
 
         Returns:
-            The row and its bank account.
+            The row and its bank account, which is None for a row added directly.
 
         Raises:
             BankTransactionNotFoundError: If the row does not exist in the household.
@@ -271,6 +337,8 @@ class BankInboxService:
         row = self.bank_transaction_repository.lock_for_household(bank_transaction_id, household.household_id)
         if row is None:
             raise BankTransactionNotFoundError from None
+        if row.bank_account_id is None:
+            return row, None
         bank_account = self.bank_account_repository.get_for_household(row.bank_account_id, household.household_id)
         if bank_account is None:
             raise BankTransactionNotFoundError from None
@@ -278,7 +346,7 @@ class BankInboxService:
 
     def _require_pending(
         self, household: HouseholdContext, bank_transaction_id: uuid.UUID
-    ) -> tuple[BankTransaction, BankAccount]:
+    ) -> tuple[BankTransaction, BankAccount | None]:
         """Load and lock an inbox row that is still waiting.
 
         Args:
@@ -306,6 +374,14 @@ class BankInboxService:
         row.reviewed_at = datetime.datetime.now(datetime.UTC)
         row.reviewed_by_user_id = household.user.id
         self.bank_transaction_repository.save(row)
+
+
+def _account_of(row: BankTransaction, bank_account: BankAccount | None) -> uuid.UUID | None:
+    # A row added directly names its account. A bank's row goes to whichever
+    # account its bank account feeds now, which may be none.
+    if bank_account is None:
+        return row.account_id
+    return bank_account.account_id
 
 
 def _direction_word(row: BankTransaction) -> str:
