@@ -12,6 +12,7 @@ from app.exceptions import (
 )
 from app.models import (
     RULE_OCCURRENCE_INDEX,
+    CurrencyTotal,
     HouseholdContext,
     Message,
     RecurringRule,
@@ -288,8 +289,12 @@ class RecurringRuleService:
         horizon = until or datetime.date.today() + datetime.timedelta(days=DEFAULT_UPCOMING_DAYS)
         upcoming: list[UpcomingOccurrence] = []
         usable: dict[uuid.UUID, bool] = {}
+        rules = self.recurring_rule_repository.list_active(household.household_id)
+        currencies = self.reference_resolver.account_repository.currencies_of(
+            account_ids=[rule.account_id for rule in rules], household_id=household.household_id
+        )
 
-        for rule in self.recurring_rule_repository.list_active(household.household_id):
+        for rule in rules:
             if rule.next_occurrence_on is None:
                 continue
 
@@ -312,6 +317,7 @@ class RecurringRuleService:
                         name=rule.name,
                         kind=rule.kind,
                         amount_minor=rule.amount_minor,
+                        currency_code=currencies[rule.account_id],
                         occurs_on=occurs_on,
                         account_id=rule.account_id,
                         category_id=rule.category_id,
@@ -320,11 +326,16 @@ class RecurringRuleService:
                 )
 
         upcoming.sort(key=lambda occurrence: occurrence.occurs_on)
+        nets: dict[str, int] = {}
+
+        for occurrence in upcoming:
+            if not occurrence.is_blocked:
+                nets[occurrence.currency_code] = nets.get(occurrence.currency_code, 0) + _signed_minor(occurrence)
 
         return UpcomingOccurrencesPublic(
             data=upcoming,
             count=len(upcoming),
-            net_minor=sum(_signed_minor(occurrence) for occurrence in upcoming if not occurrence.is_blocked),
+            nets=[CurrencyTotal(currency_code=code, amount_minor=net) for code, net in sorted(nets.items())],
         )
 
     def materialize_due(self, household: HouseholdContext, until: datetime.date | None = None) -> RecurringRunResult:

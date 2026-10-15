@@ -12,11 +12,13 @@ from app.exceptions import (
     ReportRangeTooLargeError,
 )
 from app.models import (
+    Account,
     AccountType,
     BudgetProgressReport,
     BudgetProgressRow,
     CategoryDepth,
     CategorySpendSlice,
+    CurrencyTotal,
     HouseholdContext,
     IncomeExpenseReport,
     MonthlyFlow,
@@ -100,9 +102,11 @@ class ReportService:
             One slice per category, largest first, with each share of the total.
         """
         date_from, date_to = month_bounds(month)
+        currency_code = self._household_currency(household)
 
         rows = self.report_repository.spend_by_category(
             household_id=household.household_id,
+            currency_code=currency_code,
             date_from=date_from,
             date_to=date_to,
             kind=kind,
@@ -127,7 +131,7 @@ class ReportService:
         ]
 
         return SpendByCategoryReport(
-            period=self._period(household=household, date_from=date_from, date_to=date_to),
+            period=ReportPeriod(date_from=date_from, date_to=date_to, currency_code=currency_code),
             kind=kind,
             depth=depth,
             total_minor=total,
@@ -177,8 +181,13 @@ class ReportService:
         ):
             raise ReportRangeTooLargeError(limit="ten years of monthly figures") from None
 
-        if account_id is not None:
-            self._require_account(household=household, account_id=account_id)
+        # One account is reported in its own currency. Every account at once
+        # is reported in the household's, and leaves the others out.
+        currency_code = (
+            self._require_account(household=household, account_id=account_id).currency_code
+            if account_id is not None
+            else self._household_currency(household)
+        )
 
         category_ids = None
 
@@ -187,6 +196,7 @@ class ReportService:
 
         rows = self.report_repository.spend_over_time(
             household_id=household.household_id,
+            currency_code=currency_code,
             date_from=date_from,
             date_to=date_to,
             kind=kind,
@@ -199,7 +209,7 @@ class ReportService:
         active = [point for point in points if point.transaction_count]
 
         return SpendOverTimeReport(
-            period=self._period(household=household, date_from=date_from, date_to=date_to),
+            period=ReportPeriod(date_from=date_from, date_to=date_to, currency_code=currency_code),
             granularity=granularity,
             kind=kind,
             total_minor=total,
@@ -234,9 +244,10 @@ class ReportService:
             raise ReportRangeTooLargeError(limit="ten years of monthly figures") from None
 
         buckets = self._month_buckets(date_from=date_from, date_to=date_to)
+        currency_code = self._household_currency(household)
 
         rows = self.report_repository.monthly_flows(
-            household_id=household.household_id, date_from=date_from, date_to=date_to
+            household_id=household.household_id, currency_code=currency_code, date_from=date_from, date_to=date_to
         )
         months = self._pivot_flows(rows=rows, buckets=buckets)
         total_income = sum(month.income_minor for month in months)
@@ -244,7 +255,7 @@ class ReportService:
         rates = [month.savings_rate for month in months if month.savings_rate is not None]
 
         return IncomeExpenseReport(
-            period=self._period(household=household, date_from=date_from, date_to=date_to),
+            period=ReportPeriod(date_from=date_from, date_to=date_to, currency_code=currency_code),
             months=months,
             total_income_minor=total_income,
             total_expense_minor=total_expense,
@@ -378,7 +389,7 @@ class ReportService:
 
         return buckets
 
-    def _require_account(self, household: HouseholdContext, account_id: uuid.UUID) -> None:
+    def _require_account(self, household: HouseholdContext, account_id: uuid.UUID) -> Account:
         """Check that an account filter names an account of the household.
 
         Resolved through the scoped repository, so filtering by another
@@ -388,11 +399,18 @@ class ReportService:
             household: The household context.
             account_id: The ID of the account.
 
+        Returns:
+            The account, whose currency the report is then in.
+
         Raises:
             AccountNotFoundError: If the account does not exist in the household.
         """
-        if not self.account_repository.exists_for_household(entity_id=account_id, household_id=household.household_id):
+        account = self.account_repository.get_for_household(entity_id=account_id, household_id=household.household_id)
+
+        if not account:
             raise AccountNotFoundError from None
+
+        return account
 
     def _expand_category(self, household: HouseholdContext, category_id: uuid.UUID) -> list[uuid.UUID]:
         """Resolve a category filter to itself and its subcategories.
@@ -431,24 +449,18 @@ class ReportService:
         if date_from > date_to:
             raise InvalidDateRangeError from None
 
-    def _period(self, household: HouseholdContext, date_from: datetime.date, date_to: datetime.date) -> ReportPeriod:
-        """Describe the period a report covers.
+    def _household_currency(self, household: HouseholdContext) -> str:
+        """Get the currency the household reports in.
 
         Args:
             household: The household context.
-            date_from: First day, inclusive.
-            date_to: Last day, inclusive.
 
         Returns:
-            The period, with the household currency so the client can format amounts.
+            The household's currency code.
         """
         entity = self.household_repository.get_by_id(household.household_id)
 
-        return ReportPeriod(
-            date_from=date_from,
-            date_to=date_to,
-            currency_code=entity.currency_code if entity else "EUR",
-        )
+        return entity.currency_code if entity else "EUR"
 
     def budget_progress(self, household: HouseholdContext, month: str) -> BudgetProgressReport:
         """Compare a month's spending against the limits set for it.
@@ -466,12 +478,16 @@ class ReportService:
             One row per budget, plus the spending that had no limit at all.
         """
         date_from, date_to = month_bounds(month)
+        # A limit is set in the household's currency, so only spending in it
+        # can be measured against one.
+        currency_code = self._household_currency(household)
 
         budgets = self.budget_repository.list_with_categories(
             household_id=household.household_id, period_month=date_from
         )
         spend_rows = self.report_repository.spend_by_category(
             household_id=household.household_id,
+            currency_code=currency_code,
             date_from=date_from,
             date_to=date_to,
             kind=TransactionKind.EXPENSE,
@@ -511,7 +527,7 @@ class ReportService:
         total_limit = sum(row.limit_minor for row in rows)
 
         return BudgetProgressReport(
-            period=self._period(household=household, date_from=date_from, date_to=date_to),
+            period=ReportPeriod(date_from=date_from, date_to=date_to, currency_code=currency_code),
             total_limit_minor=total_limit,
             total_spent_minor=attributed,
             total_remaining_minor=total_limit - attributed,
@@ -550,11 +566,12 @@ class ReportService:
             recurring_rule_service.materialize_due(household=household)
 
         date_from, date_to = month_bounds(month)
+        currency_code = self._household_currency(household)
 
         totals = {
             row.kind: row
             for row in self.report_repository.totals_by_kind(
-                household_id=household.household_id, date_from=date_from, date_to=date_to
+                household_id=household.household_id, currency_code=currency_code, date_from=date_from, date_to=date_to
             )
         }
         income = totals[TransactionKind.INCOME].amount_minor if TransactionKind.INCOME in totals else 0
@@ -576,12 +593,22 @@ class ReportService:
         breakdown = self.spend_by_category(household=household, month=month)
 
         # Split by where the money sits rather than summed, so the dashboard can
-        # show one part at a time.
+        # show one part at a time. Only the accounts in the household's own
+        # currency make up net worth; the rest are totalled per currency apart.
         by_id = {account.id: account for account in accounts}
-        bank_minor = sum(
-            balance for account_id, balance in balances.items() if by_id[account_id].type != AccountType.BROKERAGE
-        )
-        brokerage_minor = sum(balances.values()) - bank_minor
+        bank_minor = 0
+        brokerage_minor = 0
+        other_currencies: dict[str, int] = {}
+
+        for account_id, balance in balances.items():
+            account = by_id[account_id]
+
+            if account.currency_code != currency_code:
+                other_currencies[account.currency_code] = other_currencies.get(account.currency_code, 0) + balance
+            elif account.type == AccountType.BROKERAGE:
+                brokerage_minor += balance
+            else:
+                bank_minor += balance
         assets_minor = 0
         unpriced_asset_count = 0
 
@@ -594,7 +621,7 @@ class ReportService:
             unpriced_asset_count = portfolio.unpriced_count
 
         return MonthSummaryReport(
-            period=self._period(household=household, date_from=date_from, date_to=date_to),
+            period=ReportPeriod(date_from=date_from, date_to=date_to, currency_code=currency_code),
             income_minor=income,
             expense_minor=expense,
             net_minor=income - expense,
@@ -602,6 +629,10 @@ class ReportService:
             brokerage_minor=brokerage_minor,
             assets_minor=assets_minor,
             net_worth_minor=bank_minor + brokerage_minor + assets_minor,
+            other_currencies=[
+                CurrencyTotal(currency_code=code, amount_minor=balance)
+                for code, balance in sorted(other_currencies.items())
+            ],
             unpriced_asset_count=unpriced_asset_count,
             budgeted_minor=progress.total_limit_minor,
             over_budget_category_count=sum(1 for row in progress.rows if row.is_over_budget),

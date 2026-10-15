@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import Date, cast, func, null, select
 from sqlmodel import Session, col
 
-from app.models import Category, CategoryDepth, TimeGranularity, Transaction, TransactionKind
+from app.models import Account, Category, CategoryDepth, TimeGranularity, Transaction, TransactionKind
 from app.repositories.base import HouseholdScopedRepository
 from app.repositories.rows import CategorySpendRow, KindTotalRow, MonthlyFlowRow, TimeBucketRow
 
@@ -44,6 +44,7 @@ class ReportRepository(HouseholdScopedRepository[Transaction]):
     def spend_by_category(
         self,
         household_id: uuid.UUID,
+        currency_code: str,
         date_from: datetime.date,
         date_to: datetime.date,
         kind: TransactionKind,
@@ -53,6 +54,7 @@ class ReportRepository(HouseholdScopedRepository[Transaction]):
 
         Args:
             household_id: The ID of the household.
+            currency_code: The currency to report in. Only accounts holding it count.
             date_from: First day of the period, inclusive.
             date_to: Last day of the period, inclusive.
             kind: The kind of transaction to sum.
@@ -94,7 +96,7 @@ class ReportRepository(HouseholdScopedRepository[Transaction]):
             .select_from(Transaction)
             .outerjoin(Category, col(Transaction.category_id) == col(Category.id))
             .outerjoin(parent, col(Category.parent_id) == parent.c.id)
-            .where(*self._period(household_id, date_from, date_to), col(Transaction.kind) == kind)
+            .where(*self._period(household_id, currency_code, date_from, date_to), col(Transaction.kind) == kind)
             .group_by(group_id, group_name, *grouped_parent_columns, group_color)
             .order_by(func.sum(col(Transaction.amount_minor)).desc())
         )
@@ -104,6 +106,7 @@ class ReportRepository(HouseholdScopedRepository[Transaction]):
     def spend_over_time(
         self,
         household_id: uuid.UUID,
+        currency_code: str,
         date_from: datetime.date,
         date_to: datetime.date,
         kind: TransactionKind,
@@ -118,6 +121,7 @@ class ReportRepository(HouseholdScopedRepository[Transaction]):
 
         Args:
             household_id: The ID of the household.
+            currency_code: The currency to report in. Only accounts holding it count.
             date_from: First day of the period, inclusive.
             date_to: Last day of the period, inclusive.
             kind: The kind of transaction to sum.
@@ -129,7 +133,7 @@ class ReportRepository(HouseholdScopedRepository[Transaction]):
             One row per non-empty bucket, oldest first.
         """
         bucket = cast(func.date_trunc(granularity.value, col(Transaction.occurred_on)), Date)
-        conditions = [*self._period(household_id, date_from, date_to), col(Transaction.kind) == kind]
+        conditions = [*self._period(household_id, currency_code, date_from, date_to), col(Transaction.kind) == kind]
 
         if account_id is not None:
             conditions.append(col(Transaction.account_id) == account_id)
@@ -151,7 +155,7 @@ class ReportRepository(HouseholdScopedRepository[Transaction]):
         return [TimeBucketRow(*row) for row in self.session.execute(statement).all()]
 
     def monthly_flows(
-        self, household_id: uuid.UUID, date_from: datetime.date, date_to: datetime.date
+        self, household_id: uuid.UUID, currency_code: str, date_from: datetime.date, date_to: datetime.date
     ) -> Sequence[MonthlyFlowRow]:
         """Sum expenses and income of a period per month.
 
@@ -160,6 +164,7 @@ class ReportRepository(HouseholdScopedRepository[Transaction]):
 
         Args:
             household_id: The ID of the household.
+            currency_code: The currency to report in. Only accounts holding it count.
             date_from: First day of the period, inclusive.
             date_to: Last day of the period, inclusive.
 
@@ -175,7 +180,7 @@ class ReportRepository(HouseholdScopedRepository[Transaction]):
                 func.sum(col(Transaction.amount_minor)).label("amount_minor"),
             )
             .where(
-                *self._period(household_id, date_from, date_to),
+                *self._period(household_id, currency_code, date_from, date_to),
                 col(Transaction.kind).in_(_FLOW_KINDS),
             )
             .group_by(bucket, col(Transaction.kind))
@@ -185,12 +190,13 @@ class ReportRepository(HouseholdScopedRepository[Transaction]):
         return [MonthlyFlowRow(*row) for row in self.session.execute(statement).all()]
 
     def totals_by_kind(
-        self, household_id: uuid.UUID, date_from: datetime.date, date_to: datetime.date
+        self, household_id: uuid.UUID, currency_code: str, date_from: datetime.date, date_to: datetime.date
     ) -> Sequence[KindTotalRow]:
         """Sum the amounts of a period per kind.
 
         Args:
             household_id: The ID of the household.
+            currency_code: The currency to report in. Only accounts holding it count.
             date_from: First day of the period, inclusive.
             date_to: Last day of the period, inclusive.
 
@@ -203,25 +209,38 @@ class ReportRepository(HouseholdScopedRepository[Transaction]):
                 func.sum(col(Transaction.amount_minor)).label("amount_minor"),
                 func.count().label("transaction_count"),
             )
-            .where(*self._period(household_id, date_from, date_to))
+            .where(*self._period(household_id, currency_code, date_from, date_to))
             .group_by(col(Transaction.kind))
         )
 
         return [KindTotalRow(*row) for row in self.session.execute(statement).all()]
 
-    def _period(self, household_id: uuid.UUID, date_from: datetime.date, date_to: datetime.date) -> list[Any]:
-        """Build the household and date conditions every report shares.
+    def _period(
+        self, household_id: uuid.UUID, currency_code: str, date_from: datetime.date, date_to: datetime.date
+    ) -> list[Any]:
+        """Build the household, currency and date conditions every report shares.
+
+        A report adds amounts up, and amounts in two currencies do not add up,
+        so each one is about the accounts holding a single currency. The
+        account a row is filed against is the one that decides: an expense or
+        income has no other.
 
         Args:
             household_id: The ID of the household.
+            currency_code: The currency to report in.
             date_from: First day of the period, inclusive.
             date_to: Last day of the period, inclusive.
 
         Returns:
             The conditions to apply to the query.
         """
+        in_currency = select(col(Account.id)).where(
+            col(Account.household_id) == household_id, col(Account.currency_code) == currency_code
+        )
+
         return [
             col(Transaction.household_id) == household_id,
+            col(Transaction.account_id).in_(in_currency),
             col(Transaction.occurred_on) >= date_from,
             col(Transaction.occurred_on) <= date_to,
         ]

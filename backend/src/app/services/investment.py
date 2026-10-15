@@ -431,13 +431,17 @@ class InvestmentService:
             update={"household_id": household.household_id, "created_by_user_id": created_by_user_id},
         )
         self._require_position_stays_solvent(instrument=instrument, added=trade)
+        brokerage = self._require_brokerage(household, trade.brokerage_account_id)
 
-        if trade.brokerage_account_id is not None:
+        if brokerage is not None:
             trade.cash_amount_minor = self._cash_amount(
-                household=household, instrument=instrument, trade=trade, supplied=trade_create.cash_amount_minor
+                household=household,
+                instrument=instrument,
+                trade=trade,
+                supplied=trade_create.cash_amount_minor,
+                currency_code=brokerage.currency_code,
             )
 
-        self._require_brokerage(household, trade.brokerage_account_id)
         self.trade_repository.save(trade)
         self.session.commit()
 
@@ -521,8 +525,9 @@ class InvestmentService:
 
         trade.sqlmodel_update(changes)
         self._require_position_stays_solvent(instrument=instrument)
+        brokerage = self._require_brokerage(household, trade.brokerage_account_id)
 
-        if trade.brokerage_account_id is None:
+        if brokerage is None:
             # The cash side was removed, or was never there. Either way nothing
             # should be left moving money on its behalf.
             trade.cash_amount_minor = None
@@ -536,9 +541,9 @@ class InvestmentService:
                 instrument=instrument,
                 trade=trade,
                 supplied=changes.get("cash_amount_minor"),
+                currency_code=brokerage.currency_code,
             )
 
-        self._require_brokerage(household, trade.brokerage_account_id)
         self.trade_repository.save(trade)
         self.session.commit()
 
@@ -831,8 +836,9 @@ class InvestmentService:
         instrument: Instrument,
         trade: Trade,
         supplied: int | None,
+        currency_code: str,
     ) -> int:
-        """Work out what actually moved, in the household's currency.
+        """Work out what actually moved, in the brokerage account's currency.
 
         A supplied figure always wins. It is the one the bank charged, and no
         conversion this app can do will match it: a broker's rate on the day is
@@ -843,13 +849,16 @@ class InvestmentService:
             instrument: The instrument traded.
             trade: The trade, already carrying its final quantity and price.
             supplied: What the caller said moved, if anything.
+            currency_code: The currency the brokerage account holds.
 
         Returns:
-            The amount, in minor units of the household's currency.
+            The amount, in minor units of the account's currency.
 
         Raises:
             TradeNotConvertibleError: If nothing was supplied, the listing
-                quotes in another currency, and no rate is known.
+                quotes in another currency, and no rate is known. Rates are
+                kept into the household's currency only, so an account in any
+                other has none.
         """
         if supplied is not None:
             return supplied
@@ -863,22 +872,25 @@ class InvestmentService:
             gross_minor + trade.fee_minor if trade.side == TradeSide.BUY else max(0, gross_minor - trade.fee_minor)
         )
 
-        base_currency = self._household_currency(household)
-        if instrument.currency_code == base_currency:
+        if instrument.currency_code == currency_code:
             return native_minor
 
-        rate = self.fx_rate_repository.rates_into(quote_code=base_currency, base_codes=[instrument.currency_code]).get(
-            instrument.currency_code
+        rate = (
+            self.fx_rate_repository.rates_into(quote_code=currency_code, base_codes=[instrument.currency_code]).get(
+                instrument.currency_code
+            )
+            if currency_code == self._household_currency(household)
+            else None
         )
 
         if rate is None:
             raise TradeNotConvertibleError(
-                currency_code=instrument.currency_code, base_currency=base_currency
+                currency_code=instrument.currency_code, base_currency=currency_code
             ) from None
 
         return convert_minor(native_minor, rate.rate_micro)
 
-    def _require_brokerage(self, household: HouseholdContext, account_id: uuid.UUID | None) -> None:
+    def _require_brokerage(self, household: HouseholdContext, account_id: uuid.UUID | None) -> Account | None:
         """Check that a trade settles through a brokerage account of this household.
 
         The type matters because the balance of a brokerage account is folded
@@ -890,17 +902,22 @@ class InvestmentService:
             household: The household context.
             account_id: The account the trade settles through, if any.
 
+        Returns:
+            The account, or None when the trade settles through none.
+
         Raises:
             AccountNotFoundError: If it is missing or belongs to another household.
             NotABrokerageAccountError: If it is not a brokerage account.
         """
         if account_id is None:
-            return
+            return None
 
         account = self._require_account(household, account_id)
 
         if account.type != AccountType.BROKERAGE:
             raise NotABrokerageAccountError(name=account.name) from None
+
+        return account
 
     def _require_account(self, household: HouseholdContext, account_id: uuid.UUID | None) -> Account:
         """Load one of the household's accounts, refusing anything else.

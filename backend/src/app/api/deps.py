@@ -268,6 +268,21 @@ def get_goal_repository(session: SessionDep) -> GoalRepository:
 GoalRepositoryDep = Annotated[GoalRepository, Depends(get_goal_repository)]
 
 
+def get_bank_account_repository(session: SessionDep) -> BankAccountRepository:
+    """Get a bank account repository instance.
+
+    Args:
+        session: The database session.
+
+    Returns:
+        A bank account repository instance.
+    """
+    return BankAccountRepository(session=session)
+
+
+BankAccountRepositoryDep = Annotated[BankAccountRepository, Depends(get_bank_account_repository)]
+
+
 def get_goal_service(
     session: SessionDep,
     goal_repository: GoalRepositoryDep,
@@ -760,6 +775,8 @@ def get_account_service(
     recurring_rule_repository: RecurringRuleRepositoryDep,
     income_client_repository: IncomeClientRepositoryDep,
     trade_repository: TradeRepositoryDep,
+    goal_repository: GoalRepositoryDep,
+    bank_account_repository: BankAccountRepositoryDep,
 ) -> AccountService:
     """Get an account service instance.
 
@@ -771,6 +788,8 @@ def get_account_service(
         recurring_rule_repository: The recurring rule repository instance.
         income_client_repository: The income client repository instance.
         trade_repository: The trade repository instance.
+        goal_repository: The goal repository instance.
+        bank_account_repository: The bank account repository instance.
 
     Returns:
         An account service instance.
@@ -783,6 +802,8 @@ def get_account_service(
         recurring_rule_repository=recurring_rule_repository,
         income_client_repository=income_client_repository,
         trade_repository=trade_repository,
+        goal_repository=goal_repository,
+        bank_account_repository=bank_account_repository,
     )
 
 
@@ -1161,21 +1182,6 @@ def get_bank_connection_repository(session: SessionDep) -> BankConnectionReposit
 
 
 BankConnectionRepositoryDep = Annotated[BankConnectionRepository, Depends(get_bank_connection_repository)]
-
-
-def get_bank_account_repository(session: SessionDep) -> BankAccountRepository:
-    """Get a bank account repository instance.
-
-    Args:
-        session: The database session.
-
-    Returns:
-        A bank account repository instance.
-    """
-    return BankAccountRepository(session=session)
-
-
-BankAccountRepositoryDep = Annotated[BankAccountRepository, Depends(get_bank_account_repository)]
 
 
 def get_bank_connection_service(

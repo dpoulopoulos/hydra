@@ -5,6 +5,7 @@ from enum import StrEnum
 from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKeyConstraint, Index
 from sqlmodel import Field, SQLModel
 
+from .account import CurrencyTotal
 from .fields import MAX_AMOUNT_MINOR, within_cap_sql
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin
 from .transaction import TransactionKind
@@ -96,6 +97,8 @@ class UpcomingOccurrence(SQLModel):
     name: str
     kind: TransactionKind
     amount_minor: int
+    # The currency of the account the rule draws on, which the amount is in.
+    currency_code: str
     occurs_on: datetime.date
     account_id: uuid.UUID
     category_id: uuid.UUID | None = None
@@ -114,7 +117,10 @@ class UpcomingOccurrencesPublic(SQLModel):
     # occurrences as they stand would count income as an outgoing and count a
     # move between the household's own accounts at all. A blocked occurrence
     # is left out too: nothing is going to be recorded for it.
-    net_minor: int = 0
+    #
+    # One net per currency the occurrences are in, ordered by code, since
+    # amounts in two currencies do not add up.
+    nets: list[CurrencyTotal] = Field(default_factory=list)
 
 
 class RecurringRunResult(SQLModel):

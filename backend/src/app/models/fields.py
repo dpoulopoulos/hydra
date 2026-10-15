@@ -121,6 +121,36 @@ def _normalize_iban(value: str) -> str:
 Iban = Annotated[str, AfterValidator(_normalize_iban)]
 
 
+# An ISO 4217 code: three letters. Only the shape is checked, not whether the
+# code is in the current list. The list changes as currencies come and go, and
+# a code nobody recognises does no harm: the browser formats it as the code
+# itself, and the rate provider simply has no rate for it.
+_CURRENCY_CODE_PATTERN = re.compile(r"^[A-Z]{3}$")
+
+
+def _normalize_currency_code(value: str) -> str:
+    """Upper-case a currency code and check it is three letters.
+
+    Args:
+        value: The code, in any case.
+
+    Returns:
+        The code in upper case.
+
+    Raises:
+        ValueError: If the code is not three letters.
+    """
+    code = value.strip().upper()
+
+    if not _CURRENCY_CODE_PATTERN.match(code):
+        raise ValueError("Currency must be a three-letter ISO 4217 code, such as EUR or USD.")
+
+    return code
+
+
+CurrencyCode = Annotated[str, AfterValidator(_normalize_currency_code)]
+
+
 def _as_utc(value: datetime) -> datetime:
     """Read a moment as UTC, whether or not the caller named a zone.
 

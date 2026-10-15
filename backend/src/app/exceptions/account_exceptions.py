@@ -63,3 +63,39 @@ class AccountArchivedError(ValidationError):
         """
         msg = f"Account '{name}' is archived. Restore it before adding transactions to it."
         super().__init__(msg, exc)
+
+
+class AccountCurrencyLockedError(ServiceError):
+    """Signal that an account's currency cannot change.
+
+    A conflict for the same reason AccountInUseError is one: what the account
+    already holds is in the way, not the request.
+    """
+
+    def __init__(self, name: str, reason: str, advice: str | None = None, exc: Exception | None = None):
+        """Initialize an AccountCurrencyLockedError.
+
+        Args:
+            name: The name of the account.
+            reason: What holds the currency in place, phrased to follow the name.
+            advice: What to do instead. Omit for opening a new account.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        hint = advice or "Open a new account in the other currency instead."
+        msg = f"Account '{name}' {reason}, so its currency cannot change. {hint}"
+        super().__init__(msg, exc)
+        self.name = name
+        self.reason = reason
+
+
+class AccountCurrencyMismatchError(ValidationError):
+    """Signal that an account holds a currency the request cannot be in."""
+
+    def __init__(self, message: str, exc: Exception | None = None):
+        """Initialize an AccountCurrencyMismatchError.
+
+        Args:
+            message: What does not match, and what to do about it.
+            exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
+        """
+        super().__init__(message, exc)

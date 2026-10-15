@@ -22,6 +22,7 @@ from app.models import ApiToken, ApiTokenScope, ApiTokenStatus, HouseholdContext
 from app.repositories import (
     AccountRepository,
     ApiTokenRepository,
+    BankAccountRepository,
     BudgetRepository,
     CategoryRepository,
     EmailVerificationRepository,
@@ -524,6 +525,7 @@ def mock_account_service(
     mock_recurring_rule_repository: RecurringRuleRepository,
     mock_income_client_repository: IncomeClientRepository,
     mock_trade_repository: TradeRepository,
+    mock_goal_repository: GoalRepository,
 ) -> AccountService:
     """Create an AccountService instance with a mocked session.
 
@@ -535,6 +537,7 @@ def mock_account_service(
         mock_recurring_rule_repository: The recurring rule repository instance.
         mock_income_client_repository: The income client repository instance.
         mock_trade_repository: The trade repository instance.
+        mock_goal_repository: The goal repository instance.
 
     Returns:
         An AccountService instance with a mocked session.
@@ -547,6 +550,8 @@ def mock_account_service(
         recurring_rule_repository=mock_recurring_rule_repository,
         income_client_repository=mock_income_client_repository,
         trade_repository=mock_trade_repository,
+        goal_repository=mock_goal_repository,
+        bank_account_repository=BankAccountRepository(session=mock_db_session),
     )
 
 

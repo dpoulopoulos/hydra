@@ -7,6 +7,7 @@ from sqlmodel import Session
 
 from app.exceptions import (
     AccountArchivedError,
+    AccountCurrencyMismatchError,
     AccountNotFoundError,
     CategoryNotFoundError,
     ClientCadenceError,
@@ -238,6 +239,7 @@ class IncomeService:
             ClientCadenceError: If the schedule is only half described.
             AccountNotFoundError: If the account does not exist in the household.
             AccountArchivedError: If the account is archived.
+            AccountCurrencyMismatchError: If the account holds another currency.
             CategoryNotFoundError: If the category does not exist in the household.
             TransactionCategoryKindError: If the category is not an income category.
         """
@@ -246,7 +248,7 @@ class IncomeService:
             anchor_on=client_create.cadence_anchor_on,
             weekdays=client_create.cadence_weekdays,
         )
-        self._resolve_account(household=household, account_id=client_create.default_account_id)
+        self._resolve_client_account(household=household, account_id=client_create.default_account_id)
 
         if client_create.default_category_id is not None:
             self._resolve_income_category(household=household, category_id=client_create.default_category_id)
@@ -328,6 +330,7 @@ class IncomeService:
             ClientCadenceError: If the schedule is only half described.
             AccountNotFoundError: If the account does not exist in the household.
             AccountArchivedError: If the account is archived.
+            AccountCurrencyMismatchError: If the account holds another currency.
             CategoryNotFoundError: If the category does not exist in the household.
             TransactionCategoryKindError: If the category is not an income category.
         """
@@ -346,7 +349,7 @@ class IncomeService:
             fields["cadence_weekdays"] = normalise_weekdays(fields["cadence_weekdays"])
 
         if fields.get("default_account_id") is not None:
-            self._resolve_account(household=household, account_id=fields["default_account_id"])
+            self._resolve_client_account(household=household, account_id=fields["default_account_id"])
 
         if fields.get("default_category_id") is not None:
             self._resolve_income_category(household=household, category_id=fields["default_category_id"])
@@ -1417,6 +1420,36 @@ class IncomeService:
 
         if account.archived_at is not None:
             raise AccountArchivedError(name=account.name) from None
+
+        return account
+
+    def _resolve_client_account(self, household: HouseholdContext, account_id: uuid.UUID) -> Account:
+        """Load the account a client is paid into, and check it holds the household's currency.
+
+        A fee is set in the household's currency, and a paid session puts that
+        same number into the account. In an account holding anything else the
+        number would be read as the wrong money.
+
+        Args:
+            household: The household context.
+            account_id: The ID of the account.
+
+        Returns:
+            The account.
+
+        Raises:
+            AccountNotFoundError: If the account does not exist in the household.
+            AccountArchivedError: If the account is archived.
+            AccountCurrencyMismatchError: If the account holds another currency.
+        """
+        account = self._resolve_account(household=household, account_id=account_id)
+        currency_code = self._currency_of(household)
+
+        if account.currency_code != currency_code:
+            raise AccountCurrencyMismatchError(
+                f"{account.name} holds {account.currency_code}, and fees are in {currency_code}. "
+                f"Choose an account in {currency_code}."
+            ) from None
 
         return account
 

@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.exceptions import (
+    AccountCurrencyLockedError,
     AccountExistsError,
     AccountInUseError,
     AccountNotFoundError,
@@ -30,13 +31,14 @@ def make_account(
     account_type: AccountType = AccountType.CURRENT,
     opening_balance_minor: int = 100_000,
     archived: bool = False,
+    currency_code: str = "EUR",
 ) -> Account:
     """Build an account row for the tests."""
     return Account(
         household_id=HOUSEHOLD_ID,
         name=name,
         type=account_type,
-        currency_code="EUR",
+        currency_code=currency_code,
         opening_balance_minor=opening_balance_minor,
         opening_balance_date=date(2026, 1, 1),
         archived_at=datetime.now(UTC) if archived else None,
@@ -78,7 +80,7 @@ class TestCreateAccount:
         household_context: HouseholdContext,
         household: Household,
     ) -> None:
-        """A single currency per household, but stored on the account so it can vary later."""
+        """An account that names no currency holds the household's."""
         household.currency_code = "GBP"
         mock_account_service.session.exec = MagicMock()
         mock_account_service.session.exec.return_value.first.return_value = None
@@ -90,6 +92,25 @@ class TestCreateAccount:
         )
 
         assert result.currency_code == "GBP"
+
+    def test_takes_the_currency_it_is_given(
+        self,
+        mock_account_service: AccountService,
+        household_context: HouseholdContext,
+        household: Household,
+    ) -> None:
+        mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.first.return_value = None
+        mock_account_service.session.get = MagicMock(return_value=household)
+
+        result = mock_account_service.create_account(
+            household=household_context,
+            account_create=AccountCreate(
+                name="Dollars", type=AccountType.CURRENT, opening_balance_date=date(2026, 1, 1), currency_code="usd"
+            ),
+        )
+
+        assert result.currency_code == "USD"
 
     def test_the_opening_balance_is_the_starting_balance(
         self,
@@ -158,7 +179,7 @@ class TestListAccounts:
             [(current.id, 100_000), (savings.id, 50_000)],
             [],
             # The household total: every matching id, then their balances.
-            [current.id, savings.id],
+            [(current.id, "EUR"), (savings.id, "EUR")],
             [(current.id, 100_000), (savings.id, 50_000)],
             [],
         ]
@@ -166,7 +187,7 @@ class TestListAccounts:
         result = mock_account_service.list_accounts(household=household_context)
 
         assert result.count == 2
-        assert result.total_balance_minor == 150_000
+        assert [(total.currency_code, total.amount_minor) for total in result.totals] == [("EUR", 150_000)]
         assert {account.name for account in result.data} == {"Current", "Savings"}
 
     def test_a_credit_card_in_debt_lowers_the_total(
@@ -181,14 +202,38 @@ class TestListAccounts:
             [current, card],
             [(current.id, 100_000), (card.id, -40_000)],
             [],
-            [current.id, card.id],
+            [(current.id, "EUR"), (card.id, "EUR")],
             [(current.id, 100_000), (card.id, -40_000)],
             [],
         ]
 
         result = mock_account_service.list_accounts(household=household_context)
 
-        assert result.total_balance_minor == 60_000
+        assert [(total.currency_code, total.amount_minor) for total in result.totals] == [("EUR", 60_000)]
+
+    def test_each_currency_is_totalled_apart(
+        self, mock_account_service: AccountService, household_context: HouseholdContext
+    ) -> None:
+        """Dollars and euros are not added together at a rate nobody chose."""
+        current = make_account(name="Current", opening_balance_minor=100_000)
+        dollars = make_account(name="Dollars", opening_balance_minor=30_000, currency_code="USD")
+        mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.one.return_value = 2
+        mock_account_service.session.exec.return_value.all.side_effect = [
+            [current, dollars],
+            [(current.id, 100_000), (dollars.id, 30_000)],
+            [],
+            [(current.id, "EUR"), (dollars.id, "USD")],
+            [(current.id, 100_000), (dollars.id, 30_000)],
+            [],
+        ]
+
+        result = mock_account_service.list_accounts(household=household_context)
+
+        assert [(total.currency_code, total.amount_minor) for total in result.totals] == [
+            ("EUR", 100_000),
+            ("USD", 30_000),
+        ]
 
     def test_returns_an_empty_list(
         self, mock_account_service: AccountService, household_context: HouseholdContext
@@ -201,7 +246,7 @@ class TestListAccounts:
         result = mock_account_service.list_accounts(household=household_context)
 
         assert result.count == 0
-        assert result.total_balance_minor == 0
+        assert result.totals == []
 
     def test_the_total_covers_every_account_not_only_the_page(
         self, mock_account_service: AccountService, household_context: HouseholdContext
@@ -216,7 +261,7 @@ class TestListAccounts:
             [current],
             [(current.id, 100_000)],
             [],
-            [current.id, savings.id],
+            [(current.id, "EUR"), (savings.id, "EUR")],
             [(current.id, 100_000), (savings.id, 50_000)],
             [],
         ]
@@ -225,7 +270,7 @@ class TestListAccounts:
 
         assert [account.name for account in result.data] == ["Current"]
         assert result.count == 2
-        assert result.total_balance_minor == 150_000
+        assert [(total.currency_code, total.amount_minor) for total in result.totals] == [("EUR", 150_000)]
 
 
 class TestGetAccount:
@@ -330,6 +375,120 @@ class TestUpdateAccount:
         assert "opening_balance_date" not in AccountUpdate.model_fields
 
 
+class TestChangeCurrency:
+    """Tests for changing an account's currency through update_account."""
+
+    def test_an_empty_account_changes_currency(
+        self, mock_account_service: AccountService, household_context: HouseholdContext
+    ) -> None:
+        account = make_account(opening_balance_minor=25_000)
+        mock_account_service.session.exec = MagicMock()
+        # The account, then the bank account feeding it: none.
+        mock_account_service.session.exec.return_value.first.side_effect = [account, None]
+        mock_account_service.session.exec.return_value.one.return_value = 0
+        mock_account_service.session.exec.return_value.all.side_effect = [[(account.id, 25_000)], []]
+
+        result = mock_account_service.update_account(
+            household=household_context, account_id=account.id, account_update=AccountUpdate(currency_code="USD")
+        )
+
+        assert result.currency_code == "USD"
+        assert result.opening_balance_minor == 25_000
+        mock_account_service.session.commit.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("counts", "blocker"),
+        [
+            ([1, 0, 0, 0, 0, 0], "still has transactions"),
+            ([0, 0, 0, 0, 0, 1], "holds a savings goal"),
+        ],
+        ids=["transactions", "goals"],
+    )
+    def test_an_account_with_anything_filed_against_it_keeps_its_currency(
+        self,
+        mock_account_service: AccountService,
+        household_context: HouseholdContext,
+        counts: list[int],
+        blocker: str,
+    ) -> None:
+        """Every amount there was written in the old currency."""
+        account = make_account()
+        mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.first.return_value = account
+        mock_account_service.session.exec.return_value.one.side_effect = counts
+
+        with pytest.raises(AccountCurrencyLockedError, match=blocker):
+            mock_account_service.update_account(
+                household=household_context, account_id=account.id, account_update=AccountUpdate(currency_code="USD")
+            )
+
+        assert account.currency_code == "EUR"
+        mock_account_service.session.commit.assert_not_called()
+
+    def test_the_same_currency_is_not_a_change(
+        self, mock_account_service: AccountService, household_context: HouseholdContext
+    ) -> None:
+        """Sending the currency it already holds is what a form does, and is no change."""
+        account = make_account()
+        mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.first.return_value = account
+        mock_account_service.session.exec.return_value.one.return_value = 1
+        mock_account_service.session.exec.return_value.all.side_effect = [[(account.id, 100_000)], []]
+
+        result = mock_account_service.update_account(
+            household=household_context, account_id=account.id, account_update=AccountUpdate(currency_code="eur")
+        )
+
+        assert result.currency_code == "EUR"
+
+    def test_a_linked_bank_decides_the_currency(
+        self, mock_account_service: AccountService, household_context: HouseholdContext
+    ) -> None:
+        account = make_account()
+        bank_account = MagicMock(currency_code="EUR")
+        mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.first.side_effect = [account, bank_account]
+        mock_account_service.session.exec.return_value.one.return_value = 0
+
+        with pytest.raises(AccountCurrencyLockedError, match="linked to a bank account in EUR"):
+            mock_account_service.update_account(
+                household=household_context, account_id=account.id, account_update=AccountUpdate(currency_code="USD")
+            )
+
+    def test_the_opening_balance_is_rescaled_to_the_new_decimal_places(
+        self, mock_account_service: AccountService, household_context: HouseholdContext
+    ) -> None:
+        """A thousand yen is a thousand minor units, and ten euros is a thousand cents."""
+        account = make_account(opening_balance_minor=1_000, currency_code="JPY")
+        mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.first.side_effect = [account, None]
+        mock_account_service.session.exec.return_value.one.return_value = 0
+        mock_account_service.session.exec.return_value.all.side_effect = [[(account.id, 100_000)], []]
+
+        result = mock_account_service.update_account(
+            household=household_context, account_id=account.id, account_update=AccountUpdate(currency_code="EUR")
+        )
+
+        assert result.opening_balance_minor == 100_000
+
+    def test_a_fraction_the_new_currency_lacks_is_refused(
+        self, mock_account_service: AccountService, household_context: HouseholdContext
+    ) -> None:
+        account = make_account(opening_balance_minor=1_050)
+        mock_account_service.session.exec = MagicMock()
+        mock_account_service.session.exec.return_value.first.side_effect = [account, None]
+        mock_account_service.session.exec.return_value.one.return_value = 0
+
+        with pytest.raises(AccountCurrencyLockedError, match="fraction JPY does not have"):
+            mock_account_service.update_account(
+                household=household_context, account_id=account.id, account_update=AccountUpdate(currency_code="JPY")
+            )
+
+    def test_a_code_that_is_not_three_letters_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="three-letter"):
+            AccountUpdate(currency_code="EURO")
+
+
 class TestDeleteAccount:
     """Tests for delete_account."""
 
@@ -349,13 +508,14 @@ class TestDeleteAccount:
     @pytest.mark.parametrize(
         ("counts", "blocker"),
         [
-            ([1, 0, 0, 0, 0], "still has transactions"),
-            ([0, 1, 0, 0, 0], "recurring rules paid from it"),
-            ([0, 0, 1, 0, 0], "destination of a recurring transfer"),
-            ([0, 0, 0, 1, 0], "is where an income client is paid"),
-            ([0, 0, 0, 0, 1], "has investment trades settled through it"),
+            ([1, 0, 0, 0, 0, 0], "still has transactions"),
+            ([0, 1, 0, 0, 0, 0], "recurring rules paid from it"),
+            ([0, 0, 1, 0, 0, 0], "destination of a recurring transfer"),
+            ([0, 0, 0, 1, 0, 0], "is where an income client is paid"),
+            ([0, 0, 0, 0, 1, 0], "has investment trades settled through it"),
+            ([0, 0, 0, 0, 0, 1], "holds a savings goal"),
         ],
-        ids=["transactions", "recurring rules", "recurring transfers", "income clients", "trades"],
+        ids=["transactions", "recurring rules", "recurring transfers", "income clients", "trades", "goals"],
     )
     def test_refuses_to_delete_an_account_something_references(
         self,

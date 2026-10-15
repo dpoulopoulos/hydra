@@ -2,8 +2,9 @@ import datetime
 import uuid
 from enum import StrEnum
 
-from sqlmodel import SQLModel
+from sqlmodel import Field, SQLModel
 
+from .account import CurrencyTotal
 from .transaction import TransactionKind
 
 
@@ -24,6 +25,9 @@ class ReportPeriod(SQLModel):
 
     date_from: datetime.date
     date_to: datetime.date
+    # Every amount in the report is in this currency, and only the accounts
+    # holding it are counted. The household's own, unless the report is about
+    # one account that holds another.
     currency_code: str
 
 
@@ -146,6 +150,10 @@ class MonthSummaryReport(SQLModel):
     # out of a brokerage account and turns it into a holding, so a euro is
     # either still cash or already a holding, never both.
     net_worth_minor: int
+    # What the accounts in any other currency hold, one total per currency.
+    # Kept out of every figure above, which are all in the period's currency,
+    # rather than converted at a rate the household never got.
+    other_currencies: list[CurrencyTotal] = Field(default_factory=list)
     # Open holdings with no price or no exchange rate. They contribute nothing
     # to `assets_minor`, so a total with any of these is understated, and the
     # page must be able to say so rather than quietly rounding them to zero.

@@ -15,6 +15,7 @@ from app.api.deps import (
 from app.exceptions import InvalidRecurrenceError, RecurringRuleNotFoundError
 from app.main import app
 from app.models import (
+    CurrencyTotal,
     HouseholdContext,
     Message,
     RecurrenceFrequency,
@@ -228,18 +229,19 @@ class TestListUpcoming:
                     name="Rent",
                     kind=TransactionKind.EXPENSE,
                     amount_minor=120_000,
+                    currency_code="EUR",
                     occurs_on=date(2026, 4, 1),
                     account_id=ACCOUNT_ID,
                 )
             ],
             count=1,
-            net_minor=-120_000,
+            nets=[CurrencyTotal(currency_code="EUR", amount_minor=-120_000)],
         )
 
         response = client.get("/api/v1/recurring-rules/upcoming", headers=auth_headers)
 
         assert response.status_code == 200
-        assert response.json()["net_minor"] == -120000
+        assert response.json()["nets"] == [{"currency_code": "EUR", "amount_minor": -120000}]
 
     def test_upcoming_is_not_parsed_as_a_rule_id(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]

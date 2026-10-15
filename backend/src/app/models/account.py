@@ -5,7 +5,7 @@ from enum import StrEnum
 from sqlalchemy import BigInteger, CheckConstraint, Date, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from .fields import IBAN_MAX_LENGTH, MAX_AMOUNT_MINOR, Iban, within_cap_sql
+from .fields import IBAN_MAX_LENGTH, MAX_AMOUNT_MINOR, CurrencyCode, Iban, within_cap_sql
 from .mixins import CreatedAtMixin, PrimaryKeyMixin, UpdatedAtMixin, UtcDateTime
 
 
@@ -40,11 +40,16 @@ class AccountCreate(AccountBase):
     # balance, so a correction belongs in an adjustment transaction instead.
     opening_balance_minor: int = Field(default=0, ge=-MAX_AMOUNT_MINOR, le=MAX_AMOUNT_MINOR)
     opening_balance_date: datetime.date
+    # The currency the account holds, and so the currency of every amount
+    # filed against it. Left out, the account takes the household's.
+    currency_code: CurrencyCode | None = Field(default=None)
 
 
 class AccountUpdate(SQLModel):
     name: str | None = Field(default=None, max_length=255)
     type: AccountType | None = Field(default=None)
+    # Only while nothing is filed against the account: see AccountService.
+    currency_code: CurrencyCode | None = Field(default=None)
     institution: str | None = Field(default=None, max_length=255)
     iban: Iban | None = Field(default=None, max_length=IBAN_MAX_LENGTH)
     is_archived: bool | None = Field(default=None)
@@ -63,11 +68,21 @@ class AccountPublic(AccountBase):
     updated_at: datetime.datetime | None = None
 
 
+class CurrencyTotal(SQLModel):
+    """A total in one currency, one of several that are never added together."""
+
+    currency_code: str
+    amount_minor: int
+
+
 class AccountsPublic(SQLModel):
     data: list[AccountPublic]
     count: int
     # Across the accounts returned, so the net worth tile is the same request.
-    total_balance_minor: int = 0
+    # One total per currency, never converted: adding dollars to euros at a
+    # rate the household did not get would be a number nobody can check.
+    # Ordered by currency code.
+    totals: list[CurrencyTotal] = Field(default_factory=list)
 
 
 class Account(AccountBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, table=True):
@@ -87,8 +102,9 @@ class Account(AccountBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, tabl
     )
 
     household_id: uuid.UUID = Field(foreign_key="household.id", ondelete="CASCADE", index=True)
-    # Denormalized from the household on purpose. It is the lever multi-currency
-    # would need later; until then the service keeps it equal to the household's.
+    # The household's currency unless the account was given another. Every
+    # amount filed against the account is in it, so it can only change while
+    # nothing is.
     currency_code: str = Field(default="EUR", min_length=3, max_length=3)
     opening_balance_minor: int = Field(default=0, sa_type=BigInteger)
     opening_balance_date: datetime.date = Field(sa_type=Date)

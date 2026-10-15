@@ -58,6 +58,23 @@ class GoalRepository(HouseholdScopedRepository[Goal]):
         statement = select(Goal).where(Goal.household_id == household_id, Goal.name == name)
         return self.session.exec(statement).first()
 
+    def count_for_account(self, account_id: uuid.UUID, household_id: uuid.UUID) -> int:
+        """Count the goals that live in an account.
+
+        Args:
+            account_id: The ID of the account.
+            household_id: The ID of the household.
+
+        Returns:
+            The number of goals, achieved ones included.
+        """
+        statement = (
+            select(func.count())
+            .select_from(Goal)
+            .where(Goal.household_id == household_id, Goal.account_id == account_id)
+        )
+        return self.session.exec(statement).one()
+
     def has_transfers(self, goal_id: uuid.UUID, household_id: uuid.UUID) -> bool:
         """Check whether any transaction is tagged with a goal.
 

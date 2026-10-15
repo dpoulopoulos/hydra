@@ -8,6 +8,7 @@ from sqlmodel import Session
 
 from app.exceptions import (
     AccountArchivedError,
+    AccountCurrencyMismatchError,
     AccountNotFoundError,
     CategoryNotFoundError,
     ClientCadenceError,
@@ -116,6 +117,16 @@ def added_transactions(session: Session) -> list[Transaction]:
     return [call.args[0] for call in session.add.call_args_list if isinstance(call.args[0], Transaction)]
 
 
+@pytest.fixture(autouse=True)
+def household_row(mock_income_service: IncomeService) -> None:
+    """Give the service a real household row to read the currency off.
+
+    A MagicMock is not a currency code, and a client's account is checked
+    against the household's currency on the way in.
+    """
+    mock_income_service.household_repository.get_by_id = MagicMock(return_value=make_household())
+
+
 class TestVault:
     """Tests for the client-name key."""
 
@@ -163,6 +174,21 @@ class TestCreateClient:
             mock_income_service.create_client(
                 household=household_context,
                 client_create=IncomeClientCreate(name_ct="ct", default_account_id=uuid.uuid4()),
+            )
+
+    def test_an_account_in_another_currency_is_refused(
+        self, mock_income_service: IncomeService, household_context: MagicMock
+    ) -> None:
+        """A fee is in the household's currency, so it cannot be paid into dollars."""
+        account = make_account()
+        account.currency_code = "USD"
+        mock_income_service.session.exec = MagicMock()
+        mock_income_service.session.exec.return_value.first.return_value = account
+
+        with pytest.raises(AccountCurrencyMismatchError, match="holds USD"):
+            mock_income_service.create_client(
+                household=household_context,
+                client_create=IncomeClientCreate(name_ct="ct", default_account_id=account.id),
             )
 
     def test_an_archived_account_is_refused(
@@ -368,7 +394,9 @@ class TestSessionsAndTheLedger:
         client = make_client(account_id=account.id)
         mock_income_service.session.exec = MagicMock()
         mock_income_service.session.exec.return_value.first.side_effect = [client, None, account]
-        mock_income_service.session.get = MagicMock(return_value=make_household(label="Consultation"))
+        mock_income_service.household_repository.get_by_id = MagicMock(
+            return_value=make_household(label="Consultation")
+        )
 
         mock_income_service.create_session(
             household=household_context,

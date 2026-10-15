@@ -10,6 +10,7 @@ from app.api.deps import (
 )
 from app.exceptions import (
     AccountArchivedError,
+    AccountCurrencyMismatchError,
     AccountNotFoundError,
     CategoryNotFoundError,
     ClientCadenceError,
@@ -63,6 +64,7 @@ def income_exception_mappings() -> dict[type[ServiceError], int]:
         # a category, so the same failures reach it by a different road.
         AccountNotFoundError: status.HTTP_404_NOT_FOUND,
         AccountArchivedError: status.HTTP_400_BAD_REQUEST,
+        AccountCurrencyMismatchError: status.HTTP_400_BAD_REQUEST,
         CategoryNotFoundError: status.HTTP_404_NOT_FOUND,
         TransactionCategoryKindError: status.HTTP_422_UNPROCESSABLE_ENTITY,
     }

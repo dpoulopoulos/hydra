@@ -31,6 +31,7 @@ from app.models import (
     RecurringRuleUpdate,
     Transaction,
     TransactionKind,
+    UpcomingOccurrencesPublic,
 )
 from app.services import RecurringRuleService
 
@@ -114,6 +115,19 @@ def make_rule(
         next_occurrence_on=next_occurrence_on,
         last_generated_on=last_generated_on,
     )
+
+
+@pytest.fixture(autouse=True)
+def accounts_in_euros(mock_recurring_rule_service: RecurringRuleService) -> None:
+    """Report every account a rule names as holding euros, unless a test says otherwise."""
+    mock_recurring_rule_service.reference_resolver.account_repository.currencies_of = MagicMock(
+        side_effect=lambda account_ids, household_id: dict.fromkeys(account_ids, "EUR")
+    )
+
+
+def net_of(result: UpcomingOccurrencesPublic, currency_code: str = "EUR") -> int:
+    """Read the net of one currency off an upcoming listing, zero when it has none."""
+    return next((net.amount_minor for net in result.nets if net.currency_code == currency_code), 0)
 
 
 class TestCreateRule:
@@ -659,9 +673,32 @@ class TestListUpcoming:
             date(2026, 5, 1),
             date(2026, 6, 1),
         ]
-        assert result.net_minor == -360_000
+        assert net_of(result) == -360_000
         mock_recurring_rule_service.session.add.assert_not_called()
         mock_recurring_rule_service.session.commit.assert_not_called()
+
+    def test_each_currency_nets_apart(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """Dollars going out cannot be taken off euros coming in."""
+        rent = make_rule(name="Rent", amount_minor=120_000, next_occurrence_on=date(2026, 4, 1))
+        salary = make_rule(
+            name="Salary", kind=TransactionKind.INCOME, amount_minor=300_000, next_occurrence_on=date(2026, 4, 25)
+        )
+        mock_recurring_rule_service.reference_resolver.account_repository.currencies_of = MagicMock(
+            return_value={rent.account_id: "USD", salary.account_id: "EUR"}
+        )
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.all.return_value = [rent, salary]
+        mock_recurring_rule_service.session.exec.return_value.first.return_value = make_account()
+
+        result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 4, 30))
+
+        assert [(occurrence.name, occurrence.currency_code) for occurrence in result.data] == [
+            ("Rent", "USD"),
+            ("Salary", "EUR"),
+        ]
+        assert [(net.currency_code, net.amount_minor) for net in result.nets] == [("EUR", 300_000), ("USD", -120_000)]
 
     def test_the_net_signs_income_and_expenses_and_leaves_transfers_out(
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
@@ -689,7 +726,7 @@ class TestListUpcoming:
         result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 4, 30))
 
         assert result.count == 3
-        assert result.net_minor == 180_000
+        assert net_of(result) == 180_000
 
     def test_a_window_of_only_transfers_nets_to_nothing(
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
@@ -709,7 +746,7 @@ class TestListUpcoming:
         result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 4, 30))
 
         assert result.count == 1
-        assert result.net_minor == 0
+        assert net_of(result) == 0
 
     def test_skips_an_exhausted_rule(
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
@@ -756,7 +793,7 @@ class TestListUpcoming:
         result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 4, 30))
 
         assert result.count == 2
-        assert result.net_minor == 300_000
+        assert net_of(result) == 300_000
 
     def test_marks_the_occurrences_of_a_rule_whose_account_has_gone(
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
@@ -771,7 +808,7 @@ class TestListUpcoming:
         result = mock_recurring_rule_service.list_upcoming(household=household_context, until=date(2026, 6, 15))
 
         assert all(occurrence.is_blocked for occurrence in result.data)
-        assert result.net_minor == 0
+        assert net_of(result) == 0
 
     def test_marks_a_transfer_whose_destination_is_archived(
         self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext

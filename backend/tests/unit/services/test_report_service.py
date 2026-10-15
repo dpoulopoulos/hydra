@@ -407,22 +407,32 @@ class TestSpendOverTime:
         household_context: HouseholdContext,
         household: Household,
     ) -> None:
-        account_id = uuid.uuid4()
+        account = Account(
+            household_id=HOUSEHOLD_ID,
+            name="Dollars",
+            type=AccountType.CURRENT,
+            currency_code="USD",
+            opening_balance_minor=0,
+            opening_balance_date=date(2025, 1, 1),
+        )
         mock_report_service.session.exec = MagicMock()
-        mock_report_service.session.exec.return_value.first.return_value = account_id
+        mock_report_service.session.exec.return_value.first.return_value = account
         mock_report_service.session.execute = MagicMock()
         mock_report_service.session.execute.return_value.all.return_value = []
         mock_report_service.session.get = MagicMock(return_value=household)
 
-        mock_report_service.spend_over_time(
+        result = mock_report_service.spend_over_time(
             household=household_context,
             date_from=date(2026, 3, 1),
             date_to=date(2026, 3, 31),
-            account_id=account_id,
+            account_id=account.id,
         )
 
-        statement = str(mock_report_service.session.execute.call_args.args[0])
-        assert "account_id" in statement
+        statement = mock_report_service.session.execute.call_args.args[0]
+        assert "account_id" in str(statement)
+        # One account is reported in its own currency, not the household's.
+        assert result.period.currency_code == "USD"
+        assert "USD" in statement.compile().params.values()
 
 
 class TestIncomeExpense:
@@ -825,6 +835,29 @@ class TestMonthSummaryNetWorth:
 
         # Assert: Verify the gap is reported
         assert result.unpriced_asset_count == 2
+
+    def test_an_account_in_another_currency_is_kept_out_of_net_worth(
+        self, wired: ReportService, household_context: HouseholdContext
+    ) -> None:
+        """Dollars are totalled on their own rather than added to euros."""
+        dollars = Account(
+            household_id=HOUSEHOLD_ID,
+            name="Dollars",
+            type=AccountType.CURRENT,
+            currency_code="USD",
+            opening_balance_minor=0,
+            opening_balance_date=date(2025, 1, 1),
+        )
+        accounts, _ = wired.account_repository.list_for_household(household_id=HOUSEHOLD_ID)
+        wired.account_repository.list_for_household = MagicMock(return_value=([*accounts, dollars], 3))
+        wired.account_repository.balances_of = MagicMock(
+            return_value={accounts[0].id: 250_000, accounts[1].id: 40_000, dollars.id: 70_000}
+        )
+
+        result = wired.month_summary(household=household_context, month="2026-03")
+
+        assert result.net_worth_minor == 290_000
+        assert [(total.currency_code, total.amount_minor) for total in result.other_currencies] == [("USD", 70_000)]
 
     def test_without_investments_net_worth_is_the_accounts_alone(
         self, wired: ReportService, household_context: HouseholdContext

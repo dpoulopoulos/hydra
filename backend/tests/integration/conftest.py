@@ -46,6 +46,7 @@ from app.models import (
 )
 from app.repositories import (
     AccountRepository,
+    BankAccountRepository,
     BudgetRepository,
     CategoryRepository,
     EmailVerificationRepository,
@@ -340,6 +341,7 @@ def account_service(
     recurring_rule_repository: RecurringRuleRepository,
     income_client_repository: IncomeClientRepository,
     trade_repository: TradeRepository,
+    goal_repository: GoalRepository,
 ) -> AccountService:
     """Build an account service on the real session.
 
@@ -351,6 +353,7 @@ def account_service(
         recurring_rule_repository: The recurring rule repository.
         income_client_repository: The income client repository.
         trade_repository: The trade repository.
+        goal_repository: The goal repository.
 
     Returns:
         An account service.
@@ -363,6 +366,8 @@ def account_service(
         recurring_rule_repository=recurring_rule_repository,
         income_client_repository=income_client_repository,
         trade_repository=trade_repository,
+        goal_repository=goal_repository,
+        bank_account_repository=BankAccountRepository(session=db_session),
     )
 
 

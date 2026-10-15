@@ -1,5 +1,7 @@
 from .account_exceptions import (
     AccountArchivedError,
+    AccountCurrencyLockedError,
+    AccountCurrencyMismatchError,
     AccountExistsError,
     AccountInUseError,
     AccountNotFoundError,
@@ -154,6 +156,8 @@ __all__ = [
     "IncomeVaultNotFoundError",
     "SessionPaymentDateError",
     "AccountArchivedError",
+    "AccountCurrencyLockedError",
+    "AccountCurrencyMismatchError",
     "AccountExistsError",
     "AccountInUseError",
     "AccountNotFoundError",

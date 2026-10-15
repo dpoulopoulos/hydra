@@ -8,6 +8,7 @@ from .account import (
     AccountsPublic,
     AccountType,
     AccountUpdate,
+    CurrencyTotal,
 )
 from .api_token import (
     MAX_ACTIVE_TOKENS_PER_USER,
@@ -298,6 +299,7 @@ __all__ = [
     "CategoryTreeNode",
     "CategoryTreePublic",
     "CategoryUpdate",
+    "CurrencyTotal",
     "SUBJECT_MAX_LENGTH",
     "EmailOutbox",
     "EmailOutboxStats",

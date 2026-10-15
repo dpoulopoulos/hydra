@@ -13,6 +13,7 @@ from app.models import (
     AccountPublic,
     AccountsPublic,
     AccountType,
+    CurrencyTotal,
     HouseholdContext,
     Message,
     User,
@@ -142,12 +143,14 @@ class TestListAccounts:
     def test_returns_the_accounts_and_the_total(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]
     ) -> None:
-        wire.list_accounts.return_value = AccountsPublic(data=[make_public()], count=1, total_balance_minor=100_000)
+        wire.list_accounts.return_value = AccountsPublic(
+            data=[make_public()], count=1, totals=[CurrencyTotal(currency_code="EUR", amount_minor=100_000)]
+        )
 
         response = client.get("/api/v1/accounts/", headers=auth_headers)
 
         assert response.status_code == 200
-        assert response.json()["total_balance_minor"] == 100000
+        assert response.json()["totals"] == [{"currency_code": "EUR", "amount_minor": 100000}]
 
     def test_passes_the_filters_through(
         self, client: TestClient, wire: MagicMock, auth_headers: dict[str, str]

@@ -145,7 +145,7 @@ class TradeNotConvertibleError(ServiceError):
 
         Args:
             currency_code: The currency the listing quotes in.
-            base_currency: The currency the household keeps its accounts in.
+            base_currency: The currency the brokerage account holds.
             exc: An optional exception. If provided, `from exc` will be used to preserve the original traceback.
         """
         msg = (

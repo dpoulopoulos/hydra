@@ -5,6 +5,8 @@ from fastapi import APIRouter, Query, status
 from app.api.deps import AccountServiceDep, CurrentHousehold
 from app.exceptions import (
     AccountArchivedError,
+    AccountCurrencyLockedError,
+    AccountCurrencyMismatchError,
     AccountExistsError,
     AccountInUseError,
     AccountNotFoundError,
@@ -33,6 +35,8 @@ def account_exception_mappings() -> dict[type[ServiceError], int]:
         AccountExistsError: status.HTTP_409_CONFLICT,
         AccountInUseError: status.HTTP_409_CONFLICT,
         AccountArchivedError: status.HTTP_400_BAD_REQUEST,
+        AccountCurrencyLockedError: status.HTTP_409_CONFLICT,
+        AccountCurrencyMismatchError: status.HTTP_400_BAD_REQUEST,
     }
 
 
@@ -120,10 +124,11 @@ def update_account(
     account_id: uuid.UUID,
     account_in: AccountUpdate,
 ) -> AccountPublic:
-    """Rename, re-type, archive or restore an account.
+    """Rename, re-type, archive or restore an account, or change its currency.
 
     The opening balance cannot be changed, since that would rewrite every
-    historical balance. Record an adjustment transaction instead.
+    historical balance. Record an adjustment transaction instead. The currency
+    can change only while nothing is filed against the account.
 
     Args:
         account_service: The account service dependency.
@@ -135,8 +140,9 @@ def update_account(
         The updated account.
 
     Raises:
-        HTTPException: If the account does not exist in the household (404), or
-            the household already has an account with the new name (409).
+        HTTPException: If the account does not exist in the household (404),
+            the household already has an account with the new name (409), or
+            the currency changes while something is filed against it (409).
     """
     return account_service.update_account(household=household, account_id=account_id, account_update=account_in)
 

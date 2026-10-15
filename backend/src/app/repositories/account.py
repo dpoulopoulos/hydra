@@ -59,16 +59,18 @@ class AccountRepository(HouseholdScopedRepository[Account]):
 
         return self.session.exec(statement).all(), count
 
-    def total_balance(
+    def totals_by_currency(
         self,
         household_id: uuid.UUID,
         include_archived: bool = False,
         account_type: AccountType | None = None,
-    ) -> int:
-        """Sum the balances of every matching account, in minor units.
+    ) -> dict[str, int]:
+        """Sum the balances of every matching account, per currency, in minor units.
 
         Covers the whole filtered set rather than one page, so a paged list
-        still reports what the household is actually worth.
+        still reports what the household is actually worth. Split by currency
+        rather than summed, since a cent and a dollar cent are not the same
+        unit and nothing here knows the rate the household would get.
 
         Args:
             household_id: The ID of the household.
@@ -76,15 +78,39 @@ class AccountRepository(HouseholdScopedRepository[Account]):
             account_type: An optional type to filter on.
 
         Returns:
-            The total balance, or zero when nothing matches.
+            A mapping of currency code to total balance. Currencies no matching
+            account holds are absent.
         """
         conditions = self._conditions(include_archived=include_archived, account_type=account_type)
-        statement = select(Account.id).where(self.household_column == household_id, *conditions)
-        account_ids = self.session.exec(statement).all()
-        if not account_ids:
-            return 0
+        statement = select(Account.id, Account.currency_code).where(self.household_column == household_id, *conditions)
+        currencies = dict(self.session.exec(statement).all())
+        if not currencies:
+            return {}
 
-        return sum(self.balances_of(account_ids=account_ids, household_id=household_id).values())
+        totals: dict[str, int] = {}
+        for account_id, balance in self.balances_of(account_ids=list(currencies), household_id=household_id).items():
+            totals[currencies[account_id]] = totals.get(currencies[account_id], 0) + balance
+
+        return totals
+
+    def currencies_of(self, account_ids: Sequence[uuid.UUID], household_id: uuid.UUID) -> dict[uuid.UUID, str]:
+        """Read the currency each of several accounts holds.
+
+        Args:
+            account_ids: The IDs of the accounts.
+            household_id: The ID of the household that owns them.
+
+        Returns:
+            A mapping of account ID to currency code. Accounts that do not
+            exist in the household are absent.
+        """
+        if not account_ids:
+            return {}
+
+        statement = select(Account.id, Account.currency_code).where(
+            Account.household_id == household_id, col(Account.id).in_(account_ids)
+        )
+        return dict(self.session.exec(statement).all())
 
     def _conditions(self, include_archived: bool, account_type: AccountType | None) -> list[Any]:
         """Build the WHERE clauses for the accounts a listing covers.

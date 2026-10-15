@@ -127,9 +127,9 @@ class TradeCreate(TradeBase):
     # Optional, because a trade is a fact about a holding whether or not the
     # cash is tracked here, and every trade recorded before this has none.
     brokerage_account_id: uuid.UUID | None = Field(default=None)
-    # What actually left or reached that account, in the household's currency.
+    # What actually left or reached that account, in the account's currency.
     # Left out, it is worked out from the trade. That calculation is exact when
-    # the listing quotes in the household's currency and an estimate when it
+    # the listing quotes in the account's currency and an estimate when it
     # does not, which is the case worth overriding: a bank's rate on the day is
     # never the reference rate this app stores.
     cash_amount_minor: int | None = Field(default=None, ge=0, le=MAX_AMOUNT_MINOR)
