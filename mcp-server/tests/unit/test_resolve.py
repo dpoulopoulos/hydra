@@ -117,6 +117,19 @@ class TestBareName:
         assert bare_name(None) is None
 
 
+class TestACurrency:
+    """Tests for the currency an account is held in."""
+
+    def test_is_read_by_id(self) -> None:
+        accounts = Named({HOME: "Dollars"}, "account", {HOME: "USD"})
+
+        assert accounts.currency(str(HOME)) == "USD"
+
+    def test_an_id_hydra_never_listed_is_refused(self) -> None:
+        with pytest.raises(ToolError, match="no account with the id"):
+            Named({}, "account").currency(str(HOME))
+
+
 class TestReadingTheAccounts:
     """Tests for fetching the account lookup."""
 
@@ -131,7 +144,9 @@ class TestReadingTheAccounts:
         def handler(request: httpx.Request) -> httpx.Response:
             skip = int(request.url.params.get("skip", 0))
             limit = int(request.url.params.get("limit", PAGE_SIZE))
-            page = [{"id": ids[i], "name": names[i]} for i in range(skip, min(skip + limit, total))]
+            page = [
+                {"id": ids[i], "name": names[i], "currency_code": "EUR"} for i in range(skip, min(skip + limit, total))
+            ]
             return json_response(200, {"data": page, "count": total})
 
         monkeypatch.setattr(
@@ -144,6 +159,7 @@ class TestReadingTheAccounts:
 
         assert len(accounts.name_of) == total
         assert accounts.id(names[-1]) == uuid.UUID(ids[-1])
+        assert accounts.currency(ids[-1]) == "EUR"
 
     async def test_stops_when_the_page_comes_back_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # A count that does not match what is served would otherwise be an

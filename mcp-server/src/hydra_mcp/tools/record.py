@@ -2,6 +2,7 @@ import datetime
 from typing import Annotated, Any
 
 from mcp.server import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
 from ..money import to_minor
@@ -11,7 +12,21 @@ from .transactions import describe_transaction
 
 Amount = Annotated[
     str,
-    Field(description="How much, in major units and always positive, for example 42.50."),
+    Field(
+        description=(
+            "How much, in major units and always positive, for example 42.50. "
+            "In the currency of the account it is recorded against."
+        )
+    ),
+]
+AmountReceived = Annotated[
+    str | None,
+    Field(
+        description=(
+            "How much arrived, in the destination account's currency, positive, for example 54.20. "
+            "Needed when the two accounts hold different currencies, and left out when they hold the same."
+        )
+    ),
 ]
 Account = Annotated[str, Field(description="The account, by name.")]
 Merchant = Annotated[str | None, Field(description="Who it was with.", max_length=255)]
@@ -42,9 +57,10 @@ def register(mcp: MCPServer) -> None:
 
         The amount is positive. That it went out is what makes this an
         expense, and is carried by calling this tool rather than by a sign.
+        It is in the currency of the account it left.
 
         Args:
-            amount: How much, positive, in major units.
+            amount: How much, positive, in major units, in the account's currency.
             account: Which account it left.
             occurred_on: The day it happened.
             category: What it was for.
@@ -76,10 +92,10 @@ def register(mcp: MCPServer) -> None:
         """Record money arriving in the household.
 
         The amount is positive, as it is everywhere. That it came in is what
-        makes this income.
+        makes this income. It is in the currency of the account it arrived in.
 
         Args:
-            amount: How much, positive, in major units.
+            amount: How much, positive, in major units, in the account's currency.
             account: Which account it arrived in.
             occurred_on: The day it happened.
             category: Where it came from.
@@ -105,6 +121,7 @@ def register(mcp: MCPServer) -> None:
         from_account: Annotated[str, Field(description="The account the money leaves, by name.")],
         to_account: Annotated[str, Field(description="The account it arrives in, by name.")],
         occurred_on: Annotated[datetime.date, Field(description="The day it moved.")],
+        amount_received: AmountReceived = None,
         note: Note = None,
         goal: Goal = None,
     ) -> dict[str, Any]:
@@ -114,11 +131,19 @@ def register(mcp: MCPServer) -> None:
         category for that reason: the money has not gone anywhere, so there is
         nothing to have spent it on.
 
+        `amount` is what leaves, in the currency of `from_account`. When the
+        two accounts hold different currencies, `amount_received` is needed
+        as well: what arrived, in the currency of `to_account`, which is what
+        the bank or the exchange actually gave and which hydra cannot work out
+        from a rate. Between two accounts in the same currency, leave it out.
+
         Args:
-            amount: How much, positive, in major units.
+            amount: How much leaves, positive, in major units.
             from_account: Where the money leaves.
             to_account: Where it arrives.
             occurred_on: The day it moved.
+            amount_received: How much arrives, in the destination's currency.
+                Only for a transfer between two currencies.
             note: Anything worth remembering.
             goal: The savings goal the money is for, when it moves into or
                 out of that goal's savings account.
@@ -132,6 +157,7 @@ def register(mcp: MCPServer) -> None:
             account=from_account,
             occurred_on=occurred_on,
             to_account=to_account,
+            amount_received=amount_received,
             note=note,
             goal=goal,
         )
@@ -139,7 +165,18 @@ def register(mcp: MCPServer) -> None:
     @mcp.tool(annotations=DESTRUCTIVE)
     async def update_transaction(
         transaction_id: Annotated[str, Field(description="The id, from a search result.")],
-        amount: Annotated[str | None, Field(description="A new amount, positive.")] = None,
+        amount: Annotated[
+            str | None, Field(description="A new amount, positive, in the currency of the account it is filed against.")
+        ] = None,
+        amount_received: Annotated[
+            str | None,
+            Field(
+                description=(
+                    "A new amount received, positive, in the destination account's currency. "
+                    "Only for a transfer between two currencies."
+                )
+            ),
+        ] = None,
         occurred_on: Annotated[datetime.date | None, Field(description="A new date.")] = None,
         account: Annotated[str | None, Field(description="A different account, by name.")] = None,
         category: Annotated[str | None, Field(description="A different category, by name.")] = None,
@@ -158,9 +195,16 @@ def register(mcp: MCPServer) -> None:
         been a transfer is a different shape of row, so delete it and record it
         again.
 
+        An amount is read in the currency of the account the transaction ends
+        up on. For a transfer between two currencies, `amount_received` is
+        what arrived in the destination's currency. Moving such a transfer to
+        another account drops the amount received, so give it again when the
+        new pair of accounts still holds two currencies.
+
         Args:
             transaction_id: Which transaction.
-            amount: A new amount, positive.
+            amount: A new amount, positive, in the source account's currency.
+            amount_received: A new amount received, in the destination's currency.
             occurred_on: A new date.
             account: A different account.
             category: A different category.
@@ -172,13 +216,28 @@ def register(mcp: MCPServer) -> None:
             The transaction as it now stands.
         """
         token = current_token()
-        accounts, categories, currency = await household_context(token)
+        accounts, categories, _ = await household_context(token)
         goal_id = (await goals_of(token))[0].id(goal) if goal is not None else None
+        account_id = accounts.id(account)
+
+        amount_minor = None
+        counter_amount_minor = None
+        if amount is not None or amount_received is not None:
+            # What the amounts are written in depends on which accounts the
+            # row ends up on, so the row as it stands is needed.
+            current = await hydra().get(f"/transactions/{transaction_id}", token=token, subject="transaction")
+            if amount is not None:
+                amount_minor = to_minor(amount, accounts.currency(account_id or current["account_id"]))
+            if amount_received is not None:
+                if current["kind"] != "transfer" or current.get("counter_account_id") is None:
+                    raise ToolError("Only a transfer has an amount received.")
+                counter_amount_minor = to_minor(amount_received, accounts.currency(current["counter_account_id"]))
 
         changes: dict[str, Any] = {
-            "amount_minor": to_minor(amount, currency) if amount is not None else None,
+            "amount_minor": amount_minor,
+            "counter_amount_minor": counter_amount_minor,
             "occurred_on": occurred_on.isoformat() if occurred_on else None,
-            "account_id": as_str(accounts.id(account)),
+            "account_id": as_str(account_id),
             "category_id": as_str(categories.id(category)),
             "merchant": merchant,
             "note": note,
@@ -188,7 +247,7 @@ def register(mcp: MCPServer) -> None:
 
         payload = await hydra().patch(f"/transactions/{transaction_id}", token=token, subject="transaction", json=given)
 
-        return describe_transaction(payload, accounts, categories, currency)
+        return describe_transaction(payload, accounts, categories)
 
     @mcp.tool(annotations=DESTRUCTIVE)
     async def delete_transaction(
@@ -219,6 +278,7 @@ async def _record(
     occurred_on: datetime.date,
     category: str | None = None,
     to_account: str | None = None,
+    amount_received: str | None = None,
     merchant: str | None = None,
     note: str | None = None,
     goal: str | None = None,
@@ -227,11 +287,13 @@ async def _record(
 
     Args:
         kind: expense, income or transfer.
-        amount: How much, positive, in major units.
+        amount: How much, positive, in major units, in the account's currency.
         account: The account it comes out of or into.
         occurred_on: The day it happened.
         category: What it was for, where a category applies.
         to_account: Where a transfer arrives.
+        amount_received: How much a transfer between two currencies delivers,
+            in the destination's currency.
         merchant: Who it was with.
         note: Anything worth remembering.
         goal: The savings goal a transfer is for.
@@ -240,16 +302,21 @@ async def _record(
         The transaction as recorded.
     """
     token = current_token()
-    accounts, categories, currency = await household_context(token)
+    accounts, categories, _ = await household_context(token)
+    account_id = accounts.id(account)
 
     body: dict[str, Any] = {
         "kind": kind,
-        "amount_minor": to_minor(amount, currency),
+        # In the currency of the account it is filed against, not the household's.
+        "amount_minor": to_minor(amount, accounts.currency(account_id)),
         "occurred_on": occurred_on.isoformat(),
-        "account_id": as_str(accounts.id(account)),
+        "account_id": as_str(account_id),
     }
     if to_account is not None:
-        body["counter_account_id"] = as_str(accounts.id(to_account))
+        to_account_id = accounts.id(to_account)
+        body["counter_account_id"] = as_str(to_account_id)
+        if amount_received is not None:
+            body["counter_amount_minor"] = to_minor(amount_received, accounts.currency(to_account_id))
     if category is not None:
         body["category_id"] = as_str(categories.id(category))
     if merchant is not None:
@@ -262,4 +329,4 @@ async def _record(
 
     payload = await hydra().post("/transactions/", token=token, subject="transaction", json=body)
 
-    return describe_transaction(payload, accounts, categories, currency)
+    return describe_transaction(payload, accounts, categories)

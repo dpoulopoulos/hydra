@@ -22,15 +22,20 @@ class Named:
     can say what the household actually has rather than returning a bare 404.
     """
 
-    def __init__(self, entries: dict[uuid.UUID, str], noun: str) -> None:
+    def __init__(
+        self, entries: dict[uuid.UUID, str], noun: str, currencies: dict[uuid.UUID, str] | None = None
+    ) -> None:
         """Initialize the lookup.
 
         Args:
             entries: The id of each thing, and what it is called.
             noun: What these are, for the error message: "account", "category".
+            currencies: The currency each thing is held in, for the things that
+                have one. Only accounts do.
         """
         self.noun = noun
         self.name_of = entries
+        self.currency_of = currencies or {}
         self._by_lowered = {name.lower(): entity_id for entity_id, name in entries.items()}
 
         # A child is held as "Parent > Child", but a caller will write
@@ -56,6 +61,27 @@ class Named:
             return None
 
         return self.name_of.get(uuid.UUID(str(entity_id)))
+
+    def currency(self, entity_id: Any) -> str:
+        """Get the currency a thing is held in, for an amount that belongs to it.
+
+        An amount is in the currency of the account it is filed against, which
+        is not always the household's, so it is read from here rather than
+        assumed.
+
+        Args:
+            entity_id: The id as hydra reported it.
+
+        Returns:
+            The ISO 4217 code.
+
+        Raises:
+            ToolError: If hydra reported an id that is not one of these.
+        """
+        try:
+            return self.currency_of[uuid.UUID(str(entity_id))]
+        except KeyError:
+            raise ToolError(f"There is no {self.noun} with the id {entity_id} in this household.") from None
 
     def id(self, name: str | None) -> uuid.UUID | None:
         """Resolve what a caller wrote into an id.
@@ -128,7 +154,7 @@ async def accounts_of(token: str) -> Named:
         token: The hydra API token to present.
 
     Returns:
-        The accounts, by id and name.
+        The accounts, by id and name, and each one's currency.
     """
     from .tools._common import hydra
 
@@ -137,6 +163,7 @@ async def accounts_of(token: str) -> Named:
     # the missing part would come back as "there is no account called that",
     # which reads as a wrong answer instead of a limit.
     entries: dict[uuid.UUID, str] = {}
+    currencies: dict[uuid.UUID, str] = {}
     skip = 0
     while True:
         payload = await hydra().get(
@@ -147,11 +174,12 @@ async def accounts_of(token: str) -> Named:
         )
         page = payload["data"]
         entries.update({uuid.UUID(a["id"]): a["name"] for a in page})
+        currencies.update({uuid.UUID(a["id"]): a["currency_code"] for a in page})
         skip += len(page)
         if not page or skip >= payload["count"]:
             break
 
-    return Named(entries, "account")
+    return Named(entries, "account", currencies)
 
 
 async def categories_of(token: str) -> Named:

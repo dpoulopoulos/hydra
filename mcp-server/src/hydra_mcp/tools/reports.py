@@ -23,6 +23,11 @@ def register(mcp: MCPServer) -> None:
         because they move for different reasons and a single total does not
         say which one changed.
 
+        Every figure is in the period's currency, and only the accounts holding
+        that currency are counted. What accounts in any other currency hold is
+        listed apart in `other_currencies`, one balance per currency, and is
+        not part of `net_worth`: nothing is converted.
+
         Args:
             month: The month to summarise, or the current one.
 
@@ -54,6 +59,10 @@ def register(mcp: MCPServer) -> None:
                 # has any of these is understated rather than wrong.
                 "unpriced_holdings": payload["unpriced_asset_count"],
             },
+            # Balances, not flows, and kept out of the net worth above.
+            "other_currencies": [
+                signed_money(other["amount_minor"], other["currency_code"]) for other in payload["other_currencies"]
+            ],
             "transaction_count": payload["transaction_count"],
             "over_budget_categories": payload["over_budget_category_count"],
             # The summary's top categories are what the month spent most on,
@@ -77,6 +86,9 @@ def register(mcp: MCPServer) -> None:
 
         Transfers can never appear here. Moving money between two of the
         household's own accounts is not spending, and it is its own kind.
+
+        Amounts are in the period's currency, and only the accounts holding it
+        are counted.
 
         Args:
             month: The month to break down, or the current one.
@@ -115,6 +127,9 @@ def register(mcp: MCPServer) -> None:
 
         This is the tool for "is it going up", rather than for one month's
         total. Long ranges at day granularity may be refused as too large.
+
+        Amounts are in the period's currency, and only the accounts holding it
+        are counted.
 
         Args:
             date_from: The first day to include.
@@ -167,6 +182,9 @@ def register(mcp: MCPServer) -> None:
         the whole range, so it shows whether the household is ahead overall
         rather than only in the last month.
 
+        Amounts are in the period's currency, and only the accounts holding it
+        are counted.
+
         Args:
             month_from: The first month, or the current one.
             month_to: The last month, or the current one.
@@ -217,7 +235,7 @@ def _slice(entry: dict[str, Any], currency: str, *, kind: str) -> dict[str, Any]
 
     Args:
         entry: The slice as hydra reports it.
-        currency: The household currency the amounts are in.
+        currency: The period's currency, which the amounts are in.
         kind: Whether this breakdown is of spending or of income.
 
     Returns:

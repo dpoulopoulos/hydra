@@ -13,7 +13,16 @@ from mcp.shared.exceptions import MCPError
 from hydra_mcp.client import HydraClient
 from hydra_mcp.tools import _common, register_all
 from tests.conftest import TOKEN, json_response
-from tests.unit.test_tools_read import ACCOUNTS, CHILD_ID, HOUSEHOLD, OTHER_ACCOUNT_ID, TREE
+from tests.unit.test_tools_read import (
+    ACCOUNTS,
+    CHILD_ID,
+    DOLLAR_ACCOUNT_ID,
+    HOUSEHOLD,
+    MIXED_ACCOUNTS,
+    OTHER_ACCOUNT_ID,
+    TREE,
+    result_of,
+)
 
 ACCOUNT_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 TRANSACTION_ID = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
@@ -43,9 +52,7 @@ def authenticated() -> Iterator[None]:
     Yields:
         Nothing; the context is torn down afterwards.
     """
-    reset = auth_context_var.set(
-        AuthenticatedUser(AccessToken(token=TOKEN, client_id="a-user", scopes=["hydra:read"]))
-    )
+    reset = auth_context_var.set(AuthenticatedUser(AccessToken(token=TOKEN, client_id="a-user", scopes=["hydra:read"])))
     yield
     auth_context_var.reset(reset)
 
@@ -74,11 +81,27 @@ def server(
 
 
 def writing(
-    answer: dict[str, Any] | None = None, status: int = 200
+    answer: dict[str, Any] | None = None,
+    status: int = 200,
+    *,
+    accounts: dict[str, Any] | None = None,
+    current: dict[str, Any] | None = None,
 ) -> tuple[Callable[[httpx.Request], httpx.Response], list[httpx.Request]]:
-    """Answer the reference data, and whatever is written, keeping the requests."""
+    """Answer the reference data, and whatever is written, keeping the requests.
+
+    Args:
+        answer: What a write is answered with.
+        status: The status of that answer.
+        accounts: The household's accounts, where a test needs other than the default.
+        current: The transaction as it stands before an update.
+    """
     seen: list[httpx.Request] = []
-    reference = {"/households/me": HOUSEHOLD, "/accounts/": ACCOUNTS, "/categories/tree": TREE}
+    reference = {
+        "/households/me": HOUSEHOLD,
+        "/accounts/": accounts or ACCOUNTS,
+        "/categories/tree": TREE,
+        f"/transactions/{TRANSACTION_ID}": current or recorded_transaction(),
+    }
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
@@ -150,9 +173,7 @@ class TestRecordExpense:
         assert body["account_id"] == ACCOUNT_ID
         assert body["category_id"] == CHILD_ID
 
-    async def test_refuses_a_negative_amount_without_asking_hydra(
-        self, server: Any, authenticated: None
-    ) -> None:
+    async def test_refuses_a_negative_amount_without_asking_hydra(self, server: Any, authenticated: None) -> None:
         handler, seen = writing(recorded_transaction())
 
         with pytest.raises(ToolError, match="always positive"):
@@ -171,6 +192,49 @@ class TestRecordExpense:
                 "record_expense",
                 {"amount": "10.005", "account": "Current", "occurred_on": "2026-09-11"},
             )
+
+    async def test_reads_the_amount_in_the_currency_of_the_account(self, server: Any, authenticated: None) -> None:
+        # Not the household's: a yen account takes whole numbers, a euro one
+        # takes cents, whatever the household reports in.
+        yen = {
+            **MIXED_ACCOUNTS,
+            "data": [*MIXED_ACCOUNTS["data"][:2], {**MIXED_ACCOUNTS["data"][2], "currency_code": "JPY"}],
+        }
+        handler, seen = writing(recorded_transaction(account_id=DOLLAR_ACCOUNT_ID), accounts=yen)
+
+        await server(handler).call_tool(
+            "record_expense",
+            {"amount": "1200", "account": "Dollars", "occurred_on": "2026-09-11"},
+        )
+
+        assert written(seen)["amount_minor"] == 1_200
+
+    async def test_refuses_the_precision_of_the_household_currency_for_another(
+        self, server: Any, authenticated: None
+    ) -> None:
+        yen = {
+            **MIXED_ACCOUNTS,
+            "data": [*MIXED_ACCOUNTS["data"][:2], {**MIXED_ACCOUNTS["data"][2], "currency_code": "JPY"}],
+        }
+        handler, _ = writing(recorded_transaction(), accounts=yen)
+
+        with pytest.raises(ToolError, match="whole numbers"):
+            await server(handler).call_tool(
+                "record_expense",
+                {"amount": "12.50", "account": "Dollars", "occurred_on": "2026-09-11"},
+            )
+
+    async def test_reports_the_amount_in_the_currency_of_the_account(self, server: Any, authenticated: None) -> None:
+        handler, _ = writing(recorded_transaction(account_id=DOLLAR_ACCOUNT_ID), accounts=MIXED_ACCOUNTS)
+
+        recorded = result_of(
+            await server(handler).call_tool(
+                "record_expense",
+                {"amount": "42.50", "account": "Dollars", "occurred_on": "2026-09-11"},
+            )
+        )
+
+        assert recorded["amount"]["display"] == "-$42.50"
 
 
 class TestRecordIncome:
@@ -238,6 +302,102 @@ class TestRecordTransfer:
 
         assert "category_id" not in written(seen)
 
+    async def test_sends_what_arrived_when_the_currencies_differ(self, server: Any, authenticated: None) -> None:
+        handler, seen = writing(
+            recorded_transaction(
+                kind="transfer",
+                counter_account_id=DOLLAR_ACCOUNT_ID,
+                counter_amount_minor=10_842,
+                category_id=None,
+                amount_minor=10_000,
+            ),
+            accounts=MIXED_ACCOUNTS,
+        )
+
+        recorded = result_of(
+            await server(handler).call_tool(
+                "record_transfer",
+                {
+                    "amount": "100.00",
+                    "amount_received": "108.42",
+                    "from_account": "Current",
+                    "to_account": "Dollars",
+                    "occurred_on": "2026-09-11",
+                },
+            )
+        )
+
+        body = written(seen)
+        assert body["amount_minor"] == 10_000
+        assert body["counter_amount_minor"] == 10_842
+        assert recorded["amount_received"]["display"] == "$108.42"
+
+    async def test_reads_what_arrived_in_the_currency_of_the_destination(
+        self, server: Any, authenticated: None
+    ) -> None:
+        # Yen has no cents, so 15000 is what arrived, not 150.00.
+        yen = {
+            **MIXED_ACCOUNTS,
+            "data": [*MIXED_ACCOUNTS["data"][:2], {**MIXED_ACCOUNTS["data"][2], "currency_code": "JPY"}],
+        }
+        handler, seen = writing(recorded_transaction(kind="transfer"), accounts=yen)
+
+        await server(handler).call_tool(
+            "record_transfer",
+            {
+                "amount": "100.00",
+                "amount_received": "15000",
+                "from_account": "Current",
+                "to_account": "Dollars",
+                "occurred_on": "2026-09-11",
+            },
+        )
+
+        assert written(seen)["counter_amount_minor"] == 15_000
+
+    async def test_sends_no_amount_received_between_accounts_in_one_currency(
+        self, server: Any, authenticated: None
+    ) -> None:
+        handler, seen = writing(recorded_transaction(kind="transfer", counter_account_id=OTHER_ACCOUNT_ID))
+
+        await server(handler).call_tool(
+            "record_transfer",
+            {"amount": "100.00", "from_account": "Current", "to_account": "Savings", "occurred_on": "2026-09-11"},
+        )
+
+        assert "counter_amount_minor" not in written(seen)
+
+    async def test_a_missing_amount_received_is_explained_by_hydra(self, server: Any, authenticated: None) -> None:
+        # hydra knows which pair of accounts needs one, and says so.
+        handler, _ = writing(
+            {"detail": "Current holds EUR and Dollars holds USD. Say how much arrived in USD."},
+            status=400,
+            accounts=MIXED_ACCOUNTS,
+        )
+
+        with pytest.raises(ToolError, match="Say how much arrived"):
+            await server(handler).call_tool(
+                "record_transfer",
+                {"amount": "100.00", "from_account": "Current", "to_account": "Dollars", "occurred_on": "2026-09-11"},
+            )
+
+    async def test_refuses_a_negative_amount_received(self, server: Any, authenticated: None) -> None:
+        handler, seen = writing(accounts=MIXED_ACCOUNTS)
+
+        with pytest.raises(ToolError, match="always positive"):
+            await server(handler).call_tool(
+                "record_transfer",
+                {
+                    "amount": "100.00",
+                    "amount_received": "-108.42",
+                    "from_account": "Current",
+                    "to_account": "Dollars",
+                    "occurred_on": "2026-09-11",
+                },
+            )
+
+        assert all(request.method == "GET" for request in seen)
+
 
 class TestUpdateTransaction:
     """Tests for changing something already recorded."""
@@ -254,11 +414,70 @@ class TestUpdateTransaction:
     async def test_patches_rather_than_replaces(self, server: Any, authenticated: None) -> None:
         handler, seen = writing(recorded_transaction())
 
-        await server(handler).call_tool(
-            "update_transaction", {"transaction_id": TRANSACTION_ID, "amount": "50.00"}
-        )
+        await server(handler).call_tool("update_transaction", {"transaction_id": TRANSACTION_ID, "amount": "50.00"})
 
         assert sent(seen).method == "PATCH"
+
+    async def test_reads_a_new_amount_in_the_currency_of_the_account_it_is_on(
+        self, server: Any, authenticated: None
+    ) -> None:
+        # The transaction is on the dollar account, so that is the currency
+        # the new amount is turned into minor units in.
+        current = recorded_transaction(account_id=DOLLAR_ACCOUNT_ID)
+        handler, seen = writing(current, accounts=MIXED_ACCOUNTS, current=current)
+
+        await server(handler).call_tool("update_transaction", {"transaction_id": TRANSACTION_ID, "amount": "50.00"})
+
+        assert written(seen) == {"amount_minor": 5_000}
+
+    async def test_a_new_account_decides_the_currency_of_a_new_amount(self, server: Any, authenticated: None) -> None:
+        yen = {
+            **MIXED_ACCOUNTS,
+            "data": [*MIXED_ACCOUNTS["data"][:2], {**MIXED_ACCOUNTS["data"][2], "currency_code": "JPY"}],
+        }
+        handler, _ = writing(accounts=yen)
+
+        with pytest.raises(ToolError, match="whole numbers"):
+            await server(handler).call_tool(
+                "update_transaction",
+                {"transaction_id": TRANSACTION_ID, "amount": "50.50", "account": "Dollars"},
+            )
+
+    async def test_changes_what_arrived(self, server: Any, authenticated: None) -> None:
+        current = recorded_transaction(
+            kind="transfer",
+            counter_account_id=DOLLAR_ACCOUNT_ID,
+            counter_amount_minor=10_842,
+            category_id=None,
+        )
+        handler, seen = writing(current, accounts=MIXED_ACCOUNTS, current=current)
+
+        await server(handler).call_tool(
+            "update_transaction", {"transaction_id": TRANSACTION_ID, "amount_received": "109.00"}
+        )
+
+        assert written(seen) == {"counter_amount_minor": 10_900}
+
+    async def test_only_a_transfer_has_an_amount_received(self, server: Any, authenticated: None) -> None:
+        handler, seen = writing()
+
+        with pytest.raises(ToolError, match="Only a transfer"):
+            await server(handler).call_tool(
+                "update_transaction", {"transaction_id": TRANSACTION_ID, "amount_received": "109.00"}
+            )
+
+        assert all(request.method == "GET" for request in seen)
+
+    async def test_does_not_read_the_transaction_for_a_change_without_an_amount(
+        self, server: Any, authenticated: None
+    ) -> None:
+        handler, seen = writing(recorded_transaction(merchant="The shop"))
+
+        await server(handler).call_tool(
+            "update_transaction", {"transaction_id": TRANSACTION_ID, "merchant": "The shop"}
+        )
+
+        assert not [r for r in seen if r.url.path.endswith(f"/transactions/{TRANSACTION_ID}") and r.method == "GET"]
 
 
 class TestDeleteTransaction:
@@ -280,9 +499,7 @@ class TestSetBudget:
     async def test_sends_the_limit_in_minor_units(self, server: Any, authenticated: None) -> None:
         handler, seen = writing({"category_id": CHILD_ID, "month": "2026-09", "limit_minor": 40_000})
 
-        await server(handler).call_tool(
-            "set_budget", {"category": "Groceries", "limit": "400.00", "month": "2026-09"}
-        )
+        await server(handler).call_tool("set_budget", {"category": "Groceries", "limit": "400.00", "month": "2026-09"})
 
         assert written(seen)["limit_minor"] == 40_000
 
@@ -292,9 +509,7 @@ class TestSetBudget:
         # here consults.
         handler, seen = writing({"category_id": CHILD_ID, "month": "2026-09", "limit_minor": 40_000})
 
-        await server(handler).call_tool(
-            "set_budget", {"category": "Groceries", "limit": "400.00", "month": "2026-09"}
-        )
+        await server(handler).call_tool("set_budget", {"category": "Groceries", "limit": "400.00", "month": "2026-09"})
 
         assert not [request for request in seen if request.url.path.endswith("/accounts/")]
 
@@ -302,9 +517,7 @@ class TestSetBudget:
 class TestWhenTheTokenMayNotWrite:
     """A read token is refused by hydra, and that has to read clearly."""
 
-    async def test_the_refusal_reaches_the_host_not_the_model(
-        self, server: Any, authenticated: None
-    ) -> None:
+    async def test_the_refusal_reaches_the_host_not_the_model(self, server: Any, authenticated: None) -> None:
         # Retrying cannot make a read token write, so the model must not be
         # invited to try different arguments.
         handler, _ = writing({"detail": "This API token is read only and cannot change anything."}, status=403)

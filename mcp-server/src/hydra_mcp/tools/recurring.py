@@ -4,7 +4,7 @@ from typing import Annotated, Any
 from mcp.server import MCPServer
 from pydantic import Field
 
-from ..money import money
+from ..money import money, signed_money
 from ..resolve import Named, bare_name
 from ._common import READ_ONLY, current_token, household_context, hydra
 
@@ -34,7 +34,7 @@ def register(mcp: MCPServer) -> None:
         """
         # hydra filters on is_active, where leaving it out means "either".
         token = current_token()
-        accounts, categories, currency = await household_context(token)
+        accounts, categories, _ = await household_context(token)
 
         payload = await hydra().get(
             "/recurring-rules/",
@@ -44,7 +44,7 @@ def register(mcp: MCPServer) -> None:
         )
 
         return {
-            "rules": [_rule(rule, accounts, categories, currency) for rule in payload["data"]],
+            "rules": [_rule(rule, accounts, categories) for rule in payload["data"]],
             "count": payload["count"],
         }
 
@@ -62,13 +62,18 @@ def register(mcp: MCPServer) -> None:
         Args:
             until: How far ahead to look.
 
+        Each occurrence is in the currency of the account it draws on, and the
+        totals are one per currency: amounts in two currencies are never added
+        together.
+
         Returns:
-            Each occurrence that falls due, and what is leaving in total.
-            An occurrence marked blocked is not counted in the total: the
-            account it draws on is archived, so nothing will record it.
+            Each occurrence that falls due, and what is leaving in each
+            currency. An occurrence marked blocked is not counted in the
+            totals: the account it draws on is archived, so nothing will
+            record it.
         """
         token = current_token()
-        accounts, categories, currency = await household_context(token)
+        accounts, categories, _ = await household_context(token)
 
         payload = await hydra().get(
             "/recurring-rules/upcoming",
@@ -77,24 +82,24 @@ def register(mcp: MCPServer) -> None:
             params={"until": until.isoformat() if until else None},
         )
 
-        # hydra's own total sums every kind, so a salary and the rent it pays
-        # add together rather than cancel. As one unsigned figure that answers
-        # no question anybody asks, and the instructions tell a model to quote
-        # the display string, so it would be quoted. Only what is going out is
-        # summed here, because "what is coming out" is what this tool is for.
-        # A blocked occurrence is left out of the total as well: the account it
-        # draws on is archived, so nothing is going to record it, and counting
-        # it would tell the household money is leaving that is staying put.
-        leaving = sum(
-            item["amount_minor"] for item in payload["data"] if item["kind"] == "expense" and not item.get("is_blocked")
-        )
+        # What is going out is summed on its own, because "what is coming out"
+        # is what this tool is for; hydra's nets answer "what is left" and are
+        # passed on beside it. Each currency is summed apart, since an amount
+        # is in the currency of the account it draws on. A blocked occurrence
+        # is left out as well: the account it draws on is archived, so nothing
+        # is going to record it, and counting it would tell the household money
+        # is leaving that is staying put.
+        leaving: dict[str, int] = {}
+        for item in payload["data"]:
+            if item["kind"] == "expense" and not item.get("is_blocked"):
+                leaving[item["currency_code"]] = leaving.get(item["currency_code"], 0) + item["amount_minor"]
 
         return {
             "upcoming": [
                 {
                     "name": item["name"],
                     "kind": item["kind"],
-                    "amount": money(item["amount_minor"], currency, negative=item["kind"] == "expense"),
+                    "amount": money(item["amount_minor"], item["currency_code"], negative=item["kind"] == "expense"),
                     "occurs_on": item["occurs_on"],
                     "account": accounts.name(item.get("account_id")),
                     "category": bare_name(categories.name(item.get("category_id"))),
@@ -104,19 +109,21 @@ def register(mcp: MCPServer) -> None:
                 }
                 for item in payload["data"]
             ],
-            "total_leaving": money(leaving, currency, negative=True),
+            "total_leaving": [money(amount, code, negative=True) for code, amount in sorted(leaving.items())],
+            # Income counts for, and spending against, so a salary and the rent
+            # it pays do cancel here. Signed, because a net can be negative.
+            "net": [signed_money(net["amount_minor"], net["currency_code"]) for net in payload["nets"]],
             "count": payload["count"],
         }
 
 
-def _rule(rule: dict[str, Any], accounts: Named, categories: Named, currency: str) -> dict[str, Any]:
+def _rule(rule: dict[str, Any], accounts: Named, categories: Named) -> dict[str, Any]:
     """Describe one standing payment.
 
     Args:
         rule: The rule as hydra reports it.
         accounts: The household's accounts, for naming.
         categories: The household's categories, for naming.
-        currency: The household currency.
 
     Returns:
         The fields worth reading, with names rather than ids.
@@ -125,7 +132,10 @@ def _rule(rule: dict[str, Any], accounts: Named, categories: Named, currency: st
     return {
         "name": rule["name"],
         "kind": rule["kind"],
-        "amount": money(rule["amount_minor"], currency, negative=rule["kind"] == "expense"),
+        # In the currency of the account the rule draws on.
+        "amount": money(
+            rule["amount_minor"], accounts.currency(rule["account_id"]), negative=rule["kind"] == "expense"
+        ),
         "how_often": _how_often(rule["frequency"], rule["interval"]),
         "next_due": rule.get("next_occurrence_on"),
         "account": accounts.name(rule.get("account_id")),

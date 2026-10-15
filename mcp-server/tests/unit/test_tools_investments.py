@@ -35,6 +35,12 @@ ACCOUNTS = {
     "count": 1,
 }
 
+# A brokerage account that holds dollars rather than the household's euros.
+DOLLAR_ACCOUNTS = {
+    "data": [{**ACCOUNTS["data"][0], "currency_code": "USD"}],
+    "count": 1,
+}
+
 INSTRUMENTS = {
     "data": [
         {"id": INSTRUMENT_ID, "symbol": "VUAA.XETRA", "name": "Vanguard S&P 500", "currency_code": "EUR"},
@@ -70,9 +76,7 @@ def authenticated() -> Iterator[None]:
     Yields:
         Nothing; the context is torn down afterwards.
     """
-    reset = auth_context_var.set(
-        AuthenticatedUser(AccessToken(token=TOKEN, client_id="a-user", scopes=["hydra:read"]))
-    )
+    reset = auth_context_var.set(AuthenticatedUser(AccessToken(token=TOKEN, client_id="a-user", scopes=["hydra:read"])))
     yield
     auth_context_var.reset(reset)
 
@@ -101,13 +105,16 @@ def server(
 
 
 def investing(
-    answer: dict[str, Any] | None = None, *, trades: dict[str, Any] | None = None
+    answer: dict[str, Any] | None = None,
+    *,
+    trades: dict[str, Any] | None = None,
+    accounts: dict[str, Any] | None = None,
 ) -> tuple[Callable[[httpx.Request], httpx.Response], list[httpx.Request]]:
     """Answer the reference data, and whatever is written, keeping the requests."""
     seen: list[httpx.Request] = []
     reference = {
         "/households/me": HOUSEHOLD,
-        "/accounts/": ACCOUNTS,
+        "/accounts/": accounts or ACCOUNTS,
         "/investments/instruments": INSTRUMENTS,
         "/investments/trades": trades or {"data": [], "count": 0},
     }
@@ -224,6 +231,31 @@ class TestRecordTrade:
 
         assert all(request.method == "GET" for request in seen)
 
+    async def test_the_total_is_read_in_the_brokerage_account_currency(self, server: Any, authenticated: None) -> None:
+        # Not the household's: a dollar account's statement is in dollars, and
+        # a dollar listing can then be priced from it.
+        handler, seen = investing(
+            recorded_trade(currency_code="USD", cash_amount_minor=50_000), accounts=DOLLAR_ACCOUNTS
+        )
+
+        trade = result_of(
+            await server(handler).call_tool("record_trade", a_buy(symbol="AAPL", quantity="5", total="500.00"))
+        )
+
+        body = written(seen)
+        assert body["cash_amount_minor"] == 50_000
+        assert body["price_micro"] == 10_000_000_000
+        assert trade["cash"]["display"] == "-$500.00"
+        assert trade["cash"]["currency"] == "USD"
+
+    async def test_will_not_price_a_euro_listing_from_a_dollar_total(self, server: Any, authenticated: None) -> None:
+        handler, seen = investing(accounts=DOLLAR_ACCOUNTS)
+
+        with pytest.raises(ToolError, match="not USD"):
+            await server(handler).call_tool("record_trade", a_buy())
+
+        assert all(request.method == "GET" for request in seen)
+
     async def test_needs_a_total_or_a_price(self, server: Any, authenticated: None) -> None:
         handler, _ = investing()
 
@@ -271,6 +303,15 @@ class TestListTrades:
         listed = result_of(await server(handler).call_tool("list_trades", {}))
 
         assert listed["trades"][0]["cash"]["display"] == "€500.00"
+
+    async def test_the_cash_is_in_the_brokerage_account_currency(self, server: Any, authenticated: None) -> None:
+        handler, _ = investing(
+            trades={"data": [recorded_trade(currency_code="USD")], "count": 1}, accounts=DOLLAR_ACCOUNTS
+        )
+
+        listed = result_of(await server(handler).call_tool("list_trades", {}))
+
+        assert listed["trades"][0]["cash"]["display"] == "-$500.00"
 
 
 class TestDeleteTrade:

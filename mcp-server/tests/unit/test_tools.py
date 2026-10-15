@@ -28,7 +28,7 @@ ACCOUNTS = {
         }
     ],
     "count": 1,
-    "total_balance_minor": 1_720_498,
+    "totals": [{"currency_code": "EUR", "amount_minor": 1_720_498}],
 }
 
 SUMMARY = {
@@ -40,6 +40,7 @@ SUMMARY = {
     "brokerage_minor": 0,
     "assets_minor": 1_329_738,
     "net_worth_minor": 3_886_264,
+    "other_currencies": [],
     "unpriced_asset_count": 0,
     "budgeted_minor": 0,
     "over_budget_category_count": 1,
@@ -137,7 +138,7 @@ class TestListAccounts:
     """Tests for the account listing."""
 
     async def test_reports_a_balance_every_useful_way(self, server: Any, authenticated: None) -> None:
-        mcp = server(by_path({"/accounts/": ACCOUNTS, "/households/me": HOUSEHOLD}))
+        mcp = server(by_path({"/accounts/": ACCOUNTS}))
 
         accounts = result_of(await mcp.call_tool("list_accounts", {}))["accounts"]
 
@@ -150,7 +151,7 @@ class TestListAccounts:
 
     async def test_a_negative_balance_carries_its_sign(self, server: Any, authenticated: None) -> None:
         overdrawn = {**ACCOUNTS, "data": [{**ACCOUNTS["data"][0], "current_balance_minor": -5000}]}
-        mcp = server(by_path({"/accounts/": overdrawn, "/households/me": HOUSEHOLD}))
+        mcp = server(by_path({"/accounts/": overdrawn}))
 
         accounts = result_of(await mcp.call_tool("list_accounts", {}))["accounts"]
 
@@ -160,8 +161,6 @@ class TestListAccounts:
         seen: list[str] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path.endswith("/households/me"):
-                return json_response(200, HOUSEHOLD)
             seen.append(request.url.query.decode())
             return json_response(200, ACCOUNTS)
 
@@ -171,28 +170,41 @@ class TestListAccounts:
 
         assert seen == ["include_archived=false", "include_archived=true"]
 
-    async def test_the_total_is_labelled_with_the_household_currency(
-        self, server: Any, authenticated: None
-    ) -> None:
-        # The total is in the household currency whatever the accounts hold,
-        # so reading it off the first account labels a mixed household by
-        # whichever one came first.
+    async def test_each_account_is_in_its_own_currency(self, server: Any, authenticated: None) -> None:
+        # Not the household's: an account can hold another currency.
         in_dollars = {**ACCOUNTS, "data": [{**ACCOUNTS["data"][0], "currency_code": "USD"}]}
-        mcp = server(by_path({"/accounts/": in_dollars, "/households/me": HOUSEHOLD}))
+        mcp = server(by_path({"/accounts/": in_dollars}))
+
+        accounts = result_of(await mcp.call_tool("list_accounts", {}))["accounts"]
+
+        assert accounts[0]["balance"]["currency"] == "USD"
+        assert accounts[0]["balance"]["display"] == "$17204.98"
+
+    async def test_totals_come_one_per_currency(self, server: Any, authenticated: None) -> None:
+        # Euros and dollars are never added together.
+        mixed = {
+            **ACCOUNTS,
+            "totals": [
+                {"currency_code": "EUR", "amount_minor": 1_720_498},
+                {"currency_code": "USD", "amount_minor": -2_500},
+            ],
+        }
+        mcp = server(by_path({"/accounts/": mixed}))
 
         listed = result_of(await mcp.call_tool("list_accounts", {}))
 
-        assert listed["total"]["currency"] == "EUR"
+        assert [total["display"] for total in listed["totals"]] == ["€17204.98", "-$25.00"]
+        assert "total" not in listed
 
-    async def test_an_empty_household_does_not_guess_a_currency(self, server: Any, authenticated: None) -> None:
-        # With no account to read one off, the old code fell back to euros for
-        # everybody, and the instructions say never to assume a currency.
-        empty = {"data": [], "count": 0, "total_balance_minor": 0}
-        mcp = server(by_path({"/accounts/": empty, "/households/me": {**HOUSEHOLD, "currency_code": "GBP"}}))
+    async def test_an_empty_household_has_no_totals(self, server: Any, authenticated: None) -> None:
+        # With nothing to total there is no currency to put on it, and the
+        # instructions say never to assume one.
+        empty = {"data": [], "count": 0, "totals": []}
+        mcp = server(by_path({"/accounts/": empty}))
 
         listed = result_of(await mcp.call_tool("list_accounts", {}))
 
-        assert listed["total"]["currency"] == "GBP"
+        assert listed["totals"] == []
 
 
 class TestMonthSummary:
@@ -248,13 +260,25 @@ class TestMonthSummary:
 
         assert summary["net"]["display"] == "-€1851.35"
 
+    async def test_other_currencies_are_kept_out_of_the_net_worth(self, server: Any, authenticated: None) -> None:
+        # Held in accounts of another currency, they are listed apart rather
+        # than converted into the period's.
+        abroad = {**SUMMARY, "other_currencies": [{"currency_code": "USD", "amount_minor": 25_000}]}
+        mcp = server(by_path({"/reports/summary": abroad}))
+
+        summary = result_of(await mcp.call_tool("get_month_summary", {}))
+
+        assert summary["other_currencies"] == [
+            {"amount": "250.00", "display": "$250.00", "amount_minor": 25_000, "currency": "USD"}
+        ]
+        assert summary["net_worth"]["total"]["amount_minor"] == 3_886_264
+
     async def test_a_share_is_reported_as_a_percentage(self, server: Any, authenticated: None) -> None:
         mcp = server(by_path({"/reports/summary": SUMMARY}))
 
         summary = result_of(await mcp.call_tool("get_month_summary", {}))
 
         assert summary["top_categories"][0]["share"] == "29.8%"
-
 
 
 BY_CATEGORY = {

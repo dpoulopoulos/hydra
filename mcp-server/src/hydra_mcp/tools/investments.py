@@ -88,7 +88,6 @@ def register(mcp: MCPServer) -> None:
         """
         token = current_token()
         accounts = await accounts_of(token)
-        currency = await _household_currency(token)
 
         params: dict[str, Any] = {}
         if symbol is not None:
@@ -97,7 +96,7 @@ def register(mcp: MCPServer) -> None:
         trades = await _trades_of(token, params)
 
         return {
-            "trades": [_trade(trade, accounts, currency) for trade in trades],
+            "trades": [_trade(trade, accounts) for trade in trades],
             "count": len(trades),
         }
 
@@ -113,7 +112,7 @@ def register(mcp: MCPServer) -> None:
             str | None,
             Field(
                 description=(
-                    "What left the brokerage account on a buy, or reached it on a sell, in the household "
+                    "What left the brokerage account on a buy, or reached it on a sell, in that account's "
                     "currency and with any fee included. The figure on the broker's statement, for example 500.00."
                 )
             ),
@@ -124,7 +123,7 @@ def register(mcp: MCPServer) -> None:
                 description=(
                     "The price of one unit, in the instrument's own currency, for example 99.0942. "
                     "Leave it out to work it out from the total, which only works when the instrument "
-                    "quotes in the household currency."
+                    "quotes in the brokerage account's currency."
                 )
             ),
         ] = None,
@@ -154,7 +153,8 @@ def register(mcp: MCPServer) -> None:
             side: buy or sell.
             traded_on: The day it was executed.
             quantity: How many units, positive.
-            total: What moved in cash, in the household currency, fee included.
+            total: What moved in cash, in the brokerage account's currency, fee
+                included.
             price: The price of one unit, in the instrument's currency.
             fee: Commission and taxes, in the instrument's currency.
             brokerage_account: The brokerage account the cash moved through.
@@ -166,24 +166,28 @@ def register(mcp: MCPServer) -> None:
         token = current_token()
         instrument = _resolve(await _instruments_of(token), symbol)
         accounts = await accounts_of(token)
-        household_currency = await _household_currency(token)
         instrument_currency = instrument["currency_code"]
+        brokerage_id = accounts.id(brokerage_account)
+        # The cash is in the brokerage account's currency, which is not always
+        # the household's. With no account named nothing is booked in cash, and
+        # the household's is only what a total is read in to work out a price.
+        cash_currency = accounts.currency(brokerage_id) if brokerage_id else await _household_currency(token)
 
         quantity_micro = _to_micro(quantity, "quantity")
         if quantity_micro == 0:
             raise ToolError("A trade moves at least some units, so the quantity cannot be zero.")
 
         fee_minor = to_minor(fee, instrument_currency) if fee is not None else 0
-        total_minor = to_minor(total, household_currency) if total is not None else None
+        total_minor = to_minor(total, cash_currency) if total is not None else None
 
         if price is not None:
             price_micro = _to_micro(price, "price", exponent=exponent_of(instrument_currency))
         elif total_minor is None:
             raise ToolError("Give the total from the statement, or the price of one unit, so the trade has a cost.")
-        elif instrument_currency != household_currency:
+        elif instrument_currency != cash_currency:
             raise ToolError(
-                f"{instrument['symbol']} quotes in {instrument_currency}, not {household_currency}, so its price "
-                f"cannot be worked out from a {household_currency} total. Give the price in {instrument_currency} "
+                f"{instrument['symbol']} quotes in {instrument_currency}, not {cash_currency}, so its price "
+                f"cannot be worked out from a {cash_currency} total. Give the price in {instrument_currency} "
                 "as well as the total."
             )
         else:
@@ -200,7 +204,7 @@ def register(mcp: MCPServer) -> None:
             "fee_minor": fee_minor,
         }
         if brokerage_account is not None:
-            body["brokerage_account_id"] = as_str(accounts.id(brokerage_account))
+            body["brokerage_account_id"] = as_str(brokerage_id)
             # What the broker actually charged, rather than hydra's own
             # estimate from a reference exchange rate.
             if total_minor is not None:
@@ -212,7 +216,7 @@ def register(mcp: MCPServer) -> None:
             "/investments/trades", token=token, subject="instrument or brokerage account", json=body
         )
 
-        return _trade(payload, accounts, household_currency)
+        return _trade(payload, accounts)
 
     @mcp.tool(annotations=DESTRUCTIVE)
     async def delete_trade(
@@ -332,13 +336,13 @@ def _resolve(instruments: list[dict[str, Any]], symbol: str) -> dict[str, Any]:
     return by_id[cast(uuid.UUID, symbols.id(symbol))]
 
 
-def _trade(trade: dict[str, Any], accounts: Named, household_currency: str) -> dict[str, Any]:
+def _trade(trade: dict[str, Any], accounts: Named) -> dict[str, Any]:
     """Describe one trade.
 
     Args:
         trade: The trade as hydra reports it.
-        accounts: The household's accounts, to name the brokerage account.
-        household_currency: The currency the cash side is in.
+        accounts: The household's accounts, to name the brokerage account and
+            say what currency its cash is in.
 
     Returns:
         The fields worth reading.
@@ -357,7 +361,9 @@ def _trade(trade: dict[str, Any], accounts: Named, household_currency: str) -> d
         "fee": money(trade["fee_minor"], currency),
         "brokerage_account": accounts.name(trade.get("brokerage_account_id")),
         # What moved through the brokerage account. Out on a buy, in on a sell.
-        "cash": money(cash_minor, household_currency, negative=trade["side"] == "buy")
+        # In the brokerage account's currency, which can differ from the
+        # instrument's and from the household's.
+        "cash": money(cash_minor, accounts.currency(trade["brokerage_account_id"]), negative=trade["side"] == "buy")
         if cash_minor is not None
         else None,
         "note": trade.get("note"),

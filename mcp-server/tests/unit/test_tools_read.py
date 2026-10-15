@@ -16,6 +16,7 @@ HOUSEHOLD = {"name": "Home", "currency_code": "EUR", "member_count": 2}
 
 ACCOUNT_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 OTHER_ACCOUNT_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+DOLLAR_ACCOUNT_ID = "99999999-9999-9999-9999-999999999999"
 PARENT_ID = "cccccccc-cccc-cccc-cccc-cccccccccccc"
 CHILD_ID = "dddddddd-dddd-dddd-dddd-dddddddddddd"
 
@@ -41,7 +42,28 @@ ACCOUNTS = {
         },
     ],
     "count": 2,
-    "total_balance_minor": 600_000,
+    "totals": [{"currency_code": "EUR", "amount_minor": 600_000}],
+}
+
+# The same household with an account in another currency.
+MIXED_ACCOUNTS = {
+    "data": [
+        *ACCOUNTS["data"],
+        {
+            "id": DOLLAR_ACCOUNT_ID,
+            "name": "Dollars",
+            "type": "current",
+            "currency_code": "USD",
+            "current_balance_minor": 25_000,
+            "institution": None,
+            "archived_at": None,
+        },
+    ],
+    "count": 3,
+    "totals": [
+        {"currency_code": "EUR", "amount_minor": 600_000},
+        {"currency_code": "USD", "amount_minor": 25_000},
+    ],
 }
 
 TREE = {
@@ -229,6 +251,69 @@ class TestSearchTransactions:
         with pytest.raises(ToolError, match="2 decimal places"):
             await mcp.call_tool("search_transactions", {"min_amount": "20.005"})
 
+    async def test_an_amount_is_in_the_currency_of_its_account(self, server: Any, authenticated: None) -> None:
+        # Not the household's: a dollar account's amount is dollars.
+        in_dollars = {
+            "data": [{**TRANSACTIONS["data"][0], "account_id": DOLLAR_ACCOUNT_ID}],
+            "count": 1,
+        }
+        mcp = server(routes(**{"/accounts/": MIXED_ACCOUNTS, "/transactions/": in_dollars}))
+
+        found = result_of(await mcp.call_tool("search_transactions", {}))
+
+        assert found["transactions"][0]["amount"]["display"] == "-$93.17"
+        assert found["transactions"][0]["amount"]["currency"] == "USD"
+
+    async def test_a_transfer_between_currencies_says_what_arrived(self, server: Any, authenticated: None) -> None:
+        crossing = {
+            "data": [
+                {
+                    **TRANSACTIONS["data"][0],
+                    "kind": "transfer",
+                    "amount_minor": 10_000,
+                    "counter_account_id": DOLLAR_ACCOUNT_ID,
+                    "counter_amount_minor": 10_842,
+                    "category_id": None,
+                }
+            ],
+            "count": 1,
+        }
+        mcp = server(routes(**{"/accounts/": MIXED_ACCOUNTS, "/transactions/": crossing}))
+
+        found = result_of(await mcp.call_tool("search_transactions", {}))
+
+        assert found["transactions"][0]["amount"]["display"] == "€100.00"
+        assert found["transactions"][0]["amount_received"] == {
+            "amount": "108.42",
+            "display": "$108.42",
+            "amount_minor": 10_842,
+            "currency": "USD",
+        }
+
+    async def test_a_transfer_within_a_currency_has_nothing_received(self, server: Any, authenticated: None) -> None:
+        found = result_of(await server(routes(**{"/transactions/": TRANSACTIONS})).call_tool("search_transactions", {}))
+
+        assert found["transactions"][0]["amount_received"] is None
+
+    async def test_an_amount_filter_is_read_in_the_currency_of_the_account(
+        self, server: Any, authenticated: None
+    ) -> None:
+        handler, seen = recorded(**{"/accounts/": MIXED_ACCOUNTS, "/transactions/": TRANSACTIONS})
+
+        await server(handler).call_tool("search_transactions", {"account": "Dollars", "min_amount": "20.00"})
+
+        assert query_for(seen, "/transactions/")["min_amount_minor"] == "2000"
+
+    async def test_an_amount_filter_needs_an_account_when_currencies_differ(
+        self, server: Any, authenticated: None
+    ) -> None:
+        # hydra compares the bare numbers, so 20.00 would mean euros and
+        # dollars at once.
+        mcp = server(routes(**{"/accounts/": MIXED_ACCOUNTS, "/transactions/": TRANSACTIONS}))
+
+        with pytest.raises(ToolError, match="Name the account"):
+            await mcp.call_tool("search_transactions", {"min_amount": "20.00"})
+
     async def test_an_unknown_category_says_what_exists(self, server: Any, authenticated: None) -> None:
         mcp = server(routes(**{"/transactions/": TRANSACTIONS}))
 
@@ -280,6 +365,7 @@ UPCOMING = {
             "name": "Rent",
             "kind": "expense",
             "amount_minor": 90_000,
+            "currency_code": "EUR",
             "occurs_on": "2026-10-01",
             "account_id": ACCOUNT_ID,
             "category_id": CHILD_ID,
@@ -288,13 +374,14 @@ UPCOMING = {
             "name": "Salary",
             "kind": "income",
             "amount_minor": 250_000,
+            "currency_code": "EUR",
             "occurs_on": "2026-10-25",
             "account_id": ACCOUNT_ID,
             "category_id": None,
         },
     ],
-    # hydra adds every kind together, whichever way the money is going.
-    "total_minor": 340_000,
+    # Income against spending, one net per currency.
+    "nets": [{"currency_code": "EUR", "amount_minor": 160_000}],
     "count": 2,
 }
 
@@ -303,7 +390,7 @@ UPCOMING_BLOCKED = {
         {**UPCOMING["data"][0], "is_blocked": True},
         {**UPCOMING["data"][1], "is_blocked": False},
     ],
-    "total_minor": 340_000,
+    "nets": [{"currency_code": "EUR", "amount_minor": 250_000}],
     "count": 2,
 }
 
@@ -319,7 +406,7 @@ class TestUpcomingRecurring:
             await server(routes(**{"/recurring-rules/upcoming": UPCOMING})).call_tool("get_upcoming_recurring", {})
         )
 
-        assert due["total_leaving"]["display"] == "-€900.00"
+        assert [total["display"] for total in due["total_leaving"]] == ["-€900.00"]
         assert "total" not in due
 
     async def test_each_occurrence_carries_its_own_direction(self, server: Any, authenticated: None) -> None:
@@ -340,7 +427,29 @@ class TestUpcomingRecurring:
         )
 
         # Nothing is left going out, and zero carries no sign.
-        assert due["total_leaving"]["display"] == "€0.00"
+        assert due["total_leaving"] == []
+        assert [net["display"] for net in due["net"]] == ["€2500.00"]
+
+    async def test_each_currency_is_totalled_apart(self, server: Any, authenticated: None) -> None:
+        # Dollars and euros do not add up, so each gets a total of its own.
+        in_dollars = {
+            "data": [
+                *UPCOMING["data"],
+                {**UPCOMING["data"][0], "name": "Hosting", "amount_minor": 1_500, "currency_code": "USD"},
+            ],
+            "nets": [
+                {"currency_code": "EUR", "amount_minor": 160_000},
+                {"currency_code": "USD", "amount_minor": -1_500},
+            ],
+            "count": 3,
+        }
+        due = result_of(
+            await server(routes(**{"/recurring-rules/upcoming": in_dollars})).call_tool("get_upcoming_recurring", {})
+        )
+
+        assert [total["display"] for total in due["total_leaving"]] == ["-€900.00", "-$15.00"]
+        assert [net["display"] for net in due["net"]] == ["€1600.00", "-$15.00"]
+        assert due["upcoming"][2]["amount"]["currency"] == "USD"
 
     async def test_a_blocked_occurrence_is_still_listed_and_says_so(self, server: Any, authenticated: None) -> None:
         # It is what a restored account picks back up, so it stays on the list.
@@ -376,13 +485,20 @@ RULES = {
 class TestRecurringRules:
     """Tests for the standing payments themselves."""
 
-    async def test_a_stalled_rule_says_an_archived_account_stopped_it(
-        self, server: Any, authenticated: None
-    ) -> None:
+    async def test_a_rule_is_in_the_currency_of_its_account(self, server: Any, authenticated: None) -> None:
+        in_dollars = {"data": [{**RULES["data"][0], "account_id": DOLLAR_ACCOUNT_ID}], "count": 1}
+
+        rules = result_of(
+            await server(routes(**{"/accounts/": MIXED_ACCOUNTS, "/recurring-rules/": in_dollars})).call_tool(
+                "list_recurring_rules", {}
+            )
+        )
+
+        assert rules["rules"][0]["amount"]["display"] == "-$900.00"
+
+    async def test_a_stalled_rule_says_an_archived_account_stopped_it(self, server: Any, authenticated: None) -> None:
         # Otherwise the only symptom is a next_due drifting into the past,
         # which reads as an error rather than an explanation.
-        rules = result_of(
-            await server(routes(**{"/recurring-rules/": RULES})).call_tool("list_recurring_rules", {})
-        )
+        rules = result_of(await server(routes(**{"/recurring-rules/": RULES})).call_tool("list_recurring_rules", {}))
 
         assert rules["rules"][0]["blocked"] is True

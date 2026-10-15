@@ -19,8 +19,9 @@ def register(mcp: MCPServer) -> None:
         """Say whose hydra household these tools are reading.
 
         Worth calling first in a conversation: everything else is scoped to
-        this household, and the currency it reports is the one every amount
-        will be in.
+        this household. The currency it reports is the household's own, which
+        new accounts and the reports use; an account may hold another, and
+        every amount states the one it is in.
 
         Returns:
             The signed in person, their household and its currency.
@@ -46,13 +47,15 @@ def register(mcp: MCPServer) -> None:
         """List the household's accounts with what is currently in each.
 
         Balances are worked out from the ledger every time they are asked for,
-        so they are never stale.
+        so they are never stale. Each account holds its own currency, and the
+        totals are one per currency: amounts in two currencies are never added
+        together.
 
         Args:
             include_archived: Whether archived accounts are listed too.
 
         Returns:
-            The accounts, and what they hold in total.
+            The accounts, and what they hold in total, in each currency.
         """
         token = current_token()
         payload = await hydra().get(
@@ -62,16 +65,14 @@ def register(mcp: MCPServer) -> None:
             params={"include_archived": include_archived},
         )
 
-        # From the household, not from the first account. The total is in the
-        # household currency whatever the accounts are in, so reading it off
-        # an account labels a mixed-currency household by whichever one
-        # happened to come first, and an empty one by a guess.
-        household = await hydra().get("/households/me", token=token, subject="household")
-        currency = household["currency_code"]
-
         return {
             "accounts": [_account(account) for account in payload["data"]],
-            "total": money(payload["total_balance_minor"], currency, negative=payload["total_balance_minor"] < 0),
+            # One per currency, as hydra reports them. A household with
+            # accounts in two currencies has no single total to give.
+            "totals": [
+                money(total["amount_minor"], total["currency_code"], negative=total["amount_minor"] < 0)
+                for total in payload["totals"]
+            ],
             "count": payload["count"],
         }
 

@@ -114,13 +114,23 @@ letter from `Groceries` and nowhere near `Food & Drink > Groceries`.
 Hydra stores money as an integer count of minor units, and a transaction is
 always a positive magnitude whose direction lives in its `kind`. Handing that
 to a model unchanged is how a report ends up off by a factor of a hundred, or
-with a sign nobody put there. Three things keep it straight, all in code rather
+with a sign nobody put there. Four things keep it straight, all in code rather
 than only in the instructions:
 
 - **Nothing is named `*_minor` on the way out.** `money.py` renders an amount
   three ways: `amount` is what a person would write, `display` is that with its
   currency and sign, and `amount_minor` is the exact integer for arithmetic.
   Every amount states its currency.
+- **An amount is in the currency of its account.** An account holds its own
+  currency, which need not be the household's, so a transaction, a standing
+  payment or a trade's cash is rendered, and a written amount parsed, with the
+  precision of the account it belongs to. Amounts in two currencies are never
+  added or converted: the account listing and the upcoming payments give one
+  total per currency, and a month's summary counts only the accounts holding
+  its currency and lists the balances of the others apart, outside the net
+  worth. A transfer between two currencies carries both sides: the amount that
+  left, and `amount_received`, what arrived, which the caller has to give
+  because no rate here could work it out.
 - **The sign is applied once, from what the amount means.** A transaction never
   comes back negative; `display` carries the direction. A total is the
   exception and keeps its own sign, because a month that spent more than it

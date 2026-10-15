@@ -20,15 +20,22 @@ result or writing an amount:
 - Every amount comes back three ways. `amount` is the number a person would \
 write, `display` is that with its currency and sign, and `amount_minor` is the \
 exact integer to do arithmetic with. Quote `display`; never re-derive it.
-- Every amount states its currency. Never assume one.
+- Every amount states its currency. Never assume one. An account holds its \
+own currency, which is not always the household's, and a transaction is in \
+the currency of the account it is filed against. Amounts in two currencies \
+are never added together or converted: totals come one per currency, and the \
+reports count only the accounts holding the period's currency, listing the \
+others apart.
 - A single transaction is always a positive `amount`, when read and when \
 written. Which way the money went is carried by its `kind`, and by which tool \
 you call to record it, never by a minus sign. An expense leaves, income \
 arrives, and a transfer moves money between two of the household's own \
-accounts and is not spending at all. Never pass a negative amount; it is \
-refused.
-- Write amounts with the precision the currency has and no more. 10.005 euros \
-is not an amount, and it is refused rather than rounded.
+accounts and is not spending at all. A transfer between accounts in two \
+currencies needs the amount received as well as the amount sent, each in its \
+own account's currency. Never pass a negative amount; it is refused.
+- Write amounts in the currency of the account they belong to, with the \
+precision that currency has and no more. 10.005 euros is not an amount, and \
+it is refused rather than rounded.
 - A total is the exception, and is genuinely signed. `net` and `net_worth` are \
 negative when more went out than came in.
 - A trade follows the same rule. Its quantity is positive and its `side` says \
