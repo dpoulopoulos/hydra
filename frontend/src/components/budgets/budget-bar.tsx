@@ -1,6 +1,6 @@
-import type { BudgetProgressRow } from '@/api'
 import { Money } from '@/components/money'
 import { cn } from '@/lib/utils'
+import type { BudgetFigures } from '@/lib/budgets'
 import { useLocale } from '@/lib/locale-context'
 import { formatPercent } from '@/lib/money'
 
@@ -11,8 +11,18 @@ import { formatPercent } from '@/lib/money'
  * exists to show, so the overspend is drawn past the marker rather than
  * flattened against it.
  */
-export function BudgetBar({ row, currency }: { row: BudgetProgressRow; currency: string }) {
+export function BudgetBar({
+  row,
+  currency,
+  note,
+}: {
+  row: BudgetFigures
+  currency: string
+  /** Said after the name, about what the figure covers. */
+  note?: string
+}) {
   const locale = useLocale()
+  const covers = note ?? (row.covers_subcategories ? 'and everything under it' : null)
   // Leave room to see the overspend, so a 150% bar does not fill the track.
   const scale = Math.max(1, row.progress)
   const spentWidth = (Math.min(row.progress, scale) / scale) * 100
@@ -25,9 +35,9 @@ export function BudgetBar({ row, currency }: { row: BudgetProgressRow; currency:
           {row.category_name}
           {/* Dropped on a narrow screen: the row has no width to spare, and
               the rollup is already visible in the figure. */}
-          {row.covers_subcategories ? (
+          {covers ? (
             <span className="text-muted-foreground ml-2 hidden text-xs font-normal sm:inline">
-              and everything under it
+              {covers}
             </span>
           ) : null}
         </span>

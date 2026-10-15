@@ -1,9 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, MoreHorizontal, Pencil, Plus, Target, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-import { budgetsDeleteBudget, reportsBudgetProgress, type BudgetProgressRow } from '@/api'
+import {
+  budgetsDeleteBudget,
+  CategoryKind,
+  reportsBudgetProgress,
+  type BudgetProgressRow,
+} from '@/api'
 import { BudgetBar } from '@/components/budgets/budget-bar'
 import { BudgetEditor } from '@/components/budgets/budget-editor'
 import { CopyMonthDialog } from '@/components/budgets/copy-month-dialog'
@@ -30,8 +35,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { useCategoryTree } from '@/hooks/use-categories'
 import { useCurrency } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
+import { groupBudgetRows } from '@/lib/budgets'
 import { currentMonth } from '@/lib/month'
 
 export function Component() {
@@ -51,6 +58,13 @@ export function Component() {
       return data
     },
   })
+  // Archived parents included, so a subcategory budgeted under one is still
+  // gathered under it.
+  const tree = useCategoryTree({ includeArchived: true, kind: CategoryKind.EXPENSE })
+  const groups = useMemo(
+    () => groupBudgetRows(progress.data?.rows ?? [], tree.data?.data ?? []),
+    [progress.data, tree.data],
+  )
 
   const remove = useMutation({
     mutationFn: async (row: BudgetProgressRow) => {
@@ -151,35 +165,44 @@ export function Component() {
               <CardDescription>Most of the limit used, first.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              {progress.data.rows.map((row) => (
-                <div key={row.budget_id} className="flex items-start gap-2">
-                  <div className="flex-1">
-                    <BudgetBar row={row} currency={currency} />
+              {groups.map((group) =>
+                group.kind === 'row' ? (
+                  <BudgetRow
+                    key={group.row.budget_id}
+                    row={group.row}
+                    currency={currency}
+                    onChange={(row) => setSingle({ row })}
+                    onRemove={setRemoving}
+                  />
+                ) : (
+                  <div key={group.categoryId} className="space-y-4">
+                    {/* No menu: the parent has no limit of its own to change,
+                        only its subcategories' limits added up. The spacer
+                        keeps its bar as wide as theirs. */}
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <BudgetBar
+                          row={group.total}
+                          currency={currency}
+                          note="its subcategories added up"
+                        />
+                      </div>
+                      <div aria-hidden className="size-8 shrink-0" />
+                    </div>
+                    <div className="border-muted space-y-4 border-l-2 pl-4">
+                      {group.rows.map((row) => (
+                        <BudgetRow
+                          key={row.budget_id}
+                          row={row}
+                          currency={currency}
+                          onChange={(row) => setSingle({ row })}
+                          onRemove={setRemoving}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Manage the limit for ${row.category_name}`}
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setSingle({ row })}>
-                        <Pencil className="size-4" />
-                        Change the limit
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onClick={() => setRemoving(row)}>
-                        <Trash2 className="size-4" />
-                        Stop budgeting it
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))}
+                ),
+              )}
             </CardContent>
           </Card>
 
@@ -221,5 +244,48 @@ export function Component() {
         onConfirm={() => removing && remove.mutate(removing)}
       />
     </>
+  )
+}
+
+/** One budget's bar, with the menu to change or remove its limit. */
+function BudgetRow({
+  row,
+  currency,
+  onChange,
+  onRemove,
+}: {
+  row: BudgetProgressRow
+  currency: string
+  onChange: (row: BudgetProgressRow) => void
+  onRemove: (row: BudgetProgressRow) => void
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <div className="flex-1">
+        <BudgetBar row={row} currency={currency} />
+      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Manage the limit for ${row.category_name}`}
+          >
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => onChange(row)}>
+            <Pencil className="size-4" />
+            Change the limit
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={() => onRemove(row)}>
+            <Trash2 className="size-4" />
+            Stop budgeting it
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   )
 }
