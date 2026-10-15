@@ -527,3 +527,74 @@ class TestWhenTheTokenMayNotWrite:
                 "record_expense",
                 {"amount": "42.50", "account": "Current", "occurred_on": "2026-09-11"},
             )
+
+
+class TestAddToInbox:
+    """Tests for putting the lines of a statement in the inbox."""
+
+    LINE = {"direction": "out", "amount": "3.50", "occurred_on": "2026-10-02", "counterparty": "Coffee Island"}
+
+    async def test_sends_the_lines_to_the_account(self, server: Any, authenticated: None) -> None:
+        handler, seen = writing({"received": 2, "added": 2})
+
+        await server(handler).call_tool(
+            "add_to_inbox",
+            {
+                "account": "Current",
+                "lines": [self.LINE, {**self.LINE, "direction": "in", "amount": "100", "reference": "TR-1"}],
+            },
+        )
+
+        request = sent(seen)
+        assert request.url.path.endswith("/bank/inbox")
+        body = written(seen)
+        assert body["account_id"] == ACCOUNT_ID
+        assert [(e["direction"], e["amount_minor"], e["reference"]) for e in body["entries"]] == [
+            ("debit", 350, None),
+            ("credit", 10_000, "TR-1"),
+        ]
+        assert body["entries"][0]["counterparty_name"] == "Coffee Island"
+
+    async def test_reads_the_amounts_in_the_currency_of_the_account(self, server: Any, authenticated: None) -> None:
+        yen = {
+            **MIXED_ACCOUNTS,
+            "data": [*MIXED_ACCOUNTS["data"][:2], {**MIXED_ACCOUNTS["data"][2], "currency_code": "JPY"}],
+        }
+        handler, seen = writing({"received": 1, "added": 1}, accounts=yen)
+
+        await server(handler).call_tool(
+            "add_to_inbox", {"account": "Dollars", "lines": [{**self.LINE, "amount": "1200"}]}
+        )
+
+        body = written(seen)
+        assert body["account_id"] == DOLLAR_ACCOUNT_ID
+        assert body["entries"][0]["amount_minor"] == 1_200
+
+    async def test_says_what_was_already_there(self, server: Any, authenticated: None) -> None:
+        handler, _ = writing({"received": 3, "added": 1})
+
+        answer = result_of(
+            await server(handler).call_tool("add_to_inbox", {"account": "Current", "lines": [self.LINE] * 3})
+        )
+
+        assert answer == {"account": "Current", "sent": 3, "added": 1, "already_in_inbox": 2}
+
+    async def test_refuses_a_negative_amount_without_asking_hydra(self, server: Any, authenticated: None) -> None:
+        handler, seen = writing({"received": 1, "added": 1})
+
+        with pytest.raises(ToolError, match="always positive"):
+            await server(handler).call_tool(
+                "add_to_inbox", {"account": "Current", "lines": [{**self.LINE, "amount": "-3.50"}]}
+            )
+
+        assert all(request.method == "GET" for request in seen)
+
+    async def test_refuses_a_direction_that_is_not_in_or_out(self, server: Any, authenticated: None) -> None:
+        handler, seen = writing({"received": 1, "added": 1})
+
+        with pytest.raises(ToolError, match="'in' or 'out'"):
+            await server(handler).call_tool(
+                "add_to_inbox", {"account": "Current", "lines": [{**self.LINE, "direction": "debit"}]}
+            )
+
+        assert all(request.method == "GET" for request in seen)

@@ -43,6 +43,12 @@ which way the units moved. Give `record_trade` the total from the broker's \
 statement and let it work out the price; check `list_trades` first, because a \
 trade recorded twice doubles the holding.
 
+A statement can go two ways. The record tools put each line straight in the \
+ledger. `add_to_inbox` puts the lines in the inbox of the web app instead, \
+where a person accepts or skips each one; nothing reaches the ledger until \
+they do. Use the inbox when the person wants to check the lines themselves, \
+and ask if it is not clear which they want.
+
 Clients are the people seen by the session, and each session is a separate \
 fact about what happened (scheduled, attended, missed, cancelled) and whether \
 it was paid (pending, paid, waived). Only a paid session is income; an \

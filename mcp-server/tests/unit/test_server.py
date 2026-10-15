@@ -34,6 +34,7 @@ WRITES = {
     "record_transfer",
     "update_transaction",
     "delete_transaction",
+    "add_to_inbox",
     "set_budget",
     "create_goal",
     "update_goal",
