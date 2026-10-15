@@ -646,3 +646,32 @@ describe('the advanced section', () => {
     expect(isOpen()).toBe('false')
   })
 })
+
+describe('a recurring transfer', () => {
+  const DOLLARS = '33333333-3333-3333-3333-333333333333'
+
+  beforeEach(() => {
+    pickersAreStocked()
+    accountsAre(
+      account(CURRENT, 'Current', 50000),
+      account(SAVINGS, 'Rainy day', 900000),
+      account(DOLLARS, 'Dollars', 0, 'USD'),
+    )
+  })
+
+  it('is refused into an account in another currency', async () => {
+    // What arrives changes with the rate each time, so no amount stays true.
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(await screen.findByLabelText('Name'), 'To dollars')
+    await user.type(screen.getByLabelText('Amount'), '100')
+    await user.click(screen.getByRole('tab', { name: 'Transfer' }))
+    await user.click(await screen.findByRole('combobox', { name: 'To account' }))
+    await user.click(await screen.findByRole('option', { name: 'Dollars' }))
+    await user.click(screen.getByRole('button', { name: 'Add rule' }))
+
+    expect(await screen.findByText(/has to stay in EUR/)).toBeInTheDocument()
+    expect(api.recurringRulesCreateRecurringRule).not.toHaveBeenCalled()
+  })
+})

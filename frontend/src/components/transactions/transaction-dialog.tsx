@@ -60,12 +60,33 @@ function accountLabel(account: AccountPublic) {
  * A function of the currency, because how many minor units a typed amount
  * stands for is a property of the currency the account is kept in, and of the
  * locale, which says which character in "1.200" is the decimal point.
+ *
+ * `receivedCurrency` is the destination's currency when a transfer crosses
+ * into another one, and null otherwise. Only then is what arrived asked for:
+ * between two accounts in one currency it is what left.
  */
-function buildSchema(currency: string, locale: string | undefined) {
+function buildSchema(
+  currency: string,
+  receivedCurrency: string | null,
+  locale: string | undefined,
+) {
+  const receivedAmount = receivedCurrency ? amountSchema(receivedCurrency, { locale }) : null
+
   return z
     .object({
       kind: z.enum(TransactionKind),
       amount: amountSchema(currency, { locale }),
+      received: z.string().transform((value, ctx) => {
+        if (!receivedAmount) return null
+        const result = receivedAmount.safeParse(value)
+        if (!result.success) {
+          for (const issue of result.error.issues) {
+            ctx.addIssue({ code: 'custom', message: issue.message })
+          }
+          return z.NEVER
+        }
+        return result.data
+      }),
       occurred_on: z.string().min(1, 'Pick a date.'),
       account_id: z.string().min(1, 'Choose an account.'),
       counter_account_id: z.string(),
@@ -117,15 +138,33 @@ export function TransactionDialog({
   const currencyOf = useAccountCurrency()
   const locale = useLocale()
 
+  /** The destination's currency, when a transfer arrives in a different one. */
+  function receivedCurrencyOf(
+    kind: TransactionKind,
+    accountId: string,
+    counterAccountId: string,
+  ): string | null {
+    if (kind !== TransactionKind.TRANSFER || !accountId || !counterAccountId) return null
+    const destination = currencyOf(counterAccountId)
+    return destination !== currencyOf(accountId) ? destination : null
+  }
+
   const form = useForm<Values, unknown, Parsed>({
     // The money moves in the account the values name, so that is the currency
     // the typed amount is read in. Reading it here rather than from a schema
     // fixed at mount keeps the parsing with the account the user has chosen.
     resolver: (values, context, options) =>
-      zodResolver(buildSchema(currencyOf(values.account_id), locale))(values, context, options),
+      zodResolver(
+        buildSchema(
+          currencyOf(values.account_id),
+          receivedCurrencyOf(values.kind, values.account_id, values.counter_account_id),
+          locale,
+        ),
+      )(values, context, options),
     defaultValues: {
       kind: TransactionKind.EXPENSE,
       amount: '',
+      received: '',
       occurred_on: today(),
       account_id: '',
       counter_account_id: '',
@@ -162,6 +201,9 @@ export function TransactionDialog({
   // The transaction being edited holds its amount in its own account, which is
   // the one it was recorded against rather than whichever the picker shows.
   const recordedCurrency = currencyOf(transaction?.account_id)
+  const recordedReceivedCurrency = currencyOf(transaction?.counter_account_id)
+  // Asked for only while the two accounts hold different currencies.
+  const receivedCurrency = receivedCurrencyOf(kind, accountId, counterAccountId)
 
   // An expense needs an expense category and income needs an income one, so
   // the picker only offers the matching kind.
@@ -189,6 +231,10 @@ export function TransactionDialog({
       amount: transaction
         ? formatMajorInput(transaction.amount_minor, recordedCurrency, locale)
         : '',
+      received:
+        transaction?.counter_amount_minor != null
+          ? formatMajorInput(transaction.counter_amount_minor, recordedReceivedCurrency, locale)
+          : '',
       occurred_on: transaction?.occurred_on ?? today(),
       account_id: transaction?.account_id ?? '',
       counter_account_id: transaction?.counter_account_id ?? '',
@@ -197,7 +243,7 @@ export function TransactionDialog({
       merchant: transaction?.merchant ?? '',
       note: transaction?.note ?? '',
     })
-  }, [open, transaction, recordedCurrency, locale, form])
+  }, [open, transaction, recordedCurrency, recordedReceivedCurrency, locale, form])
 
   // The accounts can still be on their way when the dialog opens, so the first
   // one is offered as soon as they land. Only the empty picker is filled in:
@@ -220,6 +266,9 @@ export function TransactionDialog({
         account_id: parsed.account_id,
         counter_account_id:
           parsed.kind === TransactionKind.TRANSFER ? parsed.counter_account_id : null,
+        // Null both when there is no transfer and when it stays in one
+        // currency, which clears a figure left from an earlier pair.
+        counter_amount_minor: parsed.received,
         category_id:
           parsed.kind === TransactionKind.TRANSFER || parsed.category_id === NO_CATEGORY
             ? null
@@ -298,6 +347,7 @@ export function TransactionDialog({
               // The category and destination belong to different kinds.
               form.setValue('category_id', NO_CATEGORY)
               form.setValue('counter_account_id', '')
+              form.setValue('received', '')
             }}
           >
             <TabsList className="w-full">
@@ -377,7 +427,22 @@ export function TransactionDialog({
                 </Select>
               )}
             </Field>
-          ) : (
+          ) : null}
+
+          {receivedCurrency ? (
+            <Field
+              id="received"
+              label="Amount received"
+              hint={`What arrived in ${receivedCurrency}, as the bank or exchange reports it.`}
+              error={errors.received?.message}
+            >
+              {(props) => (
+                <MoneyInput {...props} {...form.register('received')} currency={receivedCurrency} />
+              )}
+            </Field>
+          ) : null}
+
+          {isTransfer ? null : (
             <Field
               id="category_id"
               label="Category"

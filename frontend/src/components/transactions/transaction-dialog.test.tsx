@@ -481,6 +481,71 @@ describe('recording a transfer', () => {
   })
 })
 
+describe('a transfer between two currencies', () => {
+  const DOLLARS = '33333333-3333-3333-3333-333333333333'
+
+  beforeEach(() => {
+    pickersAreStocked()
+    accountsAre(
+      account(CURRENT, 'Current', 50000),
+      account(SAVINGS, 'Rainy day', 900000),
+      account(DOLLARS, 'Dollars', 0, 'USD'),
+    )
+  })
+
+  async function transferTo(user: ReturnType<typeof userEvent.setup>, name: string) {
+    await user.type(await screen.findByLabelText('Amount'), '100')
+    await user.click(screen.getByRole('tab', { name: 'Transfer' }))
+    await user.click(await screen.findByRole('combobox', { name: 'To account' }))
+    await user.click(await screen.findByRole('option', { name }))
+  }
+
+  it('asks what arrived, in the destination currency', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await transferTo(user, 'Dollars')
+
+    expect(screen.getByLabelText('Amount received').previousSibling?.textContent).toBe('USD')
+  })
+
+  it('does not ask between two accounts in one currency', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await transferTo(user, 'Rainy day')
+
+    expect(screen.queryByLabelText('Amount received')).not.toBeInTheDocument()
+  })
+
+  it('sends both sides of the exchange', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await transferTo(user, 'Dollars')
+    await user.type(screen.getByLabelText('Amount received'), '108.50')
+    await user.click(screen.getByRole('button', { name: 'Record it' }))
+
+    await waitFor(() => expect(api.transactionsCreateTransaction).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({
+      amount_minor: 10000,
+      counter_account_id: DOLLARS,
+      counter_amount_minor: 10850,
+    })
+  })
+
+  it('refuses to send it without what arrived', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await transferTo(user, 'Dollars')
+    await user.click(screen.getByRole('button', { name: 'Record it' }))
+
+    expect(await screen.findByText('Enter an amount.')).toBeInTheDocument()
+    expect(api.transactionsCreateTransaction).not.toHaveBeenCalled()
+  })
+})
+
 describe('tagging a transfer with a goal', () => {
   beforeEach(pickersAreStocked)
 

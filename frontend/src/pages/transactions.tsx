@@ -35,15 +35,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useAccounts } from '@/hooks/use-accounts'
+import { useAccountCurrency, useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
-import { useCurrency } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
 import { formatDate } from '@/lib/month'
 import { emptyFilters, hasActiveFilters, toQuery, type Filters } from '@/lib/transaction-filters'
 
 export function Component() {
-  const currency = useCurrency()
+  // An amount is in the currency of the account it sits in.
+  const currencyOf = useAccountCurrency()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [page, setPage] = useState(0)
@@ -221,11 +221,24 @@ export function Component() {
                             sign cannot take back. */}
                         <Money
                           minor={isExpense ? -transaction.amount_minor : transaction.amount_minor}
-                          currency={currency}
+                          currency={currencyOf(transaction.account_id)}
                           signed={!isTransfer}
                           colored={!isTransfer}
                           className={isTransfer ? 'text-muted-foreground' : undefined}
                         />
+                        {/* A transfer into another currency arrived as a
+                            different figure, which is the one the destination
+                            account's balance moved by. */}
+                        {transaction.counter_amount_minor != null ? (
+                          <p className="text-muted-foreground text-xs">
+                            →{' '}
+                            <Money
+                              minor={transaction.counter_amount_minor}
+                              currency={currencyOf(transaction.counter_account_id)}
+                              className="font-normal"
+                            />
+                          </p>
+                        ) : null}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

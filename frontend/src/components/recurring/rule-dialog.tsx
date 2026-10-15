@@ -61,8 +61,16 @@ const NEW_RULE = 'new'
  * A function of the currency, because how many minor units a typed amount
  * stands for is a property of the currency the account is kept in, and of the
  * locale, which says which character in "1.200" is the decimal point.
+ *
+ * `currencyOf` reads the currency of the account a transfer goes to, because a
+ * recurring transfer has to stay in one: what arrives in another changes with
+ * the rate every time, so no amount the rule stores would stay true.
  */
-function buildSchema(currency: string, locale: string | undefined) {
+function buildSchema(
+  currency: string,
+  currencyOf: (accountId: string) => string,
+  locale: string | undefined,
+) {
   return z
     .object({
       name: z.string().trim().min(1, 'Name the rule, such as Rent or Netflix.').max(255),
@@ -91,6 +99,12 @@ function buildSchema(currency: string, locale: string | undefined) {
             code: 'custom',
             path: ['counter_account_id'],
             message: 'A transfer needs two different accounts.',
+          })
+        } else if (currencyOf(values.counter_account_id) !== currency) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['counter_account_id'],
+            message: `That account holds ${currencyOf(values.counter_account_id)}. A recurring transfer has to stay in ${currency}, since what arrives changes with the rate.`,
           })
         }
       }
@@ -195,7 +209,11 @@ export function RuleDialog({
     // the typed amount is read in. Reading it here rather than from a schema
     // fixed at mount keeps the parsing with the account the user has chosen.
     resolver: (values, context, options) =>
-      zodResolver(buildSchema(currencyOf(values.account_id), locale))(values, context, options),
+      zodResolver(buildSchema(currencyOf(values.account_id), currencyOf, locale))(
+        values,
+        context,
+        options,
+      ),
     defaultValues: {
       name: '',
       kind: TransactionKind.EXPENSE,

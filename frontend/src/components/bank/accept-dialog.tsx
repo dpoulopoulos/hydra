@@ -14,6 +14,7 @@ import {
 } from '@/api'
 import { Field, FormError } from '@/components/form-field'
 import { Money } from '@/components/money'
+import { MoneyInput } from '@/components/money-input'
 import { SubmitButton } from '@/components/submit-button'
 import { Button } from '@/components/ui/button'
 import {
@@ -34,37 +35,62 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { useAccounts } from '@/hooks/use-accounts'
+import { useAccountCurrency, useAccounts } from '@/hooks/use-accounts'
 import { useCategoryTree } from '@/hooks/use-categories'
 import { useGoals } from '@/hooks/use-goals'
+import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
 import { refill } from '@/lib/form'
+import { useLocale } from '@/lib/locale-context'
 import { formatDate } from '@/lib/month'
 import { optionSource } from '@/lib/option-source'
 
 const NO_CATEGORY = 'none'
 const NO_GOAL = 'none'
 
-const schema = z
-  .object({
-    kind: z.enum(TransactionKind),
-    category_id: z.string(),
-    counter_account_id: z.string(),
-    goal_id: z.string(),
-    merchant: z.string().trim().max(255),
-    note: z.string().trim().max(1024),
-  })
-  .superRefine((values, ctx) => {
-    if (values.kind === TransactionKind.TRANSFER && !values.counter_account_id) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['counter_account_id'],
-        message: 'Choose the other account.',
-      })
-    }
-  })
+/**
+ * The form's rules.
+ *
+ * `otherCurrency` is the other account's currency when a transfer crosses
+ * into a different one, and null otherwise. Only then is the other side's
+ * figure asked for: the bank reports its own side and nothing else.
+ */
+function buildSchema(otherCurrency: string | null, locale: string | undefined) {
+  const otherAmount = otherCurrency ? amountSchema(otherCurrency, { locale }) : null
 
-type Values = z.infer<typeof schema>
+  return z
+    .object({
+      kind: z.enum(TransactionKind),
+      category_id: z.string(),
+      counter_account_id: z.string(),
+      other_amount: z.string().transform((value, ctx) => {
+        if (!otherAmount) return null
+        const result = otherAmount.safeParse(value)
+        if (!result.success) {
+          for (const issue of result.error.issues) {
+            ctx.addIssue({ code: 'custom', message: issue.message })
+          }
+          return z.NEVER
+        }
+        return result.data
+      }),
+      goal_id: z.string(),
+      merchant: z.string().trim().max(255),
+      note: z.string().trim().max(1024),
+    })
+    .superRefine((values, ctx) => {
+      if (values.kind === TransactionKind.TRANSFER && !values.counter_account_id) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['counter_account_id'],
+          message: 'Choose the other account.',
+        })
+      }
+    })
+}
+
+type Values = z.input<ReturnType<typeof buildSchema>>
+type Parsed = z.output<ReturnType<typeof buildSchema>>
 
 /** The two kinds money moving in one direction can be. */
 function kindsFor(direction: BankDirection) {
@@ -86,6 +112,7 @@ function initialValues(row: BankTransactionPublic | null): Values {
       row?.direction === BankDirection.CREDIT ? TransactionKind.INCOME : TransactionKind.EXPENSE,
     category_id: NO_CATEGORY,
     counter_account_id: '',
+    other_amount: '',
     goal_id: NO_GOAL,
     merchant: row?.counterparty_name ?? '',
     note: row?.description ?? '',
@@ -110,13 +137,32 @@ export function AcceptDialog({
   const open = row !== null
   const direction = row?.direction ?? BankDirection.DEBIT
 
-  const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: initialValues(row) })
+  const locale = useLocale()
+  const currencyOf = useAccountCurrency()
+
+  /** The other account's currency, when it differs from the bank's side. */
+  function otherCurrencyOf(kind: TransactionKind, counterAccountId: string): string | null {
+    if (!row || kind !== TransactionKind.TRANSFER || !counterAccountId) return null
+    const other = currencyOf(counterAccountId)
+    return other !== row.currency_code ? other : null
+  }
+
+  const form = useForm<Values, unknown, Parsed>({
+    resolver: (values, context, options) =>
+      zodResolver(buildSchema(otherCurrencyOf(values.kind, values.counter_account_id), locale))(
+        values,
+        context,
+        options,
+      ),
+    defaultValues: initialValues(row),
+  })
   const control = form.control
   const kind = useWatch({ control, name: 'kind' })
   const categoryId = useWatch({ control, name: 'category_id' })
   const counterAccountId = useWatch({ control, name: 'counter_account_id' })
   const goalId = useWatch({ control, name: 'goal_id' })
   const isTransfer = kind === TransactionKind.TRANSFER
+  const otherCurrency = otherCurrencyOf(kind, counterAccountId)
 
   useEffect(() => {
     if (open) refill(form, initialValues(row))
@@ -141,7 +187,7 @@ export function AcceptDialog({
   )
 
   const accept = useMutation({
-    mutationFn: async (values: Values) => {
+    mutationFn: async (values: Parsed) => {
       if (!row) return
       const transfer = values.kind === TransactionKind.TRANSFER
       const { error } = await bankAcceptBankTransaction({
@@ -150,6 +196,7 @@ export function AcceptDialog({
           kind: values.kind,
           category_id: transfer || values.category_id === NO_CATEGORY ? null : values.category_id,
           counter_account_id: transfer ? values.counter_account_id : null,
+          counter_amount_minor: values.other_amount,
           goal_id:
             transfer && goalOptions.some((goal) => goal.id === values.goal_id)
               ? values.goal_id
@@ -209,6 +256,7 @@ export function AcceptDialog({
               form.setValue('kind', value as TransactionKind)
               form.setValue('category_id', NO_CATEGORY)
               form.setValue('counter_account_id', '')
+              form.setValue('other_amount', '')
             }}
           >
             <TabsList className="w-full">
@@ -249,7 +297,30 @@ export function AcceptDialog({
                 </Select>
               )}
             </Field>
-          ) : (
+          ) : null}
+
+          {otherCurrency ? (
+            <Field
+              id="accept-other-amount"
+              label={`Amount in ${otherCurrency}`}
+              hint={
+                direction === BankDirection.DEBIT
+                  ? `What arrived in the other account, in ${otherCurrency}.`
+                  : `What left the other account, in ${otherCurrency}.`
+              }
+              error={errors.other_amount?.message}
+            >
+              {(props) => (
+                <MoneyInput
+                  {...props}
+                  {...form.register('other_amount')}
+                  currency={otherCurrency}
+                />
+              )}
+            </Field>
+          ) : null}
+
+          {isTransfer ? null : (
             <Field id="accept-category" label="Category" error={categorySource.error}>
               {(props) => (
                 <Select

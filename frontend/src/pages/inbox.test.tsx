@@ -176,6 +176,7 @@ describe('accepting a row', () => {
           kind: 'expense',
           category_id: 'cat-food',
           counter_account_id: null,
+          counter_amount_minor: null,
           goal_id: null,
           merchant: 'Coffee Island',
           note: 'CARD 1234',
