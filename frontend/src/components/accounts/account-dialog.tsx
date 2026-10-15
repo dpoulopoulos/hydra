@@ -34,6 +34,7 @@ import {
 import { useCurrency } from '@/hooks/use-household'
 import { amountSchema } from '@/lib/amount'
 import { errorMessage } from '@/lib/api'
+import { currencyOptions } from '@/lib/currencies'
 import { refill } from '@/lib/form'
 import { compactIban, formatIban, isValidIban } from '@/lib/iban'
 import { ACCOUNT_TYPE_LABELS } from '@/lib/labels'
@@ -52,6 +53,7 @@ function buildSchema(currency: string, locale: string | undefined) {
   return z.object({
     name: z.string().trim().min(1, 'Give the account a name.').max(255),
     type: z.enum(AccountType),
+    currency_code: z.string().length(3, 'Pick a currency.'),
     institution: z.string().trim().max(255).optional(),
     iban: z
       .string()
@@ -81,20 +83,19 @@ export function AccountDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const householdCurrency = useCurrency()
-  // The balance belongs to the account, so it is read and checked in the
-  // account's own currency. A new account has none yet: the API opens it in
-  // the household's, which is what the field then asks for.
-  const currency = account?.currency_code ?? householdCurrency
   const locale = useLocale()
-  const schema = useMemo(() => buildSchema(currency, locale), [currency, locale])
   const queryClient = useQueryClient()
   const isEdit = account !== null
 
   const form = useForm<Values, unknown, Parsed>({
-    resolver: zodResolver(schema),
+    // Built per validation rather than once: the opening balance is read in
+    // the currency the form has picked, which changes while it is open.
+    resolver: (values, context, options) =>
+      zodResolver(buildSchema(values.currency_code, locale))(values, context, options),
     defaultValues: {
       name: '',
       type: AccountType.CURRENT,
+      currency_code: householdCurrency,
       institution: '',
       iban: '',
       opening_balance: '0',
@@ -110,21 +111,27 @@ export function AccountDialog({
         ? {
             name: account.name,
             type: account.type,
+            currency_code: account.currency_code,
             institution: account.institution ?? '',
             iban: account.iban ? formatIban(account.iban) : '',
-            opening_balance: formatMajorInput(account.opening_balance_minor, currency, locale),
+            opening_balance: formatMajorInput(
+              account.opening_balance_minor,
+              account.currency_code,
+              locale,
+            ),
             opening_balance_date: account.opening_balance_date,
           }
         : {
             name: '',
             type: AccountType.CURRENT,
+            currency_code: householdCurrency,
             institution: '',
             iban: '',
             opening_balance: '0',
             opening_balance_date: today(),
           },
     )
-  }, [open, account, currency, locale, form])
+  }, [open, account, householdCurrency, locale, form])
 
   // Cash is money in a pocket: it sits at no institution, so it is asked for
   // neither. A credit card sits at one, but what it has is a card number, not
@@ -133,6 +140,13 @@ export function AccountDialog({
   // hands back a function React Compiler will not memoize and skips the whole
   // component over.
   const type = useWatch({ control: form.control, name: 'type' })
+  // The balance belongs to the account, so it is typed in the currency the
+  // account is being given.
+  const currency = useWatch({ control: form.control, name: 'currency_code' })
+  const currencies = useMemo(
+    () => currencyOptions(locale, account?.currency_code),
+    [locale, account?.currency_code],
+  )
   const heldAtBank = type !== AccountType.CASH
   const hasIban = heldAtBank && type !== AccountType.CREDIT_CARD
 
@@ -146,6 +160,12 @@ export function AccountDialog({
           body: {
             name: parsed.name,
             type: parsed.type,
+            // Sent only when it changed: the API refuses any change while
+            // something is filed against the account, and an unchanged field
+            // must not trip that.
+            ...(parsed.currency_code !== account.currency_code
+              ? { currency_code: parsed.currency_code }
+              : {}),
             institution: heldAtBank ? parsed.institution || null : null,
             iban: hasIban ? parsed.iban || null : null,
           },
@@ -158,6 +178,7 @@ export function AccountDialog({
         body: {
           name: parsed.name,
           type: parsed.type,
+          currency_code: parsed.currency_code,
           institution: heldAtBank ? parsed.institution || null : null,
           iban: hasIban ? parsed.iban || null : null,
           opening_balance_minor: parsed.opening_balance,
@@ -169,6 +190,7 @@ export function AccountDialog({
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['accounts'] })
       void queryClient.invalidateQueries({ queryKey: ['reports'] })
+      void queryClient.invalidateQueries({ queryKey: ['recurring'] })
       toast.success(isEdit ? 'Account saved' : 'Account added')
       onOpenChange(false)
     },
@@ -230,6 +252,41 @@ export function AccountDialog({
                   {Object.values(AccountType).map((type) => (
                     <SelectItem key={type} value={type}>
                       {ACCOUNT_TYPE_LABELS[type]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+
+          <Field
+            id="currency_code"
+            label="Currency"
+            hint={
+              isEdit
+                ? 'Can change only while nothing is recorded in the account.'
+                : 'Every amount in the account is in this currency.'
+            }
+            error={form.formState.errors.currency_code?.message}
+          >
+            {(props) => (
+              <Select
+                value={currency}
+                onValueChange={(value) => {
+                  form.setValue('currency_code', value)
+                  // The typed balance stays as written; checking it again
+                  // says at once if the new currency has no room for its
+                  // decimals.
+                  if (form.formState.isSubmitted) void form.trigger('opening_balance')
+                }}
+              >
+                <SelectTrigger id={props.id} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((option) => (
+                    <SelectItem key={option.code} value={option.code}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

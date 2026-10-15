@@ -135,3 +135,60 @@ describe('an account with a currency of its own', () => {
     await vi.waitFor(() => expect(vi.mocked(api.accountsUpdateAccount)).toHaveBeenCalled())
   })
 })
+
+describe('the currency picker', () => {
+  it('opens a new account in the currency that was picked', async () => {
+    const user = userEvent.setup()
+    renderDialog(null)
+
+    await user.type(screen.getByLabelText('Name'), 'Dollars')
+    await user.click(screen.getByRole('combobox', { name: 'Currency' }))
+    await user.click(await screen.findByRole('option', { name: /^USD — / }))
+
+    // The balance is typed in the account's currency, not the household's.
+    expect(balanceCurrency()).toBe('USD')
+
+    await user.click(screen.getByRole('button', { name: 'Add account' }))
+
+    await vi.waitFor(() => expect(api.accountsCreateAccount).toHaveBeenCalled())
+    expect(createdBody()).toMatchObject({ name: 'Dollars', currency_code: 'USD' })
+  })
+
+  it('opens on the currency an account already holds', async () => {
+    renderDialog(account('GBP', 0))
+
+    expect(await screen.findByRole('combobox', { name: 'Currency' })).toHaveTextContent('GBP')
+  })
+
+  it('sends a changed currency on an edit', async () => {
+    const user = userEvent.setup()
+    renderDialog(account('EUR', 0))
+
+    await user.click(await screen.findByRole('combobox', { name: 'Currency' }))
+    await user.click(await screen.findByRole('option', { name: /^CHF — / }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await vi.waitFor(() => expect(api.accountsUpdateAccount).toHaveBeenCalled())
+    const call = vi.mocked(api.accountsUpdateAccount).mock.calls.at(-1)
+    expect((call?.[0] as { body: Record<string, unknown> }).body).toMatchObject({
+      currency_code: 'CHF',
+    })
+  })
+
+  it('leaves an unchanged currency out of an edit', async () => {
+    // The API refuses any currency change on an account with history, so an
+    // edit that only renames such an account must not look like one.
+    const user = userEvent.setup()
+    renderDialog(account('EUR', 0))
+
+    await user.clear(await screen.findByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'Everyday')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await vi.waitFor(() => expect(api.accountsUpdateAccount).toHaveBeenCalled())
+    const call = vi.mocked(api.accountsUpdateAccount).mock.calls.at(-1)
+    expect((call?.[0] as { body: Record<string, unknown> }).body).not.toHaveProperty(
+      'currency_code',
+    )
+  })
+})
