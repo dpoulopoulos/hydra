@@ -9,6 +9,7 @@ from app.exceptions import (
     AccountNotFoundError,
     InvalidRecurrenceError,
     RecurringRuleNotFoundError,
+    TransferShapeError,
 )
 from app.models import (
     RULE_OCCURRENCE_INDEX,
@@ -100,17 +101,28 @@ class RecurringRuleService:
             AccountArchivedError: If an account is archived.
             CategoryNotFoundError: If the category does not exist in the household.
             SameAccountTransferError: If a transfer rule names the same account twice.
-            TransferShapeError: If the rule does not match its kind.
+            TransferShapeError: If the rule does not match its kind, or is a
+                transfer between two currencies.
             TransactionCategoryKindError: If the category is the wrong kind.
             InvalidRecurrenceError: If the schedule would never come due.
         """
-        self.reference_resolver.resolve(
+        account, counter_account = self.reference_resolver.resolve(
             household=household,
             kind=rule_create.kind,
             account_id=rule_create.account_id,
             counter_account_id=rule_create.counter_account_id,
             category_id=rule_create.category_id,
         )
+
+        # What arrives in another currency changes with the rate every time,
+        # so no amount the rule could store would stay true.
+        if counter_account is not None and counter_account.currency_code != account.currency_code:
+            raise TransferShapeError(
+                f"{account.name} holds {account.currency_code} and {counter_account.name} holds "
+                f"{counter_account.currency_code}. A recurring transfer has to stay in one currency, "
+                "since what arrives changes with the rate each time. Record each one as it happens instead."
+            ) from None
+
         self._validate_schedule(start_date=rule_create.start_date, end_date=rule_create.end_date)
 
         cursor = first_occurrence(

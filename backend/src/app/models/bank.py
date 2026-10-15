@@ -363,6 +363,9 @@ class BankTransactionAccept(SQLModel):
     # For a transfer: the other account. Money out of the bank account goes to
     # it; money in comes from it.
     counter_account_id: uuid.UUID | None = None
+    # For a transfer to or from an account in another currency: what moved on
+    # that account's side, in its currency. The bank's side is the bank's.
+    counter_amount_minor: int | None = Field(default=None, gt=0, le=MAX_AMOUNT_MINOR)
     goal_id: uuid.UUID | None = None
     # What the ledger row is called. Defaults to the counterparty.
     merchant: str | None = Field(default=None, max_length=255)

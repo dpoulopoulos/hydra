@@ -8,6 +8,20 @@ from app.models import BankReviewStatus, BankTransaction, Category, Transaction,
 from app.repositories.base import HouseholdScopedRepository
 
 
+def arrived_minor() -> Any:
+    """Build the expression for what a transfer added to its destination.
+
+    The same number that left the source, unless the two accounts hold
+    different currencies and the transfer says what arrived. Every query that
+    credits the destination of a transfer goes through this, so none of them
+    can add euros that left to a dollar balance.
+
+    Returns:
+        The amount that arrived, in minor units of the destination's currency.
+    """
+    return func.coalesce(col(Transaction.counter_amount_minor), col(Transaction.amount_minor))
+
+
 class TransactionRepository(HouseholdScopedRepository[Transaction]):
     """Repository for Transaction database operations."""
 

@@ -8,6 +8,7 @@ from sqlmodel.sql.expression import SelectOfScalar
 
 from app.models import Account, AccountType, Trade, TradeSide, Transaction, TransactionKind
 from app.repositories.base import HouseholdScopedRepository
+from app.repositories.transaction import arrived_minor
 
 
 class AccountRepository(HouseholdScopedRepository[Account]):
@@ -192,8 +193,10 @@ class AccountRepository(HouseholdScopedRepository[Account]):
         Amounts are stored as positive magnitudes, so the sign is applied here:
         income adds to the account, an expense or an outgoing transfer subtracts
         from it. A transfer is a single row, so the destination account is
-        picked up by a second leg over counter_account_id, and the two legs
-        cancel out across the household exactly as they should.
+        picked up by a second leg over counter_account_id. That leg adds what
+        arrived, which is what left unless the two accounts hold different
+        currencies, and so in one currency the two legs cancel out across the
+        household exactly as they should.
 
         A brokerage account has a third leg: its own trades. Buying takes cash
         out of it and selling puts cash in, exactly as a broker's statement
@@ -219,7 +222,7 @@ class AccountRepository(HouseholdScopedRepository[Account]):
         ).where(Transaction.household_id == household_id, col(Transaction.account_id).in_(account_ids))
         incoming: Any = select(
             col(Transaction.counter_account_id).label("account_id"),
-            col(Transaction.amount_minor).label("delta"),
+            arrived_minor().label("delta"),
         ).where(
             Transaction.household_id == household_id,
             col(Transaction.counter_account_id).in_(account_ids),

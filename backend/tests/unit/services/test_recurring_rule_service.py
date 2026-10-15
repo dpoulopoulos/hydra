@@ -366,6 +366,30 @@ class TestCreateRule:
                 ),
             )
 
+    def test_rejects_a_transfer_rule_between_two_currencies(
+        self, mock_recurring_rule_service: RecurringRuleService, household_context: HouseholdContext
+    ) -> None:
+        """What arrives changes with the rate, so no amount the rule stores stays true."""
+        account = make_account()
+        dollars = make_account(name="Dollars")
+        dollars.currency_code = "USD"
+        mock_recurring_rule_service.session.exec = MagicMock()
+        mock_recurring_rule_service.session.exec.return_value.first.side_effect = [account, dollars]
+
+        with pytest.raises(TransferShapeError, match="has to stay in one currency"):
+            mock_recurring_rule_service.create_rule(
+                household=household_context,
+                rule_create=RecurringRuleCreate(
+                    name="To dollars",
+                    kind=TransactionKind.TRANSFER,
+                    start_date=date(2026, 1, 1),
+                    amount_minor=20_000,
+                    account_id=account.id,
+                    counter_account_id=dollars.id,
+                ),
+            )
+        mock_recurring_rule_service.session.commit.assert_not_called()
+
 
 class TestMaterializeDue:
     """Tests for materialize_due."""

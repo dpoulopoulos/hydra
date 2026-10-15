@@ -183,6 +183,61 @@ class TestAccept:
         create = service.transaction_service.record_transaction.call_args.kwargs["transaction_create"]
         assert (create.account_id, create.counter_account_id) == (OTHER_ACCOUNT, LINKED_ACCOUNT)
 
+    def holding(self, service: BankInboxService, linked: str, other: str) -> None:
+        """Make the linked account hold one currency and the other account another."""
+        currencies = {LINKED_ACCOUNT: linked, OTHER_ACCOUNT: other}
+        service.transaction_service.reference_resolver.resolve_account.side_effect = (
+            lambda household, account_id, require_open: MagicMock(
+                currency_code=currencies[account_id], name=f"Account {currencies[account_id]}"
+            )
+        )
+
+    @pytest.mark.parametrize(
+        ("direction", "amounts"),
+        [(BankDirection.DEBIT, (12_50, 13_60)), (BankDirection.CREDIT, (13_60, 12_50))],
+        ids=["out", "in"],
+    )
+    def test_a_transfer_to_another_currency_records_both_sides(
+        self,
+        service: BankInboxService,
+        household_context: HouseholdContext,
+        direction: BankDirection,
+        amounts: tuple[int, int],
+    ) -> None:
+        """What left is in the source's currency and what arrived in the destination's, whichever side the bank is."""
+        bank_account = make_bank_account()
+        row = make_row(bank_account, direction)
+        program(service, row, bank_account)
+        self.holding(service, linked="EUR", other="USD")
+
+        service.accept(
+            household_context,
+            row.id,
+            BankTransactionAccept(
+                kind=TransactionKind.TRANSFER, counter_account_id=OTHER_ACCOUNT, counter_amount_minor=13_60
+            ),
+        )
+
+        create = service.transaction_service.record_transaction.call_args.kwargs["transaction_create"]
+        assert (create.amount_minor, create.counter_amount_minor) == amounts
+
+    def test_a_transfer_to_another_currency_asks_how_much_moved_there(
+        self, service: BankInboxService, household_context: HouseholdContext
+    ) -> None:
+        bank_account = make_bank_account()
+        row = make_row(bank_account, BankDirection.CREDIT)
+        program(service, row, bank_account)
+        self.holding(service, linked="EUR", other="USD")
+
+        with pytest.raises(BankTransactionKindError, match="Say how much the transfer was in USD"):
+            service.accept(
+                household_context,
+                row.id,
+                BankTransactionAccept(kind=TransactionKind.TRANSFER, counter_account_id=OTHER_ACCOUNT),
+            )
+
+        service.transaction_service.record_transaction.assert_not_called()
+
     def test_a_transfer_needs_the_other_account(
         self, service: BankInboxService, household_context: HouseholdContext
     ) -> None:

@@ -66,7 +66,8 @@ class TransactionService:
             AccountArchivedError: If an account is archived.
             CategoryNotFoundError: If the category does not exist in the household.
             SameAccountTransferError: If a transfer names the same account twice.
-            TransferShapeError: If the transaction does not match its kind.
+            TransferShapeError: If the transaction does not match its kind, or a
+                transfer between two currencies does not say what arrived.
             TransactionCategoryKindError: If the category is the wrong kind.
             GoalNotFoundError: If the goal does not exist in the household.
             GoalTransferMismatchError: If the transaction cannot carry the goal.
@@ -108,12 +109,18 @@ class TransactionService:
             GoalNotFoundError: If the goal does not exist in the household.
             GoalTransferMismatchError: If the transaction cannot carry the goal.
         """
-        self.reference_resolver.resolve(
+        account, counter_account = self.reference_resolver.resolve(
             household=household,
             kind=transaction_create.kind,
             account_id=transaction_create.account_id,
             counter_account_id=transaction_create.counter_account_id,
             category_id=transaction_create.category_id,
+        )
+        counter_amount_minor = self.reference_resolver.settle_counter_amount(
+            account=account,
+            counter_account=counter_account,
+            amount_minor=transaction_create.amount_minor,
+            counter_amount_minor=transaction_create.counter_amount_minor,
         )
 
         if transaction_create.goal_id is not None:
@@ -129,6 +136,7 @@ class TransactionService:
             transaction_create,
             update={
                 "household_id": household.household_id,
+                "counter_amount_minor": counter_amount_minor,
                 "created_by_user_id": household.user_id,
                 "external_id": external_id,
                 "import_batch_id": import_batch_id,
@@ -242,7 +250,8 @@ class TransactionService:
             AccountArchivedError: If an account the edit moves the row onto is archived.
             CategoryNotFoundError: If the category does not exist in the household.
             SameAccountTransferError: If a transfer names the same account twice.
-            TransferShapeError: If the change does not match the kind.
+            TransferShapeError: If the change does not match the kind, or a
+                transfer between two currencies does not say what arrived.
             TransactionCategoryKindError: If the category is the wrong kind.
             GoalNotFoundError: If the goal does not exist in the household.
             GoalTransferMismatchError: If the transaction cannot carry the goal.
@@ -273,17 +282,33 @@ class TransactionService:
         if kind is not TransactionKind.TRANSFER and "goal_id" not in fields:
             goal_id = None
 
+        # What arrived belongs to the pair of accounts it was given for. Moving
+        # either end, or turning the transfer into something else, drops it
+        # unless the same request says it again, and the check below asks for
+        # it if the new pair still needs one.
+        counter_amount_minor = fields.get("counter_amount_minor", transaction.counter_amount_minor)
+        moved = account_id != transaction.account_id or counter_account_id != transaction.counter_account_id
+
+        if "counter_amount_minor" not in fields and (moved or kind is not TransactionKind.TRANSFER):
+            counter_amount_minor = None
+
         # An account the row already draws on is looked up, but not held to
         # being open: an edit that leaves the row where it is adds nothing to
         # that account, so archiving an account must not freeze the history it
         # already holds. Only an account the edit moves the row onto is gated.
-        self.reference_resolver.resolve(
+        account, counter_account = self.reference_resolver.resolve(
             household=household,
             kind=kind,
             account_id=account_id,
             counter_account_id=counter_account_id,
             category_id=category_id,
             settled_account_ids=self._accounts_already_used(transaction),
+        )
+        counter_amount_minor = self.reference_resolver.settle_counter_amount(
+            account=account,
+            counter_account=counter_account,
+            amount_minor=fields.get("amount_minor", transaction.amount_minor),
+            counter_amount_minor=counter_amount_minor,
         )
 
         if goal_id is not None:
@@ -301,6 +326,7 @@ class TransactionService:
                 "kind": kind,
                 "account_id": account_id,
                 "counter_account_id": counter_account_id,
+                "counter_amount_minor": counter_amount_minor,
                 "category_id": category_id,
                 "goal_id": goal_id,
             }

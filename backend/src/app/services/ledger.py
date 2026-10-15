@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal, overload
 
 from app.exceptions import (
     AccountArchivedError,
@@ -51,6 +52,30 @@ class LedgerReferenceResolver:
         self.account_repository = account_repository
         self.category_repository = category_repository
 
+    @overload
+    def resolve(
+        self,
+        household: HouseholdContext,
+        kind: TransactionKind,
+        account_id: uuid.UUID,
+        counter_account_id: uuid.UUID | None,
+        category_id: uuid.UUID | None,
+        check_accounts: Literal[True] = True,
+        settled_account_ids: frozenset[uuid.UUID] = frozenset(),
+    ) -> tuple[Account, Account | None]: ...
+
+    @overload
+    def resolve(
+        self,
+        household: HouseholdContext,
+        kind: TransactionKind,
+        account_id: uuid.UUID,
+        counter_account_id: uuid.UUID | None,
+        category_id: uuid.UUID | None,
+        check_accounts: Literal[False],
+        settled_account_ids: frozenset[uuid.UUID] = frozenset(),
+    ) -> tuple[None, None]: ...
+
     def resolve(
         self,
         household: HouseholdContext,
@@ -60,7 +85,7 @@ class LedgerReferenceResolver:
         category_id: uuid.UUID | None,
         check_accounts: bool = True,
         settled_account_ids: frozenset[uuid.UUID] = frozenset(),
-    ) -> None:
+    ) -> tuple[Account | None, Account | None]:
         """Check every reference of an entry, as it will stand once written.
 
         The whole tuple is passed rather than only the fields that changed:
@@ -84,6 +109,11 @@ class LedgerReferenceResolver:
                 so archiving an account must not freeze the history it already
                 holds. Only an account the edit moves the entry onto is gated.
 
+        Returns:
+            The account and the destination account, as looked up. Both are
+            None when `check_accounts` is off, and the destination is None
+            for anything but a transfer.
+
         Raises:
             AccountNotFoundError: If an account does not exist in the household.
             AccountArchivedError: If an archived account has to be open.
@@ -98,15 +128,17 @@ class LedgerReferenceResolver:
             category_id=category_id,
         )
 
+        account = counter_account = None
+
         if check_accounts:
-            self.resolve_account(
+            account = self.resolve_account(
                 household=household,
                 account_id=account_id,
                 require_open=account_id not in settled_account_ids,
             )
 
             if counter_account_id is not None:
-                self.resolve_account(
+                counter_account = self.resolve_account(
                     household=household,
                     account_id=counter_account_id,
                     require_open=counter_account_id not in settled_account_ids,
@@ -120,6 +152,56 @@ class LedgerReferenceResolver:
 
         if category_id is not None:
             self.resolve_category(household=household, category_id=category_id, kind=kind)
+
+        return account, counter_account
+
+    def settle_counter_amount(
+        self,
+        account: Account,
+        counter_account: Account | None,
+        amount_minor: int,
+        counter_amount_minor: int | None,
+    ) -> int | None:
+        """Decide what a transfer records as having arrived.
+
+        Between two accounts in one currency what arrived is what left, so
+        nothing more is stored. Between two currencies it is whatever the bank
+        or the exchange gave, which no rate here can work out, so it has to be
+        said.
+
+        Args:
+            account: The account the money left.
+            counter_account: The account it went to, for a transfer.
+            amount_minor: What left, in the source account's currency.
+            counter_amount_minor: What arrived, in the destination's, if given.
+
+        Returns:
+            What to store as having arrived: None unless the currencies differ.
+
+        Raises:
+            TransferShapeError: If an amount received is given where it cannot
+                apply, or left out where the currencies differ.
+        """
+        if counter_account is None:
+            if counter_amount_minor is not None:
+                raise TransferShapeError("Only a transfer has an amount received.") from None
+            return None
+
+        if account.currency_code == counter_account.currency_code:
+            if counter_amount_minor is not None and counter_amount_minor != amount_minor:
+                raise TransferShapeError(
+                    f"Both accounts hold {account.currency_code}, so what arrived is what left. "
+                    "Leave the amount received out."
+                ) from None
+            return None
+
+        if counter_amount_minor is None:
+            raise TransferShapeError(
+                f"{account.name} holds {account.currency_code} and {counter_account.name} holds "
+                f"{counter_account.currency_code}. Say how much arrived in {counter_account.currency_code}."
+            ) from None
+
+        return counter_amount_minor
 
     def check_shape(
         self,

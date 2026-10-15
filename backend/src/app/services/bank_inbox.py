@@ -112,7 +112,8 @@ class BankInboxService:
             BankTransactionNotFoundError: If the row does not exist in the household.
             BankTransactionReviewedError: If the row is not waiting in the inbox.
             BankAccountMappingError: If its bank account no longer feeds an account.
-            BankTransactionKindError: If the row cannot be recorded as that kind.
+            BankTransactionKindError: If the row cannot be recorded as that kind, or a
+                transfer to or from another currency does not say how much moved there.
         """
         row, bank_account = self._require_pending(household, bank_transaction_id)
         if bank_account.account_id is None:
@@ -125,20 +126,29 @@ class BankInboxService:
 
         account_id = bank_account.account_id
         counter_account_id = None
+        amount_minor = row.amount_minor
+        counter_amount_minor = None
         if accept.kind == TransactionKind.TRANSFER:
             # The bank account is the side the money left from, or arrived at.
             if accept.counter_account_id is None:
                 raise BankTransactionKindError("A transfer needs the other account.") from None
+            other_amount_minor = self._other_side(
+                household, bank_account.account_id, accept.counter_account_id, accept.counter_amount_minor
+            )
             if row.direction == BankDirection.DEBIT:
                 counter_account_id = accept.counter_account_id
+                counter_amount_minor = other_amount_minor
             else:
                 account_id, counter_account_id = accept.counter_account_id, bank_account.account_id
+                if other_amount_minor is not None:
+                    amount_minor, counter_amount_minor = other_amount_minor, row.amount_minor
 
         transaction = self.transaction_service.record_transaction(
             household=household,
             transaction_create=TransactionCreate(
                 kind=accept.kind,
-                amount_minor=row.amount_minor,
+                amount_minor=amount_minor,
+                counter_amount_minor=counter_amount_minor,
                 occurred_on=row.occurred_on,
                 merchant=accept.merchant or row.counterparty_name or _first_words(row.description, 255),
                 note=accept.note if accept.note is not None else row.description,
@@ -156,6 +166,46 @@ class BankInboxService:
         self._mark_reviewed(row, household)
         self.session.commit()
         return to_public(row, bank_account)
+
+    def _other_side(
+        self,
+        household: HouseholdContext,
+        account_id: uuid.UUID,
+        counter_account_id: uuid.UUID,
+        counter_amount_minor: int | None,
+    ) -> int | None:
+        """Work out what a transfer moved on the account the bank does not report on.
+
+        Only an account in another currency has a figure of its own there; in
+        the same currency it is the bank's figure again, and nothing is kept.
+
+        Args:
+            household: The household context.
+            account_id: The account the bank feeds.
+            counter_account_id: The other account.
+            counter_amount_minor: What the caller said moved there, if anything.
+
+        Returns:
+            The other account's figure, or None when it holds the same currency.
+
+        Raises:
+            AccountNotFoundError: If either account does not exist in the household.
+            BankTransactionKindError: If the other account holds another currency
+                and no figure was given for it.
+        """
+        resolver = self.transaction_service.reference_resolver
+        account = resolver.resolve_account(household=household, account_id=account_id, require_open=False)
+        other = resolver.resolve_account(household=household, account_id=counter_account_id, require_open=False)
+
+        if other.currency_code == account.currency_code:
+            return None
+
+        if counter_amount_minor is None:
+            raise BankTransactionKindError(
+                f"{other.name} holds {other.currency_code}. Say how much the transfer was in {other.currency_code}."
+            ) from None
+
+        return counter_amount_minor
 
     def skip(self, household: HouseholdContext, bank_transaction_id: uuid.UUID) -> BankTransactionPublic:
         """Leave an inbox row out of the ledger.

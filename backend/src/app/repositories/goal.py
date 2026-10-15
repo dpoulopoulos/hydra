@@ -8,6 +8,7 @@ from sqlmodel import Session, col, func, select
 
 from app.models import Account, Goal, Transaction
 from app.repositories.base import HouseholdScopedRepository
+from app.repositories.transaction import arrived_minor
 
 
 class GoalRepository(HouseholdScopedRepository[Goal]):
@@ -184,7 +185,7 @@ class GoalRepository(HouseholdScopedRepository[Goal]):
             select(
                 col(Goal.id),
                 month,
-                func.sum(case((into, col(Transaction.amount_minor)), else_=0)),
+                func.sum(case((into, arrived_minor()), else_=0)),
                 func.sum(case((into, 0), else_=col(Transaction.amount_minor))),
             )
             .join(Goal, col(Transaction.goal_id) == col(Goal.id))
@@ -252,13 +253,15 @@ class GoalRepository(HouseholdScopedRepository[Goal]):
         """Build the expression for a tagged transfer's effect on its goal.
 
         A transfer into the goal's account adds to the goal and one out of it
-        takes away. Needs Goal joined on the transaction's goal_id.
+        takes away, each in the goal account's own currency: what arrived on
+        the way in, what left on the way out. Needs Goal joined on the
+        transaction's goal_id.
 
         Returns:
             The signed amount, in minor units.
         """
         return case(
-            (col(Transaction.counter_account_id) == col(Goal.account_id), col(Transaction.amount_minor)),
+            (col(Transaction.counter_account_id) == col(Goal.account_id), arrived_minor()),
             else_=-col(Transaction.amount_minor),
         )
 

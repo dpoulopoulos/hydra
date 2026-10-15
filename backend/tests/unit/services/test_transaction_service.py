@@ -33,13 +33,13 @@ from app.services import TransactionService
 HOUSEHOLD_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
 
-def make_account(name: str = "Current", archived: bool = False) -> Account:
+def make_account(name: str = "Current", archived: bool = False, currency_code: str = "EUR") -> Account:
     """Build an account row for the tests."""
     return Account(
         household_id=HOUSEHOLD_ID,
         name=name,
         type=AccountType.CURRENT,
-        currency_code="EUR",
+        currency_code=currency_code,
         opening_balance_minor=0,
         opening_balance_date=date(2026, 1, 1),
         archived_at=datetime.now(UTC) if archived else None,
@@ -319,6 +319,142 @@ class TestCreateTransaction:
                     category_id=category.id,
                 ),
             )
+
+
+class TestTransferBetweenCurrencies:
+    """Tests for a transfer that leaves in one currency and arrives in another."""
+
+    def record(
+        self,
+        service: TransactionService,
+        household: HouseholdContext,
+        destination_currency: str,
+        counter_amount_minor: int | None,
+    ) -> Transaction:
+        source = make_account("Current")
+        destination = make_account("Dollars", currency_code=destination_currency)
+        service.session.exec = MagicMock()
+        service.session.exec.return_value.first.side_effect = [source, destination]
+
+        return service.record_transaction(
+            household=household,
+            transaction_create=TransactionCreate(
+                kind=TransactionKind.TRANSFER,
+                amount_minor=100_00,
+                counter_amount_minor=counter_amount_minor,
+                occurred_on=date(2026, 3, 5),
+                account_id=source.id,
+                counter_account_id=destination.id,
+            ),
+        )
+
+    def test_records_what_left_and_what_arrived(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        transaction = self.record(mock_transaction_service, household_context, "USD", 108_00)
+
+        assert (transaction.amount_minor, transaction.counter_amount_minor) == (100_00, 108_00)
+
+    def test_asks_what_arrived_when_the_currencies_differ(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        """No rate here is the one the bank gave, so the figure has to be said."""
+        with pytest.raises(TransferShapeError, match="Say how much arrived in USD"):
+            self.record(mock_transaction_service, household_context, "USD", None)
+
+    def test_one_currency_keeps_one_amount(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        """The same figure sent twice is the same transfer, stored once."""
+        transaction = self.record(mock_transaction_service, household_context, "EUR", 100_00)
+
+        assert transaction.counter_amount_minor is None
+
+    def test_one_currency_refuses_a_different_amount_received(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        with pytest.raises(TransferShapeError, match="Both accounts hold EUR"):
+            self.record(mock_transaction_service, household_context, "EUR", 99_00)
+
+    def test_only_a_transfer_has_an_amount_received(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        account = make_account()
+        category = make_category()
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [account, category]
+
+        with pytest.raises(TransferShapeError, match="Only a transfer"):
+            mock_transaction_service.create_transaction(
+                household=household_context,
+                transaction_create=TransactionCreate(
+                    kind=TransactionKind.EXPENSE,
+                    amount_minor=100_00,
+                    counter_amount_minor=108_00,
+                    occurred_on=date(2026, 3, 5),
+                    account_id=account.id,
+                    category_id=category.id,
+                ),
+            )
+
+    def test_moving_the_destination_asks_again(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        """What arrived in dollars says nothing about what arrived in pounds."""
+        source = make_account("Current")
+        pounds = make_account("Pounds", currency_code="GBP")
+        transaction = make_transaction(
+            kind=TransactionKind.TRANSFER, account_id=source.id, counter_account_id=uuid.uuid4()
+        )
+        transaction.counter_amount_minor = 108_00
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [transaction, source, pounds]
+
+        with pytest.raises(TransferShapeError, match="Say how much arrived in GBP"):
+            mock_transaction_service.update_transaction(
+                household=household_context,
+                transaction_id=transaction.id,
+                transaction_update=TransactionUpdate(counter_account_id=pounds.id),
+            )
+
+    def test_correcting_what_left_keeps_what_arrived(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        source = make_account("Current")
+        dollars = make_account("Dollars", currency_code="USD")
+        transaction = make_transaction(
+            kind=TransactionKind.TRANSFER, amount_minor=100_00, account_id=source.id, counter_account_id=dollars.id
+        )
+        transaction.counter_amount_minor = 108_00
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [transaction, source, dollars]
+
+        result = mock_transaction_service.update_transaction(
+            household=household_context,
+            transaction_id=transaction.id,
+            transaction_update=TransactionUpdate(amount_minor=101_00),
+        )
+
+        assert (result.amount_minor, result.counter_amount_minor) == (101_00, 108_00)
+
+    def test_turning_it_into_an_expense_drops_what_arrived(
+        self, mock_transaction_service: TransactionService, household_context: HouseholdContext
+    ) -> None:
+        source = make_account("Current")
+        transaction = make_transaction(
+            kind=TransactionKind.TRANSFER, account_id=source.id, counter_account_id=uuid.uuid4()
+        )
+        transaction.counter_amount_minor = 108_00
+        mock_transaction_service.session.exec = MagicMock()
+        mock_transaction_service.session.exec.return_value.first.side_effect = [transaction, source]
+
+        result = mock_transaction_service.update_transaction(
+            household=household_context,
+            transaction_id=transaction.id,
+            transaction_update=TransactionUpdate(kind=TransactionKind.EXPENSE),
+        )
+
+        assert result.counter_amount_minor is None
 
 
 class TestListTransactions:

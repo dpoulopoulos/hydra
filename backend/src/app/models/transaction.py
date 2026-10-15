@@ -49,6 +49,11 @@ class TransactionCreate(TransactionBase):
     category_id: uuid.UUID | None = None
     # Set only for a transfer, where it is the destination account.
     counter_account_id: uuid.UUID | None = None
+    # Set only for a transfer between accounts in two currencies: what arrived,
+    # in the destination's currency. `amount_minor` is what left, in the
+    # source's. Between accounts in one currency the two are the same number,
+    # so this stays unset.
+    counter_amount_minor: int | None = Field(default=None, gt=0, le=MAX_AMOUNT_MINOR)
     # Set only for a transfer into or out of the savings account a goal lives
     # in, to say which goal the money belongs to.
     goal_id: uuid.UUID | None = None
@@ -63,6 +68,7 @@ class TransactionUpdate(SQLModel):
     account_id: uuid.UUID | None = Field(default=None)
     category_id: uuid.UUID | None = Field(default=None)
     counter_account_id: uuid.UUID | None = Field(default=None)
+    counter_amount_minor: int | None = Field(default=None, gt=0, le=MAX_AMOUNT_MINOR)
     goal_id: uuid.UUID | None = Field(default=None)
 
 
@@ -72,6 +78,7 @@ class TransactionPublic(TransactionBase):
     account_id: uuid.UUID
     category_id: uuid.UUID | None = None
     counter_account_id: uuid.UUID | None = None
+    counter_amount_minor: int | None = None
     goal_id: uuid.UUID | None = None
     recurring_rule_id: uuid.UUID | None = None
     income_session_id: uuid.UUID | None = None
@@ -126,6 +133,15 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
         CheckConstraint(
             "counter_account_id IS NULL OR counter_account_id <> account_id",
             name="ck_transaction_distinct_accounts",
+        ),
+        # Only a transfer has a second side for an amount to arrive on.
+        CheckConstraint(
+            "counter_amount_minor IS NULL OR (kind = 'TRANSFER' AND counter_amount_minor > 0)",
+            name="ck_transaction_counter_amount_transfer_only",
+        ),
+        CheckConstraint(
+            within_cap_sql("counter_amount_minor", MAX_AMOUNT_MINOR, nullable=True),
+            name="ck_transaction_counter_amount_within_cap",
         ),
         # Only a transfer moves money into or out of a goal. Income and spending
         # change what the household has, not what it has put aside for what.
@@ -229,6 +245,7 @@ class Transaction(TransactionBase, PrimaryKeyMixin, CreatedAtMixin, UpdatedAtMix
     # above are what enforce these references.
     account_id: uuid.UUID = Field(nullable=False)
     counter_account_id: uuid.UUID | None = Field(default=None)
+    counter_amount_minor: int | None = Field(default=None, sa_type=BigInteger, nullable=True)
     category_id: uuid.UUID | None = Field(default=None)
     goal_id: uuid.UUID | None = Field(default=None)
     created_by_user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", ondelete="SET NULL")
