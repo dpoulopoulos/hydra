@@ -96,6 +96,11 @@ function DeliveryBadge({ status }: { status?: EmailOutboxStatus | null }) {
 // choice, so the absence of a locale needs a name of its own.
 const NO_LOCALE = 'browser'
 
+// The two answers to whether a recurring rule writes into the ledger. Named,
+// since a select hands its values around as strings.
+const RECORD = 'record'
+const TRACK = 'track'
+
 const renameSchema = z.object({
   name: z.string().trim().min(1, 'Give the household a name.').max(255),
 })
@@ -185,6 +190,28 @@ export function Component() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['household'] })
       toast.success('Number format saved')
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  })
+
+  const setRecordsRecurring = useMutation({
+    mutationFn: async (recordsRecurring: boolean) => {
+      const { error } = await householdsUpdateHouseholdMe({
+        body: { records_recurring: recordsRecurring },
+      })
+      if (error) throw error
+      return recordsRecurring
+    },
+    onSuccess: (recordsRecurring) => {
+      // The rules move on when this changes, and what they recorded feeds
+      // every page that reads the ledger.
+      void queryClient.invalidateQueries({ queryKey: ['household'] })
+      void queryClient.invalidateQueries({ queryKey: ['recurring'] })
+      toast.success(
+        recordsRecurring
+          ? 'Recurring transactions are recorded from today'
+          : 'Recurring transactions are only tracked now',
+      )
     },
     onError: (error) => toast.error(errorMessage(error)),
   })
@@ -337,6 +364,33 @@ export function Component() {
                       {describeLocale(locale, currency)}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+
+          <Field
+            id="household-recurring"
+            label="Recurring transactions"
+            hint={
+              household.data?.records_recurring === false
+                ? 'Shown on the Recurring page as they come up. Nothing is added to an account, so a bank feed does not count them twice.'
+                : 'Each one is added to its account on the day it falls due.'
+            }
+            className="mt-4 max-w-sm"
+          >
+            {(props) => (
+              <Select
+                value={household.data?.records_recurring === false ? TRACK : RECORD}
+                onValueChange={(value) => setRecordsRecurring.mutate(value === RECORD)}
+                disabled={!isOwner || !household.data || setRecordsRecurring.isPending}
+              >
+                <SelectTrigger id={props.id} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={RECORD}>Record them for me</SelectItem>
+                  <SelectItem value={TRACK}>Only track them</SelectItem>
                 </SelectContent>
               </Select>
             )}

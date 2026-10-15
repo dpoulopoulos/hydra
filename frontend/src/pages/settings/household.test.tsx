@@ -34,9 +34,9 @@ const auth = session({
   isAuthenticated: true,
 })
 
-function householdIsNamed(name: string, locale: string | null = null) {
+function householdIsNamed(name: string, locale: string | null = null, recordsRecurring = true) {
   vi.mocked(api.householdsGetHouseholdMe).mockResolvedValue({
-    data: { id: 'h1', name, currency_code: 'EUR', locale },
+    data: { id: 'h1', name, currency_code: 'EUR', locale, records_recurring: recordsRecurring },
   } as never)
 }
 
@@ -409,5 +409,40 @@ describe('how the household writes numbers', () => {
     renderHousehold()
 
     await waitFor(() => expect(numbersField()).toBeDisabled())
+  })
+})
+
+// A household whose bank brings its payments in turns recording off, so a rule
+// does not count the same payment a second time.
+describe('whether recurring transactions are recorded', () => {
+  const recurringField = () => screen.getByRole('combobox', { name: 'Recurring transactions' })
+
+  it('records them for a household that has chosen nothing', async () => {
+    renderHousehold()
+
+    await waitFor(() => expect(recurringField()).toHaveTextContent('Record them for me'))
+  })
+
+  it('shows a household that only tracks them', async () => {
+    householdIsNamed('Rivera', null, false)
+    renderHousehold()
+
+    await waitFor(() => expect(recurringField()).toHaveTextContent('Only track them'))
+    expect(screen.getByText(/does not count them twice/)).toBeInTheDocument()
+  })
+
+  it('saves the choice the owner makes', async () => {
+    const person = userEvent.setup()
+    vi.mocked(api.householdsUpdateHouseholdMe).mockResolvedValue({ data: {} } as never)
+    renderHousehold()
+
+    await waitFor(() => expect(recurringField()).toBeEnabled())
+    await person.click(recurringField())
+    await person.click(await screen.findByRole('option', { name: 'Only track them' }))
+
+    await waitFor(() => expect(api.householdsUpdateHouseholdMe).toHaveBeenCalled())
+    expect(vi.mocked(api.householdsUpdateHouseholdMe).mock.calls[0][0]).toMatchObject({
+      body: { records_recurring: false },
+    })
   })
 })
