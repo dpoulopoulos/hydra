@@ -40,14 +40,13 @@ export function useBankConnections(options?: { enabled?: boolean }) {
 }
 
 /**
- * How many bank rows wait for review, for the badge in the sidebar.
+ * How many rows wait in the inbox for review, for the badge in the sidebar.
  *
  * One row is asked for, since only the count is wanted.
  */
-export function usePendingBankCount(options?: { enabled?: boolean }) {
+export function usePendingBankCount() {
   return useQuery({
     queryKey: ['bank', 'inbox', 'count'],
-    enabled: options?.enabled ?? true,
     queryFn: async () => {
       const { data, error } = await bankListBankInbox({
         query: { status: BankReviewStatus.PENDING, limit: 1 },

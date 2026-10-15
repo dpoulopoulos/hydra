@@ -16,6 +16,7 @@ vi.mock('@/api', async (importOriginal) => {
     accountsListAccounts: vi.fn(),
     categoriesGetCategoryTree: vi.fn(),
     goalsListGoals: vi.fn(),
+    bankGetBankStatus: vi.fn(),
     bankListBankInbox: vi.fn(),
     bankAcceptBankTransaction: vi.fn(),
     bankSkipBankTransaction: vi.fn(),
@@ -89,6 +90,7 @@ beforeEach(() => {
     data: { data: [{ id: 'cat-food', name: 'Food', children: [] }], count: 1 },
   } as never)
   vi.mocked(api.goalsListGoals).mockResolvedValue({ data: { data: [], count: 0 } } as never)
+  vi.mocked(api.bankGetBankStatus).mockResolvedValue({ data: { enabled: true } } as never)
 })
 
 describe('the inbox', () => {
@@ -105,6 +107,30 @@ describe('the inbox', () => {
     expect(api.bankListBankInbox).toHaveBeenCalledWith({
       query: { status: 'pending', skip: 0, limit: 50 },
     })
+  })
+
+  it('lists a row added from a statement under the account it was added to', async () => {
+    inboxHolds(row({ bank_account_id: null, bank_account_name: null, account_id: SAVINGS }))
+
+    renderPage()
+
+    const table = within(await screen.findByRole('table'))
+    expect(await table.findByText('Savings')).toBeInTheDocument()
+    expect(table.getByRole('button', { name: 'Accept' })).toBeInTheDocument()
+  })
+
+  it('offers to manage banks only where the server can connect one', async () => {
+    inboxHolds(row())
+
+    const { unmount } = renderPage()
+    expect(await screen.findByRole('link', { name: 'Manage banks' })).toBeInTheDocument()
+    unmount()
+
+    vi.mocked(api.bankGetBankStatus).mockResolvedValue({ data: { enabled: false } } as never)
+    renderPage()
+    await screen.findByRole('table')
+    await waitFor(() => expect(api.bankGetBankStatus).toHaveBeenCalledTimes(2))
+    expect(screen.queryByRole('link', { name: 'Manage banks' })).not.toBeInTheDocument()
   })
 
   it('asks for a link before a row from an unlinked bank account can be accepted', async () => {

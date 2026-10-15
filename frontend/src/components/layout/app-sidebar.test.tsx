@@ -8,7 +8,6 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 
 // Mutable, so the same sidebar can be drawn for both kinds of user.
 let clientsEnabled = false
-let bankEnabled = false
 let pending = 0
 
 vi.mock('@/hooks/use-auth', () => ({
@@ -19,7 +18,6 @@ vi.mock('@/hooks/use-auth', () => ({
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
 
 vi.mock('@/hooks/use-bank', () => ({
-  useBankStatus: () => ({ data: { enabled: bankEnabled } }),
   usePendingBankCount: () => ({ data: pending }),
 }))
 
@@ -42,7 +40,6 @@ function renderSidebar() {
 describe('the sidebar', () => {
   beforeEach(() => {
     clientsEnabled = false
-    bankEnabled = false
     pending = 0
   })
 
@@ -66,14 +63,7 @@ describe('the sidebar', () => {
     expect(screen.getByRole('link', { name: /Clients/ })).toHaveAttribute('href', '/clients')
   })
 
-  it('leaves the inbox out where the server cannot connect a bank', () => {
-    renderSidebar()
-
-    expect(screen.queryByRole('link', { name: /Inbox/ })).not.toBeInTheDocument()
-  })
-
   it('shows the inbox, with how many rows wait in it', () => {
-    bankEnabled = true
     pending = 3
     renderSidebar()
 
@@ -82,7 +72,6 @@ describe('the sidebar', () => {
   })
 
   it('shows no count when nothing waits', () => {
-    bankEnabled = true
     renderSidebar()
 
     expect(screen.getByRole('link', { name: /Inbox/ })).toBeInTheDocument()

@@ -29,14 +29,13 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
-import { useBankStatus, usePendingBankCount } from '@/hooks/use-bank'
+import { usePendingBankCount } from '@/hooks/use-bank'
 import { useHousehold } from '@/hooks/use-household'
 
 const money = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
-  // Only where the server can connect a bank: see `bankOnly` below.
-  { to: '/inbox', label: 'Inbox', icon: Inbox, bankOnly: true },
+  { to: '/inbox', label: 'Inbox', icon: Inbox },
   { to: '/accounts', label: 'Accounts', icon: Wallet },
   // Only for a user who turned it on: see `clientsOnly` below.
   { to: '/clients', label: 'Clients', icon: HandCoins, clientsOnly: true },
@@ -55,15 +54,13 @@ const insight = [{ to: '/reports', label: 'Reports', icon: ChartColumnIncreasing
 export function AppSidebar() {
   const { data: household } = useHousehold()
   const { user } = useAuth()
-  const bankEnabled = useBankStatus().data?.enabled ?? false
-  const { data: pending = 0 } = usePendingBankCount({ enabled: bankEnabled })
+  // The inbox fills from a bank or from a statement added through the API,
+  // so it shows whether or not the server can connect a bank.
+  const { data: pending = 0 } = usePendingBankCount()
 
   // Clients is for people paid by the session. It only shows for a user who
-  // turned it on, so someone on a salary never meets it. The inbox only fills
-  // from a bank, so a server that cannot connect one does not show it.
-  const moneyItems = money.filter(
-    (item) => (!item.clientsOnly || user?.clients_enabled) && (!item.bankOnly || bankEnabled),
-  )
+  // turned it on, so someone on a salary never meets it.
+  const moneyItems = money.filter((item) => !item.clientsOnly || user?.clients_enabled)
 
   return (
     <Sidebar collapsible="icon">

@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAccounts } from '@/hooks/use-accounts'
+import { useBankStatus } from '@/hooks/use-bank'
 import { errorMessage } from '@/lib/api'
 import { formatDate } from '@/lib/month'
 
@@ -37,7 +38,7 @@ const PAGE_SIZE = 50
 const EMPTY: Record<BankReviewStatus, { title: string; description: string }> = {
   pending: {
     title: 'Nothing to review',
-    description: 'New transactions from your banks land here. Sync a bank to check for more.',
+    description: 'New transactions from your banks, or added from a statement, land here.',
   },
   skipped: {
     title: 'Nothing skipped',
@@ -54,6 +55,7 @@ export function Component() {
   const [status, setStatus] = useState<BankReviewStatus>(BankReviewStatus.PENDING)
   const [page, setPage] = useState(0)
   const [accepting, setAccepting] = useState<BankTransactionPublic | null>(null)
+  const bankEnabled = useBankStatus().data?.enabled ?? false
 
   const rows = useQuery({
     queryKey: ['bank', 'inbox', status, page],
@@ -98,11 +100,13 @@ export function Component() {
     <>
       <PageHeader
         title="Inbox"
-        description="Transactions your banks sent. Accept one to put it in your ledger, or skip it."
+        description="Transactions waiting for you. Accept one to put it in your ledger, or skip it."
       >
-        <Button variant="outline" asChild>
-          <Link to="/settings/bank">Manage banks</Link>
-        </Button>
+        {bankEnabled ? (
+          <Button variant="outline" asChild>
+            <Link to="/settings/bank">Manage banks</Link>
+          </Button>
+        ) : null}
       </PageHeader>
 
       <Tabs
