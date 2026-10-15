@@ -52,7 +52,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useAccountCurrency, useAccounts } from '@/hooks/use-accounts'
-import { useCurrency } from '@/hooks/use-household'
+import { useCurrency, useHousehold } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
 import { homeFirst } from '@/lib/currencies'
 import { describeSchedule } from '@/lib/labels'
@@ -76,6 +76,9 @@ const HORIZONS = [
 
 export function Component() {
   const currency = useCurrency()
+  // Taken as on until the household says otherwise, which is what every
+  // household did before it could choose.
+  const records = useHousehold().data?.records_recurring !== false
   const accountCurrency = useAccountCurrency()
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<RecurringRulePublic | null>(null)
@@ -203,12 +206,26 @@ export function Component() {
     <>
       <PageHeader
         title="Recurring"
-        description="Rent, subscriptions, standing transfers. Recorded as each one falls due."
+        description={
+          records
+            ? 'Rent, subscriptions, standing transfers. Recorded as each one falls due.'
+            : 'Rent, subscriptions, standing transfers. Tracked only: nothing is added to an account. Change it in Settings.'
+        }
       >
-        <Button variant="outline" onClick={() => run.mutate()} disabled={run.isPending}>
-          <CalendarClock className="size-4" />
-          Catch up now
-        </Button>
+        {/* Only a household that records its rules has anything to catch up
+            on. One that tracks them would be told "Nothing was due" while the
+            list below says otherwise. */}
+        {records ? (
+          <Button
+            variant="outline"
+            onClick={() => run.mutate()}
+            disabled={run.isPending}
+            title="Add every payment that has fallen due and is not in its account yet"
+          >
+            <CalendarClock className="size-4" />
+            Catch up now
+          </Button>
+        ) : null}
         <Button onClick={() => setCreating(true)}>Add a rule</Button>
       </PageHeader>
 
@@ -220,7 +237,11 @@ export function Component() {
         <EmptyState
           icon={Repeat}
           title="No recurring rules"
-          description="Add the payments that repeat, and hydra records each one instead of you retyping it every month."
+          description={
+            records
+              ? 'Add the payments that repeat, and hydra records each one instead of you retyping it every month.'
+              : 'Add the payments that repeat, and hydra shows what is coming and what it adds up to.'
+          }
         >
           <Button onClick={() => setCreating(true)}>Add your first rule</Button>
         </EmptyState>

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   TransactionKind,
@@ -34,9 +34,14 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }))
 
+// Mutable, so a test can make the household one that only tracks its rules.
+const household = vi.hoisted(() => ({
+  data: { currency_code: 'EUR', records_recurring: true },
+}))
+
 vi.mock('@/hooks/use-household', () => ({
   useCurrency: () => 'EUR',
-  useHousehold: () => ({ data: { currency_code: 'EUR' } }),
+  useHousehold: () => household,
   useIsHouseholdOwner: () => true,
 }))
 
@@ -301,5 +306,28 @@ describe('the total the "Still to come" card heads the window with', () => {
     // is read from its heading rather than from the page as a whole.
     expect(await monthHeading('2026-04')).toHaveTextContent(formatSignedMoney(180_000, 'EUR'))
     expect(await monthHeading('2026-05')).toHaveTextContent(formatSignedMoney(-120_000, 'EUR'))
+  })
+})
+
+// A household whose bank feeds the ledger only tracks its rules, so there is
+// nothing to catch up on, and the page says so rather than offering it.
+describe('whether the rules are recorded', () => {
+  afterEach(() => {
+    household.data.records_recurring = true
+  })
+
+  it('offers to catch up a household that records them', async () => {
+    renderRules([aRule()])
+
+    expect(await screen.findByRole('button', { name: /Catch up now/ })).toBeInTheDocument()
+    expect(screen.getByText(/Recorded as each one falls due/)).toBeInTheDocument()
+  })
+
+  it('says a household that only tracks them has nothing recorded', async () => {
+    household.data.records_recurring = false
+    renderRules([aRule()])
+
+    expect(await screen.findByText(/Tracked only/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Catch up now/ })).not.toBeInTheDocument()
   })
 })

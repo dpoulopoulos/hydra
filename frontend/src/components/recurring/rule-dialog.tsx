@@ -403,7 +403,7 @@ export function RuleDialog({
           <DialogDescription>
             {isEdit
               ? 'The start date and accounts stay as they are, so the transactions already recorded still match.'
-              : 'Rent, a subscription, a standing transfer. hydra records each one as it falls due.'}
+              : 'Rent, a subscription, a standing transfer: anything that repeats on a schedule.'}
           </DialogDescription>
         </DialogHeader>
 
