@@ -17,6 +17,7 @@ import { EmptyState, ErrorState, LoadingRows } from '@/components/data-state'
 import { PageHeader } from '@/components/layout/page-header'
 import { Money } from '@/components/money'
 import { MonthPicker } from '@/components/month-picker'
+import { OtherCurrenciesNote } from '@/components/other-currencies-note'
 import {
   Card,
   CardAction,
@@ -102,6 +103,7 @@ export function Component() {
   return (
     <>
       <PageHeader title="Reports" description="Where the money went, and what stayed." />
+      <OtherCurrenciesNote />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <MonthPicker month={month} onChange={setMonth} />

@@ -3,7 +3,12 @@ import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 
-import { TransactionKind, type RecurringRulePublic, type UpcomingOccurrence } from '@/api'
+import {
+  TransactionKind,
+  type CurrencyTotal,
+  type RecurringRulePublic,
+  type UpcomingOccurrence,
+} from '@/api'
 import { formatMonth } from '@/lib/month'
 import { formatMoney, formatSignedMoney } from '@/lib/money'
 import { Component as RecurringPage } from '@/pages/recurring'
@@ -61,17 +66,18 @@ function anOccurrence(overrides: Partial<UpcomingOccurrence> = {}): UpcomingOccu
     name: 'Rent',
     kind: TransactionKind.EXPENSE,
     amount_minor: 120_000,
+    currency_code: 'EUR',
     occurs_on: '2026-09-01',
     account_id: ACCOUNT_ID,
     ...overrides,
   }
 }
 
-function renderPage(occurrences: UpcomingOccurrence[], netMinor = 0) {
+function renderPage(occurrences: UpcomingOccurrence[], nets: CurrencyTotal[] | number = 0) {
   const rules = occurrences.map((occurrence, index) =>
     aRule({ id: `r${index}`, name: occurrence.name, kind: occurrence.kind }),
   )
-  return renderWith(rules, occurrences, netMinor)
+  return renderWith(rules, occurrences, nets)
 }
 
 /** Render the page for a set of rules, with nothing projected for them. */
@@ -79,12 +85,20 @@ function renderRules(rules: RecurringRulePublic[]) {
   return renderWith(rules, [])
 }
 
-function renderWith(rules: RecurringRulePublic[], occurrences: UpcomingOccurrence[], netMinor = 0) {
+function renderWith(
+  rules: RecurringRulePublic[],
+  occurrences: UpcomingOccurrence[],
+  nets: CurrencyTotal[] | number = 0,
+) {
   vi.mocked(api.recurringRulesListRecurringRules).mockResolvedValue({
     data: { data: rules, count: rules.length },
   } as never)
   vi.mocked(api.recurringRulesListUpcomingOccurrences).mockResolvedValue({
-    data: { data: occurrences, count: occurrences.length, net_minor: netMinor },
+    data: {
+      data: occurrences,
+      count: occurrences.length,
+      nets: typeof nets === 'number' ? [{ currency_code: 'EUR', amount_minor: nets }] : nets,
+    },
   } as never)
   vi.mocked(api.accountsListAccounts).mockResolvedValue({
     data: { data: [{ id: ACCOUNT_ID, name: 'Current' }], count: 1 },
@@ -250,6 +264,34 @@ describe('the total the "Still to come" card heads the window with', () => {
     )
 
     expect(await monthHeading('2026-04')).toHaveTextContent(formatSignedMoney(300_000, 'EUR'))
+  })
+
+  it('nets each currency apart, the household one first', async () => {
+    // Dollars going out cannot be taken off euros coming in.
+    renderPage(
+      [
+        anOccurrence({
+          name: 'Salary',
+          kind: TransactionKind.INCOME,
+          amount_minor: 300_000,
+          occurs_on: '2026-04-25',
+        }),
+        anOccurrence({ name: 'Rent', currency_code: 'USD', occurs_on: '2026-04-01' }),
+      ],
+      [
+        { currency_code: 'USD', amount_minor: -120_000 },
+        { currency_code: 'EUR', amount_minor: 300_000 },
+      ],
+    )
+
+    expect(await upcomingRow('Rent')).toHaveTextContent(formatSignedMoney(-120_000, 'USD'))
+    const heading = await monthHeading('2026-04')
+    expect(heading).toHaveTextContent(formatSignedMoney(300_000, 'EUR'))
+    expect(heading).toHaveTextContent(formatSignedMoney(-120_000, 'USD'))
+    const totals = screen.getAllByText(/[€$]/).map((node) => node.textContent)
+    expect(totals.indexOf(formatSignedMoney(300_000, 'EUR'))).toBeLessThan(
+      totals.indexOf(formatSignedMoney(-120_000, 'USD')),
+    )
   })
 
   it('nets each month the same way, transfers left out', async () => {

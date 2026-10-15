@@ -979,10 +979,11 @@ export const accountsGetAccount = <ThrowOnError extends boolean = false>(options
 /**
  * Update Account
  *
- * Rename, re-type, archive or restore an account.
+ * Rename, re-type, archive or restore an account, or change its currency.
  *
  * The opening balance cannot be changed, since that would rewrite every
- * historical balance. Record an adjustment transaction instead.
+ * historical balance. Record an adjustment transaction instead. The currency
+ * can change only while nothing is filed against the account.
  *
  * Args:
  * account_service: The account service dependency.
@@ -994,8 +995,9 @@ export const accountsGetAccount = <ThrowOnError extends boolean = false>(options
  * The updated account.
  *
  * Raises:
- * HTTPException: If the account does not exist in the household (404), or
- * the household already has an account with the new name (409).
+ * HTTPException: If the account does not exist in the household (404),
+ * the household already has an account with the new name (409), or
+ * the currency changes while something is filed against it (409).
  */
 export const accountsUpdateAccount = <ThrowOnError extends boolean = false>(options: Options<AccountsUpdateAccountData, ThrowOnError>): RequestResult<AccountsUpdateAccountResponses, AccountsUpdateAccountErrors, ThrowOnError> => (options.client ?? client).patch<AccountsUpdateAccountResponses, AccountsUpdateAccountErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

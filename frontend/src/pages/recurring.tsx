@@ -51,9 +51,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useAccounts } from '@/hooks/use-accounts'
+import { useAccountCurrency, useAccounts } from '@/hooks/use-accounts'
 import { useCurrency } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
+import { homeFirst } from '@/lib/currencies'
 import { describeSchedule } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { currentMonth, formatDate, formatMonth, monthEnd, shiftMonth } from '@/lib/month'
@@ -75,6 +76,7 @@ const HORIZONS = [
 
 export function Component() {
   const currency = useCurrency()
+  const accountCurrency = useAccountCurrency()
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<RecurringRulePublic | null>(null)
   const [creating, setCreating] = useState(false)
@@ -106,24 +108,35 @@ export function Component() {
   // A year ahead is over a hundred rows, and a bare "Sep 5" could be either
   // year. A month heading carries the year, so each row only needs its day.
   const months = useMemo(() => {
-    const buckets = new Map<string, { net_minor: number; items: UpcomingOccurrence[] }>()
+    const buckets = new Map<string, { nets: Map<string, number>; items: UpcomingOccurrence[] }>()
     for (const occurrence of upcoming.data?.data ?? []) {
       const key = occurrence.occurs_on.slice(0, 7)
-      const bucket = buckets.get(key) ?? { net_minor: 0, items: [] }
+      const bucket = buckets.get(key) ?? { nets: new Map<string, number>(), items: [] }
       bucket.items.push(occurrence)
       // A blocked occurrence is listed but not counted, the same way the
       // window's own total treats it: nothing is going to record it while the
-      // account is archived, so it is not money the month has to find.
+      // account is archived, so it is not money the month has to find. Each
+      // currency is netted on its own, as the window's totals are.
       if (occurrence.kind !== TransactionKind.TRANSFER && !occurrence.is_blocked) {
-        bucket.net_minor +=
-          occurrence.kind === TransactionKind.INCOME
-            ? occurrence.amount_minor
-            : -occurrence.amount_minor
+        bucket.nets.set(
+          occurrence.currency_code,
+          (bucket.nets.get(occurrence.currency_code) ?? 0) +
+            (occurrence.kind === TransactionKind.INCOME
+              ? occurrence.amount_minor
+              : -occurrence.amount_minor),
+        )
       }
       buckets.set(key, bucket)
     }
-    return [...buckets.entries()].map(([month, bucket]) => ({ month, ...bucket }))
-  }, [upcoming.data])
+    return [...buckets.entries()].map(([month, bucket]) => ({
+      month,
+      items: bucket.items,
+      nets: homeFirst(
+        [...bucket.nets].map(([currency_code, amount_minor]) => ({ currency_code, amount_minor })),
+        currency,
+      ),
+    }))
+  }, [upcoming.data, currency])
 
   const { data: accounts } = useAccounts({ includeArchived: true })
   const accountNames = useMemo(
@@ -265,7 +278,7 @@ export function Component() {
                     {rule.next_occurrence_on ? formatDate(rule.next_occurrence_on) : 'Finished'}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Money minor={rule.amount_minor} currency={currency} />
+                    <Money minor={rule.amount_minor} currency={accountCurrency(rule.account_id)} />
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -346,12 +359,18 @@ export function Component() {
                 {/* The net the window leaves the household with, signed the
                     way each month below it is: an unsigned figure next to the
                     horizon picker reads as an amount owed. */}
-                <Money
-                  minor={upcoming.data?.net_minor ?? 0}
-                  currency={currency}
-                  signed
-                  className="text-xl whitespace-nowrap"
-                />
+                {(upcoming.data?.nets?.length
+                  ? homeFirst(upcoming.data.nets, currency)
+                  : [{ currency_code: currency, amount_minor: 0 }]
+                ).map((net) => (
+                  <Money
+                    key={net.currency_code}
+                    minor={net.amount_minor}
+                    currency={net.currency_code}
+                    signed
+                    className="text-xl whitespace-nowrap"
+                  />
+                ))}
               </div>
             </CardAction>
           </CardHeader>
@@ -370,7 +389,16 @@ export function Component() {
                   <div key={group.month}>
                     <div className="text-muted-foreground flex items-baseline justify-between gap-3 border-b pb-1 text-xs font-medium">
                       <span className="tracking-wide uppercase">{formatMonth(group.month)}</span>
-                      <Money minor={group.net_minor} currency={currency} signed />
+                      <span className="flex gap-3">
+                        {group.nets.map((net) => (
+                          <Money
+                            key={net.currency_code}
+                            minor={net.amount_minor}
+                            currency={net.currency_code}
+                            signed
+                          />
+                        ))}
+                      </span>
                     </div>
                     <ul className="divide-y text-sm">
                       {group.items.map((occurrence, index) => (
@@ -404,7 +432,7 @@ export function Component() {
                                 ? -occurrence.amount_minor
                                 : occurrence.amount_minor
                             }
-                            currency={currency}
+                            currency={occurrence.currency_code}
                             signed={occurrence.kind !== TransactionKind.TRANSFER}
                             colored={occurrence.kind !== TransactionKind.TRANSFER}
                           />

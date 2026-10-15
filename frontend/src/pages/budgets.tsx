@@ -13,6 +13,7 @@ import { EmptyState, ErrorState, LoadingRows } from '@/components/data-state'
 import { PageHeader } from '@/components/layout/page-header'
 import { Money } from '@/components/money'
 import { MonthPicker } from '@/components/month-picker'
+import { OtherCurrenciesNote } from '@/components/other-currencies-note'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -82,6 +83,7 @@ export function Component() {
         </Button>
         <Button onClick={() => setEditing(true)}>Set budgets</Button>
       </PageHeader>
+      <OtherCurrenciesNote />
 
       <MonthPicker month={month} onChange={setMonth} />
 

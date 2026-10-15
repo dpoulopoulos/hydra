@@ -29,6 +29,10 @@ export type AccountCreate = {
      * Opening Balance Date
      */
     opening_balance_date: string;
+    /**
+     * Currency Code
+     */
+    currency_code?: string | null;
 };
 
 /**
@@ -112,6 +116,10 @@ export type AccountUpdate = {
     name?: string | null;
     type?: AccountType | null;
     /**
+     * Currency Code
+     */
+    currency_code?: string | null;
+    /**
      * Institution
      */
     institution?: string | null;
@@ -138,9 +146,9 @@ export type AccountsPublic = {
      */
     count: number;
     /**
-     * Total Balance Minor
+     * Totals
      */
-    total_balance_minor?: number;
+    totals?: Array<CurrencyTotal>;
 };
 
 /**
@@ -591,6 +599,10 @@ export type BankTransactionAccept = {
      * Counter Account Id
      */
     counter_account_id?: string | null;
+    /**
+     * Counter Amount Minor
+     */
+    counter_amount_minor?: number | null;
     /**
      * Goal Id
      */
@@ -1229,6 +1241,22 @@ export type ClientForecastRow = {
      * Is Archived
      */
     is_archived: boolean;
+};
+
+/**
+ * CurrencyTotal
+ *
+ * A total in one currency, one of several that are never added together.
+ */
+export type CurrencyTotal = {
+    /**
+     * Currency Code
+     */
+    currency_code: string;
+    /**
+     * Amount Minor
+     */
+    amount_minor: number;
 };
 
 /**
@@ -2711,6 +2739,10 @@ export type MonthSummaryReport = {
      */
     net_worth_minor: number;
     /**
+     * Other Currencies
+     */
+    other_currencies?: Array<CurrencyTotal>;
+    /**
      * Unpriced Asset Count
      */
     unpriced_asset_count?: number;
@@ -3574,6 +3606,10 @@ export type TransactionCreate = {
      */
     counter_account_id?: string | null;
     /**
+     * Counter Amount Minor
+     */
+    counter_amount_minor?: number | null;
+    /**
      * Goal Id
      */
     goal_id?: string | null;
@@ -3634,6 +3670,10 @@ export type TransactionPublic = {
      * Counter Account Id
      */
     counter_account_id?: string | null;
+    /**
+     * Counter Amount Minor
+     */
+    counter_amount_minor?: number | null;
     /**
      * Goal Id
      */
@@ -3709,6 +3749,10 @@ export type TransactionUpdate = {
      */
     counter_account_id?: string | null;
     /**
+     * Counter Amount Minor
+     */
+    counter_amount_minor?: number | null;
+    /**
      * Goal Id
      */
     goal_id?: string | null;
@@ -3748,6 +3792,10 @@ export type UpcomingOccurrence = {
      */
     amount_minor: number;
     /**
+     * Currency Code
+     */
+    currency_code: string;
+    /**
      * Occurs On
      */
     occurs_on: string;
@@ -3778,9 +3826,9 @@ export type UpcomingOccurrencesPublic = {
      */
     count: number;
     /**
-     * Net Minor
+     * Nets
      */
-    net_minor?: number;
+    nets?: Array<CurrencyTotal>;
 };
 
 /**

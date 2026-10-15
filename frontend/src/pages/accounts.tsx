@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/table'
 import { useCurrency } from '@/hooks/use-household'
 import { errorMessage } from '@/lib/api'
+import { homeFirst } from '@/lib/currencies'
 import { formatIban } from '@/lib/iban'
 import { ACCOUNT_TYPE_LABELS } from '@/lib/labels'
 import { formatDate } from '@/lib/month'
@@ -297,12 +298,20 @@ export function Component() {
             <CardDescription>
               Across {accounts.data.count} {accounts.data.count === 1 ? 'account' : 'accounts'}
             </CardDescription>
-            <CardAction>
-              <Money
-                minor={accounts.data.total_balance_minor ?? 0}
-                currency={currency}
-                className="text-2xl"
-              />
+            {/* One figure per currency, never added together: the household
+                did not get a rate, so a converted sum would be a guess. */}
+            <CardAction className="flex flex-col items-end gap-1">
+              {(accounts.data.totals?.length
+                ? homeFirst(accounts.data.totals, currency)
+                : [{ currency_code: currency, amount_minor: 0 }]
+              ).map((total) => (
+                <Money
+                  key={total.currency_code}
+                  minor={total.amount_minor}
+                  currency={total.currency_code}
+                  className="text-2xl"
+                />
+              ))}
             </CardAction>
           </CardHeader>
         </Card>

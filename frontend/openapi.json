@@ -1695,7 +1695,7 @@
           "accounts"
         ],
         "summary": "Update Account",
-        "description": "Rename, re-type, archive or restore an account.\n\nThe opening balance cannot be changed, since that would rewrite every\nhistorical balance. Record an adjustment transaction instead.\n\nArgs:\n    account_service: The account service dependency.\n    household: The current household context.\n    account_id: The ID of the account to update.\n    account_in: The fields to update.\n\nReturns:\n    The updated account.\n\nRaises:\n    HTTPException: If the account does not exist in the household (404), or\n        the household already has an account with the new name (409).",
+        "description": "Rename, re-type, archive or restore an account, or change its currency.\n\nThe opening balance cannot be changed, since that would rewrite every\nhistorical balance. Record an adjustment transaction instead. The currency\ncan change only while nothing is filed against the account.\n\nArgs:\n    account_service: The account service dependency.\n    household: The current household context.\n    account_id: The ID of the account to update.\n    account_in: The fields to update.\n\nReturns:\n    The updated account.\n\nRaises:\n    HTTPException: If the account does not exist in the household (404),\n        the household already has an account with the new name (409), or\n        the currency changes while something is filed against it (409).",
         "operationId": "accounts-update_account",
         "security": [
           {
@@ -6300,6 +6300,17 @@
             "type": "string",
             "format": "date",
             "title": "Opening Balance Date"
+          },
+          "currency_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency Code"
           }
         },
         "type": "object",
@@ -6450,6 +6461,17 @@
               }
             ]
           },
+          "currency_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency Code"
+          },
           "institution": {
             "anyOf": [
               {
@@ -6502,10 +6524,12 @@
             "type": "integer",
             "title": "Count"
           },
-          "total_balance_minor": {
-            "type": "integer",
-            "title": "Total Balance Minor",
-            "default": 0
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyTotal"
+            },
+            "type": "array",
+            "title": "Totals"
           }
         },
         "type": "object",
@@ -7202,6 +7226,19 @@
               }
             ],
             "title": "Counter Account Id"
+          },
+          "counter_amount_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4.611686018427388e+18,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Amount Minor"
           },
           "goal_id": {
             "anyOf": [
@@ -8365,6 +8402,25 @@
         ],
         "title": "ClientForecastRow",
         "description": "One client's contribution, and what they still owe."
+      },
+      "CurrencyTotal": {
+        "properties": {
+          "currency_code": {
+            "type": "string",
+            "title": "Currency Code"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency_code",
+          "amount_minor"
+        ],
+        "title": "CurrencyTotal",
+        "description": "A total in one currency, one of several that are never added together."
       },
       "EmailOutboxStats": {
         "properties": {
@@ -10816,6 +10872,13 @@
             "type": "integer",
             "title": "Net Worth Minor"
           },
+          "other_currencies": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyTotal"
+            },
+            "type": "array",
+            "title": "Other Currencies"
+          },
           "unpriced_asset_count": {
             "type": "integer",
             "title": "Unpriced Asset Count",
@@ -12358,6 +12421,19 @@
             ],
             "title": "Counter Account Id"
           },
+          "counter_amount_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4.611686018427388e+18,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Amount Minor"
+          },
           "goal_id": {
             "anyOf": [
               {
@@ -12466,6 +12542,17 @@
               }
             ],
             "title": "Counter Account Id"
+          },
+          "counter_amount_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Amount Minor"
           },
           "goal_id": {
             "anyOf": [
@@ -12645,6 +12732,19 @@
             ],
             "title": "Counter Account Id"
           },
+          "counter_amount_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4.611686018427388e+18,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counter Amount Minor"
+          },
           "goal_id": {
             "anyOf": [
               {
@@ -12700,6 +12800,10 @@
             "type": "integer",
             "title": "Amount Minor"
           },
+          "currency_code": {
+            "type": "string",
+            "title": "Currency Code"
+          },
           "occurs_on": {
             "type": "string",
             "format": "date",
@@ -12734,6 +12838,7 @@
           "name",
           "kind",
           "amount_minor",
+          "currency_code",
           "occurs_on",
           "account_id"
         ],
@@ -12753,10 +12858,12 @@
             "type": "integer",
             "title": "Count"
           },
-          "net_minor": {
-            "type": "integer",
-            "title": "Net Minor",
-            "default": 0
+          "nets": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyTotal"
+            },
+            "type": "array",
+            "title": "Nets"
           }
         },
         "type": "object",

@@ -29,6 +29,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
+import { useAccountCurrency } from '@/hooks/use-accounts'
 import { useCurrency } from '@/hooks/use-household'
 import { currentMonth, formatDate, formatMonth } from '@/lib/month'
 
@@ -64,6 +65,7 @@ const NET_WORTH_HINTS: Record<NetWorthPart, string> = {
 
 export function Component() {
   const currency = useCurrency()
+  const currencyOf = useAccountCurrency()
   const { user } = useAuth()
   const [month, setMonth] = useState(currentMonth)
   const [savedSpan, setSavedSpan] = useState<Period>('month')
@@ -190,6 +192,20 @@ export function Component() {
               hint={
                 <span className="space-y-1">
                   <span className="block">{NET_WORTH_HINTS[worthPart]}</span>
+                  {/* Accounts in another currency are not converted into this
+                      figure, so what they hold is said beside it instead. */}
+                  {worthPart !== 'assets' && summary.data.other_currencies?.length ? (
+                    <span className="block">
+                      Not counted, in other currencies:{' '}
+                      {summary.data.other_currencies.map((total, index) => (
+                        <span key={total.currency_code}>
+                          {index > 0 ? ', ' : null}
+                          <Money minor={total.amount_minor} currency={total.currency_code} />
+                        </span>
+                      ))}
+                      .
+                    </span>
+                  ) : null}
                   {/* Only where it changes the reading. A missing price makes
                       the holdings understated, and the total with them. */}
                   {(summary.data.unpriced_asset_count ?? 0) > 0 &&
@@ -343,7 +359,7 @@ export function Component() {
                             the switched-off sign cannot take back. */}
                         <Money
                           minor={isExpense ? -transaction.amount_minor : transaction.amount_minor}
-                          currency={currency}
+                          currency={currencyOf(transaction.account_id)}
                           signed={!isTransfer}
                           colored={!isTransfer}
                           className={isTransfer ? 'text-muted-foreground' : undefined}

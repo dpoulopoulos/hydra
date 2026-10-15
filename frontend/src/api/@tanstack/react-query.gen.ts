@@ -1255,10 +1255,11 @@ export const accountsGetAccountOptions = (options: Options<AccountsGetAccountDat
 /**
  * Update Account
  *
- * Rename, re-type, archive or restore an account.
+ * Rename, re-type, archive or restore an account, or change its currency.
  *
  * The opening balance cannot be changed, since that would rewrite every
- * historical balance. Record an adjustment transaction instead.
+ * historical balance. Record an adjustment transaction instead. The currency
+ * can change only while nothing is filed against the account.
  *
  * Args:
  * account_service: The account service dependency.
@@ -1270,8 +1271,9 @@ export const accountsGetAccountOptions = (options: Options<AccountsGetAccountDat
  * The updated account.
  *
  * Raises:
- * HTTPException: If the account does not exist in the household (404), or
- * the household already has an account with the new name (409).
+ * HTTPException: If the account does not exist in the household (404),
+ * the household already has an account with the new name (409), or
+ * the currency changes while something is filed against it (409).
  */
 export const accountsUpdateAccountMutation = (options?: Partial<Options<AccountsUpdateAccountData>>): UseMutationOptions<AccountsUpdateAccountResponse, AccountsUpdateAccountError, Options<AccountsUpdateAccountData>> => {
     const mutationOptions: UseMutationOptions<AccountsUpdateAccountResponse, AccountsUpdateAccountError, Options<AccountsUpdateAccountData>> = {
