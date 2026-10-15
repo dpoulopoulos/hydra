@@ -639,6 +639,7 @@ def make_account(
     opening_balance_minor: int = 0,
     opening_balance_date: datetime.date = datetime.date(2024, 1, 1),
     account_type: AccountType = AccountType.CURRENT,
+    currency_code: str = "EUR",
 ) -> Account:
     """Seed an account directly, bypassing the service.
 
@@ -649,6 +650,7 @@ def make_account(
         opening_balance_minor: The balance it held before tracking started.
         opening_balance_date: The date that balance was taken on.
         account_type: The kind of account.
+        currency_code: The currency it holds.
 
     Returns:
         The stored account.
@@ -657,6 +659,7 @@ def make_account(
         household_id=household_id,
         name=name,
         type=account_type,
+        currency_code=currency_code,
         opening_balance_minor=opening_balance_minor,
         opening_balance_date=opening_balance_date,
     )
