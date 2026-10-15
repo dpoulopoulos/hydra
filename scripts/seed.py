@@ -1047,6 +1047,62 @@ class Seeder:
 
     # --- all of it --------------------------------------------------------- #
 
+    def foreign_currency(self) -> None:
+        """Open an account in dollars, fill it from euros, and spend from it.
+
+        Seeded last and with fixed figures, so the random story the steps
+        before it tell stays the same one it always was.
+        """
+        step("Another currency")
+        c = self.categories
+        dollars = self.owner.post(
+            "/accounts/",
+            {
+                "name": "Travel Dollars",
+                "type": "current",
+                "institution": "Contoso Bank",
+                "currency_code": "USD",
+                "opening_balance_minor": 0,
+                "opening_balance_date": month_start(3).isoformat(),
+            },
+        )["id"]
+        self.accounts["Travel Dollars"] = dollars
+
+        # Each top-up leaves in euros and arrives in dollars, at whatever the
+        # exchange gave that day, so both figures are written down.
+        for months_back, sent, arrived in [(3, 300, 322.41), (2, 250, 271.80), (1, 400, 437.12)]:
+            self.owner.post(
+                "/transactions/",
+                {
+                    "kind": "transfer",
+                    "amount_minor": minor(sent),
+                    "counter_amount_minor": minor(arrived),
+                    "occurred_on": on_day(month_start(months_back), 3).isoformat(),
+                    "account_id": self.accounts["Everyday"],
+                    "counter_account_id": dollars,
+                    "note": "Top up for the trip",
+                },
+            )
+        spending = [
+            (2, 12, 84.20, "Restaurants", "Joe's Diner"),
+            (2, 14, 210.00, "Travel", "Grand Hotel"),
+            (1, 9, 46.75, "Restaurants", "Taco Stand"),
+            (1, 18, 129.99, "Travel", "Coastline Rail"),
+        ]
+        for months_back, day, amount, category, merchant in spending:
+            self.owner.post(
+                "/transactions/",
+                {
+                    "kind": "expense",
+                    "amount_minor": minor(amount),
+                    "occurred_on": on_day(month_start(months_back), day).isoformat(),
+                    "account_id": dollars,
+                    "category_id": c[category],
+                    "merchant": merchant,
+                },
+            )
+        log(f"Opened Travel Dollars in USD, with 3 top-ups from euros and {len(spending)} expenses")
+
     def run(self) -> None:
         if self.owner.get("/accounts/", include_archived=True)["count"]:
             raise SeedError(
@@ -1065,6 +1121,7 @@ class Seeder:
         self.goals()
         self.investments()
         self.income()
+        self.foreign_currency()
         self.api_tokens()
 
 

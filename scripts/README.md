@@ -48,7 +48,7 @@ seeded. The random choices use a fixed seed, so two runs tell the same story.
 | Feature      | What you get                                                                                                                     |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | Household    | A name, a locale and a session label. A second member, and one invitation left pending.                                          |
-| Accounts     | One of each type: current, savings, cash, credit card, brokerage. A sixth one, emptied and archived.                            |
+| Accounts     | One of each type: current, savings, cash, credit card, brokerage. A sixth one, emptied and archived. A seventh in US dollars, topped up from euros and spent from on a trip. |
 | Categories   | A new parent with a child, a new child under a default parent, a new income category. One default archived.                     |
 | Transactions | About six months of expenses, income and transfers, by both members. The card is paid off each month for the month before.      |
 | Budgets      | Limits from three months back through next month, made with bulk set and copy. One category is over its limit this month.       |
