@@ -8,8 +8,10 @@ const alertVariants = cva(
     variants: {
       variant: {
         default: 'bg-card text-card-foreground',
+        // A tinted field with a stripe down the left, so it reads as a warning
+        // at a glance rather than as red text in a plain card.
         destructive:
-          'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current',
+          'border-negative/20 bg-negative-muted/50 text-negative border-l-4 border-l-negative *:data-[slot=alert-description]:text-negative/85 *:[svg]:text-current',
       },
     },
     defaultVariants: {
