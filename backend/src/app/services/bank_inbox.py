@@ -217,7 +217,7 @@ class BankInboxService:
                 counter_amount_minor=counter_amount_minor,
                 occurred_on=row.occurred_on,
                 merchant=accept.merchant or row.counterparty_name or _first_words(row.description, 255),
-                note=accept.note if accept.note is not None else row.description,
+                note=accept.note if "note" in accept.model_fields_set else row.description,
                 account_id=account_id,
                 category_id=accept.category_id,
                 counter_account_id=counter_account_id,

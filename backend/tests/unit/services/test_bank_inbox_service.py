@@ -151,6 +151,16 @@ class TestAccept:
         assert create.merchant == "Cafe"
         assert create.note == ""
 
+    def test_a_null_note_records_no_note(self, service: BankInboxService, household_context: HouseholdContext) -> None:
+        bank_account = make_bank_account()
+        row = make_row(bank_account)
+        program(service, row, bank_account)
+
+        service.accept(household_context, row.id, BankTransactionAccept(kind=TransactionKind.EXPENSE, note=None))
+
+        create = service.transaction_service.record_transaction.call_args.kwargs["transaction_create"]
+        assert create.note is None
+
     def test_money_out_as_a_transfer_goes_to_the_chosen_account(
         self, service: BankInboxService, household_context: HouseholdContext
     ) -> None:

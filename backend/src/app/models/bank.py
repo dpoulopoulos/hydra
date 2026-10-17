@@ -423,4 +423,5 @@ class BankTransactionAccept(SQLModel):
     goal_id: uuid.UUID | None = None
     # What the ledger row is called. Defaults to the counterparty.
     merchant: str | None = Field(default=None, max_length=255)
+    # Defaults to the bank's description when not sent. Null records no note.
     note: str | None = Field(default=None, max_length=1024)
