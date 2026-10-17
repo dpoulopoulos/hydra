@@ -23,16 +23,25 @@ export const emptyFilters: Filters = {
   sort: TransactionSort['-DATE'],
 }
 
+/**
+ * How many controls are narrowing the list.
+ *
+ * The order is not counted: it changes what comes first, not what is shown.
+ */
+export function activeFilterCount(filters: Filters): number {
+  return [
+    filters.date_from !== '',
+    filters.date_to !== '',
+    filters.account_id !== ANY,
+    filters.category_id !== ANY,
+    filters.kind !== ANY,
+    filters.q !== '',
+  ].filter(Boolean).length
+}
+
 /** True when anything is narrowing the list. */
 export function hasActiveFilters(filters: Filters): boolean {
-  return (
-    filters.date_from !== '' ||
-    filters.date_to !== '' ||
-    filters.account_id !== ANY ||
-    filters.category_id !== ANY ||
-    filters.kind !== ANY ||
-    filters.q !== ''
-  )
+  return activeFilterCount(filters) > 0
 }
 
 /**

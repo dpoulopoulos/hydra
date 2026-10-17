@@ -1,5 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftRight, HandCoins, MoreHorizontal, Pencil, Repeat, Trash2 } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  HandCoins,
+  MoreHorizontal,
+  Pencil,
+  Repeat,
+  SlidersHorizontal,
+  Trash2,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
@@ -28,6 +36,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
+import {
   Table,
   TableBody,
   TableCell,
@@ -37,9 +53,16 @@ import {
 } from '@/components/ui/table'
 import { useAccountCurrency, useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { errorMessage } from '@/lib/api'
 import { formatDate } from '@/lib/month'
-import { emptyFilters, hasActiveFilters, toQuery, type Filters } from '@/lib/transaction-filters'
+import {
+  activeFilterCount,
+  emptyFilters,
+  hasActiveFilters,
+  toQuery,
+  type Filters,
+} from '@/lib/transaction-filters'
 import { cn } from '@/lib/utils'
 
 /**
@@ -104,6 +127,21 @@ export function Component() {
 
   const total = transactions.data?.count ?? 0
 
+  const isMobile = useIsMobile()
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const activeFilters = activeFilterCount(filters)
+  // The same controls, whether they sit in a card or wait in a sheet.
+  const filterControls = (
+    <TransactionFilters
+      filters={filters}
+      onChange={(next) => {
+        setFilters(next)
+        // A narrower list starts from its first page.
+        setPage(0)
+      }}
+    />
+  )
+
   return (
     <>
       <PageHeader
@@ -113,18 +151,34 @@ export function Component() {
         <Button onClick={() => setCreating(true)}>Record a transaction</Button>
       </PageHeader>
 
-      <Card>
-        <CardContent>
-          <TransactionFilters
-            filters={filters}
-            onChange={(next) => {
-              setFilters(next)
-              // A narrower list starts from its first page.
-              setPage(0)
-            }}
-          />
-        </CardContent>
-      </Card>
+      {isMobile ? (
+        // On a phone the eight controls would stack above the table, so they
+        // wait in a sheet behind one button that says how many are in use.
+        <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" className="self-start">
+              <SlidersHorizontal className="size-4" />
+              Filters
+              {activeFilters > 0 ? (
+                <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5">
+                  {activeFilters}
+                </Badge>
+              ) : null}
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="max-h-[85svh] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Filters</SheetTitle>
+              <SheetDescription>Narrow the list, or change its order.</SheetDescription>
+            </SheetHeader>
+            <div className="px-4 pb-4">{filterControls}</div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Card>
+          <CardContent>{filterControls}</CardContent>
+        </Card>
+      )}
 
       {transactions.isPending ? (
         <LoadingRows rows={6} />

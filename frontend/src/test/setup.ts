@@ -30,6 +30,20 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 }
 
+// jsdom answers no media queries either. A screen that asks whether it is on a
+// phone gets a desktop, which is the layout the tests describe.
+window.matchMedia ??= (query: string) =>
+  ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    dispatchEvent: () => false,
+  }) as MediaQueryList
+
 // Radix drives its select with pointer capture and scrolls the chosen option
 // into view. jsdom implements neither, so opening a picker in a test would
 // throw before the options were ever on screen.
