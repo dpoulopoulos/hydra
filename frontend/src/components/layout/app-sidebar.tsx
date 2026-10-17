@@ -41,9 +41,14 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <NavLink to="/">
-                <Logo />
+                {/* Wrapped, or the menu button shrinks a direct SVG child to
+                    an icon's 16px and the mark loses its drawing. */}
+                <span className="flex shrink-0">
+                  <Logo />
+                </span>
                 <div className="grid flex-1 text-left leading-tight">
-                  <span className="truncate font-semibold">hydra</span>
+                  {/* Set tight, so it reads as a wordmark rather than a label. */}
+                  <span className="truncate text-[15px] font-semibold tracking-tight">hydra</span>
                   <span className="text-muted-foreground truncate text-xs">
                     {household?.name ?? 'Loading…'}
                   </span>

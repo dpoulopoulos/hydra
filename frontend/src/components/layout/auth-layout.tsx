@@ -33,8 +33,12 @@ export function AuthLayout({
         className="bg-primary/10 pointer-events-none absolute -top-32 -right-24 size-80 rounded-full blur-3xl"
       />
 
-      <Link to="/" className="relative flex items-center gap-2 font-semibold">
-        <Logo />
+      {/* Large, so the app has a face at the door. */}
+      <Link
+        to="/"
+        className="relative flex items-center gap-3 text-2xl font-semibold tracking-tight"
+      >
+        <Logo className="size-11" />
         hydra
       </Link>
 
