@@ -129,7 +129,9 @@ export function Component() {
         <ErrorState error={summary.error} />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {/* Two abreast even on a phone, so the four fit in one screen
+              rather than stacking into a column to scroll past. */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatTile
               label="Money in"
               minor={summary.data.income_minor}
@@ -144,7 +146,10 @@ export function Component() {
               tone="negative"
               compare={against(previous?.expense_minor)}
             />
+            {/* The two with a control beside the label need the full width
+                of a phone, or the control pushes the label onto two lines. */}
             <StatTile
+              className="max-sm:col-span-2"
               label="Saved"
               minor={
                 savedSpan === 'year' && flows.data
@@ -177,6 +182,7 @@ export function Component() {
               }
             />
             <StatTile
+              className="max-sm:col-span-2"
               label={NET_WORTH_LABELS[worthPart]}
               minor={
                 {

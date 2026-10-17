@@ -21,6 +21,7 @@ export function StatTile({
   hint,
   action,
   compare,
+  className,
 }: {
   label: string
   minor: number
@@ -37,6 +38,8 @@ export function StatTile({
    * for a `negative` tone, such as money out, a fall is the good direction.
    */
   compare?: { minor: number; label: string }
+  /** For the tile itself, such as how many grid columns it spans. */
+  className?: string
 }) {
   const color =
     tone === 'positive'
@@ -52,13 +55,15 @@ export function StatTile({
   const delta = compare ? minor - compare.minor : null
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader className="gap-1">
         <CardDescription>{label}</CardDescription>
         {/* Beside the label, and only one row tall, so the figure below keeps
             the full width of the tile instead of being squeezed against it. */}
         {action ? <CardAction className="row-span-1">{action}</CardAction> : null}
-        <CardTitle className={cn('col-span-full text-3xl font-semibold tracking-tight', color)}>
+        <CardTitle
+          className={cn('col-span-full text-2xl font-semibold tracking-tight sm:text-3xl', color)}
+        >
           <Money minor={minor} currency={currency} signed={signed} />
         </CardTitle>
         {delta !== null && compare ? (

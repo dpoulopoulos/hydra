@@ -162,10 +162,14 @@ export function Component() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-28">Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Account</TableHead>
+                  <TableHead className="w-16 md:w-28">Date</TableHead>
+                  {/* Takes whatever width is left, and shortens its text
+                      rather than pushing the amount off the edge. */}
+                  <TableHead className="w-full">Description</TableHead>
+                  {/* Below a medium width these two fold into a line under
+                      the description, so a phone needs no sideways scroll. */}
+                  <TableHead className="hidden md:table-cell">Category</TableHead>
+                  <TableHead className="hidden md:table-cell">Account</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
@@ -179,30 +183,48 @@ export function Component() {
                   // would only produce an error toast.
                   const fromSession = transaction.income_session_id != null
 
+                  const category = isTransfer
+                    ? null
+                    : transaction.category_id
+                      ? (categoryNames.get(transaction.category_id) ?? 'Unknown')
+                      : 'Uncategorised'
+                  const account = isTransfer ? (
+                    <>
+                      {accountNames.get(transaction.account_id) ?? 'Unknown'}
+                      {transaction.counter_account_id ? (
+                        <> → {accountNames.get(transaction.counter_account_id) ?? 'Unknown'}</>
+                      ) : null}
+                    </>
+                  ) : (
+                    (accountNames.get(transaction.account_id) ?? 'Unknown')
+                  )
+
                   return (
                     <TableRow key={transaction.id}>
                       <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">
                         {formatDate(transaction.occurred_on, { day: 'numeric', month: 'short' })}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="w-full max-w-0">
                         {/* A transfer is money moved, not spent, so its row
                             is set quieter than the ones that are. */}
                         <div
                           className={cn(
-                            'flex items-center gap-2',
+                            'flex min-w-0 items-center gap-2',
                             isTransfer && 'text-muted-foreground',
                           )}
                         >
-                          {transaction.merchant ?? (isTransfer ? 'Transfer' : 'No description')}
+                          <span className="truncate">
+                            {transaction.merchant ?? (isTransfer ? 'Transfer' : 'No description')}
+                          </span>
                           {fromSession ? (
                             <Badge variant="secondary" className={ROW_BADGE}>
                               <HandCoins className="size-3" />
-                              Session
+                              <span className="max-sm:sr-only">Session</span>
                             </Badge>
                           ) : transaction.is_generated ? (
                             <Badge variant="secondary" className={ROW_BADGE}>
                               <Repeat className="size-3" />
-                              Recurring
+                              <span className="max-sm:sr-only">Recurring</span>
                             </Badge>
                           ) : null}
                         </div>
@@ -211,22 +233,16 @@ export function Component() {
                             {transaction.note}
                           </p>
                         ) : null}
+                        <p className="text-muted-foreground line-clamp-1 text-xs md:hidden">
+                          {category ? <>{category} · </> : null}
+                          {account}
+                        </p>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {isTransfer
-                          ? '—'
-                          : transaction.category_id
-                            ? (categoryNames.get(transaction.category_id) ?? 'Unknown')
-                            : 'Uncategorised'}
+                      <TableCell className="text-muted-foreground hidden md:table-cell">
+                        {category ?? '—'}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {accountNames.get(transaction.account_id) ?? 'Unknown'}
-                        {isTransfer && transaction.counter_account_id ? (
-                          <span>
-                            {' '}
-                            → {accountNames.get(transaction.counter_account_id) ?? 'Unknown'}
-                          </span>
-                        ) : null}
+                      <TableCell className="text-muted-foreground hidden md:table-cell">
+                        {account}
                       </TableCell>
                       <TableCell className="text-right">
                         {/* A transfer is neither spending nor income, so it
