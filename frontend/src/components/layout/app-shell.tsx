@@ -2,6 +2,7 @@ import { Outlet } from 'react-router'
 
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { InviteBanner } from '@/components/layout/invite-banner'
+import { PageTrail } from '@/components/layout/page-trail'
 import { UserMenu } from '@/components/layout/user-menu'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Separator } from '@/components/ui/separator'
@@ -19,9 +20,12 @@ export function AppShell() {
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
-            <header className="bg-background/80 sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b px-4 backdrop-blur">
+            {/* A thin strip: the toggle, where you are, and the two account
+                controls. The page below carries its own heading. */}
+            <header className="bg-background sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b px-4">
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mr-2 !h-4" />
+              <PageTrail />
               <div className="flex-1" />
               <ThemeToggle />
               <UserMenu />
