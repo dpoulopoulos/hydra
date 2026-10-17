@@ -40,6 +40,13 @@ import { useCategories } from '@/hooks/use-categories'
 import { errorMessage } from '@/lib/api'
 import { formatDate } from '@/lib/month'
 import { emptyFilters, hasActiveFilters, toQuery, type Filters } from '@/lib/transaction-filters'
+import { cn } from '@/lib/utils'
+
+/**
+ * A tag on a row, such as "Recurring". Set small and grey, so it reads as a
+ * note beside the merchant rather than competing with it.
+ */
+const ROW_BADGE = 'text-muted-foreground h-4 shrink-0 gap-1 px-1.5 text-[11px] font-normal'
 
 export function Component() {
   // An amount is in the currency of the account it sits in.
@@ -178,15 +185,22 @@ export function Component() {
                         {formatDate(transaction.occurred_on, { day: 'numeric', month: 'short' })}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2 font-medium">
+                        {/* A transfer is money moved, not spent, so its row
+                            is set quieter than the ones that are. */}
+                        <div
+                          className={cn(
+                            'flex items-center gap-2',
+                            isTransfer && 'text-muted-foreground',
+                          )}
+                        >
                           {transaction.merchant ?? (isTransfer ? 'Transfer' : 'No description')}
                           {fromSession ? (
-                            <Badge variant="secondary" className="gap-1">
+                            <Badge variant="secondary" className={ROW_BADGE}>
                               <HandCoins className="size-3" />
                               Session
                             </Badge>
                           ) : transaction.is_generated ? (
-                            <Badge variant="secondary" className="gap-1">
+                            <Badge variant="secondary" className={ROW_BADGE}>
                               <Repeat className="size-3" />
                               Recurring
                             </Badge>
@@ -243,7 +257,7 @@ export function Component() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label="Manage transaction">
+                            <Button variant="ghost" size="icon-sm" aria-label="Manage transaction">
                               <MoreHorizontal className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -279,15 +293,18 @@ export function Component() {
                 })}
               </TableBody>
             </Table>
+            {/* Inside the card, as a footer strip, so the count and the paging
+                belong to the table rather than floating under it. */}
+            <div className="bg-muted/30 border-t px-3 py-2">
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                onPageChange={setPage}
+                noun="transaction"
+              />
+            </div>
           </Card>
-
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={total}
-            onPageChange={setPage}
-            noun="transaction"
-          />
         </>
       )}
 
