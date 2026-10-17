@@ -18,6 +18,10 @@ import { toColoredSlices } from '@/lib/chart-palette'
  * horizontal bars leave room for real category names instead of rotated
  * labels. A single measure, so no legend; the title names it, and each bar
  * carries its own value.
+ *
+ * One hue. The names sit on the axis, so colour has no identity to carry, and
+ * the brand hue keeps the chart in step with the rest of the app. Only the
+ * folded tail is neutral, so it never passes for a category.
  */
 export function SpendByCategoryChart({
   report,
@@ -35,7 +39,7 @@ export function SpendByCategoryChart({
     })),
   )
 
-  const data = rows.map((row) => ({ ...row, fill: row.color }))
+  const data = rows.map((row) => ({ ...row, fill: row.isOther ? row.color : 'var(--chart-1)' }))
 
   const config: ChartConfig = {
     amount: { label: 'Spent' },
@@ -45,7 +49,7 @@ export function SpendByCategoryChart({
     <ChartContainer
       config={config}
       className="h-full w-full"
-      style={{ height: rows.length * 40 + 24 }}
+      style={{ height: rows.length * 32 + 16 }}
     >
       <BarChart data={data} layout="vertical" margin={{ left: 4, right: 56, top: 4, bottom: 4 }}>
         <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-border" />
@@ -72,7 +76,7 @@ export function SpendByCategoryChart({
         <Bar
           dataKey="amount"
           radius={[0, 4, 4, 0]}
-          barSize={16}
+          barSize={20}
           label={{
             position: 'right',
             offset: 8,
