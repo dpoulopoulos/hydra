@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router'
 
+import { SETTINGS_PAGES } from '@/components/layout/nav'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 
@@ -7,13 +8,7 @@ import { cn } from '@/lib/utils'
 export function SettingsNav() {
   const { user } = useAuth()
 
-  const items = [
-    { to: '/settings/household', label: 'Household' },
-    { to: '/settings/profile', label: 'Your profile' },
-    { to: '/settings/api-tokens', label: 'API tokens' },
-    { to: '/settings/bank', label: 'Banks' },
-    ...(user?.is_superuser ? [{ to: '/settings/users', label: 'All users' }] : []),
-  ]
+  const items = SETTINGS_PAGES.filter((item) => !item.adminOnly || user?.is_superuser)
 
   return (
     <nav className="flex gap-1 border-b" aria-label="Settings">

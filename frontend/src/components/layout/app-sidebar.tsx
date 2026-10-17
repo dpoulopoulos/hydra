@@ -1,20 +1,8 @@
-import {
-  ArrowLeftRight,
-  ChartColumnIncreasing,
-  Flag,
-  HandCoins,
-  Inbox,
-  LayoutDashboard,
-  Repeat,
-  Settings,
-  Tags,
-  Target,
-  TrendingUp,
-  Wallet,
-} from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { NavLink } from 'react-router'
 
 import { Logo } from '@/components/layout/logo'
+import { NAV_GROUPS } from '@/components/layout/nav'
 import {
   Sidebar,
   SidebarContent,
@@ -32,25 +20,6 @@ import { useAuth } from '@/hooks/use-auth'
 import { usePendingBankCount } from '@/hooks/use-bank'
 import { useHousehold } from '@/hooks/use-household'
 
-const money = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
-  { to: '/inbox', label: 'Inbox', icon: Inbox },
-  { to: '/accounts', label: 'Accounts', icon: Wallet },
-  // Only for a user who turned it on: see `clientsOnly` below.
-  { to: '/clients', label: 'Clients', icon: HandCoins, clientsOnly: true },
-  { to: '/investments', label: 'Investments', icon: TrendingUp },
-]
-
-const planning = [
-  { to: '/budgets', label: 'Budgets', icon: Target },
-  { to: '/goals', label: 'Goals', icon: Flag },
-  { to: '/recurring', label: 'Recurring', icon: Repeat },
-  { to: '/categories', label: 'Categories', icon: Tags },
-]
-
-const insight = [{ to: '/reports', label: 'Reports', icon: ChartColumnIncreasing }]
-
 export function AppSidebar() {
   const { data: household } = useHousehold()
   const { user } = useAuth()
@@ -60,7 +29,10 @@ export function AppSidebar() {
 
   // Clients is for people paid by the session. It only shows for a user who
   // turned it on, so someone on a salary never meets it.
-  const moneyItems = money.filter((item) => !item.clientsOnly || user?.clients_enabled)
+  const groups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !item.clientsOnly || user?.clients_enabled),
+  }))
 
   return (
     <Sidebar collapsible="icon">
@@ -83,11 +55,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {[
-          { label: 'Money', items: moneyItems },
-          { label: 'Planning', items: planning },
-          { label: 'Insight', items: insight },
-        ].map((group) => (
+        {groups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>
