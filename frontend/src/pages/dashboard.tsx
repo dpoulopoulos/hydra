@@ -49,20 +49,6 @@ const NET_WORTH_LABELS: Record<NetWorthPart, string> = {
   total: 'Net worth',
 }
 
-/**
- * What each part actually counts.
- *
- * Said in one line each, because the three are easy to confuse and the
- * difference between "cash at a broker" and "what the holdings are worth" is
- * exactly the one people get wrong.
- */
-const NET_WORTH_HINTS: Record<NetWorthPart, string> = {
-  bank: 'Banks, savings, cash and credit cards.',
-  brokerage: 'Cash with a broker that has not been spent on a holding yet.',
-  assets: 'What the holdings are worth at their last known price.',
-  total: 'Accounts and holdings together. Nothing is counted twice.',
-}
-
 export function Component() {
   const currency = useCurrency()
   const currencyOf = useAccountCurrency()
@@ -202,21 +188,22 @@ export function Component() {
               }
               currency={currency}
               action={<NetWorthToggle value={worthPart} onChange={setWorthPart} />}
+              // The tile leads with the number, so nothing is explained here
+              // that the dropdown's labels already say. Only what changes the
+              // reading of the figure gets a line under it.
               hint={
                 <span className="space-y-1">
-                  <span className="block">{NET_WORTH_HINTS[worthPart]}</span>
                   {/* Accounts in another currency are not converted into this
                       figure, so what they hold is said beside it instead. */}
                   {worthPart !== 'assets' && summary.data.other_currencies?.length ? (
                     <span className="block">
-                      Not counted, in other currencies:{' '}
+                      Not counted:{' '}
                       {summary.data.other_currencies.map((total, index) => (
-                        <span key={total.currency_code}>
-                          {index > 0 ? ', ' : null}
+                        <span key={total.currency_code} className="whitespace-nowrap">
+                          {index > 0 ? ' · ' : null}
                           <Money minor={total.amount_minor} currency={total.currency_code} />
                         </span>
                       ))}
-                      .
                     </span>
                   ) : null}
                   {/* Only where it changes the reading. A missing price makes
