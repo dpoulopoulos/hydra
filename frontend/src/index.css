@@ -139,6 +139,15 @@
   --chart-6: oklch(0.64 0.14 234);
   --chart-7: oklch(0.6 0.14 131);
 }
+/* A row that scrolls sideways without showing a bar for it, such as a tab
+   strip on a phone. The content still scrolls by touch or wheel. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
