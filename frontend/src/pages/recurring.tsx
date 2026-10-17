@@ -250,10 +250,12 @@ export function Component() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Rule</TableHead>
-                <TableHead>Schedule</TableHead>
-                <TableHead>Account</TableHead>
-                <TableHead>Next</TableHead>
+                <TableHead className="w-full">Rule</TableHead>
+                {/* Below a medium width these three fold into a line under
+                    the rule, so a phone keeps the amount on screen. */}
+                <TableHead className="hidden md:table-cell">Schedule</TableHead>
+                <TableHead className="hidden md:table-cell">Account</TableHead>
+                <TableHead className="hidden md:table-cell">Next</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
@@ -261,8 +263,8 @@ export function Component() {
             <TableBody>
               {rules.data.data.map((rule) => (
                 <TableRow key={rule.id} className={rule.is_active ? undefined : 'opacity-60'}>
-                  <TableCell>
-                    <div className="flex items-center gap-2 font-medium">
+                  <TableCell className="w-full max-w-0">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 font-medium">
                       {rule.name}
                       {!rule.is_active ? <Badge variant="secondary">Paused</Badge> : null}
                       {/* Not a pause the household chose: the rule is willing
@@ -288,14 +290,21 @@ export function Component() {
                     {rule.merchant ? (
                       <p className="text-muted-foreground text-xs">{rule.merchant}</p>
                     ) : null}
+                    <p className="text-muted-foreground truncate text-xs md:hidden">
+                      {describeSchedule(rule.frequency, rule.interval, rule.day_of_month)} ·{' '}
+                      {accountNames.get(rule.account_id) ?? 'Unknown'} ·{' '}
+                      {rule.next_occurrence_on
+                        ? `Next ${formatDate(rule.next_occurrence_on)}`
+                        : 'Finished'}
+                    </p>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-muted-foreground hidden md:table-cell">
                     {describeSchedule(rule.frequency, rule.interval, rule.day_of_month)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-muted-foreground hidden md:table-cell">
                     {accountNames.get(rule.account_id) ?? 'Unknown'}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-muted-foreground hidden md:table-cell">
                     {rule.next_occurrence_on ? formatDate(rule.next_occurrence_on) : 'Finished'}
                   </TableCell>
                   <TableCell className="text-right">
@@ -304,7 +313,7 @@ export function Component() {
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label={`Manage ${rule.name}`}>
+                        <Button variant="ghost" size="icon-sm" aria-label={`Manage ${rule.name}`}>
                           <MoreHorizontal className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>

@@ -165,37 +165,43 @@ export function Component() {
     { hideType = false, hideIban = false } = {},
   ) => (
     <Card className="overflow-hidden py-0">
-      <Table className="min-w-[62rem] table-fixed">
+      {/* Below a medium width the lesser columns fold into a line under the
+          name, so a phone keeps the balance on screen. */}
+      <Table className="md:min-w-[62rem] md:table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-72">Account</TableHead>
-            {hideType ? null : <TableHead className="w-36">Type</TableHead>}
-            {hideIban ? null : <TableHead className="w-72">IBAN</TableHead>}
-            <TableHead />
-            <TableHead className="w-36">Tracking since</TableHead>
-            <TableHead className="w-32 text-right">Balance</TableHead>
+            <TableHead className="w-full md:w-72">Account</TableHead>
+            {hideType ? null : <TableHead className="hidden md:table-cell md:w-36">Type</TableHead>}
+            {hideIban ? null : <TableHead className="hidden md:table-cell md:w-72">IBAN</TableHead>}
+            <TableHead className="hidden md:table-cell" />
+            <TableHead className="hidden md:table-cell md:w-36">Tracking since</TableHead>
+            <TableHead className="text-right md:w-32">Balance</TableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((account) => (
             <TableRow key={account.id} className={account.archived_at ? 'opacity-60' : undefined}>
-              <TableCell>
-                <div className="flex items-center gap-2 font-medium">
+              <TableCell className="w-full max-w-0">
+                <div className="flex min-w-0 flex-wrap items-center gap-2 font-medium">
                   {account.name}
                   {account.archived_at ? <Badge variant="secondary">Archived</Badge> : null}
                 </div>
                 {account.institution ? (
                   <p className="text-muted-foreground text-xs">{account.institution}</p>
                 ) : null}
+                <p className="text-muted-foreground truncate text-xs md:hidden">
+                  {hideType ? null : <>{ACCOUNT_TYPE_LABELS[account.type] ?? account.type} · </>}
+                  Since {formatDate(account.opening_balance_date)}
+                </p>
               </TableCell>
               {hideType ? null : (
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-muted-foreground hidden md:table-cell">
                   {ACCOUNT_TYPE_LABELS[account.type] ?? account.type}
                 </TableCell>
               )}
               {hideIban ? null : (
-                <TableCell>
+                <TableCell className="hidden md:table-cell">
                   {account.iban ? (
                     <div className="flex items-center gap-1">
                       {/* Grouped in fours to read it, copied compact to use
@@ -211,8 +217,8 @@ export function Component() {
                   )}
                 </TableCell>
               )}
-              <TableCell />
-              <TableCell className="text-muted-foreground">
+              <TableCell className="hidden md:table-cell" />
+              <TableCell className="text-muted-foreground hidden md:table-cell">
                 {formatDate(account.opening_balance_date)}
               </TableCell>
               <TableCell className="text-right">
@@ -225,7 +231,7 @@ export function Component() {
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label={`Manage ${account.name}`}>
+                    <Button variant="ghost" size="icon-sm" aria-label={`Manage ${account.name}`}>
                       <MoreHorizontal className="size-4" />
                     </Button>
                   </DropdownMenuTrigger>
