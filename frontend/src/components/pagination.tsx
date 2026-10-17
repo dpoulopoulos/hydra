@@ -10,7 +10,7 @@ import {
 
 // The sizes on offer when a table lets you choose. Kept unexported: a constant
 // leaving a component file costs fast refresh, and nothing outside needs it.
-const PAGE_SIZES = [10, 20, 50, 100]
+const PAGE_SIZES = [10, 20, 30, 50, 100]
 
 /**
  * The row under a table: how many rows there are, and how to move between

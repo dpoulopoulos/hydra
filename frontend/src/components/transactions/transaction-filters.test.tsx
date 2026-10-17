@@ -26,12 +26,7 @@ function renderFilters() {
   })
   render(
     <QueryClientProvider client={client}>
-      <TransactionFilters
-        filters={emptyFilters}
-        onChange={() => {}}
-        pageSize={30}
-        onPageSizeChange={() => {}}
-      />
+      <TransactionFilters filters={emptyFilters} onChange={() => {}} />
     </QueryClientProvider>,
   )
 }

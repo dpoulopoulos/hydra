@@ -122,12 +122,6 @@ export function Component() {
               // A narrower list starts from its first page.
               setPage(0)
             }}
-            pageSize={pageSize}
-            onPageSizeChange={(next) => {
-              setPageSize(next)
-              // Page four of fifty is not page four of ten.
-              setPage(0)
-            }}
           />
         </CardContent>
       </Card>
@@ -317,6 +311,11 @@ export function Component() {
                 pageSize={pageSize}
                 total={total}
                 onPageChange={setPage}
+                onPageSizeChange={(next) => {
+                  setPageSize(next)
+                  // Page four of fifty is not page four of ten.
+                  setPage(0)
+                }}
                 noun="transaction"
               />
             </div>
