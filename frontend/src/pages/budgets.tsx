@@ -29,6 +29,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { Money } from '@/components/money'
 import { MonthPicker } from '@/components/month-picker'
 import { OtherCurrenciesNote } from '@/components/other-currencies-note'
+import { StatTile } from '@/components/stat-tile'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -150,39 +151,24 @@ export function Component() {
         </EmptyState>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardHeader className="gap-1">
-                <CardDescription>Budgeted</CardDescription>
-                <CardTitle className="text-2xl">
-                  <Money minor={progress.data.total_limit_minor} currency={currency} />
-                </CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="gap-1">
-                <CardDescription>Spent against it</CardDescription>
-                <CardTitle className="text-2xl">
-                  <Money minor={progress.data.total_spent_minor} currency={currency} />
-                </CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="gap-1">
-                <CardDescription>
-                  {progress.data.total_remaining_minor < 0 ? 'Over budget' : 'Still available'}
-                </CardDescription>
-                <CardTitle className="text-2xl">
-                  <Money
-                    minor={Math.abs(progress.data.total_remaining_minor)}
-                    currency={currency}
-                    className={
-                      progress.data.total_remaining_minor < 0 ? 'text-negative' : 'text-positive'
-                    }
-                  />
-                </CardTitle>
-              </CardHeader>
-            </Card>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+            <StatTile
+              label="Budgeted"
+              minor={progress.data.total_limit_minor}
+              currency={currency}
+            />
+            <StatTile
+              label="Spent against it"
+              minor={progress.data.total_spent_minor}
+              currency={currency}
+            />
+            <StatTile
+              className="max-sm:col-span-2"
+              label={progress.data.total_remaining_minor < 0 ? 'Over budget' : 'Still available'}
+              minor={Math.abs(progress.data.total_remaining_minor)}
+              currency={currency}
+              tone={progress.data.total_remaining_minor < 0 ? 'negative' : 'positive'}
+            />
           </div>
 
           <Card>
