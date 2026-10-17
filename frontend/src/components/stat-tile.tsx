@@ -62,7 +62,10 @@ export function StatTile({
             the full width of the tile instead of being squeezed against it. */}
         {action ? <CardAction className="row-span-1">{action}</CardAction> : null}
         <CardTitle
-          className={cn('col-span-full text-2xl font-semibold tracking-tight sm:text-3xl', color)}
+          className={cn(
+            'col-span-full font-mono text-2xl font-semibold tracking-tight sm:text-3xl',
+            color,
+          )}
         >
           <Money minor={minor} currency={currency} signed={signed} />
         </CardTitle>
