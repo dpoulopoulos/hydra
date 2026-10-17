@@ -31,7 +31,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { useAccountCurrency } from '@/hooks/use-accounts'
 import { useCurrency } from '@/hooks/use-household'
-import { currentMonth, formatDate, formatMonth } from '@/lib/month'
+import { currentMonth, formatDate, formatMonth, shiftMonth } from '@/lib/month'
 
 /** A greeting that reads naturally at the hour it is shown. */
 function greeting(name: string | null | undefined): string {
@@ -116,6 +116,14 @@ export function Component() {
 
   const overBudget = (budgets.data?.rows ?? []).filter((row) => row.is_over_budget)
 
+  // Last month, to set this month's figures against. The year's flows already
+  // carry it, except for January, whose last month is in another year; that
+  // tile then simply has nothing to compare with.
+  const lastMonth = shiftMonth(month, -1)
+  const previous = flows.data?.months.find((row) => row.month === lastMonth)
+  const against = (minor: number | undefined) =>
+    minor === undefined ? undefined : { minor, label: formatMonth(lastMonth, { month: 'long' }) }
+
   return (
     <>
       <PageHeader
@@ -141,12 +149,14 @@ export function Component() {
               minor={summary.data.income_minor}
               currency={currency}
               tone="positive"
+              compare={against(previous?.income_minor)}
             />
             <StatTile
               label="Money out"
               minor={summary.data.expense_minor}
               currency={currency}
               tone="negative"
+              compare={against(previous?.expense_minor)}
             />
             <StatTile
               label="Saved"
@@ -158,6 +168,9 @@ export function Component() {
               currency={currency}
               signed
               tone="auto"
+              // The year's figure has no "last year" to hand, so only the
+              // month is set against the one before it.
+              compare={savedSpan === 'month' ? against(previous?.net_minor) : undefined}
               hint={
                 // The toggle below is dead without the year's figures, so say
                 // why rather than leaving it inert with no cause shown.
